@@ -1527,7 +1527,7 @@ export default function ClubStats() {
 								{!isDataTableMode && (
 									<div id='club-key-performance-stats' className='md:break-inside-avoid md:mb-4'>
 										<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-							<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Key Club Stats</h3>
+							<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Key Performance Stats</h3>
 							<div className='grid grid-cols-2 md:grid-cols-2 gap-2 md:gap-4'>
 								<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
 									<div className='flex-shrink-0'>

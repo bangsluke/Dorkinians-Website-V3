@@ -30,6 +30,13 @@ export async function GET(request: NextRequest) {
 			ORDER BY wt.season DESC
 		`;
 
+		// Check if SeasonTOTW node with season="All Time" exists
+		const allTimeQuery = `
+			MATCH (st:SeasonTOTW {graphLabel: $graphLabel, season: 'All Time'})
+			RETURN st
+			LIMIT 1
+		`;
+
 		// Fetch current season and latest gameweek from SiteDetail node
 		const currentSeasonQuery = `
 			MATCH (sd:SiteDetail {graphLabel: $graphLabel})
@@ -39,12 +46,18 @@ export async function GET(request: NextRequest) {
 			LIMIT 1
 		`;
 
-		const [seasonsResult, currentSeasonResult] = await Promise.all([
+		const [seasonsResult, allTimeResult, currentSeasonResult] = await Promise.all([
 			neo4jService.runQuery(seasonsQuery, { graphLabel }),
+			neo4jService.runQuery(allTimeQuery, { graphLabel }),
 			neo4jService.runQuery(currentSeasonQuery, { graphLabel }),
 		]);
 
 		const seasons = seasonsResult.records.map((record: Record) => String(record.get("season") || ""));
+		
+		// If "All Time" SeasonTOTW exists, add it at the top of the seasons array
+		if (allTimeResult.records.length > 0) {
+			seasons.unshift("All Time");
+		}
 		const currentSeasonRecord = currentSeasonResult.records[0];
 		const currentSeason = currentSeasonRecord ? String(currentSeasonRecord.get("currentSeason") || "") : null;
 		const latestGameweek = currentSeasonRecord ? String(currentSeasonRecord.get("latestGameweek") || "") : null;

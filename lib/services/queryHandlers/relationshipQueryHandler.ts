@@ -704,12 +704,25 @@ export class RelationshipQueryHandler {
 			       CASE WHEN awayGames > 0 THEN round(100.0 * totalDistance / awayGames) / 100.0 ELSE 0.0 END as averageDistance
 		`;
 
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$playerName/g, `'${playerName}'`)
+				.replace(/\$season/g, season ? `'${season}'` : 'null');
+			chatbotService.lastExecutedQueries.push(`DISTANCE_TRAVELED_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`DISTANCE_TRAVELED_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
 		try {
 			const result = await neo4jService.executeQuery(query, season ? { playerName, season, graphLabel } : { playerName, graphLabel });
 			if (result && result.length > 0) {
-				return { type: "distance_traveled", data: result[0], playerName, season };
+				return { type: "distance_traveled", data: result[0], playerName, season, cypherQuery: query };
 			}
-			return { type: "distance_traveled", data: { totalDistance: 0, awayGames: 0, averageDistance: 0 }, playerName, season };
+			return { type: "distance_traveled", data: { totalDistance: 0, awayGames: 0, averageDistance: 0 }, playerName, season, cypherQuery: query };
 		} catch (error) {
 			loggingService.log(`❌ Error in distance traveled query:`, error, "error");
 			return { type: "error", data: [], error: "Error querying distance traveled data" };

@@ -4,6 +4,16 @@ import { DateUtils } from "../chatbotUtils/dateUtils";
 import { neo4jService } from "../../../netlify/functions/lib/neo4j.js";
 
 export class PlayerQueryBuilder {
+	// Helper function to expand abbreviated season format (e.g., "20/21" -> "2020/21")
+	static expandAbbreviatedSeason(startYear: string, endYear: string): string {
+		const start = parseInt(startYear, 10);
+		const end = parseInt(endYear, 10);
+		// If start year is 2 digits and < 50, assume 2000s (20 -> 2020)
+		// If start year is 2 digits and >= 50, assume 1900s (unlikely for this use case)
+		const fullStartYear = start < 50 ? 2000 + start : 1900 + start;
+		return `${fullStartYear}/${endYear}`;
+	}
+
 	/**
 	 * Determines if a metric needs MatchDetail join or can use Player node directly
 	 */
@@ -216,6 +226,26 @@ export class PlayerQueryBuilder {
 			case "POINTS":
 			case "FANTASYPOINTS":
 				return "coalesce(sum(CASE WHEN md.fantasyPoints IS NULL OR md.fantasyPoints = '' THEN 0 ELSE md.fantasyPoints END), 0) as value";
+			case "PCO":
+				return "coalesce(sum(CASE WHEN md.penaltiesConceded IS NULL OR md.penaltiesConceded = '' THEN 0 ELSE md.penaltiesConceded END), 0) as value";
+			case "PM":
+				return "coalesce(sum(CASE WHEN md.penaltiesMissed IS NULL OR md.penaltiesMissed = '' THEN 0 ELSE md.penaltiesMissed END), 0) as value";
+			case "PSV":
+				return "coalesce(sum(CASE WHEN md.penaltiesSaved IS NULL OR md.penaltiesSaved = '' THEN 0 ELSE md.penaltiesSaved END), 0) as value";
+			case "PSC":
+				return "coalesce(sum(CASE WHEN md.penaltiesScored IS NULL OR md.penaltiesScored = '' THEN 0 ELSE md.penaltiesScored END), 0) as value";
+			case "C":
+				return "coalesce(sum(CASE WHEN md.conceded IS NULL OR md.conceded = '' THEN 0 ELSE md.conceded END), 0) as value";
+			case "CLS":
+				return "coalesce(sum(CASE WHEN md.cleanSheets IS NULL OR md.cleanSheets = '' THEN 0 ELSE md.cleanSheets END), 0) as value";
+			case "OG":
+				return "coalesce(sum(CASE WHEN md.ownGoals IS NULL OR md.ownGoals = '' THEN 0 ELSE md.ownGoals END), 0) as value";
+			case "SAVES":
+				return "coalesce(sum(CASE WHEN md.saves IS NULL OR md.saves = '' THEN 0 ELSE md.saves END), 0) as value";
+			case "MIN":
+				return "coalesce(sum(CASE WHEN md.minutes IS NULL OR md.minutes = '' THEN 0 ELSE md.minutes END), 0) as value";
+			case "MOM":
+				return "coalesce(sum(CASE WHEN md.mom IS NULL OR md.mom = '' THEN 0 ELSE md.mom END), 0) as value";
 			// Team-specific appearance metrics (1sApps, 2sApps, etc.)
 			default:
 				// Check if it's a team-specific appearance metric
@@ -530,79 +560,192 @@ export class PlayerQueryBuilder {
 		const isAppearanceOrGoalsQuery = metricUpper === "APP" || metricUpper === "G" || metricUpper === "A";
 		const dateField = (isAppearanceOrGoalsQuery || !needsFixture) ? "md.date" : "f.date";
 		
-		// Check for "during [YEAR]" pattern in question (e.g., "during 2023")
-		// This pattern might not be extracted as a timeFrame, so we check the question directly
-		const duringYearMatch = questionLower.match(/\bduring\s+(\d{4})\b/);
-		if (duringYearMatch && !isTeamSpecificMetric) {
-			const year = parseInt(duringYearMatch[1], 10);
-			if (!isNaN(year) && year >= 2000 && year <= 2100) {
-				const startDate = `${year}-01-01`;
-				const endDate = `${year}-12-31`;
-				whereConditions.push(`${dateField} >= '${startDate}' AND ${dateField} <= '${endDate}'`);
-			}
-		} else if (isValidTimeRange && !isTeamSpecificMetric) {
-			// Check if we have a "before" type timeFrame in extractionResult (check this FIRST)
-			const beforeFrame = analysis.extractionResult?.timeFrames?.find((tf) => tf.type === "before");
-			
-			// Check if we have a "since" type timeFrame in extractionResult
-			const sinceFrame = analysis.extractionResult?.timeFrames?.find((tf) => tf.type === "since");
-			
-			if (beforeFrame) {
-				// Handle "before [SEASON]" pattern - convert season to start date and use < operator
-				const seasonValue = beforeFrame.value;
-				// Check if it's a season format (e.g., "2020/21" or "2020-21")
-				const seasonMatch = seasonValue.match(/(\d{4})[\/\-](\d{2})/);
-				if (seasonMatch) {
-					const seasonStartDate = DateUtils.convertSeasonToStartDate(seasonValue);
-					whereConditions.push(`${dateField} < '${seasonStartDate}'`);
-				} else {
-					// Try to parse as a year and use January 1st of that year
-					const year = parseInt(seasonValue, 10);
-					if (!isNaN(year)) {
-						whereConditions.push(`${dateField} < '${year}-01-01'`);
-					}
-				}
-			} else if (sinceFrame) {
-				// Handle "since [YEAR]" pattern - convert to first date after that year
-				// Extract year from phrases like "2019ish", "like 2019ish", "2019-ish", etc.
-				let year: number | null = null;
-				const yearMatch = sinceFrame.value.match(/\b(20\d{2})\b/);
-				if (yearMatch) {
-					year = parseInt(yearMatch[1], 10);
-				} else {
-					// Fallback to direct parsing if no match found
-					year = parseInt(sinceFrame.value, 10);
-				}
-				
-				if (!isNaN(year) && year >= 2000 && year <= 2100) {
-					const startDate = DateUtils.convertSinceYearToDate(year);
-					whereConditions.push(`${dateField} >= '${startDate}'`);
-				}
+		
+		// Check for season timeFrame FIRST (before other time range processing)
+		// This handles questions like "How many appearances in 2016/17 season?"
+		const seasonFrame = analysis.extractionResult?.timeFrames?.find((tf) => tf.type === "season");
+		if (seasonFrame && !isTeamSpecificMetric) {
+			let season = seasonFrame.value;
+			// Validate that seasonFrame.value is actually a season format, not the literal word "season"
+			// Check if it matches a valid season pattern (YYYY/YY or YY/YY)
+			const isValidSeasonFormat = /^(\d{4}|\d{2})[\/\-](\d{2})$/.test(season);
+			if (!isValidSeasonFormat) {
+				// If seasonFrame.value is not a valid format (e.g., literal "season"), skip it and fall through to other checks
 			} else {
-				// Check if this is a date range or single date
-				// First try to get from timeRange, then fallback to timeFrames
-				let dateRangeValue = timeRange;
-				if (!dateRangeValue) {
-					// Fallback: check timeFrames for range type
-					const rangeFrame = analysis.extractionResult?.timeFrames?.find((tf) => tf.type === "range" && tf.value.includes(" to "));
-					if (rangeFrame) {
-						dateRangeValue = rangeFrame.value;
+				// Expand abbreviated format if needed (20/21 -> 2020/21)
+				if (/^\d{2}[\/\-]\d{2}$/.test(season)) {
+					const seasonMatch = season.match(/(\d{2})[\/\-](\d{2})/);
+					if (seasonMatch) {
+						season = PlayerQueryBuilder.expandAbbreviatedSeason(seasonMatch[1], seasonMatch[2]);
 					}
 				}
+				// Normalize season format - handle both slash and dash formats
+				// Convert dash to slash for consistency, but check both formats in query
+				const normalizedSeason = season.replace("-", "/");
+				const dashSeason = season.replace("/", "-");
+				// Use md.season field for MatchDetail queries, f.season for Fixture queries
+				// Check both slash and dash formats since database may store either
+				const seasonField = (isAppearanceOrGoalsQuery || !needsFixture) ? "md.season" : "f.season";
+				whereConditions.push(`(${seasonField} = '${normalizedSeason}' OR ${seasonField} = '${dashSeason}')`);
+			}
+		}
+		// Check timeRange or question text if seasonFrame was invalid or not found
+		if ((!seasonFrame || !/^(\d{4}|\d{2})[\/\-](\d{2})$/.test(seasonFrame?.value || "")) && timeRange && !isTeamSpecificMetric) {
+			// Check if timeRange itself is a season string (fallback if not extracted as season timeFrame)
+			// Try full format first (2019/20)
+			let seasonMatch = timeRange.match(/^(\d{4})[\/\-](\d{2})$/);
+			if (seasonMatch && !timeRange.includes(" to ")) {
 				
-				if (dateRangeValue) {
-					const dateRange = dateRangeValue.split(" to ");
-					
-					if (dateRange.length === 2) {
-						// Handle date range (between X and Y)
-						const startDate = DateUtils.convertDateFormat(dateRange[0].trim());
-						const endDate = DateUtils.convertDateFormat(dateRange[1].trim());
-						whereConditions.push(`${dateField} >= '${startDate}' AND ${dateField} <= '${endDate}'`);
-					} else if (dateRange.length === 1) {
-						// Single date (could be from "since" pattern that was converted, or a single date query)
-						const startDate = DateUtils.convertDateFormat(dateRange[0].trim());
-						whereConditions.push(`${dateField} >= '${startDate}'`);
+				// Normalize season format
+				const normalizedSeason = timeRange.replace("-", "/");
+				const dashSeason = timeRange.replace("/", "-");
+				const seasonField = (isAppearanceOrGoalsQuery || !needsFixture) ? "md.season" : "f.season";
+				whereConditions.push(`(${seasonField} = '${normalizedSeason}' OR ${seasonField} = '${dashSeason}')`);
+				
+			} else {
+				// Try abbreviated format (20/21)
+				seasonMatch = timeRange.match(/^(\d{2})[\/\-](\d{2})$/);
+				if (seasonMatch && !timeRange.includes(" to ")) {
+					const expandedSeason = PlayerQueryBuilder.expandAbbreviatedSeason(seasonMatch[1], seasonMatch[2]);
+					const normalizedSeason = expandedSeason.replace("-", "/");
+					const dashSeason = expandedSeason.replace("/", "-");
+					const seasonField = (isAppearanceOrGoalsQuery || !needsFixture) ? "md.season" : "f.season";
+					whereConditions.push(`(${seasonField} = '${normalizedSeason}' OR ${seasonField} = '${dashSeason}')`);
+				} else {
+					// Check for "during [YEAR]" pattern in question (e.g., "during 2023")
+					// This pattern might not be extracted as a timeFrame, so we check the question directly
+					const duringYearMatch = questionLower.match(/\bduring\s+(\d{4})\b/);
+					if (duringYearMatch) {
+						const year = parseInt(duringYearMatch[1], 10);
+						if (!isNaN(year) && year >= 2000 && year <= 2100) {
+							const startDate = `${year}-01-01`;
+							const endDate = `${year}-12-31`;
+							whereConditions.push(`${dateField} >= '${startDate}' AND ${dateField} <= '${endDate}'`);
+						}
 					}
+					if (!duringYearMatch && isValidTimeRange) {
+						// Check if we have a "before" type timeFrame in extractionResult (check this FIRST)
+						const beforeFrame = analysis.extractionResult?.timeFrames?.find((tf) => tf.type === "before");
+						
+						// Check if we have a "since" type timeFrame in extractionResult
+						const sinceFrame = analysis.extractionResult?.timeFrames?.find((tf) => tf.type === "since");
+						
+						if (beforeFrame) {
+							// Handle "before [SEASON]" pattern - convert season to start date and use < operator
+							const seasonValue = beforeFrame.value;
+							// Check if it's a season format (e.g., "2020/21" or "2020-21")
+							const seasonMatch = seasonValue.match(/(\d{4})[\/\-](\d{2})/);
+							if (seasonMatch) {
+								const seasonStartDate = DateUtils.convertSeasonToStartDate(seasonValue);
+								whereConditions.push(`${dateField} < '${seasonStartDate}'`);
+							} else {
+								// Try to parse as a year and use January 1st of that year
+								const year = parseInt(seasonValue, 10);
+								if (!isNaN(year)) {
+									whereConditions.push(`${dateField} < '${year}-01-01'`);
+								}
+							}
+						} else if (sinceFrame) {
+							// Handle "since [YEAR]" pattern - convert to first date after that year
+							// Extract year from phrases like "2019ish", "like 2019ish", "2019-ish", etc.
+							let year: number | null = null;
+							const yearMatch = sinceFrame.value.match(/\b(20\d{2})\b/);
+							if (yearMatch) {
+								year = parseInt(yearMatch[1], 10);
+							} else {
+								// Fallback to direct parsing if no match found
+								year = parseInt(sinceFrame.value, 10);
+							}
+							
+							if (!isNaN(year) && year >= 2000 && year <= 2100) {
+								const startDate = DateUtils.convertSinceYearToDate(year);
+								whereConditions.push(`${dateField} >= '${startDate}'`);
+							}
+						} else {
+							// Check if this is a date range or single date
+							// First try to get from timeRange, then fallback to timeFrames
+							let dateRangeValue = timeRange;
+							// If timeRange doesn't contain " to " or is invalid, check timeFrames for range type
+							if (!dateRangeValue || !dateRangeValue.includes(" to ")) {
+								// Fallback: check timeFrames for range type
+								const rangeFrame = analysis.extractionResult?.timeFrames?.find((tf) => tf.type === "range" && tf.value && tf.value.includes(" to "));
+								if (rangeFrame) {
+									dateRangeValue = rangeFrame.value;
+									
+								}
+							}
+							
+							if (dateRangeValue) {
+								const dateRange = dateRangeValue.split(" to ");
+								
+								if (dateRange.length === 2) {
+									// Check if this is a year range (e.g., "2021 to 2022") that should be treated as season range
+									const startYearMatch = dateRange[0].trim().match(/^(\d{4})$/);
+									const endYearMatch = dateRange[1].trim().match(/^(\d{4})$/);
+									
+									if (startYearMatch && endYearMatch) {
+										
+										// Convert year range to date range (full calendar years)
+										const startYear = parseInt(startYearMatch[1], 10);
+										const endYear = parseInt(endYearMatch[1], 10);
+										const startDate = `${startYear}-01-01`;
+										const endDate = `${endYear}-12-31`;
+										whereConditions.push(`${dateField} >= '${startDate}' AND ${dateField} <= '${endDate}'`);
+										
+									} else {
+										// Handle date range (between X and Y)
+										const startDate = DateUtils.convertDateFormat(dateRange[0].trim());
+										const endDate = DateUtils.convertDateFormat(dateRange[1].trim());
+										whereConditions.push(`${dateField} >= '${startDate}' AND ${dateField} <= '${endDate}'`);
+										
+									}
+								} else if (dateRange.length === 1) {
+									// Check if single value is a season string
+									const singleSeasonMatch = dateRange[0].trim().match(/^(\d{4})[\/\-](\d{2})$/);
+									if (singleSeasonMatch) {
+										
+										const normalizedSeason = dateRange[0].trim().replace("-", "/");
+										const dashSeason = dateRange[0].trim().replace("/", "-");
+										const seasonField = (isAppearanceOrGoalsQuery || !needsFixture) ? "md.season" : "f.season";
+										whereConditions.push(`(${seasonField} = '${normalizedSeason}' OR ${seasonField} = '${dashSeason}')`);
+										
+									} else {
+										// Single date (could be from "since" pattern that was converted, or a single date query)
+										const startDate = DateUtils.convertDateFormat(dateRange[0].trim());
+										whereConditions.push(`${dateField} >= '${startDate}'`);
+										
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		// Check question text directly if seasonFrame was invalid or not found, and timeRange wasn't processed
+		const seasonFrameWasValid = seasonFrame && /^(\d{4}|\d{2})[\/\-](\d{2})$/.test(seasonFrame.value || "");
+		const timeRangeWasProcessed = timeRange && whereConditions.some(cond => cond.includes("season"));
+		if (!seasonFrameWasValid && !timeRangeWasProcessed && !isTeamSpecificMetric) {
+			// If no valid season frame or timeRange found, check question text directly for abbreviated seasons
+			// This handles cases where "20/21" or "21/22" wasn't extracted by the analyzer, or seasonFrame has invalid value like "season"
+			const questionText = analysis.question || "";
+			// Try full format first (2019/20) - use flexible pattern without word boundaries
+			let seasonMatch = questionText.match(/(\d{4})[\/\-](\d{2})/);
+			if (seasonMatch) {
+				const season = `${seasonMatch[1]}/${seasonMatch[2]}`;
+				const normalizedSeason = season.replace("-", "/");
+				const dashSeason = season.replace("/", "-");
+				const seasonField = (isAppearanceOrGoalsQuery || !needsFixture) ? "md.season" : "f.season";
+				whereConditions.push(`(${seasonField} = '${normalizedSeason}' OR ${seasonField} = '${dashSeason}')`);
+			} else {
+				// Try abbreviated format (20/21) - use flexible pattern without word boundaries
+				seasonMatch = questionText.match(/(\d{2})[\/\-](\d{2})/);
+				if (seasonMatch) {
+					const expandedSeason = PlayerQueryBuilder.expandAbbreviatedSeason(seasonMatch[1], seasonMatch[2]);
+					const normalizedSeason = expandedSeason.replace("-", "/");
+					const dashSeason = expandedSeason.replace("/", "-");
+					const seasonField = (isAppearanceOrGoalsQuery || !needsFixture) ? "md.season" : "f.season";
+					whereConditions.push(`(${seasonField} = '${normalizedSeason}' OR ${seasonField} = '${dashSeason}')`);
 				}
 			}
 		}
@@ -634,19 +777,24 @@ export class PlayerQueryBuilder {
 		}
 
 		// Add competition filter if specified (but not for team-specific appearance or goals queries)
+		// CRITICAL: Also skip competition filter for goals queries (G) with team entities
+		// This prevents "7s" from being treated as "Seven" competition when asking about goals for a team
 		// Use exact match (=) instead of CONTAINS as per schema requirements
 		// This applies to goals queries (G) and other metrics that need Fixture data
+		const isGoalsQueryWithTeam = (metricUpper === "G" || metricUpper === "ALLGSC" || metricUpper === "OPENPLAYGOALS") && teamEntities.length > 0;
 		if (analysis.competitions && analysis.competitions.length > 0 && 
 			!metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i) && 
 			!metric.match(/^\d+sApps$/i) &&
 			!metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Goals$/i) &&
-			!metric.match(/^\d+sGoals$/i)) {
+			!metric.match(/^\d+sGoals$/i) &&
+			!isGoalsQueryWithTeam) {
 			// Map competition names from pseudonyms to actual database values
 			const competitionFilters = analysis.competitions.map((comp) => {
 				// Use the competition name as-is (already mapped by extractCompetitions)
 				return `f.competition = '${comp}'`;
 			});
 			whereConditions.push(`(${competitionFilters.join(" OR ")})`);
+		} else if (analysis.competitions && analysis.competitions.length > 0) {
 		}
 
 		// Add result filter if specified (but not for team-specific metrics - they don't need Fixture)
@@ -810,7 +958,7 @@ export class PlayerQueryBuilder {
 			`;
 		} else if (metric.toUpperCase() === "GPERAPP" || metric === "GperAPP") {
 			return `
-				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
 				WITH p, 
 					sum(coalesce(md.goals, 0)) + sum(coalesce(md.penaltiesScored, 0)) as totalGoals,
 					count(md) as totalAppearances
@@ -979,10 +1127,11 @@ export class PlayerQueryBuilder {
 				WITH p, awayWins, homeGames, awayGames, (homeGames + awayGames) as totalGames
 				RETURN p.playerName as playerName, 
 					CASE 
-						WHEN awayGames > 0 THEN round(100.0 * awayWins / awayGames)
-						ELSE 0 
+						WHEN awayGames > 0 THEN 100.0 * awayWins / awayGames
+						ELSE 0.0 
 					END as value,
-					awayGames as totalGames
+					awayGames as totalGames,
+					awayWins as awayWins
 			`;
 		} else if (metricUpper === "GAMES%WON") {
 			return `
@@ -1335,12 +1484,15 @@ export class PlayerQueryBuilder {
 			}
 		} else if (metric === "NUMBERTEAMSPLAYEDFOR" || metric === "NumberTeamsPlayedFor") {
 			return `
-				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
 				WHERE md.team IS NOT NULL AND md.team <> "Fun XI"
 				WITH p, collect(DISTINCT md.team) as teams
-				RETURN p.playerName as playerName, size(teams) as value
+				MATCH (allMd:MatchDetail {graphLabel: $graphLabel})
+				WHERE allMd.team IS NOT NULL AND allMd.team <> "Fun XI"
+				WITH p, size(teams) as playerTeamCount, collect(DISTINCT allMd.team) as allTeams
+				RETURN p.playerName as playerName, playerTeamCount as value, size(allTeams) as totalTeamCount
 			`;
-		} else if (metric.toUpperCase() === "NUMBERSEASONSPLAYEDFOR" || metric === "NumberSeasonsPlayedFor" || metric.toUpperCase().includes("NUMBERSEASONSPLAYEDFOR")) {
+		} else if (metric.toUpperCase() === "NUMBERSEASONSPLAYEDFOR" || metric === "NumberSeasonsPlayedFor" || metric.toUpperCase().includes("NUMBERSEASONSPLAYEDFOR") || metric === "Season Count Simple" || metric.toUpperCase() === "SEASON COUNT SIMPLE" || metric === "SEASON_COUNT_SIMPLE" || metric.toUpperCase() === "SEASON_COUNT_SIMPLE") {
 			return `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
 				WHERE md.season IS NOT NULL AND md.season <> ""
@@ -1382,16 +1534,18 @@ export class PlayerQueryBuilder {
 		} else if (metric === "SEASON_COUNT_SIMPLE") {
 			return `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
-				MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
-				WHERE f.season IS NOT NULL
-				WITH p, collect(DISTINCT f.season) as seasons
-				WITH p, seasons, size(seasons) as seasonCount
-				UNWIND seasons as season
-				WITH p, seasonCount, season
+				WHERE md.season IS NOT NULL AND md.season <> ""
+				WITH p, collect(DISTINCT md.season) as playerSeasons
+				MATCH (allFixtures:Fixture {graphLabel: $graphLabel})
+				WHERE allFixtures.season IS NOT NULL AND allFixtures.season <> ""
+				WITH p, size(playerSeasons) as playerSeasonCount, collect(DISTINCT allFixtures.season) as allSeasons
+				UNWIND playerSeasons as season
+				WITH p, playerSeasonCount, allSeasons, season
 				ORDER BY season
-				WITH p, seasonCount, collect(season)[0] as firstSeason
-				RETURN p.playerName as playerName, 
-				       seasonCount as value,
+				WITH p, playerSeasonCount, size(allSeasons) as totalSeasonCount, collect(season)[0] as firstSeason
+				RETURN p.playerName as playerName,
+				       playerSeasonCount as value,
+				       totalSeasonCount,
 				       firstSeason
 			`;
 		} else if (metric.toUpperCase() === "MOSTSCOREDFORTEAM" || metric === "MostScoredForTeam") {
@@ -1443,7 +1597,16 @@ export class PlayerQueryBuilder {
 			
 			const mentionsGoals = questionLower.includes("goal") || questionLower.includes("scor");
 			const mentionsAssists = questionLower.includes("assist");
-			if (mentionsGoals && !mentionsAssists) {
+			const mentionsConceded = questionLower.includes("conceded");
+			const mentionsPenalties = questionLower.includes("penalt");
+			
+			// Only override to goals if:
+			// 1. Question mentions goals/scored
+			// 2. Question does NOT mention assists
+			// 3. Question does NOT mention conceded (goals conceded should use "conceded" field)
+			// 4. Question does NOT mention penalties (penalties scored should use "penaltiesScored" field)
+			// 5. A stat field wasn't already correctly identified from metrics (only override if still defaulting to "goals")
+			if (mentionsGoals && !mentionsAssists && !mentionsConceded && !mentionsPenalties && statField === "goals") {
 				statField = "goals";
 				statDisplayName = "goals";
 			}
@@ -1521,7 +1684,27 @@ export class PlayerQueryBuilder {
 		const hasCompetitionFilter = analysis.competitions && analysis.competitions.length > 0;
 		const hasCompetitionTypeFilter = analysis.competitionTypes && analysis.competitionTypes.length > 0;
 		const hasOppositionFilter = oppositionEntities.length > 0;
-		const hasTimeRangeFilter = timeRange !== undefined;
+		// Check for abbreviated seasons in question text if timeRange wasn't extracted
+		let hasTimeRangeFilter = timeRange !== undefined;
+		if (!hasTimeRangeFilter && analysis.question) {
+			// Check for full format first (2019/20) in case it wasn't extracted
+			const fullSeasonMatch = analysis.question.match(/(\d{4})[\/\-](\d{2})/);
+			if (fullSeasonMatch) {
+				hasTimeRangeFilter = true;
+			} else {
+				// Check for abbreviated season format (20/21, 21/22, etc.)
+				// Use a more flexible pattern that doesn't require word boundaries (handles "the 20/21 season")
+				// Only match if it looks like a season (first number 16-29 for years 2016-2029)
+				const abbreviatedSeasonMatch = analysis.question.match(/(\d{2})[\/\-](\d{2})/);
+				if (abbreviatedSeasonMatch) {
+					const startYear = parseInt(abbreviatedSeasonMatch[1], 10);
+					// Validate it's a reasonable season (16-29 for 2016-2029 seasons)
+					if (startYear >= 16 && startYear <= 29) {
+						hasTimeRangeFilter = true;
+					}
+				}
+			}
+		}
 		const hasResultFilter = analysis.results && analysis.results.length > 0;
 		const hasTeamExclusions = analysis.teamExclusions && analysis.teamExclusions.length > 0;
 		const metricUpper = metric.toUpperCase();
@@ -1562,6 +1745,7 @@ export class PlayerQueryBuilder {
 			(isGoalsQueryWithTeamFilter ? false : (teamEntities.length > 0)) ||
 			(locations.length > 0 && !fixtureDependentMetrics.has(metricUpper)) ||
 			(timeRange !== undefined && timeRange !== "") ||
+			hasTimeRangeFilter || // Also check hasTimeRangeFilter (includes detected seasons from question text)
 			oppositionEntities.length > 0 ||
 			fixtureDependentMetrics.has(metricUpper) ||
 			(analysis.competitionTypes && analysis.competitionTypes.length > 0) ||
@@ -1639,9 +1823,10 @@ export class PlayerQueryBuilder {
 					}
 				}
 				if (teamNameForWithClause) {
-					// Remove team filter from WHERE conditions
-					const teamFilterPattern = new RegExp(`toUpper\\(md\\.team\\)\\s*=\\s*toUpper\\('${teamNameForWithClause.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'\\)`, 'i');
-					whereConditions = whereConditions.filter(condition => !teamFilterPattern.test(condition));
+					// Remove team filter from WHERE conditions - match both = and IN formats
+					const teamFilterPattern1 = new RegExp(`toUpper\\(md\\.team\\)\\s*=\\s*toUpper\\('${teamNameForWithClause.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'\\)`, 'i');
+					const teamFilterPattern2 = new RegExp(`toUpper\\(md\\.team\\)\\s*IN\\s*\\[toUpper\\('${teamNameForWithClause.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'\\)\\]`, 'i');
+					whereConditions = whereConditions.filter(condition => !teamFilterPattern1.test(condition) && !teamFilterPattern2.test(condition));
 				}
 			}
 			// For team-specific goals metrics, also remove team filter from WHERE conditions (we'll filter in WITH clause)
@@ -1659,15 +1844,21 @@ export class PlayerQueryBuilder {
 					}
 				}
 				if (teamNameForGoals) {
-					const teamFilterPattern = new RegExp(`toUpper\\(md\\.team\\)\\s*=\\s*toUpper\\('${teamNameForGoals.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'\\)`, 'i');
-					whereConditions = whereConditions.filter(condition => !teamFilterPattern.test(condition));
+					// Remove team filter from WHERE conditions - match both = and IN formats
+					const teamFilterPattern1 = new RegExp(`toUpper\\(md\\.team\\)\\s*=\\s*toUpper\\('${teamNameForGoals.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'\\)`, 'i');
+					const teamFilterPattern2 = new RegExp(`toUpper\\(md\\.team\\)\\s*IN\\s*\\[toUpper\\('${teamNameForGoals.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'\\)\\]`, 'i');
+					whereConditions = whereConditions.filter(condition => !teamFilterPattern1.test(condition) && !teamFilterPattern2.test(condition));
 				}
 			}
 			// For goals queries with team entities (non-team-specific metric), also remove team filter from WHERE conditions (we'll filter in WITH clause)
 			if (hasTeamFilterForGoals && !hasTeamExclusions && teamEntities.length > 0) {
 				const teamNameForGoals = TeamMappingUtils.mapTeamName(teamEntities[0]);
-				const teamFilterPattern = new RegExp(`toUpper\\(md\\.team\\)\\s*=\\s*toUpper\\('${teamNameForGoals.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'\\)`, 'i');
-				whereConditions = whereConditions.filter(condition => !teamFilterPattern.test(condition));
+				// Match both formats: toUpper(md.team) = toUpper('...') and toUpper(md.team) IN [toUpper('...')]
+				// Use \\s* for IN to allow zero or more spaces (more flexible)
+				const teamFilterPattern1 = new RegExp(`toUpper\\(md\\.team\\)\\s*=\\s*toUpper\\('${teamNameForGoals.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'\\)`, 'i');
+				// Match IN format - use \\s* to allow zero or more spaces (more flexible)
+				const teamFilterPattern2 = new RegExp(`toUpper\\(md\\.team\\)\\s*IN\\s*\\[toUpper\\('${teamNameForGoals.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'\\)\\]`, 'i');
+				whereConditions = whereConditions.filter(condition => !teamFilterPattern1.test(condition) && !teamFilterPattern2.test(condition));
 			}
 
 			// Add WHERE clause if we have conditions
@@ -1805,6 +1996,7 @@ export class PlayerQueryBuilder {
 			}
 		}
 
+		
 		// Return the built query
 		return query;
 	}

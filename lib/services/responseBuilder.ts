@@ -129,7 +129,146 @@ export class ResponseBuilder {
 			}
 		}
 
+		// Special handling for HomeGames and AwayGames with zero value
+		if ((metric === "HomeGames" || metric.toUpperCase() === "HOMEGAMES" || metric === "Home Games" || metric.toUpperCase() === "HOME")) {
+			const numericValue = typeof value === "number" ? value : Number(value);
+			if (!Number.isNaN(numericValue) && numericValue === 0) {
+				return `${playerName} has not played a home game.`;
+			}
+		}
+		
+		if ((metric === "AwayGames" || metric.toUpperCase() === "AWAYGAMES" || metric === "Away Games" || metric.toUpperCase() === "AWAY")) {
+			const numericValue = typeof value === "number" ? value : Number(value);
+			if (!Number.isNaN(numericValue) && numericValue === 0) {
+				return `${playerName} has not played an away game.`;
+			}
+		}
+
+		// Special handling for season-specific appearance queries with zero value
+		// Check if this is an appearance query (APP metric) with 0 value and a season/range timeFrame
+		// This matches the logic in chatbotService.ts for empty array handling to ensure consistency
 		const numericValue = typeof value === "number" ? value : Number(value);
+		if ((metric === "APP" || metric.toUpperCase() === "APP" || resolvedMetricForDisplay.toUpperCase() === "APP") && 
+			!Number.isNaN(numericValue) && numericValue === 0) {
+			// Use original question from analysis if available for extraction
+			const questionText = analysis.question || "";
+			let season: string | null = null;
+			let dateRange: { start: string; end: string } | null = null;
+			
+			// Check for range timeFrame first (date ranges like "2021 to 2022")
+			const rangeFrame = analysis.extractionResult?.timeFrames?.find((tf) => tf.type === "range");
+			if (rangeFrame && rangeFrame.value.includes(" to ")) {
+				const rangeMatch = rangeFrame.value.match(/(\d{4})\s+to\s+(\d{4})/i);
+				if (rangeMatch) {
+					dateRange = { start: rangeMatch[1], end: rangeMatch[2] };
+				}
+			}
+			
+			// If no range frame, check timeRange directly
+			if (!dateRange && analysis.timeRange && analysis.timeRange.includes(" to ")) {
+				const rangeMatch = analysis.timeRange.match(/(\d{4})\s+to\s+(\d{4})/i);
+				if (rangeMatch) {
+					dateRange = { start: rangeMatch[1], end: rangeMatch[2] };
+				}
+			}
+			
+			// If no range, check question text for date range (try both question parameter and analysis.question)
+			if (!dateRange && questionText) {
+				const questionRangeMatch = questionText.match(/(\d{4})\s+to\s+(\d{4})/i);
+				if (questionRangeMatch) {
+					dateRange = { start: questionRangeMatch[1], end: questionRangeMatch[2] };
+				}
+			}
+			
+			// If we have a date range, use it
+			if (dateRange) {
+				return `${playerName} didn't make an appearance between ${dateRange.start} and ${dateRange.end}.`;
+			}
+			
+			// Check for season timeFrame in analysis
+			const seasonFrame = analysis.extractionResult?.timeFrames?.find((tf) => tf.type === "season");
+			if (seasonFrame) {
+				// Normalize season format (handle both slash and dash)
+				season = seasonFrame.value.replace("-", "/");
+			} else if (analysis.timeRange) {
+				const seasonMatch = analysis.timeRange.match(/(\d{4}[\/\-]\d{2})/i);
+				if (seasonMatch) {
+					season = seasonMatch[1].replace("-", "/");
+				}
+			} else if (questionText) {
+				const seasonMatch = questionText.match(/(\d{4})[\/\-](\d{2})/i);
+				if (seasonMatch) {
+					season = `${seasonMatch[1]}/${seasonMatch[2]}`;
+				}
+			}
+			
+			if (season) {
+				return `${playerName} didn't make an appearance in ${season}.`;
+			}
+		}
+
+		// Special handling for season-specific goals queries with zero value
+		// Check if this is a goals query (G metric) with 0 value and a season/range timeFrame
+		// This matches the logic in chatbotService.ts for empty array handling to ensure consistency
+		if ((metric === "G" || metric.toUpperCase() === "G" || metric.toUpperCase() === "GOALS" || metric.toUpperCase() === "GOAL" || resolvedMetricForDisplay.toUpperCase() === "G") && 
+			!Number.isNaN(numericValue) && numericValue === 0) {
+			// Use original question from analysis if available for extraction
+			const questionText = analysis.question || "";
+			let season: string | null = null;
+			let dateRange: { start: string; end: string } | null = null;
+			
+			// Check for range timeFrame first (date ranges like "2021 to 2022")
+			const rangeFrame = analysis.extractionResult?.timeFrames?.find((tf) => tf.type === "range");
+			if (rangeFrame && rangeFrame.value.includes(" to ")) {
+				const rangeMatch = rangeFrame.value.match(/(\d{4})\s+to\s+(\d{4})/i);
+				if (rangeMatch) {
+					dateRange = { start: rangeMatch[1], end: rangeMatch[2] };
+				}
+			}
+			
+			// If no range frame, check timeRange directly
+			if (!dateRange && analysis.timeRange && analysis.timeRange.includes(" to ")) {
+				const rangeMatch = analysis.timeRange.match(/(\d{4})\s+to\s+(\d{4})/i);
+				if (rangeMatch) {
+					dateRange = { start: rangeMatch[1], end: rangeMatch[2] };
+				}
+			}
+			
+			// If no range, check question text for date range (try both question parameter and analysis.question)
+			if (!dateRange && questionText) {
+				const questionRangeMatch = questionText.match(/(\d{4})\s+to\s+(\d{4})/i);
+				if (questionRangeMatch) {
+					dateRange = { start: questionRangeMatch[1], end: questionRangeMatch[2] };
+				}
+			}
+			
+			// If we have a date range, use it
+			if (dateRange) {
+				return `${playerName} did not score a goal between ${dateRange.start} and ${dateRange.end}.`;
+			}
+			
+			// Check for season timeFrame in analysis
+			const seasonFrame = analysis.extractionResult?.timeFrames?.find((tf) => tf.type === "season");
+			if (seasonFrame) {
+				// Normalize season format (handle both slash and dash)
+				season = seasonFrame.value.replace("-", "/");
+			} else if (analysis.timeRange) {
+				const seasonMatch = analysis.timeRange.match(/(\d{4}[\/\-]\d{2})/i);
+				if (seasonMatch) {
+					season = seasonMatch[1].replace("-", "/");
+				}
+			} else if (questionText) {
+				const seasonMatch = questionText.match(/(\d{4})[\/\-](\d{2})/i);
+				if (seasonMatch) {
+					season = `${seasonMatch[1]}/${seasonMatch[2]}`;
+				}
+			}
+			
+			if (season) {
+				return `${playerName} did not score in the ${season} season.`;
+			}
+		}
+
 		if (!Number.isNaN(numericValue) && numericValue === 0) {
 			const zeroResponse = getZeroStatResponse(resolvedMetricForDisplay, playerName, { metricDisplayName: metricName });
 			if (zeroResponse) {
@@ -234,6 +373,13 @@ export class ResponseBuilder {
 		if (isGoalMetric && !mentionsOpenPlay && finalMetricName.toLowerCase().includes("open play")) {
 			// Replace "open play goals" with "goals"
 			finalMetricName = finalMetricName.toLowerCase().replace("open play ", "").replace("openplay ", "");
+		}
+
+		// Special handling for open play goals - use "scored" verb and format as "open play goals"
+		const isOpenPlayGoalsMetric = resolvedMetricForDisplay.toUpperCase() === "OPENPLAYGOALS";
+		if (isOpenPlayGoalsMetric) {
+			verb = "scored";
+			finalMetricName = "open play goals";
 		}
 
 		// Special handling for red cards - match question phrasing for "sent off"

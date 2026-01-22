@@ -55,7 +55,7 @@ const statsNavigationItems = [
 		id: "club-stats" as StatsSubPage,
 		label: "Club Stats",
 		sections: [
-			{ id: "club-key-performance-stats", label: "Key Club Stats" },
+			{ id: "club-key-performance-stats", label: "Key Performance Stats" },
 			{ id: "club-team-comparison", label: "Team Comparison" },
 			{ id: "club-top-players", label: "Top Players" },
 			{ id: "club-seasonal-performance", label: "Seasonal Performance" },

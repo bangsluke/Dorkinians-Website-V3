@@ -329,6 +329,7 @@ export class EnhancedQuestionAnalyzer {
 		} else {
 			// Don't set clarification at analysis time for other cases - let queries run first
 			// Clarification will be requested only if queries return no data
+			// CRITICAL: Even if player name doesn't match userContext, if it's a full name, proceed without clarification
 			requiresClarification = false;
 		}
 
@@ -522,8 +523,8 @@ export class EnhancedQuestionAnalyzer {
 		const selectedPlayerLower = this.userContext.toLowerCase().trim();
 		const pronouns = ["i", "i've", "me", "my", "myself"];
 		// Common words that are unlikely to be player names but might be incorrectly extracted as player entities
-		// Includes: common nouns, competition names, location names, and other non-player terms
-		const commonWords = ["team", "teams", "week", "weeks", "weekend", "weekends", "history", "score", "scores", "goal", "goals", "time", "times", "row", "streak", "streaks", "consecutive", "clean", "sheet", "sheets", "premier", "league", "cup", "friendly", "competition", "competitions", "season", "seasons", "home", "away", "pixham", "opposition", "oppositions", "player", "players", "club", "games", "game", "matches", "match", "appearances", "appearance", "assists", "assist", "penalties", "penalty", "shootouts", "shootout", "sundays", "saturday", "saturdays", "january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december", "position", "positions", "finish", "finishes", "record", "records", "defensive", "involvements", "involvement", "number", "numbers", "highest", "longest", "best", "most", "combined", "shared", "pitch", "bang", "banged", "run", "runs", "total", "totals"];
+		// Includes: common nouns, competition names, location names, position words, and other non-player terms
+		const commonWords = ["team", "teams", "week", "weeks", "weekend", "weekends", "history", "score", "scores", "goal", "goals", "time", "times", "row", "streak", "streaks", "consecutive", "clean", "sheet", "sheets", "premier", "league", "cup", "friendly", "competition", "competitions", "season", "seasons", "home", "away", "pixham", "opposition", "oppositions", "player", "players", "club", "games", "game", "matches", "match", "appearances", "appearance", "assists", "assist", "penalties", "penalty", "shootouts", "shootout", "sundays", "saturday", "saturdays", "january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december", "position", "positions", "finish", "finishes", "record", "records", "defensive", "involvements", "involvement", "number", "numbers", "highest", "longest", "best", "most", "combined", "shared", "pitch", "bang", "banged", "run", "runs", "total", "totals", "goalkeeper", "goalkeepers", "keeper", "keepers", "goalie", "goalies", "defender", "defenders", "defence", "defense", "midfielder", "midfielders", "midfield", "forward", "forwards", "striker", "strikers", "attacker", "attackers"];
 
 		// Filter out pronouns and common words - only check actual potential player names
 		const nonPronounPlayerEntities = playerEntities.filter((entity) => {
@@ -556,18 +557,45 @@ export class EnhancedQuestionAnalyzer {
 			// Clean originalText: remove "(resolved to: ...)" suffix and handle any duplication
 			let originalText = entity.originalText.toLowerCase().trim().replace(/\s*\(resolved to:.*?\)$/i, "").trim();
 			// Handle duplication issue: if text contains the same word twice (e.g., "Luke Luke"), take only the first occurrence
+			// Also handle repeating phrase patterns (e.g., "Helder Freitas Helder Freitas" -> "Helder Freitas")
 			const words = originalText.split(/\s+/);
-			const uniqueWords: string[] = [];
-			for (const word of words) {
-				if (uniqueWords.length === 0 || uniqueWords[uniqueWords.length - 1] !== word) {
-					uniqueWords.push(word);
+			if (words.length >= 4) {
+				const midPoint = Math.floor(words.length / 2);
+				const firstHalf = words.slice(0, midPoint).join(" ");
+				const secondHalf = words.slice(midPoint).join(" ");
+				if (firstHalf === secondHalf) {
+					originalText = firstHalf;
+				} else {
+					// Check for shorter repeating patterns
+					for (let patternLen = 1; patternLen <= midPoint; patternLen++) {
+						const pattern = words.slice(0, patternLen).join(" ");
+						let matches = true;
+						for (let i = patternLen; i < words.length; i += patternLen) {
+							const segment = words.slice(i, i + patternLen).join(" ");
+							if (segment !== pattern) {
+								matches = false;
+								break;
+							}
+						}
+						if (matches && words.length % patternLen === 0) {
+							originalText = pattern;
+							break;
+						}
+					}
 				}
+			} else {
+				// For shorter names, just remove consecutive duplicates
+				const uniqueWords: string[] = [];
+				for (const word of words) {
+					if (uniqueWords.length === 0 || uniqueWords[uniqueWords.length - 1] !== word) {
+						uniqueWords.push(word);
+					}
+				}
+				originalText = uniqueWords.join(" ").trim();
 			}
-			originalText = uniqueWords.join(" ").trim();
 
 			// Check if it's a single word (partial name)
 			const isSingleWord = !originalText.includes(" ") && originalText.length >= 2 && originalText.length < 20;
-			
 			if (isSingleWord) {
 				// Check special case: "Twat" -> "Kieran Mackrell"
 				if (originalText === "twat") {
@@ -644,16 +672,44 @@ export class EnhancedQuestionAnalyzer {
 			if (!matchedPlayerName) {
 				const nonIPlayerEntities = playerEntities.filter((e) => {
 					// Check originalText (the text before fuzzy matching)
-					const originalText = e.originalText.toLowerCase().trim().replace(/\s*\(resolved to:.*?\)$/i, "").trim();
+					let originalText = e.originalText.toLowerCase().trim().replace(/\s*\(resolved to:.*?\)$/i, "").trim();
+					// Deduplicate repeating phrase patterns
+					const words = originalText.split(/\s+/);
+					if (words.length >= 4) {
+						const midPoint = Math.floor(words.length / 2);
+						const firstHalf = words.slice(0, midPoint).join(" ");
+						const secondHalf = words.slice(midPoint).join(" ");
+						if (firstHalf === secondHalf) {
+							originalText = firstHalf;
+						}
+					}
 					return originalText !== "i" && 
 						originalText !== "i've" && 
 						originalText !== "me" && 
 						originalText !== "my" && 
 						originalText !== "myself";
 				});
-				// If we have player entities that don't match the selected player, flag for clarification
+				// Only flag for clarification if the extracted names are partial (single word)
+				// Full names (multiple words) should proceed without clarification
 				if (nonIPlayerEntities.length > 0) {
-					hasAmbiguousPlayerName = true;
+					const hasFullName = nonIPlayerEntities.some((e) => {
+						let originalText = e.originalText.toLowerCase().trim().replace(/\s*\(resolved to:.*?\)$/i, "").trim();
+						// Deduplicate repeating phrase patterns
+						const words = originalText.split(/\s+/);
+						if (words.length >= 4) {
+							const midPoint = Math.floor(words.length / 2);
+							const firstHalf = words.slice(0, midPoint).join(" ");
+							const secondHalf = words.slice(midPoint).join(" ");
+							if (firstHalf === secondHalf) {
+								originalText = firstHalf;
+							}
+						}
+						return originalText.includes(" ") && originalText.split(/\s+/).length >= 2;
+					});
+					// Only require clarification if all names are partial (no full names found)
+					if (!hasFullName) {
+						hasAmbiguousPlayerName = true;
+					}
 				}
 			}
 		}
@@ -770,20 +826,59 @@ export class EnhancedQuestionAnalyzer {
 				});
 				if (nonIPlayerEntities.length > 0) {
 					// Use originalText for the clarification message to show what was actually extracted
+					// Deduplicate repeating phrase patterns (e.g., "Helder Freitas Helder Freitas" -> "Helder Freitas")
 					const playerNames = nonIPlayerEntities.map((e) => {
-						const originalText = e.originalText.replace(/\s*\(resolved to:.*?\)$/i, "").trim();
+						let originalText = e.originalText.replace(/\s*\(resolved to:.*?\)$/i, "").trim();
+						// Remove duplicate phrase patterns
+						const words = originalText.split(/\s+/);
+						if (words.length >= 4) {
+							const midPoint = Math.floor(words.length / 2);
+							const firstHalf = words.slice(0, midPoint).join(" ");
+							const secondHalf = words.slice(midPoint).join(" ");
+							if (firstHalf === secondHalf) {
+								originalText = firstHalf;
+							} else {
+								// Check for shorter repeating patterns
+								for (let patternLen = 1; patternLen <= midPoint; patternLen++) {
+									const pattern = words.slice(0, patternLen).join(" ");
+									let matches = true;
+									for (let i = patternLen; i < words.length; i += patternLen) {
+										const segment = words.slice(i, i + patternLen).join(" ");
+										if (segment !== pattern) {
+											matches = false;
+											break;
+										}
+									}
+									if (matches && words.length % patternLen === 0) {
+										originalText = pattern;
+										break;
+									}
+								}
+							}
+						}
 						return originalText;
-					}).join(", ");
-					// Check if it's a single first name (likely needs surname clarification)
-					const isSingleFirstName = nonIPlayerEntities.length === 1 && 
-						!playerNames.includes(" ") && 
-						playerNames.length > 0 && 
-						playerNames.length < 15; // Reasonable first name length
+					}).filter((name, index, self) => self.indexOf(name) === index); // Remove duplicate names
 					
-					if (isSingleFirstName) {
-						return `Please clarify which ${playerNames} you are asking about.`;
+					// Only require clarification if the extracted name is a partial name (single word)
+					// Full names (multiple words) should proceed without clarification, even if they don't match userContext
+					const uniquePlayerNames = [...new Set(playerNames)];
+					const hasFullName = uniquePlayerNames.some(name => name.includes(" ") && name.split(/\s+/).length >= 2);
+					if (!hasFullName) {
+						// All names are partial (single word) - require clarification
+						const playerNamesStr = uniquePlayerNames.join(", ");
+						// Check if it's a single first name (likely needs surname clarification)
+						const isSingleFirstName = uniquePlayerNames.length === 1 && 
+							!playerNamesStr.includes(" ") && 
+							playerNamesStr.length > 0 && 
+							playerNamesStr.length < 15; // Reasonable first name length
+						
+						if (isSingleFirstName) {
+							return `Please clarify which ${playerNamesStr} you are asking about.`;
+						}
+						return `I found a player name "${playerNamesStr}" in your question, but it doesn't match the selected player "${this.userContext}". Please provide the full player name you're asking about, or confirm if you meant "${this.userContext}".`;
 					}
-					return `I found a player name "${playerNames}" in your question, but it doesn't match the selected player "${this.userContext}". Please provide the full player name you're asking about, or confirm if you meant "${this.userContext}".`;
+					// Full name extracted - don't require clarification, proceed with the extracted name
+					// Don't return a clarification message - let the query proceed with the extracted name
 				}
 			}
 		}
@@ -980,11 +1075,21 @@ export class EnhancedQuestionAnalyzer {
 
 		// Check for team ranking queries (which team has fewest/most...) - BEFORE general ranking check
 		// This must be checked early to avoid misclassification as player due to "conceded" being a player indicator
+		// BUT: Exclude player-specific queries like "which team has [player] scored the most goals for?"
+		const isPlayerSpecificTeamQuery = 
+			(lowerQuestion.includes("which team") || lowerQuestion.includes("what team")) &&
+			lowerQuestion.includes("most") &&
+			lowerQuestion.includes("for") &&
+			(hasPlayerEntities || 
+			 // Also check for player name patterns in the question itself - "has [name] scored/made/played"
+			 (lowerQuestion.includes("has") && (lowerQuestion.includes("scored") || lowerQuestion.includes("made") || lowerQuestion.includes("played"))));
+		
 		if (
 			(lowerQuestion.includes("which team") || lowerQuestion.includes("what team")) &&
 			(lowerQuestion.includes("fewest") || lowerQuestion.includes("most") || lowerQuestion.includes("least") || 
 			 lowerQuestion.includes("highest") || lowerQuestion.includes("lowest")) &&
-			(lowerQuestion.includes("conceded") || lowerQuestion.includes("scored") || lowerQuestion.includes("goals") || lowerQuestion.includes("history"))
+			(lowerQuestion.includes("conceded") || lowerQuestion.includes("scored") || lowerQuestion.includes("goals") || lowerQuestion.includes("history")) &&
+			!isPlayerSpecificTeamQuery
 		) {
 			return "club";
 		}
@@ -1061,8 +1166,27 @@ export class EnhancedQuestionAnalyzer {
 			(lowerQuestion.includes("highest") || lowerQuestion.includes("most") || lowerQuestion.includes("best") || lowerQuestion.includes("top") || 
 			 lowerQuestion.includes("fewest") || lowerQuestion.includes("least") || lowerQuestion.includes("lowest") || lowerQuestion.includes("worst"))
 		) {
-			// If it's asking about teams specifically, route to club handler
-			if (lowerQuestion.includes("team") && (lowerQuestion.includes("conceded") || lowerQuestion.includes("scored") || lowerQuestion.includes("goals"))) {
+			// Check for "most goals for" / "most scored for" patterns - these are player queries
+			const isMostGoalsForTeamQuery = 
+				(lowerQuestion.includes("which team") || lowerQuestion.includes("what team")) &&
+				(lowerQuestion.includes("scored") || lowerQuestion.includes("score")) &&
+				lowerQuestion.includes("most") &&
+				(lowerQuestion.includes("goals") || lowerQuestion.includes("goal")) &&
+				lowerQuestion.includes("for");
+			
+			// Check for "most appearances for" patterns - these are also player queries
+			const isMostAppearancesForTeamQuery = 
+				(lowerQuestion.includes("which team") || lowerQuestion.includes("what team")) &&
+				(lowerQuestion.includes("most") && lowerQuestion.includes("appearances")) &&
+				lowerQuestion.includes("for");
+			
+			// If it's a "most goals/appearances for team" query with a player entity, route to player handler
+			if ((isMostGoalsForTeamQuery || isMostAppearancesForTeamQuery) && hasPlayerEntities) {
+				return "player";
+			}
+			
+			// If it's asking about teams specifically (without player entities), route to club handler
+			if (lowerQuestion.includes("team") && (lowerQuestion.includes("conceded") || lowerQuestion.includes("scored") || lowerQuestion.includes("goals")) && !hasPlayerEntities) {
 				return "club";
 			}
 			return "ranking";
@@ -1203,7 +1327,16 @@ export class EnhancedQuestionAnalyzer {
 		
 		// Check if question contains a potential player name pattern (even if not extracted)
 		// This helps catch misspelled names like "Kieran MCkrell" that might not be extracted
+		// Pattern: Two or more capitalized words in sequence (e.g., "Dom Venn", "Luke Bangs")
 		const hasPotentialPlayerName = /\b([A-Z][A-Za-z']+(?:\s+[A-Z][A-Za-z']+)+)\b/.test(this.question);
+		
+		// Check for specific pattern: "has [name] scored/got for the [team]"
+		// This is a strong indicator of a player query, even if player entity wasn't extracted
+		const hasPlayerScoredForTeamPattern = 
+			lowerQuestion.includes("has") && 
+			(lowerQuestion.includes("scored") || lowerQuestion.includes("got")) &&
+			(lowerQuestion.includes("for the") || lowerQuestion.includes("for")) &&
+			hasPotentialPlayerName;
 		
 		if (
 			hasTeamEntities &&
@@ -1212,7 +1345,8 @@ export class EnhancedQuestionAnalyzer {
 			!lowerQuestion.includes("table") &&
 			!lowerQuestion.includes("league") &&
 			!(hasPlayerEntities && hasPlayerStatPhrases) &&
-			!(hasPotentialPlayerName && hasPlayerStatPhrases) // Also prioritize if there's a potential player name + stat phrases
+			!(hasPotentialPlayerName && hasPlayerStatPhrases) && // Also prioritize if there's a potential player name + stat phrases
+			!hasPlayerScoredForTeamPattern // CRITICAL: If pattern matches "has [name] scored for [team]", route to player handler
 		) {
 			return "team";
 		}
@@ -1391,8 +1525,17 @@ export class EnhancedQuestionAnalyzer {
 		// CRITICAL FIX: Detect fantasy points queries (must run before open play goals correction)
 		const fantasyPointsCorrectedStats = this.correctFantasyPointsQueries(appearanceCorrectedStats);
 
+		// CRITICAL FIX: Detect goals per appearance queries
+		const goalsPerAppCorrectedStats = this.correctGoalsPerAppearanceQueries(fantasyPointsCorrectedStats);
+
+		// CRITICAL FIX: Detect conceded per appearance queries
+		const concededPerAppCorrectedStats = this.correctConcededPerAppearanceQueries(goalsPerAppCorrectedStats);
+
+		// CRITICAL FIX: Detect fantasy points per appearance queries
+		const fantasyPerAppCorrectedStats = this.correctFantasyPointsPerAppearanceQueries(concededPerAppCorrectedStats);
+
 		// CRITICAL FIX: Detect minutes per goal queries (must run before open play goals correction to filter out "score" matches)
-		const minutesPerGoalCorrectedStats = this.correctMinutesPerGoalQueries(fantasyPointsCorrectedStats);
+		const minutesPerGoalCorrectedStats = this.correctMinutesPerGoalQueries(fantasyPerAppCorrectedStats);
 
 		// CRITICAL FIX: Detect open play goals queries
 		const openPlayCorrectedStats = this.correctOpenPlayGoalsQueries(minutesPerGoalCorrectedStats);
@@ -1768,7 +1911,7 @@ export class EnhancedQuestionAnalyzer {
 			// "6th XI Apps": "6sApps",
 			// "7th XI Apps": "7sApps",
 			// "8th XI Apps": "8sApps",
-			"Most Played For Team": "MostPlayedForTeam",
+			"Most Played For Team": "TEAM_ANALYSIS",
 			"Number Teams Played For": "NumberTeamsPlayedFor",
 
 			"1st XI Goals": "1sGoals",
@@ -1868,7 +2011,8 @@ export class EnhancedQuestionAnalyzer {
 			return statType; // Return as-is (e.g., "3sApps" -> "3sApps")
 		}
 
-		return mapping[statType] || statType;
+		const mappedKey = mapping[statType] || statType;
+		return mappedKey;
 	}
 
 	/**
@@ -2288,18 +2432,22 @@ export class EnhancedQuestionAnalyzer {
 
 		// Patterns to detect home games queries
 		const homeGamesPatterns = [
-			/(?:how\s+many\s+)?home\s+games?\s+(?:has|have|did)\s+.*?\s+(?:played|made|appeared)/i,
-			/home\s+games?\s+.*?\s+(?:has|have|did)\s+.*?\s+(?:played|made|appeared)/i,
+			/(?:how\s+many\s+)?home\s+games?\s+(?:has|have|did)\s+.*?\s+(?:played|made|appeared|won|lost|drawn)/i,
+			/home\s+games?\s+.*?\s+(?:has|have|did)\s+.*?\s+(?:played|made|appeared|won|lost|drawn)/i,
 			/games?\s+at\s+home/i,
 			/games?\s+played\s+at\s+home/i,
+			/(?:how\s+many\s+)?home\s+games?\s+(?:has|have|did)\s+.*?\s+won/i,
+			/(?:how\s+many\s+)?home\s+games?\s+(?:has|have|did)\s+.*?\s+played/i,
 		];
 
 		// Patterns to detect away games queries
 		const awayGamesPatterns = [
-			/(?:how\s+many\s+)?away\s+games?\s+(?:has|have|did)\s+.*?\s+(?:played|made|appeared)/i,
-			/away\s+games?\s+.*?\s+(?:has|have|did)\s+.*?\s+(?:played|made|appeared)/i,
+			/(?:how\s+many\s+)?away\s+games?\s+(?:has|have|did)\s+.*?\s+(?:played|made|appeared|won|lost|drawn)/i,
+			/away\s+games?\s+.*?\s+(?:has|have|did)\s+.*?\s+(?:played|made|appeared|won|lost|drawn)/i,
 			/games?\s+away/i,
 			/games?\s+played\s+away/i,
+			/(?:how\s+many\s+)?away\s+games?\s+(?:has|have|did)\s+.*?\s+won/i,
+			/(?:how\s+many\s+)?away\s+games?\s+(?:has|have|did)\s+.*?\s+played/i,
 		];
 
 		const isHomeGamesQuery = homeGamesPatterns.some(pattern => pattern.test(lowerQuestion));
@@ -2325,7 +2473,6 @@ export class EnhancedQuestionAnalyzer {
 					position: lowerQuestion.indexOf("away games") !== -1 ? lowerQuestion.indexOf("away games") : lowerQuestion.indexOf("away"),
 				});
 			}
-
 			return filteredStats;
 		}
 
@@ -2434,8 +2581,8 @@ export class EnhancedQuestionAnalyzer {
 		const teamAppearancePattern2 = /(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)(?:\s+(?:team|teams?))?\s+(appearances?|apps?|games?)/i;
 		// Pattern 3: "appearance count for Xs" or "Xs appearance count" or "appearance count for X playing for Ys"
 		const teamAppearancePattern3 = /(?:what\s+is\s+the\s+)?(appearance\s+count|count)\s+(?:for\s+[^f]+?\s+)?(?:playing\s+for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)|for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth))/i;
-		// Pattern 4: "how many times...played for Xs"
-		const teamAppearancePattern4 = /(?:how\s+many\s+times|times).*?(?:played|playing)\s+for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)/i;
+		// Pattern 4: "how many times...played for Xs" - more flexible to match with player names in between
+		const teamAppearancePattern4 = /(?:how\s+many\s+times|times)(?:\s+has\s+.*?)?\s+(?:played|playing)\s+for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)/i;
 		// Pattern 5: "games for Xs has...played"
 		const teamAppearancePattern5 = /(?:games?|appearances?|apps?)\s+for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth).*?(?:played|made|achieved)/i;
 		// Pattern 6: "appearances for Xs...made/achieved"
@@ -2525,7 +2672,7 @@ export class EnhancedQuestionAnalyzer {
 			const teamInfo = this.mapTeamReference(teamReference);
 			if (teamInfo) {
 				// Filter out ALL appearance-related metrics, per-appearance metrics, and Home/Away metrics
-				// Home/Away should never be included in team-specific appearance queries
+				// Also filter out "Team Analysis" which should not be used for team-specific appearance queries
 				const filteredStats = statTypes.filter((stat) =>
 					![
 						"Appearances",
@@ -2552,6 +2699,7 @@ export class EnhancedQuestionAnalyzer {
 						"Penalties Saved Per Appearance",
 						"Fantasy Points Per Appearance",
 						"Man of the Match Per Appearance",
+						"Team Analysis",
 					].includes(stat.value),
 				);
 
@@ -2870,6 +3018,186 @@ export class EnhancedQuestionAnalyzer {
 					value: "Fantasy Points Per Appearance",
 					originalText: "fantasy points per appearance",
 					position: perAppearancePosition !== -1 ? perAppearancePosition : 0,
+				});
+			}
+
+			return filteredStats;
+		}
+
+		return statTypes;
+	}
+
+	/**
+	 * Corrects goals per appearance queries - detects "goals on average per appearance" patterns
+	 */
+	private correctGoalsPerAppearanceQueries(statTypes: StatTypeInfo[]): StatTypeInfo[] {
+		const lowerQuestion = this.question.toLowerCase();
+
+		// Patterns to detect goals per appearance queries
+		const goalsPerAppPatterns = [
+			/goals?\s+on\s+average.*?per\s+(?:appearance|app|game|match)/i,
+			/goals?\s+on\s+average.*?(?:has|have|does).*?scored.*?per\s+(?:appearance|app|game|match)/i,
+			/goals?\s+per\s+(?:appearance|app|game|match)/i,
+			/average.*?goals?.*?per\s+(?:appearance|app|game|match)/i,
+		];
+
+		const hasGoalsPerAppPattern = goalsPerAppPatterns.some(pattern => pattern.test(lowerQuestion));
+		const hasGoalsKeyword = lowerQuestion.includes("goal") || lowerQuestion.includes("goals");
+		const hasPerAppearancePhrase = lowerQuestion.includes("per appearance") || 
+			lowerQuestion.includes("per app") || 
+			lowerQuestion.includes("per game") || 
+			lowerQuestion.includes("per match") ||
+			(lowerQuestion.includes("on average") && lowerQuestion.includes("per"));
+
+		if (hasGoalsPerAppPattern || (hasGoalsKeyword && hasPerAppearancePhrase)) {
+			// Remove conflicting stats
+			const filteredStats = statTypes.filter((stat) => 
+				!["Goals", "G", "AllGSC", "All Goals Scored", "Open Play Goals", "Saves"].includes(stat.value)
+			);
+
+			// Check if "Goals Per Appearance" is already in the stats
+			const hasGoalsPerAppStat = filteredStats.some((stat) => stat.value === "Goals Per Appearance");
+
+			if (!hasGoalsPerAppStat) {
+				const goalsPosition = lowerQuestion.indexOf("goal");
+				const perAppPosition = lowerQuestion.indexOf("per appearance") !== -1 
+					? lowerQuestion.indexOf("per appearance")
+					: lowerQuestion.indexOf("per app") !== -1
+						? lowerQuestion.indexOf("per app")
+						: lowerQuestion.indexOf("per game") !== -1
+							? lowerQuestion.indexOf("per game")
+							: lowerQuestion.indexOf("per match") !== -1
+								? lowerQuestion.indexOf("per match")
+								: goalsPosition;
+				
+				filteredStats.push({
+					value: "Goals Per Appearance",
+					originalText: "goals per appearance",
+					position: perAppPosition !== -1 ? perAppPosition : goalsPosition !== -1 ? goalsPosition : 0,
+				});
+			}
+
+			return filteredStats;
+		}
+
+		return statTypes;
+	}
+
+	/**
+	 * Corrects conceded per appearance queries - detects "goals on average does X concede per match" patterns
+	 */
+	private correctConcededPerAppearanceQueries(statTypes: StatTypeInfo[]): StatTypeInfo[] {
+		const lowerQuestion = this.question.toLowerCase();
+
+		// Patterns to detect conceded per appearance queries
+		const concededPerAppPatterns = [
+			/goals?\s+on\s+average.*?does.*?concede.*?per\s+(?:match|appearance|app|game)/i,
+			/goals?\s+on\s+average.*?concede.*?per\s+(?:match|appearance|app|game)/i,
+			/conceded.*?per\s+(?:match|appearance|app|game)/i,
+			/goals?\s+conceded.*?per\s+(?:match|appearance|app|game)/i,
+			/average.*?concede.*?per\s+(?:match|appearance|app|game)/i,
+		];
+
+		const hasConcededPerAppPattern = concededPerAppPatterns.some(pattern => pattern.test(lowerQuestion));
+		const hasConcededKeyword = lowerQuestion.includes("concede") || lowerQuestion.includes("conceded");
+		const hasPerAppearancePhrase = lowerQuestion.includes("per appearance") || 
+			lowerQuestion.includes("per app") || 
+			lowerQuestion.includes("per game") || 
+			lowerQuestion.includes("per match") ||
+			(lowerQuestion.includes("on average") && lowerQuestion.includes("per"));
+
+		if (hasConcededPerAppPattern || (hasConcededKeyword && hasPerAppearancePhrase)) {
+			// Remove conflicting stats
+			const filteredStats = statTypes.filter((stat) => 
+				!["Goals Conceded", "C", "Conceded", "Goals", "G", "AllGSC", "All Goals Scored"].includes(stat.value)
+			);
+
+			// Check if "Conceded Per Appearance" is already in the stats
+			const hasConcededPerAppStat = filteredStats.some((stat) => 
+				stat.value === "Conceded Per Appearance" || stat.value === "Goals Conceded Per Appearance"
+			);
+
+			if (!hasConcededPerAppStat) {
+				const concededPosition = lowerQuestion.indexOf("concede") !== -1 
+					? lowerQuestion.indexOf("concede")
+					: lowerQuestion.indexOf("conceded");
+				const perAppPosition = lowerQuestion.indexOf("per appearance") !== -1 
+					? lowerQuestion.indexOf("per appearance")
+					: lowerQuestion.indexOf("per app") !== -1
+						? lowerQuestion.indexOf("per app")
+						: lowerQuestion.indexOf("per game") !== -1
+							? lowerQuestion.indexOf("per game")
+							: lowerQuestion.indexOf("per match") !== -1
+								? lowerQuestion.indexOf("per match")
+								: concededPosition;
+				
+				filteredStats.push({
+					value: "Conceded Per Appearance",
+					originalText: "conceded per appearance",
+					position: perAppPosition !== -1 ? perAppPosition : concededPosition !== -1 ? concededPosition : 0,
+				});
+			}
+
+			return filteredStats;
+		}
+
+		return statTypes;
+	}
+
+	/**
+	 * Corrects fantasy points per appearance queries - detects "fantasy points does X score per appearance" patterns
+	 */
+	private correctFantasyPointsPerAppearanceQueries(statTypes: StatTypeInfo[]): StatTypeInfo[] {
+		const lowerQuestion = this.question.toLowerCase();
+
+		// Patterns to detect fantasy points per appearance queries
+		const fantasyPerAppPatterns = [
+			/fantasy\s+points?.*?does.*?score.*?per\s+(?:appearance|app|game|match)/i,
+			/fantasy\s+points?.*?per\s+(?:appearance|app|game|match)/i,
+			/average.*?fantasy\s+points?.*?per\s+(?:appearance|app|game|match)/i,
+		];
+
+		const hasFantasyPerAppPattern = fantasyPerAppPatterns.some(pattern => pattern.test(lowerQuestion));
+		const hasFantasyKeyword = lowerQuestion.includes("fantasy points") || 
+			lowerQuestion.includes("fantasy point") ||
+			lowerQuestion.includes("ftp");
+		const hasPerAppearancePhrase = lowerQuestion.includes("per appearance") || 
+			lowerQuestion.includes("per app") || 
+			lowerQuestion.includes("per game") || 
+			lowerQuestion.includes("per match") ||
+			(lowerQuestion.includes("on average") && lowerQuestion.includes("per"));
+
+		if (hasFantasyPerAppPattern || (hasFantasyKeyword && hasPerAppearancePhrase)) {
+			// Remove conflicting stats
+			const filteredStats = statTypes.filter((stat) => 
+				!["Fantasy Points", "FTP", "Goals", "G", "Saves"].includes(stat.value)
+			);
+
+			// Check if "Fantasy Points Per Appearance" is already in the stats
+			const hasFantasyPerAppStat = filteredStats.some((stat) => stat.value === "Fantasy Points Per Appearance");
+
+			if (!hasFantasyPerAppStat) {
+				const fantasyPosition = lowerQuestion.indexOf("fantasy points") !== -1
+					? lowerQuestion.indexOf("fantasy points")
+					: lowerQuestion.indexOf("fantasy point") !== -1
+						? lowerQuestion.indexOf("fantasy point")
+						: lowerQuestion.indexOf("ftp") !== -1
+							? lowerQuestion.indexOf("ftp")
+							: 0;
+				const perAppPosition = lowerQuestion.indexOf("per appearance") !== -1 
+					? lowerQuestion.indexOf("per appearance")
+					: lowerQuestion.indexOf("per app") !== -1
+						? lowerQuestion.indexOf("per app")
+						: lowerQuestion.indexOf("per game") !== -1
+							? lowerQuestion.indexOf("per game")
+							: lowerQuestion.indexOf("per match") !== -1
+								? lowerQuestion.indexOf("per match")
+								: fantasyPosition;
+				
+				filteredStats.push({
+					value: "Fantasy Points Per Appearance",
+					originalText: "fantasy points per appearance",
+					position: perAppPosition !== -1 ? perAppPosition : fantasyPosition,
 				});
 			}
 
@@ -3227,7 +3555,7 @@ export class EnhancedQuestionAnalyzer {
 		// Pattern to detect "which team has [player] scored the most goals/assists/etc for?" questions
 		// Updated pattern to match "scored the most goals for" or "scored most goals for" or "most goals for"
 		// Made more specific to ensure it matches correctly and doesn't conflict with "most appearances for"
-		const mostScoredPattern = /(?:what\s+team\s+has|which\s+team\s+has|what\s+team\s+did|which\s+team\s+did).*?(?:scored\s+(?:the\s+)?most\s+(?:goals?|assists?|.*?)\s+for|scored\s+the\s+most|scored\s+most|most\s+goals?\s+for)/i;
+		const mostScoredPattern = /(?:what\s+team\s+has|which\s+team\s+has|what\s+team\s+did|which\s+team\s+did).*?(?:scored\s+(?:the\s+)?most\s+(?:goals?|assists?|.*?)\s+for|scored\s+(?:the\s+)?most\s+for|scored\s+the\s+most|scored\s+most|most\s+goals?\s+for)/i;
 
 		if (mostScoredPattern.test(lowerQuestion)) {
 			// Remove any existing stat types that might be incorrect (Goals, Assists, Most Played For Team, etc.)

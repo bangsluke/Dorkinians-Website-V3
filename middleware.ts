@@ -4,6 +4,12 @@ import { generateCSPNonce, getBaseSecurityHeaders } from "@/lib/utils/securityHe
 import { generateCsrfToken } from "@/lib/middleware/csrf";
 
 export function middleware(request: NextRequest) {
+	// Skip middleware for WebSocket upgrade requests (Next.js HMR)
+	// This prevents errors when Next.js DevServer handles upgrade requests
+	if (request.headers.get('upgrade') === 'websocket') {
+		return NextResponse.next();
+	}
+	
 	// Protect /admin route - require authentication
 	if (request.nextUrl.pathname.startsWith("/admin")) {
 		const sessionToken = request.cookies.get(

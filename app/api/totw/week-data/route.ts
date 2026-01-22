@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { neo4jService } from "@/lib/neo4j";
 import { WeeklyTOTW } from "@/types";
 import { Record } from "neo4j-driver";
+import { calculateFTPBreakdown } from "@/lib/utils/fantasyPoints";
 
 const corsHeaders = {
 	"Access-Control-Allow-Origin": "*",
@@ -61,17 +62,14 @@ export async function GET(request: NextRequest) {
 
 		console.log(`[API] Constructed seasonWeek: ${seasonWeek}`);
 
-		// Fetch player relationships with FTP scores
-		// Sum all MatchDetail fantasyPoints for each player where seasonWeek matches
+		// Fetch player relationships
 		const playersQuery = `
 			MATCH (wt:WeeklyTOTW {graphLabel: $graphLabel, season: $season})-[r:IN_WEEKLY_TOTW]-(p:Player {graphLabel: $graphLabel})
 			WHERE (wt.week = $weekNumber OR wt.week = $weekString)
-			OPTIONAL MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel, seasonWeek: $seasonWeek})
-			WITH p, r, sum(COALESCE(md.fantasyPoints, 0)) as totalFtpScore, r.position as position
-			RETURN p.playerName as playerName, totalFtpScore as ftpScore, position
+			RETURN p.playerName as playerName, r.position as position
 		`;
 
-		const playersResult = await neo4jService.runQuery(playersQuery, { graphLabel, season, weekNumber, weekString, seasonWeek });
+		const playersResult = await neo4jService.runQuery(playersQuery, { graphLabel, season, weekNumber, weekString });
 
 		console.log(`[API] Found ${totwResult.records.length} TOTW records, ${playersResult.records.length} player records`);
 
@@ -105,19 +103,58 @@ export async function GET(request: NextRequest) {
 			fwd3: String(properties.fwd3 || ""),
 		};
 
-		// Build players map with FTP scores
-		const players = playersResult.records.map((record: Record) => {
-			const ftpScore = record.get("ftpScore");
-			const ftpValue = ftpScore !== null && ftpScore !== undefined 
-				? (typeof ftpScore.toNumber === 'function' ? ftpScore.toNumber() : Number(ftpScore))
-				: 0;
-			
-			return {
-				playerName: String(record.get("playerName") || ""),
-				ftpScore: ftpValue,
-				position: String(record.get("position") || ""),
-			};
-		});
+		// Calculate FTP scores on-the-fly for each player to ensure MoM points are included
+		const players: Array<{ playerName: string; ftpScore: number; position: string }> = [];
+		for (const record of playersResult.records) {
+			const playerName = String(record.get("playerName") || "");
+			const position = String(record.get("position") || "");
+
+			// Fetch all matches for this player in this week
+			const matchesQuery = `
+				MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
+				MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel, seasonWeek: $seasonWeek})
+				RETURN md.minutes as minutes, md.min as min, md.mom as mom, md.goals as goals, 
+					md.assists as assists, md.conceded as conceded, md.cleanSheets as cleanSheets,
+					md.yellowCards as yellowCards, md.redCards as redCards, md.saves as saves,
+					md.ownGoals as ownGoals, md.penaltiesScored as penaltiesScored,
+					md.penaltiesMissed as penaltiesMissed, md.penaltiesConceded as penaltiesConceded,
+					md.penaltiesSaved as penaltiesSaved, md.class as class
+			`;
+
+			const matchesResult = await neo4jService.runQuery(matchesQuery, { graphLabel, playerName, seasonWeek });
+
+			// Calculate FTP score by summing points from each match
+			let ftpScore = 0;
+			matchesResult.records.forEach((matchRecord: Record) => {
+				const matchData = {
+					class: String(matchRecord.get("class") || ""),
+					min: Number(matchRecord.get("minutes") || matchRecord.get("min") || 0),
+					mom: matchRecord.get("mom") === 1 || matchRecord.get("mom") === true,
+					goals: Number(matchRecord.get("goals") || 0),
+					assists: Number(matchRecord.get("assists") || 0),
+					conceded: Number(matchRecord.get("conceded") || 0),
+					cleanSheets: Number(matchRecord.get("cleanSheets") || 0),
+					yellowCards: Number(matchRecord.get("yellowCards") || 0),
+					redCards: Number(matchRecord.get("redCards") || 0),
+					saves: Number(matchRecord.get("saves") || 0),
+					ownGoals: Number(matchRecord.get("ownGoals") || 0),
+					penaltiesScored: Number(matchRecord.get("penaltiesScored") || 0),
+					penaltiesMissed: Number(matchRecord.get("penaltiesMissed") || 0),
+					penaltiesConceded: Number(matchRecord.get("penaltiesConceded") || 0),
+					penaltiesSaved: Number(matchRecord.get("penaltiesSaved") || 0),
+				};
+
+				const breakdown = calculateFTPBreakdown(matchData);
+				const matchPoints = breakdown.reduce((sum, stat) => sum + stat.points, 0);
+				ftpScore += matchPoints;
+			});
+
+			players.push({
+				playerName,
+				ftpScore: Math.round(ftpScore),
+				position,
+			});
+		}
 
 		console.log(`[API] Players with FTP scores:`, players.map((p: { playerName: string; ftpScore: number }) => `${p.playerName}: ${p.ftpScore}`));
 

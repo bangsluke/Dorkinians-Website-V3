@@ -269,44 +269,71 @@ export class ChatbotService {
 			// Handle clarification needed case (only set if explicitly needed, not pre-emptively)
 			// Note: Clarification will be requested post-query if no data is found
 			if (analysis.type === "clarification_needed") {
-				// Store pending clarification if we have a session ID
-				if (context.sessionId) {
-					const clarificationMessage = analysis.clarificationMessage || analysis.message || "Please clarify your question.";
-					// Extract partial name from clarification message if it's a partial name clarification
-					let partialName: string | undefined = undefined;
-					if (clarificationMessage.includes("Please provide clarification on who")) {
-						const match = clarificationMessage.match(/who (\w+) is/);
-						if (match) {
-							partialName = match[1];
+				// CRITICAL: Only block queries if clarification is actually needed (partial names)
+				// Full names should proceed even if they don't match userContext
+				// Check if the clarification is for a partial name or a full name
+				const playerEntities = analysis.extractionResult?.entities?.filter(ent => ent.type === "player") || [];
+				const hasFullName = playerEntities.some((e) => {
+					let originalText = e.originalText.toLowerCase().trim().replace(/\s*\(resolved to:.*?\)$/i, "").trim();
+					// Deduplicate repeating phrase patterns
+					const words = originalText.split(/\s+/);
+					if (words.length >= 4) {
+						const midPoint = Math.floor(words.length / 2);
+						const firstHalf = words.slice(0, midPoint).join(" ");
+						const secondHalf = words.slice(midPoint).join(" ");
+						if (firstHalf === secondHalf) {
+							originalText = firstHalf;
 						}
 					}
-					conversationContextManager.setPendingClarification(context.sessionId, context.question, clarificationMessage, analysis, partialName, context.userContext);
-				}
+					return originalText.includes(" ") && originalText.split(/\s+/).length >= 2;
+				});
 				
-				// If there's an explicit clarification message, use it regardless of confidence
-				const clarificationMessage = analysis.clarificationMessage || analysis.message;
-				if (clarificationMessage) {
+				// If we have a full name, proceed with the query even if type is "clarification_needed"
+				// This allows queries about other players to proceed
+				if (hasFullName) {
+					// Don't block the query - proceed with the extracted name
+					// Continue to query execution below
+				} else {
+					// Partial name - require clarification
+					// Store pending clarification if we have a session ID
+					if (context.sessionId) {
+						const clarificationMessage = analysis.clarificationMessage || analysis.message || "Please clarify your question.";
+						// Extract partial name from clarification message if it's a partial name clarification
+						let partialName: string | undefined = undefined;
+						if (clarificationMessage.includes("Please provide clarification on who")) {
+							const match = clarificationMessage.match(/who (\w+) is/);
+							if (match) {
+								partialName = match[1];
+							}
+						}
+						conversationContextManager.setPendingClarification(context.sessionId, context.question, clarificationMessage, analysis, partialName, context.userContext);
+					}
+					
+					// If there's an explicit clarification message, use it regardless of confidence
+					const clarificationMessage = analysis.clarificationMessage || analysis.message;
+					if (clarificationMessage) {
+						return {
+							answer: clarificationMessage,
+							sources: [],
+							answerValue: "Clarification needed",
+						};
+					}
+					
+					// Try to provide a better fallback response if no explicit clarification message
+					if (analysis.confidence !== undefined && analysis.confidence < 0.5) {
+						const fallbackResponse = questionSimilarityMatcher.generateFallbackResponse(context.question, analysis);
+						return {
+							answer: fallbackResponse,
+							sources: [],
+							answerValue: "Clarification needed",
+						};
+					}
 					return {
-						answer: clarificationMessage,
+						answer: "Please clarify your question.",
 						sources: [],
 						answerValue: "Clarification needed",
 					};
 				}
-				
-				// Try to provide a better fallback response if no explicit clarification message
-				if (analysis.confidence !== undefined && analysis.confidence < 0.5) {
-					const fallbackResponse = questionSimilarityMatcher.generateFallbackResponse(context.question, analysis);
-					return {
-						answer: fallbackResponse,
-						sources: [],
-						answerValue: "Clarification needed",
-					};
-				}
-				return {
-					answer: "Please clarify your question.",
-					sources: [],
-					answerValue: "Clarification needed",
-				};
 			}
 
 			// Create detailed breakdown for debugging
@@ -333,6 +360,7 @@ export class ChatbotService {
 
 			// Query the database
 			this.lastProcessingSteps.push(`Building Cypher query for analysis: ${analysis.type}`);
+			
 			const data = await this.queryRelevantData(analysis, context.userContext);
 			this.lastProcessingSteps.push(`Query completed, result type: ${data?.type || "null"}`);
 
@@ -460,22 +488,60 @@ export class ChatbotService {
 
 		if (nonIPlayerEntities.length > 0) {
 			// Use originalText for the clarification message to show what was actually extracted
+			// Deduplicate repeating phrase patterns (e.g., "Helder Freitas Helder Freitas" -> "Helder Freitas")
 			const playerNames = nonIPlayerEntities.map((e) => {
-				const originalText = e.originalText.replace(/\s*\(resolved to:.*?\)$/i, "").trim();
+				let originalText = e.originalText.replace(/\s*\(resolved to:.*?\)$/i, "").trim();
+				// Remove duplicate phrase patterns
+				const words = originalText.split(/\s+/);
+				if (words.length >= 4) {
+					const midPoint = Math.floor(words.length / 2);
+					const firstHalf = words.slice(0, midPoint).join(" ");
+					const secondHalf = words.slice(midPoint).join(" ");
+					if (firstHalf === secondHalf) {
+						originalText = firstHalf;
+					} else {
+						// Check for shorter repeating patterns
+						for (let patternLen = 1; patternLen <= midPoint; patternLen++) {
+							const pattern = words.slice(0, patternLen).join(" ");
+							let matches = true;
+							for (let i = patternLen; i < words.length; i += patternLen) {
+								const segment = words.slice(i, i + patternLen).join(" ");
+								if (segment !== pattern) {
+									matches = false;
+									break;
+								}
+							}
+							if (matches && words.length % patternLen === 0) {
+								originalText = pattern;
+								break;
+							}
+						}
+					}
+				}
 				return originalText;
-			}).join(", ");
+			}).filter((name, index, self) => self.indexOf(name) === index); // Remove duplicate names
 
-			// Check if it's a single first name (likely needs surname clarification)
-			const isSingleFirstName = nonIPlayerEntities.length === 1 && 
-				!playerNames.includes(" ") && 
-				playerNames.length > 0 && 
-				playerNames.length < 15; // Reasonable first name length
+			// Only require clarification if the extracted name is a partial name (single word)
+			// Full names (multiple words) should proceed without clarification, even if they don't match userContext
+			const uniquePlayerNames = [...new Set(playerNames)];
+			const hasFullName = uniquePlayerNames.some(name => name.includes(" ") && name.split(/\s+/).length >= 2);
+			
+			if (!hasFullName) {
+				// All names are partial (single word) - require clarification
+				const playerNamesStr = uniquePlayerNames.join(", ");
+				// Check if it's a single first name (likely needs surname clarification)
+				const isSingleFirstName = uniquePlayerNames.length === 1 && 
+					!playerNamesStr.includes(" ") && 
+					playerNamesStr.length > 0 && 
+					playerNamesStr.length < 15; // Reasonable first name length
 
-			if (isSingleFirstName) {
-				return `Please clarify which ${playerNames} you are asking about.`;
+				if (isSingleFirstName) {
+					return `Please clarify which ${playerNamesStr} you are asking about.`;
+				}
+
+				return `I found a player name "${playerNamesStr}" in your question, but it doesn't match the selected player "${userContext}". Please provide the full player name you're asking about, or confirm if you meant "${userContext}".`;
 			}
-
-			return `I found a player name "${playerNames}" in your question, but it doesn't match the selected player "${userContext}". Please provide the full player name you're asking about, or confirm if you meant "${userContext}".`;
+			// Full name extracted - don't require clarification, proceed with the extracted name
 		}
 
 		return null;
@@ -483,6 +549,8 @@ export class ChatbotService {
 
 	private async queryRelevantData(analysis: EnhancedQuestionAnalysis, userContext?: string): Promise<Record<string, unknown> | null> {
 		const { type, entities, metrics } = analysis;
+		// Store original question (with original casing) before any normalization
+		const originalQuestionWithCasing = analysis.question || "";
 		// Store original question before normalization for detection
 		const originalQuestionBeforeNormalization = analysis.question?.toLowerCase() || "";
 		let question = originalQuestionBeforeNormalization;
@@ -516,10 +584,20 @@ export class ChatbotService {
 			}
 
 			// Check if this is a "which team has fewest/most goals conceded" question - This needs to be checked before player routing to avoid misclassification
+			// BUT: Exclude player-specific queries like "which team has [player] scored the most goals for?"
+			const isPlayerSpecificTeamQuery = 
+				(question.includes("which team") || question.includes("what team")) &&
+				question.includes("most") &&
+				question.includes("for") &&
+				(analysis.entities && analysis.entities.length > 0 || 
+				 // Also check for player name patterns in the question itself - "has [name] scored/made/played"
+				 (question.includes("has") && (question.includes("scored") || question.includes("made") || question.includes("played"))));
+			
 			const isTeamConcededRankingQuestion = 
 				(question.includes("which team") || question.includes("what team")) &&
 				(question.includes("fewest") || question.includes("most") || question.includes("least") || question.includes("highest")) &&
-				(question.includes("conceded") || question.includes("scored") || question.includes("goals"));
+				(question.includes("conceded") || question.includes("scored") || question.includes("goals")) &&
+				!isPlayerSpecificTeamQuery;
 
 			if (isTeamConcededRankingQuestion) {
 				return await ClubDataQueryHandler.queryClubData(entities, metrics, analysis);
@@ -750,13 +828,23 @@ export class ChatbotService {
 			}
 
 			// Check for distance/location queries
+			// CRITICAL: Only route to distance queries if there's no player mentioned in the question
+			// Check for potential player names in the question before routing to distance queries
+			const hasPotentialPlayerName = /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b/.test(question);
+			const extractionResult = analysis.extractionResult;
+			const playerEntities = extractionResult?.entities?.filter(e => e.type === "player").map(e => e.value) || [];
+			const hasPlayerEntity = playerEntities.length > 0;
+			
+			// Use word boundaries to avoid false positives (e.g., "Farooq" matching "far")
 			const isDistanceQuery = 
-				question.includes("distance") || question.includes("far") || question.includes("travel") ||
-				question.includes("furthest") || question.includes("furthest opposition");
+				/\bdistance\b/i.test(question) || /\bfar\b/i.test(question) || /\btravel/i.test(question) ||
+				/\bfurthest\b/i.test(question) || /\bfurthest opposition\b/i.test(question);
 
-			if (isDistanceQuery) {
-				const extractionResult = analysis.extractionResult;
-				const playerEntities = extractionResult?.entities?.filter(e => e.type === "player").map(e => e.value) || [];
+			// Only route to distance queries if:
+			// 1. It's explicitly a distance query AND
+			// 2. There's no player entity extracted AND
+			// 3. There's no potential player name pattern in the question (to avoid false positives)
+			if (isDistanceQuery && !hasPlayerEntity && !hasPotentialPlayerName) {
 				if (question.includes("furthest") && !entities.some(e => playerEntities.includes(e))) {
 					return await RelationshipQueryHandler.queryFurthestOpposition();
 				} else if (entities.length > 0 && playerEntities.length > 0 && playerEntities.includes(entities[0])) {
@@ -767,6 +855,14 @@ export class ChatbotService {
 				} else if (analysis.oppositionEntities && analysis.oppositionEntities.length > 0) {
 					return await RelationshipQueryHandler.queryDistanceToOpposition(analysis.oppositionEntities[0]);
 				}
+			}
+			
+			// If it's a distance query but we have a player entity, route to player distance query
+			if (isDistanceQuery && hasPlayerEntity && playerEntities.length > 0) {
+				const playerName = playerEntities[0];
+				const seasonMatch = question.match(/(\d{4})[\/\-](\d{2,4})/);
+				const season = seasonMatch ? seasonMatch[0].replace("-", "/") : undefined;
+				return await RelationshipQueryHandler.queryPlayerDistanceTraveled(playerName, season);
 			}
 
 			// Check for "no goal involvement" streak questions - route to streak handler
@@ -1687,9 +1783,80 @@ export class ChatbotService {
 				return await TeamDataQueryHandler.queryLongestUnbeatenRun(entities, metrics, analysis, true);
 			}
 
+			// Check if this is a player-specific question that was misclassified as team query
+			// Pattern: "How many goals has [player] scored for the [team]?"
+			// This check must happen BEFORE team goals check to catch misclassified questions
+			// First, check for the explicit pattern: "has [name] scored/got for the [team]"
+			// This is a strong indicator of a player query, even if type is "team"
+			const originalQuestionLower = originalQuestionWithCasing.toLowerCase();
+			const hasPlayerScoredForTeamPattern = 
+				(question.includes("has") || originalQuestionLower.includes("has")) &&
+				(question.includes("scored") || question.includes("got") || originalQuestionLower.includes("scored") || originalQuestionLower.includes("got")) &&
+				(question.includes("for the") || question.includes("for") || originalQuestionLower.includes("for the") || originalQuestionLower.includes("for"));
+			
+			// Extract player name from original question (with casing preserved)
+			const extractionResultForRouting = analysis.extractionResult;
+			const playerEntitiesFromExtraction = (extractionResultForRouting?.entities?.filter(e => e.type === "player").map(e => e.value) || []);
+			const allEntities = [...entities, ...playerEntitiesFromExtraction];
+			const potentialPlayerNames = allEntities.filter(e => !/^\d+(?:st|nd|rd|th|s)?$/i.test(e));
+			
+			// Detect capitalized names in original question
+			const originalQuestionForNameDetection = originalQuestionWithCasing;
+			const questionWords = originalQuestionForNameDetection.split(/\s+/);
+			const commonWords = ["how", "many", "goals", "has", "have", "scored", "got", "for", "the", "1s", "2s", "3s", "4s", "5s", "6s", "7s", "8s", "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "xi", "team", "teams"];
+			const capitalizedWords = questionWords.filter(w => {
+				const cleaned = w.replace(/[?!.,;:]$/, ''); // Remove trailing punctuation
+				return /^[A-Z][a-z]+$/.test(cleaned) && !commonWords.includes(cleaned.toLowerCase());
+			});
+			const hasPlayerNameInQuestion = capitalizedWords.length >= 2; // At least first and last name
+			
+			// Check for team entity
+			const teamEntities = analysis.teamEntities || [];
+			const hasTeamEntity = teamEntities.length > 0 || question.match(/\b(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th)\b/i);
+			
+			// Determine if this is a player goals for team question
+			const hasPlayerEntityForTeamCheck = playerEntitiesFromExtraction.length > 0 || potentialPlayerNames.length > 0 || hasPlayerNameInQuestion;
+			
+			const isPlayerGoalsForTeamQuestion = 
+				type === "team" && 
+				hasPlayerScoredForTeamPattern &&
+				hasPlayerEntityForTeamCheck && 
+				hasTeamEntity;
+			
+			if (isPlayerGoalsForTeamQuestion) {
+				// Use player entities from extraction if available, otherwise use potential player names from entities or question
+				let playerEntitiesToUse: string[] = [];
+				if (playerEntitiesFromExtraction.length > 0) {
+					playerEntitiesToUse = playerEntitiesFromExtraction;
+				} else if (potentialPlayerNames.length > 0) {
+					playerEntitiesToUse = potentialPlayerNames;
+				} else if (hasPlayerNameInQuestion && capitalizedWords.length >= 2) {
+					// Extract player name from capitalized words (first two words are likely the name)
+					playerEntitiesToUse = [capitalizedWords.slice(0, 2).join(" ")];
+				} else {
+					playerEntitiesToUse = entities;
+				}
+				
+				this.lastProcessingSteps.push(`Detected player goals for team question (was misclassified as team query), routing to PlayerDataQueryHandler with player: ${playerEntitiesToUse[0]}`);
+				return await PlayerDataQueryHandler.queryPlayerData(playerEntitiesToUse, metrics, analysis, userContext);
+			}
+
 			// Check for team goals questions (including with colloquial terms like "bang in")
 			// This must be checked before the switch statement to ensure proper routing
+			// BUT: Exclude player-specific questions (e.g., "how many goals has [player] scored for the 1s?")
+			const hasPlayerEntityForTeamGoalsCheck = analysis.extractionResult?.entities?.some(e => e.type === "player") || 
+				entities.some(e => {
+					const lower = e.toLowerCase();
+					return !/^\d+(?:st|nd|rd|th|s)?$/i.test(e) && 
+						!["i", "me", "my", "myself", "i've", "you", "your", "player", "players"].includes(lower);
+				});
+			const hasPlayerNamePattern = originalQuestionWithCasing.match(/\b[A-Z][a-z]+\s+[A-Z][a-z]+/); // Two capitalized words (likely a name)
+			const isPlayerSpecificQuestion = hasPlayerEntityForTeamGoalsCheck || hasPlayerNamePattern || 
+				(question.includes("has") && (question.includes("scored") || question.includes("got"))) ||
+				(question.includes("have") && (question.includes("scored") || question.includes("got")));
+			
 			const isTeamGoalsQuestion = 
+				!isPlayerSpecificQuestion && // CRITICAL: Exclude player-specific questions
 				(question.includes("how many goals") || question.includes("how many goal")) &&
 				(question.includes("did") || question.includes("does") || question.includes("do")) &&
 				(question.includes("score") || question.includes("scored") || question.includes("bang") || question.includes("put away") || question.includes("net") || question.includes("bag")) &&
@@ -2757,6 +2924,10 @@ export class ChatbotService {
 		// Map PENALTY_CONVERSION_RATE to PenConversionRate (statObject key)
 		if (metric.toUpperCase() === "PENALTY_CONVERSION_RATE") {
 			return "PenConversionRate";
+		}
+		// Map OPENPLAYGOALS to G (statObject key) to get correct wordedText
+		if (metric.toUpperCase() === "OPENPLAYGOALS") {
+			return "G";
 		}
 		return findMetricByAlias(metric)?.key || metric;
 	}
@@ -4925,6 +5096,7 @@ export class ChatbotService {
 			};
 		} else if (data && data.type === "team_stats") {
 			// Handle team statistics queries
+			// BUT FIRST: Check if this should actually be a player query that was misrouted
 			const teamName = data.teamName as string;
 			const value = data.value as number | undefined;
 			const goalsScored = data.goalsScored as number | undefined;
@@ -4940,7 +5112,38 @@ export class ChatbotService {
 			const startDate = data.startDate as string | undefined;
 			const endDate = data.endDate as string | undefined;
 
-			if (value !== undefined && metric && metricField) {
+			// Check if this should be a player query instead of a team query
+			// If question has a player entity and asks about player's goals (not team goals), redirect to player query
+			const playerEntities = analysis.extractionResult?.entities?.filter(ent => ent.type === "player") || [];
+			const hasPlayerEntity = playerEntities.length > 0;
+			const questionLower = question.toLowerCase();
+			const isPlayerGoalsQuestion = hasPlayerEntity && (
+				questionLower.includes("has") && questionLower.includes("scored") ||
+				questionLower.includes("have") && questionLower.includes("scored") ||
+				questionLower.includes("got") ||
+				questionLower.includes("scored for")
+			);
+			
+			if (isPlayerGoalsQuestion && isGoalsScored && goalsScored !== undefined) {
+				// This should be a player query, not a team query
+				// Extract player name and generate player-specific response
+				const playerName = playerEntities[0]?.value || analysis.entities[0] || "the player";
+				const teamDisplayName = teamName
+					.replace("1st XI", "1s")
+					.replace("2nd XI", "2s")
+					.replace("3rd XI", "3s")
+					.replace("4th XI", "4s")
+					.replace("5th XI", "5s")
+					.replace("6th XI", "6s")
+					.replace("7th XI", "7s")
+					.replace("8th XI", "8s");
+				
+				// This is a player goals query, but we got team_stats data
+				// This means the question was misrouted - it should have gone to player handler
+				// Return a message indicating we need player data, not team data
+				answer = `I couldn't find data for your question. Please check the player name spelling, or try rephrasing your question with more specific details.`;
+				answerValue = "Clarification needed";
+			} else if (value !== undefined && metric && metricField) {
 				// Single metric query (e.g., appearances, assists, etc.)
 				answerValue = value;
 				const metricDisplayName = getMetricDisplayName(metric, value);
@@ -5720,7 +5923,86 @@ export class ChatbotService {
 					answer = responseTemplateManager.formatResponse("player_metric", { playerName: String(playerName), value: String(0), metric: "appearances" });
 				}
 			}
-			// Check if this is a season-specific appearance query (e.g., "2017/18 Apps") - explicitly state player did not play
+			// Check if this is a season-specific appearance query - check both metric pattern AND analysis timeFrames
+			// This handles queries like "How many apps did Rafa Mendonca make in 2017/18?" where metric is "APP" not "2017/18 Apps"
+			// Also handles date range queries like "2021 to 2022"
+			else if (
+				metric &&
+				typeof metric === "string" &&
+				(metric.toUpperCase() === "APP" || metric.toUpperCase() === "APPS" || metric.toUpperCase() === "APPEARANCES" || metric.toUpperCase() === "APPEARANCE") &&
+				(analysis.extractionResult?.timeFrames?.some((tf) => tf.type === "season" || tf.type === "range") || 
+				 analysis.timeRange?.match(/\d{4}[\/\-]\d{2}/) ||
+				 analysis.timeRange?.includes(" to ") ||
+				 question.match(/\d{4}[\/\-]\d{2}/i) ||
+				 question.match(/\d{4}\s+to\s+\d{4}/i) ||
+				 (analysis.question && analysis.question.match(/\d{4}[\/\-]\d{2}/i)) ||
+				 (analysis.question && analysis.question.match(/\d{4}\s+to\s+\d{4}/i)))
+			) {
+				answerValue = 0;
+				// Extract season from timeFrames, timeRange, or question text
+				let season: string | null = null;
+				let dateRange: { start: string; end: string } | null = null;
+				
+				// Use original question from analysis if available, otherwise use question parameter
+				const questionText = analysis.question || question;
+				
+				// Check for range timeFrame first (date ranges like "2021 to 2022")
+				const rangeFrame = analysis.extractionResult?.timeFrames?.find((tf) => tf.type === "range");
+				if (rangeFrame && rangeFrame.value.includes(" to ")) {
+					const rangeMatch = rangeFrame.value.match(/(\d{4})\s+to\s+(\d{4})/i);
+					if (rangeMatch) {
+						dateRange = { start: rangeMatch[1], end: rangeMatch[2] };
+					}
+				}
+				
+				// If no range frame, check timeRange directly
+				if (!dateRange && analysis.timeRange && analysis.timeRange.includes(" to ")) {
+					const rangeMatch = analysis.timeRange.match(/(\d{4})\s+to\s+(\d{4})/i);
+					if (rangeMatch) {
+						dateRange = { start: rangeMatch[1], end: rangeMatch[2] };
+					}
+				}
+				
+				// If no range, check question text for date range (try both question parameter and analysis.question)
+				if (!dateRange) {
+					const questionRangeMatch = questionText.match(/(\d{4})\s+to\s+(\d{4})/i);
+					if (questionRangeMatch) {
+						dateRange = { start: questionRangeMatch[1], end: questionRangeMatch[2] };
+					}
+				}
+				
+				// If we have a date range, use it
+				if (dateRange) {
+					answer = `${String(playerName)} didn't make an appearance between ${dateRange.start} and ${dateRange.end}.`;
+				} else {
+					// Check for season
+					const seasonFrame = analysis.extractionResult?.timeFrames?.find((tf) => tf.type === "season");
+					if (seasonFrame) {
+						season = seasonFrame.value.replace("-", "/");
+					} else if (analysis.timeRange) {
+						const seasonMatch = analysis.timeRange.match(/(\d{4}[\/\-]\d{2})/i);
+						if (seasonMatch) {
+							season = seasonMatch[1].replace("-", "/");
+						}
+					} else {
+						const seasonMatch = questionText.match(/(\d{4})[\/\-](\d{2})/i);
+						if (seasonMatch) {
+							season = `${seasonMatch[1]}/${seasonMatch[2]}`;
+						}
+					}
+					
+					if (season) {
+						answer = `${String(playerName)} didn't make an appearance in ${season}.`;
+					} else {
+						answer = responseTemplateManager.formatResponse("player_metric", {
+							playerName: String(playerName),
+							value: String(0),
+							metric: "appearances",
+						});
+					}
+				}
+			}
+			// Also check for metric pattern like "2017/18 Apps" (legacy pattern)
 			else if (
 				metric &&
 				typeof metric === "string" &&
@@ -5742,6 +6024,112 @@ export class ChatbotService {
 					});
 				}
 			}
+			// Check if this is a season-specific goals query - check both metric pattern AND analysis timeFrames
+			// This handles queries like "How many goals did Jack Murrell score in 2017-18?" where metric is "G" not "2017/18GOALS"
+			// Also handles date range queries like "2021 to 2022"
+			else if (
+				metric &&
+				typeof metric === "string" &&
+				(metric.toUpperCase() === "G" || metric.toUpperCase() === "GOALS" || metric.toUpperCase() === "GOAL") &&
+				(analysis.extractionResult?.timeFrames?.some((tf) => tf.type === "season" || tf.type === "range") || 
+				 analysis.timeRange?.match(/\d{4}[\/\-]\d{2}/) ||
+				 analysis.timeRange?.match(/\d{2}[\/\-]\d{2}/) ||
+				 analysis.timeRange?.includes(" to ") ||
+				 question.match(/\d{4}[\/\-]\d{2}/i) ||
+				 question.match(/\d{2}[\/\-]\d{2}/i) ||
+				 question.match(/\d{4}\s+to\s+\d{4}/i) ||
+				 (analysis.question && analysis.question.match(/\d{4}[\/\-]\d{2}/i)) ||
+				 (analysis.question && analysis.question.match(/\d{2}[\/\-]\d{2}/i)) ||
+				 (analysis.question && analysis.question.match(/\d{4}\s+to\s+\d{4}/i)))
+			) {
+				answerValue = 0;
+				// Extract season from timeFrames, timeRange, or question text
+				let season: string | null = null;
+				let dateRange: { start: string; end: string } | null = null;
+				
+				// Use original question from analysis if available, otherwise use question parameter
+				const questionText = analysis.question || question;
+				
+				// Check for range timeFrame first (date ranges like "2021 to 2022")
+				const rangeFrame = analysis.extractionResult?.timeFrames?.find((tf) => tf.type === "range");
+				if (rangeFrame && rangeFrame.value.includes(" to ")) {
+					const rangeMatch = rangeFrame.value.match(/(\d{4})\s+to\s+(\d{4})/i);
+					if (rangeMatch) {
+						dateRange = { start: rangeMatch[1], end: rangeMatch[2] };
+					}
+				}
+				
+				// If no range frame, check timeRange directly
+				if (!dateRange && analysis.timeRange && analysis.timeRange.includes(" to ")) {
+					const rangeMatch = analysis.timeRange.match(/(\d{4})\s+to\s+(\d{4})/i);
+					if (rangeMatch) {
+						dateRange = { start: rangeMatch[1], end: rangeMatch[2] };
+					}
+				}
+				
+				// If no range, check question text for date range (try both question parameter and analysis.question)
+				if (!dateRange) {
+					const questionRangeMatch = questionText.match(/(\d{4})\s+to\s+(\d{4})/i);
+					if (questionRangeMatch) {
+						dateRange = { start: questionRangeMatch[1], end: questionRangeMatch[2] };
+					}
+				}
+				
+				// If we have a date range, use it
+				if (dateRange) {
+					answer = `${String(playerName)} did not score a goal between ${dateRange.start} and ${dateRange.end}.`;
+				} else {
+					// Check for season
+					const seasonFrame = analysis.extractionResult?.timeFrames?.find((tf) => tf.type === "season");
+					if (seasonFrame) {
+						// Validate that seasonFrame.value is actually a season format, not the literal word "season"
+						const isValidSeasonFormat = /^(\d{4}|\d{2})[\/\-](\d{2})$/.test(seasonFrame.value);
+						if (isValidSeasonFormat) {
+							let seasonValue = seasonFrame.value.replace("-", "/");
+							// Expand abbreviated format if needed (20/21 -> 2020/21)
+							if (/^\d{2}[\/\-]\d{2}$/.test(seasonFrame.value)) {
+								const seasonMatch = seasonFrame.value.match(/(\d{2})[\/\-](\d{2})/);
+								if (seasonMatch) {
+									seasonValue = this.expandAbbreviatedSeason(seasonMatch[1], seasonMatch[2]);
+								}
+							}
+							season = seasonValue;
+						}
+					}
+					// Check timeRange or questionText if seasonFrame was invalid or not found
+					if (!season && analysis.timeRange) {
+						// Try full format first (2019/20)
+						let seasonMatch = analysis.timeRange.match(/(\d{4}[\/\-]\d{2})/i);
+						if (seasonMatch) {
+							season = seasonMatch[1].replace("-", "/");
+						} else {
+							// Try abbreviated format (20/21)
+							seasonMatch = analysis.timeRange.match(/(\d{2})[\/\-](\d{2})/i);
+							if (seasonMatch) {
+								season = this.expandAbbreviatedSeason(seasonMatch[1], seasonMatch[2]);
+							}
+						}
+					} else {
+						// Try full format first (2019/20)
+						let seasonMatch = questionText.match(/(\d{4})[\/\-](\d{2})/i);
+						if (seasonMatch) {
+							season = `${seasonMatch[1]}/${seasonMatch[2]}`;
+						} else {
+							// Try abbreviated format (20/21)
+							seasonMatch = questionText.match(/(\d{2})[\/\-](\d{2})/i);
+							if (seasonMatch) {
+								season = this.expandAbbreviatedSeason(seasonMatch[1], seasonMatch[2]);
+							}
+						}
+					}
+					
+					if (season) {
+						answer = `${String(playerName)} did not score in the ${season} season.`;
+					} else {
+						answer = `${String(playerName)} did not score any goals.`;
+					}
+				}
+			}
 			// Check if this is a season-specific goals query (e.g., "2016/17GOALS") - explicitly state player did not score
 			else if (
 				metric &&
@@ -5752,7 +6140,7 @@ export class ChatbotService {
 				const seasonMatch = metric.match(/(\d{4}\/\d{2})/);
 				if (seasonMatch) {
 					const season = seasonMatch[1];
-					answer = `${String(playerName)} did not score a goal in the ${season} season.`;
+					answer = `${String(playerName)} did not score in the ${season} season.`;
 				} else {
 					answer = `${String(playerName)} did not score any goals.`;
 				}
@@ -5838,7 +6226,25 @@ export class ChatbotService {
 				} else if (metricStr.toUpperCase() === "HOME" || metricStr === "HomeGames" || metricStr === "Home Games") {
 					// For home games count queries
 					answerValue = 0;
-					answer = `${playerNameStr} has played 0 home games.`;
+					// Check if there's a result filter (e.g., "won") and if player has any home games
+					const hasResultFilter = analysis.results && analysis.results.length > 0;
+					const playerData = data.data as PlayerData[];
+					const totalGames = (playerData[0] as any)?.totalGames;
+					if (hasResultFilter && totalGames !== undefined && totalGames > 0) {
+						// Player has games but didn't win/lose/draw (depending on filter)
+						const resultType = analysis.results?.[0]?.toLowerCase();
+						if (resultType === "win" || resultType === "w") {
+							answer = `${playerNameStr} has not won a home game.`;
+						} else if (resultType === "loss" || resultType === "l") {
+							answer = `${playerNameStr} has not lost a home game.`;
+						} else if (resultType === "draw" || resultType === "d") {
+							answer = `${playerNameStr} has not drawn a home game.`;
+						} else {
+							answer = `${playerNameStr} has not played a home game.`;
+						}
+					} else {
+						answer = `${playerNameStr} has not played a home game.`;
+					}
 				} else if (metricStr.toUpperCase() === "HOMEGAMES%WON" || metricStr === "HomeGames%Won" || metricStr === "Home Games % Won") {
 					// For home games percentage won queries
 					const zeroResponse = getZeroStatResponse(metricStr, playerNameStr);
@@ -5857,7 +6263,25 @@ export class ChatbotService {
 				} else if (metricStr.toUpperCase() === "AWAY" || metricStr === "AwayGames" || metricStr === "Away Games") {
 					// For away games count queries
 					answerValue = 0;
-					answer = `${playerNameStr} has played 0 away games.`;
+					// Check if there's a result filter (e.g., "won") and if player has any away games
+					const hasResultFilter = analysis.results && analysis.results.length > 0;
+					const playerData = data.data as PlayerData[];
+					const totalGames = (playerData[0] as any)?.totalGames;
+					if (hasResultFilter && totalGames !== undefined && totalGames > 0) {
+						// Player has games but didn't win/lose/draw (depending on filter)
+						const resultType = analysis.results?.[0]?.toLowerCase();
+						if (resultType === "win" || resultType === "w") {
+							answer = `${playerNameStr} has not won an away game.`;
+						} else if (resultType === "loss" || resultType === "l") {
+							answer = `${playerNameStr} has not lost an away game.`;
+						} else if (resultType === "draw" || resultType === "d") {
+							answer = `${playerNameStr} has not drawn an away game.`;
+						} else {
+							answer = `${playerNameStr} has not played an away game.`;
+						}
+					} else {
+						answer = `${playerNameStr} has not played an away game.`;
+					}
 				} else if (metricStr.toUpperCase() === "AWAYGAMES%WON" || metricStr === "AwayGames%Won" || metricStr === "Away Games % Won") {
 					// For away games percentage won queries
 					const zeroResponse = getZeroStatResponse(metricStr, playerNameStr);
@@ -5937,6 +6361,39 @@ export class ChatbotService {
 				} else {
 					answer = `I couldn't find any ${metric} information for ${playerName}. This stat may not be available for this player.`;
 				}
+			}
+		} else if (data && data.type === "distance_traveled") {
+			// Handle distance traveled query
+			const playerName = (data.playerName as string) || "";
+			const distanceData = data.data as { playerName?: string; totalDistance?: number; awayGames?: number; averageDistance?: number } | undefined;
+			const totalDistance = distanceData?.totalDistance || 0;
+			const awayGames = distanceData?.awayGames || 0;
+			const averageDistance = distanceData?.averageDistance || 0;
+			
+			if (totalDistance > 0) {
+				const roundedDistance = parseFloat(totalDistance.toFixed(1));
+				answer = `${playerName} has travelled ${roundedDistance.toFixed(1)} miles to get to games${awayGames > 0 ? ` across ${awayGames} ${awayGames === 1 ? "away game" : "away games"}` : ""}.`;
+				if (awayGames > 0 && averageDistance > 0) {
+					answer += ` That's an average of ${averageDistance.toFixed(1)} miles per away game.`;
+				}
+				answerValue = roundedDistance;
+				
+				visualization = {
+					type: "NumberCard",
+					data: [{
+						name: "Distance Travelled",
+						wordedText: "miles travelled",
+						value: roundedDistance,
+						iconName: "DistanceTravelled-Icon"
+					}],
+					config: {
+						title: `${playerName} - Distance Travelled`,
+						type: "bar",
+					},
+				};
+			} else {
+				answer = `${playerName} has not travelled to any away games.`;
+				answerValue = 0;
 			}
 		} else if (data && data.type === "penalties_taken") {
 			// Handle penalties taken query
@@ -6130,87 +6587,94 @@ export class ChatbotService {
 							// Find the season with the most goals
 							const mostProlific = transformedData.reduce((max, item) => (item.goals > max.goals ? item : max), transformedData[0]);
 							
-							// Ensure we have the full season string format (e.g., "2018/19")
-							// Extract from season string if it's in the format "YYYY/YY" or "YYYY-YY"
-							let seasonString = mostProlific.season;
-							if (seasonString) {
-								// If season is just a year, try to construct the full season string
-								if (/^\d{4}$/.test(seasonString)) {
-									const year = parseInt(seasonString, 10);
-									const nextYear = (year + 1).toString().substring(2);
-									seasonString = `${year}/${nextYear}`;
-								}
-								// Normalize season format (handle both "2018/19" and "2018-19")
-								seasonString = seasonString.replace(/-/g, "/");
-							}
-							
-							// Check if team filter is present (team-specific season goals query)
-							const hasTeamFilter = analysis.teamEntities && analysis.teamEntities.length > 0;
-							let teamName = "";
-							if (hasTeamFilter && analysis.teamEntities && analysis.teamEntities.length > 0) {
-								teamName = TeamMappingUtils.mapTeamName(analysis.teamEntities[0]);
-							}
-							
-							// Format response as: "[PlayerName] scored the most goals for the [team] in [season] ([goals] goals)."
-							if (hasTeamFilter && teamName) {
-								answer = `${playerName} scored the most goals for the ${teamName} in ${seasonString} (${mostProlific.goals} ${mostProlific.goals === 1 ? "goal" : "goals"}).`;
+							// Check if player has never scored any goals (all seasons have 0 goals)
+							const totalGoals = transformedData.reduce((sum, item) => sum + item.goals, 0);
+							if (totalGoals === 0 || mostProlific.goals === 0) {
+								answer = `${playerName} has never scored a goal.`;
+								answerValue = 0;
 							} else {
-								answer = `${playerName} scored the most goals in ${seasonString} (${mostProlific.goals} ${mostProlific.goals === 1 ? "goal" : "goals"}).`;
-							}
-							
-							// Extract full season format from answer text to ensure answerValue matches the answer
-							// This handles cases where database returns just "2018" instead of "2018/19"
-							let extractedSeason = seasonString;
-							if (answer) {
-								const seasonMatch = answer.match(/\b(\d{4}\/\d{2})\b/);
-								if (seasonMatch) {
-									extractedSeason = seasonMatch[1];
+								// Ensure we have the full season string format (e.g., "2018/19")
+								// Extract from season string if it's in the format "YYYY/YY" or "YYYY-YY"
+								let seasonString = mostProlific.season;
+								if (seasonString) {
+									// If season is just a year, try to construct the full season string
+									if (/^\d{4}$/.test(seasonString)) {
+										const year = parseInt(seasonString, 10);
+										const nextYear = (year + 1).toString().substring(2);
+										seasonString = `${year}/${nextYear}`;
+									}
+									// Normalize season format (handle both "2018/19" and "2018-19")
+									seasonString = seasonString.replace(/-/g, "/");
 								}
-							}
-							
-							// Set answerValue to extracted season string (e.g., "2018/19") for test report validation
-							answerValue = extractedSeason;
-							
-							// Sort by season ascending for chronological display
-							const sortedData = [...transformedData].sort((a, b) => {
-								return a.season.localeCompare(b.season);
-							});
-							
-							// Find the maximum goals for highlighting
-							const maxGoals = Math.max(...sortedData.map((item) => item.goals));
-							
-							// If team filter is present, show Table visualization; otherwise show Record (bar chart)
-							if (hasTeamFilter) {
-								// Create Table visualization with all seasons for team-specific queries
-								const tableData = sortedData.map((item) => ({
-									Season: item.season,
-									Goals: item.goals,
-								}));
 								
-								visualization = {
-									type: "Table",
-									data: tableData,
-									config: {
-										columns: [
-											{ key: "Season", label: "Season" },
-											{ key: "Goals", label: "Goals" },
-										],
-									},
-								};
-							} else {
-								// Create Chart visualization (bar chart) with all seasons
-								visualization = {
-									type: "Chart",
-									data: sortedData.map((item) => ({
-										name: item.season,
-										value: item.goals,
-										isHighest: item.goals === maxGoals,
-									})),
-									config: {
-										title: `${playerName} - Goals per Season`,
-										type: "bar",
-									},
-								};
+								// Check if team filter is present (team-specific season goals query)
+								const hasTeamFilter = analysis.teamEntities && analysis.teamEntities.length > 0;
+								let teamName = "";
+								if (hasTeamFilter && analysis.teamEntities && analysis.teamEntities.length > 0) {
+									teamName = TeamMappingUtils.mapTeamName(analysis.teamEntities[0]);
+								}
+								
+								// Format response as: "[PlayerName] scored the most goals for the [team] in [season] ([goals] goals)."
+								if (hasTeamFilter && teamName) {
+									answer = `${playerName} scored the most goals for the ${teamName} in ${seasonString} (${mostProlific.goals} ${mostProlific.goals === 1 ? "goal" : "goals"}).`;
+								} else {
+									answer = `${playerName} scored the most goals in ${seasonString} (${mostProlific.goals} ${mostProlific.goals === 1 ? "goal" : "goals"}).`;
+								}
+								
+								// Extract full season format from answer text to ensure answerValue matches the answer
+								// This handles cases where database returns just "2018" instead of "2018/19"
+								let extractedSeason = seasonString;
+								if (answer) {
+									const seasonMatch = answer.match(/\b(\d{4}\/\d{2})\b/);
+									if (seasonMatch) {
+										extractedSeason = seasonMatch[1];
+									}
+								}
+								
+								// Set answerValue to extracted season string (e.g., "2018/19") for test report validation
+								answerValue = extractedSeason;
+								
+								// Sort by season ascending for chronological display
+								const sortedData = [...transformedData].sort((a, b) => {
+									return a.season.localeCompare(b.season);
+								});
+								
+								// Find the maximum goals for highlighting
+								const maxGoals = Math.max(...sortedData.map((item) => item.goals));
+								
+								// If team filter is present, show Table visualization; otherwise show Record (bar chart)
+								if (hasTeamFilter) {
+									// Create Table visualization with all seasons for team-specific queries
+									const tableData = sortedData.map((item) => ({
+										Season: item.season,
+										Goals: item.goals,
+									}));
+									
+									visualization = {
+										type: "Table",
+										data: tableData,
+										config: {
+											columns: [
+												{ key: "Season", label: "Season" },
+												{ key: "Goals", label: "Goals" },
+											],
+										},
+									};
+								} else {
+									// Create Chart visualization (bar chart) with all seasons
+									visualization = {
+										type: "Chart",
+										data: sortedData.map((item) => ({
+											name: item.season,
+											value: item.goals,
+											isHighest: item.goals === maxGoals,
+										})),
+										config: {
+											title: `${playerName} - Goals per Season`,
+											type: "bar",
+										},
+									};
+								}
 							}
 							} else {
 								answer = `${playerName} has no season data available.`;
@@ -6315,8 +6779,10 @@ export class ChatbotService {
 					if (teamData && teamData.length > 0) {
 						// Get the most played team (first in the sorted list)
 						const mostPlayedTeam = teamData[0].value;
-						answer = `${playerName} has played for the ${mostPlayedTeam} most.`;
-						answerValue = mostPlayedTeam;
+						// Convert team name to short format (e.g., "5th XI" -> "5s")
+						const shortTeamName = TeamMappingUtils.getShortTeamName(mostPlayedTeam);
+						answer = `${playerName} has played for the ${shortTeamName} the most.`;
+						answerValue = shortTeamName;
 						
 						// Create table visualization with all teams
 						const tableData = teamData.map((item) => ({
@@ -6334,6 +6800,24 @@ export class ChatbotService {
 								],
 							},
 						};
+					} else {
+						answer = `${playerName} has no team data available.`;
+					}
+				}
+				// Handle MostScoredForTeam - find team with most goals
+				else if (metric && (metric === "MostScoredForTeam" || metric.toUpperCase() === "MOSTSCOREDFORTEAM")) {
+					const playerData = data.data as PlayerData[];
+					if (playerData && playerData.length > 0) {
+						const teamName = playerData[0].value as string;
+						if (teamName) {
+							// Convert team name to short format (e.g., "5th XI" -> "5s")
+							const shortTeamName = TeamMappingUtils.getShortTeamName(teamName);
+							const statDisplayName = (analysis as any).mostScoredForTeamStatDisplayName || "goals";
+							answer = `${playerName} has scored the most ${statDisplayName} for the ${shortTeamName}.`;
+							answerValue = shortTeamName;
+						} else {
+							answer = `${playerName} has no team data available.`;
+						}
 					} else {
 						answer = `${playerName} has no team data available.`;
 					}
@@ -6667,7 +7151,8 @@ export class ChatbotService {
 				// Handle regular single-value queries
 				else {
 					const playerData = data.data as PlayerData[];
-					const value = playerData[0]?.value;
+					// For SEASON_COUNT_SIMPLE, value might be in playerSeasonCount field instead of value field
+					const value = playerData[0]?.value ?? (playerData[0] as any)?.playerSeasonCount;
 					const totalGames = (playerData[0] as any)?.totalGames;
 
 					// Define competition filter variables at higher scope for use in multiple branches
@@ -6677,90 +7162,107 @@ export class ChatbotService {
 					const hasCompetitionTypeFilter = competitionTypes.length > 0;
 
 					if (value !== undefined && value !== null) {
-						// Check if this is a percentage query (Home/Away/Games % Won/Lost/Drawn)
-						const isPercentageQuery = metric && (
-							metric.toUpperCase().includes("HOMEGAMES%") ||
-							metric.toUpperCase().includes("AWAYGAMES%") ||
-							metric.toUpperCase().includes("GAMES%")
-						);
-
-						if (isPercentageQuery && totalGames !== undefined) {
-							// Format percentage with 1 decimal place
-							const percentageValue = typeof value === "number" ? value : Number(value);
-							const formattedPercentage = percentageValue.toFixed(1);
-							answerValue = percentageValue;
-
-							// Determine the result type and location
-							const metricUpper = metric.toUpperCase();
-							const isHome = metricUpper.includes("HOMEGAMES");
-							const isAway = metricUpper.includes("AWAYGAMES");
-							const isWon = metricUpper.includes("%WON");
-							const isLost = metricUpper.includes("%LOST");
-							const isDrawn = metricUpper.includes("%DRAWN");
-
-							const location = isHome ? "home" : isAway ? "away" : "";
-							const result = isWon ? "won" : isLost ? "lost" : isDrawn ? "drawn" : "";
-							const gameText = totalGames === 1 ? "game" : "games";
-
-							// Build response text: "Luke Bangs has won 40.5% of the 78 away games he has played"
-							const pronoun = userContext && playerName.toLowerCase() === userContext.toLowerCase() ? "he" : "they";
-							if (location) {
-								answer = `${playerName} has ${result} ${formattedPercentage}% of the ${totalGames} ${location} ${gameText} ${pronoun} has played.`;
+						// Special handling for NumberTeamsPlayedFor - format as "X of the clubs Y teams"
+						if (metric && (metric === "NUMBERTEAMSPLAYEDFOR" || metric === "NumberTeamsPlayedFor")) {
+							const playerTeamCount = typeof value === "number" ? value : 0;
+							const totalTeamCount = (playerData[0] as any)?.totalTeamCount || 9; // Default to 9 if not provided
+							answer = `${playerName} has played for ${playerTeamCount} of the clubs ${totalTeamCount} teams.`;
+							answerValue = `${playerTeamCount}/${totalTeamCount}`;
+						} else if (metric && (metric === "NUMBERSEASONSPLAYEDFOR" || metric === "NumberSeasonsPlayedFor" || metric.toUpperCase().includes("NUMBERSEASONSPLAYEDFOR") || metric === "Season Count Simple" || metric.toUpperCase() === "SEASON COUNT SIMPLE" || metric === "SEASON_COUNT_SIMPLE" || metric.toUpperCase() === "SEASON_COUNT_SIMPLE")) {
+							// Special handling for NumberSeasonsPlayedFor and SEASON_COUNT_SIMPLE - format as "X out of Y" where Y is total seasons
+							const playerSeasonCount = typeof value === "number" ? value : (playerData[0] as any)?.playerSeasonCount || (playerData[0] as any)?.value || 0;
+							const totalSeasonCount = (playerData[0] as any)?.totalSeasonCount || 0;
+							if (totalSeasonCount > 0) {
+								answer = `${playerName} has played in ${playerSeasonCount} out of the ${totalSeasonCount} recorded seasons.`;
+								answerValue = `${playerSeasonCount}/${totalSeasonCount}`;
 							} else {
-								answer = `${playerName} has ${result} ${formattedPercentage}% of the ${totalGames} ${gameText} ${pronoun} has played.`;
+								answer = `${playerName} has played in ${playerSeasonCount} seasons.`;
+								answerValue = playerSeasonCount;
 							}
-
-							// Create NumberCard visualization
-							// Determine icon name based on location (use same icon for all result types for home/away)
-							let iconName: string;
-							if (isAway) {
-								// Use PercentageAwayGamesWon-Icon for all away games percentage queries (won/lost/drawn)
-								iconName = "PercentageAwayGamesWon-Icon";
-							} else if (isHome) {
-								// Use PercentageHomeGamesWon-Icon for all home games percentage queries (won/lost/drawn)
-								iconName = "PercentageHomeGamesWon-Icon";
-							} else {
-								// General games percentage - use result-specific icons
-								if (isWon) {
-									iconName = "PercentageGamesWon-Icon";
-								} else if (isLost) {
-									iconName = "PercentageGamesLost-Icon";
-								} else {
-									iconName = "PercentageGamesDrawn-Icon";
-								}
-							}
-							// Format display name as "% of [location] games [result]" for NumberCard
-							const displayName = isAway 
-								? (isWon ? "% of away games won" : isLost ? "% of away games lost" : "% of away games drawn")
-								: isHome
-								? (isWon ? "% of home games won" : isLost ? "% of home games lost" : "% of home games drawn")
-								: (isWon ? "% of games won" : isLost ? "% of games lost" : "% of games drawn");
-
-							// Format value to 1 decimal place for NumberCard display
-							const formattedValue = parseFloat(percentageValue.toFixed(1));
-
-							visualization = {
-								type: "NumberCard",
-								data: [{
-									name: displayName,
-									value: formattedValue,
-									metric: metric,
-									iconName: iconName
-								}],
-								config: {
-									title: displayName,
-									type: "bar",
-								},
-							};
-						}
-						// Round answerValue for penalty conversion rate to 1 decimal place
-						else if (metric && metric.toUpperCase() === "PENALTY_CONVERSION_RATE") {
-							answerValue = this.roundValueByMetric(metric, value as number);
-							answer = ResponseBuilder.buildContextualResponse(playerName, metric, value, analysis);
 						} else {
-							answerValue = value as number;
-							
-							// Check for team filter with goals/assists/other stats queries
+							// Check if this is a percentage query (Home/Away/Games % Won/Lost/Drawn)
+							const isPercentageQuery = metric && (
+								metric.toUpperCase().includes("HOMEGAMES%") ||
+								metric.toUpperCase().includes("AWAYGAMES%") ||
+								metric.toUpperCase().includes("GAMES%")
+							);
+
+							if (isPercentageQuery && totalGames !== undefined) {
+								// Format percentage with 1 decimal place
+								const percentageValue = typeof value === "number" ? value : Number(value);
+								const formattedPercentage = percentageValue.toFixed(1);
+								answerValue = percentageValue;
+
+								// Determine the result type and location
+								const metricUpper = metric.toUpperCase();
+								const isHome = metricUpper.includes("HOMEGAMES");
+								const isAway = metricUpper.includes("AWAYGAMES");
+								const isWon = metricUpper.includes("%WON");
+								const isLost = metricUpper.includes("%LOST");
+								const isDrawn = metricUpper.includes("%DRAWN");
+
+								const location = isHome ? "home" : isAway ? "away" : "";
+								const result = isWon ? "won" : isLost ? "lost" : isDrawn ? "drawn" : "";
+								const gameText = totalGames === 1 ? "game" : "games";
+
+								// Build response text: "Luke Bangs has won 40.5% of the 78 away games he has played"
+								const pronoun = userContext && playerName.toLowerCase() === userContext.toLowerCase() ? "he" : "they";
+								if (location) {
+									answer = `${playerName} has ${result} ${formattedPercentage}% of the ${totalGames} ${location} ${gameText} ${pronoun} has played.`;
+								} else {
+									answer = `${playerName} has ${result} ${formattedPercentage}% of the ${totalGames} ${gameText} ${pronoun} has played.`;
+								}
+
+								// Create NumberCard visualization
+								// Determine icon name based on location (use same icon for all result types for home/away)
+								let iconName: string;
+								if (isAway) {
+									// Use PercentageAwayGamesWon-Icon for all away games percentage queries (won/lost/drawn)
+									iconName = "PercentageAwayGamesWon-Icon";
+								} else if (isHome) {
+									// Use PercentageHomeGamesWon-Icon for all home games percentage queries (won/lost/drawn)
+									iconName = "PercentageHomeGamesWon-Icon";
+								} else {
+									// General games percentage - use result-specific icons
+									if (isWon) {
+										iconName = "PercentageGamesWon-Icon";
+									} else if (isLost) {
+										iconName = "PercentageGamesLost-Icon";
+									} else {
+										iconName = "PercentageGamesDrawn-Icon";
+									}
+								}
+								// Format display name as "% of [location] games [result]" for NumberCard
+								const displayName = isAway 
+									? (isWon ? "% of away games won" : isLost ? "% of away games lost" : "% of away games drawn")
+									: isHome
+									? (isWon ? "% of home games won" : isLost ? "% of home games lost" : "% of home games drawn")
+									: (isWon ? "% of games won" : isLost ? "% of games lost" : "% of games drawn");
+
+								// Format value to 1 decimal place for NumberCard display
+								const formattedValue = parseFloat(percentageValue.toFixed(1));
+
+								visualization = {
+									type: "NumberCard",
+									data: [{
+										name: displayName,
+										value: formattedValue,
+										metric: metric,
+										iconName: iconName
+									}],
+									config: {
+										title: displayName,
+										type: "bar",
+									},
+								};
+							// Round answerValue for penalty conversion rate to 1 decimal place
+							} else if (metric && metric.toUpperCase() === "PENALTY_CONVERSION_RATE") {
+								answerValue = this.roundValueByMetric(metric, value as number);
+								answer = ResponseBuilder.buildContextualResponse(playerName, metric, value, analysis);
+							} else {
+								answerValue = value as number;
+								
+								// Check for team filter with goals/assists/other stats queries
 							const teamEntities = analysis.teamEntities || [];
 							const hasTeamFilter = teamEntities.length > 0;
 							const isGoalsQuery = metric && metric.toUpperCase() === "G";
@@ -6844,31 +7346,37 @@ export class ChatbotService {
 									.replace("8th XI", "8s");
 								
 								const goalCount = value as number;
-								const goalText = goalCount === 1 ? "goal" : "goals";
 								
-								// Build answer parts
-								let answerParts: string[] = [];
+								// If goal count is 0, use "has not scored" format
+								if (goalCount === 0) {
+									answer = `${playerName} has not scored for the ${teamDisplayName}.`;
+								} else {
+									const goalText = goalCount === 1 ? "goal" : "goals";
+									
+									// Build answer parts
+									let answerParts: string[] = [];
+									
+									// Start with player name and goal count
+									answerParts.push(`${playerName} scored ${goalCount} ${goalText}`);
+									
+									// Add team filter
+									answerParts.push(`for the ${teamDisplayName}`);
 								
-								// Start with player name and goal count
-								answerParts.push(`${playerName} scored ${goalCount} ${goalText}`);
-								
-								// Add team filter
-								answerParts.push(`for the ${teamDisplayName}`);
-								
-								// Add location filter if present
-								if (hasHomeLocation) {
-									answerParts.push("whilst playing at home");
-								} else if (hasAwayLocation) {
-									answerParts.push("whilst playing away");
+									// Add location filter if present
+									if (hasHomeLocation) {
+										answerParts.push("whilst playing at home");
+									} else if (hasAwayLocation) {
+										answerParts.push("whilst playing away");
+									}
+									
+									// Add date range filter if present
+									if (dateRangeText) {
+										answerParts.push(dateRangeText);
+									}
+									
+									// Join parts and add period
+									answer = answerParts.join(" ") + ".";
 								}
-								
-								// Add date range filter if present
-								if (dateRangeText) {
-									answerParts.push(dateRangeText);
-								}
-								
-								// Join parts and add period
-								answer = answerParts.join(" ") + ".";
 							} else if (hasTeamFilter && isAssistsQuery) {
 								// Build answer text for assists queries with filters (team, location, date range)
 								const teamName = TeamMappingUtils.mapTeamName(teamEntities[0]);
@@ -6987,8 +7495,12 @@ export class ChatbotService {
 									}
 									if (teamDisplayName) {
 										const goalCount = value as number;
-										const goalText = goalCount === 1 ? "goal" : "goals";
-										answer = `${playerName} has ${goalCount} ${goalText} for the ${teamDisplayName}.`;
+										if (goalCount === 0) {
+											answer = `${playerName} has not scored for the ${teamDisplayName}.`;
+										} else {
+											const goalText = goalCount === 1 ? "goal" : "goals";
+											answer = `${playerName} has ${goalCount} ${goalText} for the ${teamDisplayName}.`;
+										}
 									} else {
 										// Fallback to general handler
 										const statObjectKey = this.mapMetricToStatObjectKey(metric);
@@ -7059,6 +7571,42 @@ export class ChatbotService {
 									
 									// Join parts and add period
 									answer = answerParts.join(" ") + ".";
+								} else if (metric && (metric.toUpperCase() === "HOMEGAMES" || metric.toUpperCase() === "HOME" || metric === "Home Games") && (value === 0 || value === "0" || (typeof value === "number" && value === 0))) {
+									// Special handling for home games with zero value
+									// Check if there's a result filter and if player has any home games
+									const hasResultFilter = analysis.results && analysis.results.length > 0;
+									if (hasResultFilter && totalGames !== undefined && totalGames > 0) {
+										const resultType = analysis.results?.[0]?.toLowerCase();
+										if (resultType === "win" || resultType === "w") {
+											answer = `${playerName} has not won a home game.`;
+										} else if (resultType === "loss" || resultType === "l") {
+											answer = `${playerName} has not lost a home game.`;
+										} else if (resultType === "draw" || resultType === "d") {
+											answer = `${playerName} has not drawn a home game.`;
+										} else {
+											answer = `${playerName} has not played a home game.`;
+										}
+									} else {
+										answer = `${playerName} has not played a home game.`;
+									}
+								} else if (metric && (metric.toUpperCase() === "AWAYGAMES" || metric.toUpperCase() === "AWAY" || metric === "Away Games") && (value === 0 || value === "0" || (typeof value === "number" && value === 0))) {
+									// Special handling for away games with zero value
+									// Check if there's a result filter and if player has any away games
+									const hasResultFilter = analysis.results && analysis.results.length > 0;
+									if (hasResultFilter && totalGames !== undefined && totalGames > 0) {
+										const resultType = analysis.results?.[0]?.toLowerCase();
+										if (resultType === "win" || resultType === "w") {
+											answer = `${playerName} has not won an away game.`;
+										} else if (resultType === "loss" || resultType === "l") {
+											answer = `${playerName} has not lost an away game.`;
+										} else if (resultType === "draw" || resultType === "d") {
+											answer = `${playerName} has not drawn an away game.`;
+										} else {
+											answer = `${playerName} has not played an away game.`;
+										}
+									} else {
+										answer = `${playerName} has not played an away game.`;
+									}
 								} else {
 									// General fallback: Build answer text for any stat query with filters (team, location, or date range)
 									// This handles yellow cards, MoMs, and other stats with filters
@@ -7151,7 +7699,8 @@ export class ChatbotService {
 							};
 						}
 						// Create NumberCard visualization for goals queries with competition, location, or team filters
-						else if (metric && metric.toUpperCase() === "G") {
+						// Also handle OPENPLAYGOALS (open play goals)
+						else if (metric && (metric.toUpperCase() === "G" || metric.toUpperCase() === "OPENPLAYGOALS")) {
 							const locations = analysis.extractionResult?.locations || [];
 							const hasAwayLocation = locations.some((loc) => loc.type === "away");
 							const hasHomeLocation = locations.some((loc) => loc.type === "home");
@@ -7159,9 +7708,16 @@ export class ChatbotService {
 							const hasTeamFilter = teamEntities.length > 0;
 							const timeFrames = analysis.extractionResult?.timeFrames || [];
 							const hasDateFilter = timeFrames.some((tf) => tf.type === "range" || tf.type === "since") || analysis.timeRange;
+							const competitions = analysis.competitions || [];
+							const hasCompetitionFilter = competitions.length > 0;
+							const competitionTypes = analysis.competitionTypes || [];
+							const hasCompetitionTypeFilter = competitionTypes.length > 0;
 							
 							const iconName = this.getIconNameForMetric(metric);
 							const roundedValue = this.roundValueByMetric(metric, value as number);
+							// Use "open play goals" for OPENPLAYGOALS, "goals" for G
+							const isOpenPlayGoals = metric.toUpperCase() === "OPENPLAYGOALS";
+							const wordedTextForGoals = isOpenPlayGoals ? "open play goals" : "goals";
 							
 							// Handle combinations of filters first (priority: location + team + date > location + team > location + date > team + date)
 							if ((hasHomeLocation || hasAwayLocation) && hasTeamFilter && hasDateFilter) {
@@ -7182,7 +7738,7 @@ export class ChatbotService {
 									type: "NumberCard",
 									data: [{ 
 										name: "goals",
-										wordedText: "goals", 
+										wordedText: wordedTextForGoals, 
 										value: roundedValue,
 										iconName: iconName
 									}],
@@ -7209,7 +7765,7 @@ export class ChatbotService {
 									type: "NumberCard",
 									data: [{ 
 										name: "goals",
-										wordedText: "goals", 
+										wordedText: wordedTextForGoals, 
 										value: roundedValue,
 										iconName: iconName
 									}],
@@ -7251,7 +7807,7 @@ export class ChatbotService {
 									type: "NumberCard",
 									data: [{ 
 										name: "goals",
-										wordedText: "goals", 
+										wordedText: wordedTextForGoals, 
 										value: roundedValue,
 										iconName: iconName
 									}],
@@ -7309,7 +7865,7 @@ export class ChatbotService {
 									type: "NumberCard",
 									data: [{ 
 										name: "goals",
-										wordedText: "goals", 
+										wordedText: wordedTextForGoals, 
 										value: roundedValue,
 										iconName: iconName
 									}],
@@ -7329,7 +7885,7 @@ export class ChatbotService {
 									type: "NumberCard",
 									data: [{ 
 										name: "goals",
-										wordedText: "goals", 
+										wordedText: wordedTextForGoals, 
 										value: roundedValue,
 										iconName: iconName
 									}],
@@ -7348,12 +7904,27 @@ export class ChatbotService {
 									type: "NumberCard",
 									data: [{ 
 										name: "goals",
-										wordedText: "goals", 
+										wordedText: wordedTextForGoals, 
 										value: roundedValue,
 										iconName: iconName
 									}],
 									config: {
 										title: `${playerName} - Goals in ${competitions[0]}`,
+										type: "bar",
+									},
+								};
+							} else if (!hasHomeLocation && !hasAwayLocation && !hasTeamFilter && !hasDateFilter && !hasCompetitionTypeFilter && !hasCompetitionFilter) {
+								// No filters - create NumberCard for simple open play goals query
+								visualization = {
+									type: "NumberCard",
+									data: [{ 
+										name: isOpenPlayGoals ? "Open Play Goals" : "Goals",
+										wordedText: wordedTextForGoals, 
+										value: roundedValue,
+										iconName: iconName
+									}],
+									config: {
+										title: `${playerName} - ${isOpenPlayGoals ? "Open Play Goals" : "Goals"}`,
 										type: "bar",
 									},
 								};
@@ -7659,6 +8230,7 @@ export class ChatbotService {
 								};
 							}
 						}
+					}
 					} else {
 						answer = "No data found for your query.";
 					}
@@ -7670,7 +8242,13 @@ export class ChatbotService {
 				const value = playerData[0]?.value;
 				const metric = (data.metric as string) || analysis.metrics[0] || "G";
 
-				if (value !== undefined && value !== null) {
+				// Special handling for NumberTeamsPlayedFor - format as "X of the clubs Y teams"
+				if (metric && (metric === "NUMBERTEAMSPLAYEDFOR" || metric === "NumberTeamsPlayedFor")) {
+					const playerTeamCount = typeof value === "number" ? value : 0;
+					const totalTeamCount = (playerData[0] as any)?.totalTeamCount || 9; // Default to 9 if not provided
+					answer = `${playerName} has played for ${playerTeamCount} of the clubs ${totalTeamCount} teams.`;
+					answerValue = `${playerTeamCount}/${totalTeamCount}`;
+				} else if (value !== undefined && value !== null) {
 					answerValue = value as number;
 					answer = ResponseBuilder.buildContextualResponse(playerName, metric, value, analysis);
 				} else {
@@ -8492,6 +9070,16 @@ export class ChatbotService {
 			this.logToBoth(`❌ Error in comparison query:`, error, "error");
 			return { type: "error", data: [], error: "Error querying comparison data" };
 		}
+	}
+
+	// Helper function to expand abbreviated season format (e.g., "20/21" -> "2020/21")
+	private expandAbbreviatedSeason(startYear: string, endYear: string): string {
+		const start = parseInt(startYear, 10);
+		const end = parseInt(endYear, 10);
+		// If start year is 2 digits and < 50, assume 2000s (20 -> 2020)
+		// If start year is 2 digits and >= 50, assume 1900s (unlikely for this use case)
+		const fullStartYear = start < 50 ? 2000 + start : 1900 + start;
+		return `${fullStartYear}/${endYear}`;
 	}
 
 	private async queryTemporalData(entities: string[], metrics: string[], timeRange?: string): Promise<Record<string, unknown>> {
