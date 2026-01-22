@@ -18,14 +18,41 @@ interface MatchDetailWithSummary extends MatchDetail {
 	result?: string | null;
 }
 
+interface AggregatedPlayerStats {
+	playerName: string;
+	season: string;
+	aggregatedStats: {
+		appearances: number;
+		goals: number;
+		assists: number;
+		cleanSheets: number;
+		conceded: number;
+		saves: number;
+		yellowCards: number;
+		redCards: number;
+		ownGoals: number;
+		penaltiesScored: number;
+		penaltiesMissed: number;
+		penaltiesConceded: number;
+		penaltiesSaved: number;
+		mom: number;
+		totalMinutes: number;
+		playerClass: string;
+	};
+	ftpBreakdown: FTPBreakdown[];
+	totalFTP: number;
+	totwAppearances?: number;
+}
+
 interface PlayerDetailModalProps {
 	playerName: string;
-	matchDetails: MatchDetailWithSummary[];
+	matchDetails?: MatchDetailWithSummary[] | null;
+	aggregatedStats?: AggregatedPlayerStats | null;
 	totwAppearances?: number;
 	onClose: () => void;
 }
 
-export default function PlayerDetailModal({ playerName, matchDetails, totwAppearances, onClose }: PlayerDetailModalProps) {
+export default function PlayerDetailModal({ playerName, matchDetails, aggregatedStats, totwAppearances, onClose }: PlayerDetailModalProps) {
 	// Calculate FTP breakdown for a single match
 	const calculateFTPBreakdown = (match: MatchDetailWithSummary): FTPBreakdown[] => {
 		const playerClass = match.class;
@@ -221,8 +248,11 @@ export default function PlayerDetailModal({ playerName, matchDetails, totwAppear
 		};
 	};
 
-	const totalFTP = calculateTotalFTP();
-	const playerAppearances = matchDetails ? matchDetails.length : 0;
+	const totalFTP = aggregatedStats ? aggregatedStats.totalFTP : calculateTotalFTP();
+	const playerAppearances = aggregatedStats 
+		? aggregatedStats.aggregatedStats.appearances 
+		: (matchDetails ? matchDetails.length : 0);
+	const isAggregatedMode = !!aggregatedStats;
 
 	// Handle SSR
 	if (typeof window === 'undefined') {
@@ -260,8 +290,17 @@ export default function PlayerDetailModal({ playerName, matchDetails, totwAppear
 								paddingBottom: '1rem'
 							}}
 						>
-							{/* TOTW Appearances */}
-							{totwAppearances !== undefined && (
+							{/* Season Context for Aggregated Stats */}
+							{isAggregatedMode && aggregatedStats && (
+								<div className='text-center mb-4'>
+									<p className='text-white text-sm md:text-base font-semibold'>
+										{aggregatedStats.season === "All Time" ? "All Time" : `${aggregatedStats.season} Season`}
+									</p>
+								</div>
+							)}
+
+							{/* TOTW Appearances - Only show for match-by-match mode, not aggregated */}
+							{!isAggregatedMode && totwAppearances !== undefined && (
 								<div className='text-center mb-4'>
 									<p className='text-white text-xs md:text-sm'>
 										Number of TOTW appearances: <span className='font-bold'>{totwAppearances}</span>
@@ -269,8 +308,8 @@ export default function PlayerDetailModal({ playerName, matchDetails, totwAppear
 								</div>
 							)}
 
-							{/* Player Appearances - Only show if > 1 */}
-							{playerAppearances > 1 && (
+							{/* Player Appearances */}
+							{playerAppearances > 0 && (
 								<div className='text-center mb-4'>
 									<p className='text-white text-xs md:text-sm'>
 										Player Appearances: <span className='font-bold'>{playerAppearances}</span>
@@ -278,8 +317,46 @@ export default function PlayerDetailModal({ playerName, matchDetails, totwAppear
 								</div>
 							)}
 
-							{/* Match Details */}
-							{matchDetails && matchDetails.length > 0 ? (
+							{/* Aggregated Stats Display */}
+							{isAggregatedMode && aggregatedStats ? (
+								<div className='mb-6'>
+									{/* Statistics Table */}
+									<div className='overflow-x-auto'>
+										<table className='w-full text-white'>
+											<thead>
+												<tr className='border-b-2 border-dorkinians-yellow'>
+													<th className='text-left py-2 px-2 text-xs md:text-sm'>Statistics</th>
+													<th className='text-center py-2 px-2 text-xs md:text-sm'>Value</th>
+													<th className='text-center py-2 px-2 text-xs md:text-sm'>Points</th>
+												</tr>
+											</thead>
+											<tbody>
+												{aggregatedStats.ftpBreakdown
+													.filter((stat) => {
+														// #region agent log
+														if(stat.stat==="Man of the Match"){fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PlayerDetailModal.tsx:335',message:'Filtering MoM entry',data:{stat,show:stat.show,willPass:stat.show&&stat.stat!=="Penalties Conceded"},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});}
+														// #endregion
+														return stat.show && stat.stat !== "Penalties Conceded";
+													})
+													.map((stat, index) => {
+														// Format minutes played value with comma separator
+														const displayValue = stat.stat === "Minutes played" && typeof stat.value === "number"
+															? stat.value.toLocaleString()
+															: stat.value;
+														return (
+															<tr key={index} className='border-b border-green-500'>
+																<td className='py-2 px-2 text-xs md:text-sm'>{stat.stat}</td>
+																<td className='text-center py-2 px-2'>{displayValue}</td>
+																<td className='text-center py-2 px-2'>{stat.points}</td>
+															</tr>
+														);
+													})}
+											</tbody>
+										</table>
+									</div>
+								</div>
+							) : matchDetails && matchDetails.length > 0 ? (
+								/* Match Details - Fixture by Fixture */
 								matchDetails.map((match, matchIndex) => {
 									const breakdown = calculateFTPBreakdown(match);
 									const matchTotal = breakdown.reduce((sum, stat) => sum + stat.points, 0);
@@ -341,7 +418,7 @@ export default function PlayerDetailModal({ playerName, matchDetails, totwAppear
 							)}
 
 							{/* Total Points */}
-							{matchDetails && matchDetails.length > 0 && (
+							{(isAggregatedMode || (matchDetails && matchDetails.length > 0)) && (
 								<div className='mt-4 pt-4 pb-4 border-t-2 border-white'>
 									<table className='w-full text-white'>
 										<tbody>

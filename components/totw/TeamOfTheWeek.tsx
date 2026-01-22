@@ -53,6 +53,7 @@ export default function TeamOfTheWeek() {
 	const [loading, setLoading] = useState(true);
 	const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null);
 	const [playerDetails, setPlayerDetails] = useState<MatchDetailWithSummary[] | null>(null);
+	const [aggregatedPlayerStats, setAggregatedPlayerStats] = useState<any>(null);
 	const [totwAppearances, setTotwAppearances] = useState<number | undefined>(undefined);
 	const [showModal, setShowModal] = useState(false);
 	const [showInfoTooltip, setShowInfoTooltip] = useState(false);
@@ -455,26 +456,40 @@ export default function TeamOfTheWeek() {
 
 	// Handle player click
 	const handlePlayerClick = async (playerName: string) => {
-		// Disable player click for "All Time" and "Team of the Season" since they don't have a specific week
-		if (isAllTimeSelected || isSeasonTOTWSelected) {
-			return;
-		}
-		
-		if (!selectedSeason || !selectedWeek || !playerName) return;
-
-		const queryUrl = `/api/totw/player-details?season=${encodeURIComponent(selectedSeason)}&week=${selectedWeek}&playerName=${encodeURIComponent(playerName)}`;
-		log("info", "[TOTW] Player details query:", queryUrl);
+		if (!selectedSeason || !playerName) return;
 
 		setLoadingPlayerDetails(true);
 		setSelectedPlayer(playerName);
 
 		try {
-			const response = await fetch(queryUrl);
-			const data = await response.json();
-			if (data.matchDetails) {
-				setPlayerDetails(data.matchDetails);
-				setTotwAppearances(data.totwAppearances);
-				setShowModal(true);
+			// Use season-player-details API for "All Time" or "Team of the Season"
+			if (isAllTimeSelected || isSeasonTOTWSelected) {
+				const queryUrl = `/api/totw/season-player-details?season=${encodeURIComponent(selectedSeason)}&playerName=${encodeURIComponent(playerName)}`;
+				log("info", "[TOTW] Season player details query:", queryUrl);
+
+				const response = await fetch(queryUrl);
+				const data = await response.json();
+				if (data.aggregatedStats) {
+					setAggregatedPlayerStats(data);
+					setPlayerDetails(null);
+					setTotwAppearances(data.totwAppearances);
+					setShowModal(true);
+				}
+			} else {
+				// Use regular player-details API for weekly TOTW
+				if (!selectedWeek) return;
+				
+				const queryUrl = `/api/totw/player-details?season=${encodeURIComponent(selectedSeason)}&week=${selectedWeek}&playerName=${encodeURIComponent(playerName)}`;
+				log("info", "[TOTW] Player details query:", queryUrl);
+
+				const response = await fetch(queryUrl);
+				const data = await response.json();
+				if (data.matchDetails) {
+					setPlayerDetails(data.matchDetails);
+					setAggregatedPlayerStats(null);
+					setTotwAppearances(data.totwAppearances);
+					setShowModal(true);
+				}
 			}
 		} catch (error) {
 			console.error("Error fetching player details:", error);
@@ -1022,11 +1037,7 @@ export default function TeamOfTheWeek() {
 									<div className='h-5 mb-2 flex items-center justify-center'>
 										<p className='text-gray-300 font-bold text-xs md:text-sm'>STAR MAN</p>
 									</div>
-									<div className={`flex flex-col items-center gap-2 transition-transform ${
-										isAllTimeSelected || isSeasonTOTWSelected 
-											? "cursor-default" 
-											: "cursor-pointer hover:scale-105"
-									}`} onClick={() => handlePlayerClick(totwData.starMan)}>
+									<div className='flex flex-col items-center gap-2 cursor-pointer hover:scale-105 transition-transform' onClick={() => handlePlayerClick(totwData.starMan)}>
 										<div className='relative w-12 h-12 md:w-14 md:h-14'>
 											<Image
 												src='/totw-images/Kit.svg'
@@ -1097,11 +1108,7 @@ export default function TeamOfTheWeek() {
 								<div
 									key={`${player.name}-${index}`}
 									data-testid="totw-player"
-									className={`absolute z-10 transition-transform transition-opacity ${
-										isAllTimeSelected || isSeasonTOTWSelected 
-											? "cursor-default" 
-											: "cursor-pointer hover:scale-110 hover:opacity-80"
-									}`}
+									className='absolute cursor-pointer hover:scale-110 hover:opacity-80 transition-transform transition-opacity z-10'
 									style={{
 										left: `${adjustedX}%`,
 										top: `${position.y}%`,
@@ -1174,15 +1181,17 @@ export default function TeamOfTheWeek() {
 			)}
 
 			{/* Player Detail Modal */}
-			{showModal && selectedPlayer && playerDetails && (
+			{showModal && selectedPlayer && (playerDetails || aggregatedPlayerStats) && (
 				<PlayerDetailModal
 					playerName={selectedPlayer}
 					matchDetails={playerDetails}
+					aggregatedStats={aggregatedPlayerStats}
 					totwAppearances={totwAppearances}
 					onClose={() => {
 						setShowModal(false);
 						setSelectedPlayer(null);
 						setPlayerDetails(null);
+						setAggregatedPlayerStats(null);
 						setTotwAppearances(undefined);
 					}}
 				/>
