@@ -114,7 +114,7 @@ export default function Settings() {
 							className="mr-4"
 							icon={<ArrowLeftIcon className='w-6 h-6 text-white' />} />
 					</motion.div>
-					<h1 data-testid="settings-heading" className='text-3xl font-bold text-white'>Settings</h1>
+					<h1 data-testid="settings-heading" className='text-xl md:text-3xl font-bold text-white'>Settings</h1>
 				</div>
 				{/* Desktop Close Button */}
 				<motion.div
