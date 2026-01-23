@@ -1,5 +1,5 @@
 export const appConfig = {
-	version: "1.1.31",
+	version: "1.1.32",
 	name: "Dorkinians FC",
 	description: "Comprehensive source for club statistics, player performance, and team insights",
 	author: "Luke Bangs",

@@ -49,9 +49,21 @@ export function buildFilterConditions(filters: any, params: any): string[] {
 	}
 
 	// Opposition filters
-	if (filters.opposition && !filters.opposition.allOpposition) {
-		if (filters.opposition.searchTerm) {
+	if (filters.opposition) {
+		const mode = filters.opposition.mode ?? "all";
+		if (mode === "team" && filters.opposition.searchTerm) {
 			conditions.push(`toLower(f.opposition) CONTAINS toLower($oppositionSearch)`);
+			params.oppositionSearch = filters.opposition.searchTerm;
+		} else if (mode === "club" && filters.opposition.searchTerm) {
+			// Join with OppositionDetails to filter by shortTeamName
+			// Need to match OppositionDetails node and check shortTeamName
+			conditions.push(`EXISTS {
+				MATCH (od:OppositionDetails {graphLabel: $graphLabel})
+				WHERE od.opposition = f.opposition 
+				AND od.shortTeamName IS NOT NULL
+				AND od.shortTeamName <> ''
+				AND toLower(od.shortTeamName) CONTAINS toLower($oppositionSearch)
+			}`);
 			params.oppositionSearch = filters.opposition.searchTerm;
 		}
 	}

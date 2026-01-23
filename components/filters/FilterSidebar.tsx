@@ -257,10 +257,10 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 				},
 				teams: [...teamsForSnapshot],
 				location: [...locationForSnapshot],
-				opposition: {
-					allOpposition: playerFilters.opposition?.allOpposition ?? true,
-					searchTerm: playerFilters.opposition?.searchTerm || "",
-				},
+			opposition: {
+				mode: playerFilters.opposition?.mode ?? "all",
+				searchTerm: playerFilters.opposition?.searchTerm || "",
+			},
 				competition: {
 					types: [...competitionTypesForSnapshot],
 					searchTerm: playerFilters.competition?.searchTerm || "",
@@ -498,14 +498,14 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 		if (!playerFilters) return;
 		updatePlayerFilters({
 			opposition: {
-				...(playerFilters.opposition || { allOpposition: true, searchTerm: "" }),
+				...(playerFilters.opposition || { mode: "all", searchTerm: "" }),
 				searchTerm,
 			},
 		});
 		setShowOppositionDropdown(true);
 	};
 
-	// Filter opposition based on search term
+	// Filter opposition teams based on search term
 	const filteredOpposition = useMemo(() => {
 		if (!filterData?.opposition) return [];
 		const searchTerm = (playerFilters?.opposition?.searchTerm || "").toLowerCase();
@@ -517,11 +517,23 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 			.slice(0, 50); // Limit to 50 results
 	}, [filterData?.opposition, playerFilters?.opposition?.searchTerm]);
 
+	// Filter opposition clubs based on search term
+	const filteredOppositionClubs = useMemo(() => {
+		if (!filterData?.oppositionClubs) return [];
+		const searchTerm = (playerFilters?.opposition?.searchTerm || "").toLowerCase();
+		if (!searchTerm) {
+			return filterData.oppositionClubs.slice(0, 50); // Show all options (limited to 50) when searchTerm is empty
+		}
+		return filterData.oppositionClubs
+			.filter(club => club.shortTeamName.toLowerCase().includes(searchTerm))
+			.slice(0, 50); // Limit to 50 results
+	}, [filterData?.oppositionClubs, playerFilters?.opposition?.searchTerm]);
+
 	const handleOppositionSelect = (oppositionName: string) => {
 		if (!playerFilters) return;
 		updatePlayerFilters({
 			opposition: {
-				...(playerFilters.opposition || { allOpposition: true, searchTerm: "" }),
+				...(playerFilters.opposition || { mode: "all", searchTerm: "" }),
 				searchTerm: oppositionName,
 			},
 		});
@@ -783,11 +795,12 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 	};
 
 	const handleClearAllConfirm = async () => {
-		// Reset filters: Set Time range to "All Time" and select all Teams
+		// Reset filters: Set all filters to defaults
 		if (!playerFilters || !filterData) return;
 		
 		const allTeams = filterData.teams.map(team => team.name);
 		userClearedRef.current.teams = false;
+		userClearedRef.current.position = false;
 		
 		updatePlayerFilters({
 			timeRange: {
@@ -799,6 +812,17 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 				endDate: "",
 			},
 			teams: allTeams,
+			location: ["Home", "Away"],
+			opposition: {
+				mode: "all",
+				searchTerm: "",
+			},
+			competition: {
+				types: ["League", "Cup", "Friendly"],
+				searchTerm: "",
+			},
+			result: ["Win", "Draw", "Loss"],
+			position: ["GK", "DEF", "MID", "FWD"],
 		});
 		
 		await applyPlayerFilters();
@@ -832,7 +856,7 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 			(timeRange?.endDate || "") !== "" ||
 			(teams?.length || 0) > 0 ||
 			(location?.length || 2) < 2 ||
-			!opposition?.allOpposition ||
+			(opposition?.mode ?? "all") !== "all" ||
 			(opposition?.searchTerm || "") !== "" ||
 			(competition?.types?.length || 3) !== 3 ||
 			(competition?.searchTerm || "") !== "" ||
@@ -869,7 +893,7 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 
 		// Compare opposition
 		if (
-			(playerFilters.opposition?.allOpposition ?? true) !== (initialFilterSnapshot.opposition?.allOpposition ?? true) ||
+			(playerFilters.opposition?.mode ?? "all") !== (initialFilterSnapshot.opposition?.mode ?? "all") ||
 			(playerFilters.opposition?.searchTerm || "") !== (initialFilterSnapshot.opposition?.searchTerm || "")
 		) {
 			return true;
@@ -1330,13 +1354,15 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 										<div className='px-4 pb-4 space-y-1.5'>
 											<label className='flex items-center min-h-[36px]'>
 												<input
-													type='checkbox'
-													checked={playerFilters?.opposition?.allOpposition ?? true}
-													onChange={(e) =>
+													type='radio'
+													name='oppositionMode'
+													checked={(playerFilters?.opposition?.mode ?? "all") === "all"}
+													onChange={() =>
 														updatePlayerFilters({
 															opposition: { 
-																...(playerFilters?.opposition || { allOpposition: true, searchTerm: "" }), 
-																allOpposition: e.target.checked 
+																...(playerFilters?.opposition || { mode: "all", searchTerm: "" }), 
+																mode: "all",
+																searchTerm: ""
 															},
 														})
 													}
@@ -1345,35 +1371,92 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 												<span className='text-base md:text-sm text-[var(--color-text-primary)]/80'>All Opposition</span>
 											</label>
 
+											<label className='flex items-center min-h-[36px]'>
+												<input
+													type='radio'
+													name='oppositionMode'
+													checked={(playerFilters?.opposition?.mode ?? "all") === "club"}
+													onChange={() =>
+														updatePlayerFilters({
+															opposition: { 
+																...(playerFilters?.opposition || { mode: "all", searchTerm: "" }), 
+																mode: "club"
+															},
+														})
+													}
+													className='mr-2 accent-dorkinians-yellow w-5 h-5 md:w-4 md:h-4'
+												/>
+												<span className='text-base md:text-sm text-[var(--color-text-primary)]/80'>Individual Club</span>
+											</label>
+
+											<label className='flex items-center min-h-[36px]'>
+												<input
+													type='radio'
+													name='oppositionMode'
+													checked={(playerFilters?.opposition?.mode ?? "all") === "team"}
+													onChange={() =>
+														updatePlayerFilters({
+															opposition: { 
+																...(playerFilters?.opposition || { mode: "all", searchTerm: "" }), 
+																mode: "team"
+															},
+														})
+													}
+													className='mr-2 accent-dorkinians-yellow w-5 h-5 md:w-4 md:h-4'
+												/>
+												<span className='text-base md:text-sm text-[var(--color-text-primary)]/80'>Individual Team</span>
+											</label>
+
 											<div className='relative'>
 												<Input
 													type='text'
 													label='Search Opposition'
-													placeholder='Search opposition teams...'
+													placeholder={(playerFilters?.opposition?.mode ?? "all") === "club" ? 'Search clubs...' : 'Search opposition teams...'}
 													value={playerFilters?.opposition?.searchTerm || ""}
 													onChange={(e) => handleOppositionSearch(e.target.value)}
 													onFocus={() => setShowOppositionDropdown(true)}
 													onBlur={() => setTimeout(() => setShowOppositionDropdown(false), 200)}
+													disabled={(playerFilters?.opposition?.mode ?? "all") === "all"}
+													aria-disabled={(playerFilters?.opposition?.mode ?? "all") === "all"}
 													size="md"
 													className='w-full'
 												/>
-												{showOppositionDropdown && (
+												{showOppositionDropdown && (playerFilters?.opposition?.mode ?? "all") !== "all" && (
 													<div className='absolute z-50 w-full mt-1 bg-[var(--color-surface)] backdrop-blur-sm border border-[var(--color-border)] rounded-md max-h-48 overflow-y-auto'>
-														{filteredOpposition.length > 0 ? (
-															filteredOpposition.map((opp) => (
-																<button
-																	key={opp.name}
-																	type='button'
-																	onClick={() => handleOppositionSelect(opp.name)}
-																	className='w-full text-left px-3 py-2 text-base md:text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'
-																>
-																	{opp.name}
-																</button>
-															))
+														{(playerFilters?.opposition?.mode ?? "all") === "club" ? (
+															filteredOppositionClubs.length > 0 ? (
+																filteredOppositionClubs.map((club) => (
+																	<button
+																		key={club.shortTeamName}
+																		type='button'
+																		onClick={() => handleOppositionSelect(club.shortTeamName)}
+																		className='w-full text-left px-3 py-2 text-base md:text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'
+																	>
+																		{club.shortTeamName}
+																	</button>
+																))
+															) : (
+																<div className='px-3 py-2 text-base md:text-sm text-[var(--color-text-primary)]/60 text-center'>
+																	No results found
+																</div>
+															)
 														) : (
-															<div className='px-3 py-2 text-base md:text-sm text-[var(--color-text-primary)]/60 text-center'>
-																No results found
-															</div>
+															filteredOpposition.length > 0 ? (
+																filteredOpposition.map((opp) => (
+																	<button
+																		key={opp.name}
+																		type='button'
+																		onClick={() => handleOppositionSelect(opp.name)}
+																		className='w-full text-left px-3 py-2 text-base md:text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'
+																	>
+																		{opp.name}
+																	</button>
+																))
+															) : (
+																<div className='px-3 py-2 text-base md:text-sm text-[var(--color-text-primary)]/60 text-center'>
+																	No results found
+																</div>
+															)
 														)}
 													</div>
 												)}

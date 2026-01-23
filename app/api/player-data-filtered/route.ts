@@ -378,7 +378,7 @@ function validateFilters(filters: any): string | null {
 	if (filters.opposition) {
 		if (
 			typeof filters.opposition !== "object" ||
-			typeof filters.opposition.allOpposition !== "boolean" ||
+			!["all", "club", "team"].includes(filters.opposition.mode ?? "all") ||
 			(typeof filters.opposition.searchTerm !== "string" && filters.opposition.searchTerm !== undefined)
 		) {
 			return "Invalid opposition filter structure";

@@ -219,7 +219,7 @@ export interface PlayerFilters {
 	teams: string[];
 	location: ("Home" | "Away")[];
 	opposition: {
-		allOpposition: boolean;
+		mode: "all" | "club" | "team";
 		searchTerm: string;
 	};
 	competition: {
@@ -252,13 +252,14 @@ interface NavigationState {
 	playerFilters: PlayerFilters; // Current page filters (synced from playerFiltersByPage)
 	isFilterSidebarOpen: boolean;
 	hasUnsavedFilters: boolean;
-	// Filter data cache
-	filterData: {
-		seasons: Array<{ season: string; startDate: string; endDate: string }>;
-		teams: Array<{ name: string }>;
-		opposition: Array<{ name: string }>;
-		competitions: Array<{ name: string; type: string }>;
-	};
+		// Filter data cache
+		filterData: {
+			seasons: Array<{ season: string; startDate: string; endDate: string }>;
+			teams: Array<{ name: string }>;
+			opposition: Array<{ name: string }>;
+			oppositionClubs: Array<{ shortTeamName: string }>;
+			competitions: Array<{ name: string; type: string }>;
+		};
 	isFilterDataLoaded: boolean;
 	// TOTW data cache
 	cachedTOTWSeasons: CachedTOTWSeasons | null;
@@ -370,7 +371,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 			teams: [],
 			location: ["Home", "Away"],
 			opposition: {
-				allOpposition: true,
+				mode: "all",
 				searchTerm: "",
 			},
 			competition: {
@@ -392,7 +393,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 			teams: [],
 			location: ["Home", "Away"],
 			opposition: {
-				allOpposition: true,
+				mode: "all",
 				searchTerm: "",
 			},
 			competition: {
@@ -414,7 +415,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 			teams: [],
 			location: ["Home", "Away"],
 			opposition: {
-				allOpposition: true,
+				mode: "all",
 				searchTerm: "",
 			},
 			competition: {
@@ -436,7 +437,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 			teams: [],
 			location: ["Home", "Away"],
 			opposition: {
-				allOpposition: true,
+				mode: "all",
 				searchTerm: "",
 			},
 			competition: {
@@ -460,7 +461,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 		teams: [],
 		location: ["Home", "Away"],
 		opposition: {
-			allOpposition: true,
+			mode: "all",
 			searchTerm: "",
 		},
 		competition: {
@@ -1073,7 +1074,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 			teams: [],
 			location: ["Home", "Away"],
 			opposition: {
-				allOpposition: true,
+				mode: "all",
 				searchTerm: "",
 			},
 			competition: {
@@ -1187,7 +1188,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 		const updatedFilters = {
 			...currentFilters,
 			opposition: {
-				allOpposition: true,
+				mode: "all",
 				searchTerm: "",
 			},
 		};
@@ -1321,17 +1322,19 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 
 		try {
 			// Load all filter data in parallel
-			const [seasonsResponse, teamsResponse, oppositionResponse, competitionsResponse] = await Promise.all([
+			const [seasonsResponse, teamsResponse, oppositionResponse, oppositionClubsResponse, competitionsResponse] = await Promise.all([
 				fetch("/api/seasons"),
 				fetch("/api/teams"),
 				fetch("/api/opposition"),
+				fetch("/api/opposition-clubs"),
 				fetch("/api/competitions"),
 			]);
 
-			const [seasons, teams, opposition, competitions] = await Promise.all([
+			const [seasons, teams, opposition, oppositionClubs, competitions] = await Promise.all([
 				seasonsResponse.json(),
 				teamsResponse.json(),
 				oppositionResponse.json(),
+				oppositionClubsResponse.json(),
 				competitionsResponse.json(),
 			]);
 
@@ -1340,6 +1343,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 					seasons: seasons.seasons || [],
 					teams: teams.teams || [],
 					opposition: opposition.opposition || [],
+					oppositionClubs: oppositionClubs.oppositionClubs || [],
 					competitions: competitions.competitions || [],
 				},
 				isFilterDataLoaded: true,
