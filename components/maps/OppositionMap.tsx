@@ -78,7 +78,19 @@ function OppositionMapComponent({ oppositions, isLoading }: OppositionMapProps) 
 			const mapOptions: google.maps.MapOptions = {
 				center: defaultCenter,
 				zoom: defaultZoom,
-				styles: [
+				disableDefaultUI: false,
+				zoomControl: true,
+				streetViewControl: false,
+				fullscreenControl: true,
+			};
+
+			// Only add mapId if it's valid (Advanced Markers require a valid map ID)
+			// When mapId is present, styles must be controlled via cloud console, not via styles property
+			if (mapId) {
+				mapOptions.mapId = mapId;
+			} else {
+				// Only set styles when mapId is not present (styles are controlled via cloud console when mapId exists)
+				mapOptions.styles = [
 					{
 						featureType: "all",
 						elementType: "labels.text.fill",
@@ -99,16 +111,7 @@ function OppositionMapComponent({ oppositions, isLoading }: OppositionMapProps) 
 						elementType: "geometry.fill",
 						stylers: [{ color: "#2d2d2d" }],
 					},
-				],
-				disableDefaultUI: false,
-				zoomControl: true,
-				streetViewControl: false,
-				fullscreenControl: true,
-			};
-
-			// Only add mapId if it's valid (Advanced Markers require a valid map ID)
-			if (mapId) {
-				mapOptions.mapId = mapId;
+				];
 			}
 
 			const newMap = new google.maps.Map(mapRef.current, mapOptions);
