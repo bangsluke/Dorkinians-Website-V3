@@ -1312,8 +1312,8 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 											)}
 
 											{(playerFilters?.timeRange?.type || "allTime") === "betweenDates" && (
-												<div className='space-y-1'>
-													<div className='space-y-1'>
+												<div className='space-y-1 max-w-[300px]'>
+													<div className='space-y-1 max-w-[280px]'>
 														<Input
 															type='date'
 															label='Start Date'
@@ -1340,7 +1340,7 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 															<p className='text-sm text-red-400 mt-1'>{dateValidationErrors.startDate}</p>
 														)}
 													</div>
-													<div className='space-y-1'>
+													<div className='space-y-1 max-w-[280px]'>
 														<Input
 															type='date'
 															label='End Date'
@@ -1360,7 +1360,7 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 																	},
 																})
 															}
-															size="md"
+															size="sm"
 															className='w-full max-w-[200px]'
 														/>
 														{dateValidationErrors.endDate && (
