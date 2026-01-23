@@ -646,8 +646,8 @@ export class ClubDataQueryHandler {
 	}
 
 	/**
-	 * Query players who scored 5+ goals (goals + penalties) in a single game for a specific team in a specific season
-	 * Returns count of unique players who achieved this feat
+	 * Query players who scored 5+ goals (goals + penalties) total for a specific team in a specific season
+	 * Returns array of players with their total goal counts
 	 */
 	static async queryPlayersScored5PlusGoalsPerGame(teamName: string, season: string): Promise<Record<string, unknown>> {
 		const graphLabel = neo4jService.getGraphLabel();
@@ -656,18 +656,18 @@ export class ClubDataQueryHandler {
 		const { normalizeSeasonFormat } = await import("../leagueTableService");
 		const normalizedSeason = normalizeSeasonFormat(season, 'slash');
 		
-		// Query to find players who scored 5+ goals (goals + penalties) in at least one game
-		// Group by player and fixture to check per-game totals
+		// Query to find players who scored 5+ goals (goals + penalties) total across all games in the season
 		const query = `
 			MATCH (p:Player {graphLabel: $graphLabel})
 			WHERE p.allowOnSite = true
 			MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
 			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
 			WHERE md.team = $teamName AND f.season = $season
-			WITH p, f, 
-				coalesce(md.goals, 0) + coalesce(md.penaltiesScored, 0) as goalsInGame
-			WHERE goalsInGame >= 5
-			RETURN count(DISTINCT p.playerName) as playerCount
+			WITH p, 
+				sum(coalesce(md.goals, 0) + coalesce(md.penaltiesScored, 0)) as totalGoals
+			WHERE totalGoals >= 5
+			RETURN p.playerName as playerName, totalGoals as goals
+			ORDER BY totalGoals DESC
 		`;
 
 		// Push query to chatbotService for extraction
@@ -685,10 +685,13 @@ export class ClubDataQueryHandler {
 
 		try {
 			const result = await neo4jService.executeQuery(query, { graphLabel, teamName, season: normalizedSeason });
-			const playerCount = result && result.length > 0 ? (result[0].playerCount || 0) : 0;
+			const players = (result || []).map((record: any) => ({
+				playerName: record.playerName || "",
+				goals: record.goals || 0
+			}));
 			return { 
 				type: "players_5plus_goals_per_game", 
-				data: [{ playerCount }], 
+				data: players, 
 				teamName,
 				season: normalizedSeason 
 			};

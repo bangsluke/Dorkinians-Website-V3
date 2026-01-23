@@ -4231,6 +4231,41 @@ export class ChatbotService {
 						contributionLabel = "Goal Involvements"; // For longest_no_goal_involvement and consecutive_goal_involvement
 					}
 					
+					// Calculate full date range from all games (before filtering to streak)
+					let fullDateRange: { start: string; end: string } | undefined = undefined;
+					if (streakData.length > 0) {
+						const validDates = streakData
+							.map(item => {
+								if (!item.date) return null;
+								const date = new Date(item.date);
+								return isNaN(date.getTime()) ? null : date;
+							})
+							.filter((date): date is Date => date !== null);
+						
+						if (validDates.length > 0) {
+							validDates.sort((a, b) => a.getTime() - b.getTime());
+							const earliestDate = validDates[0];
+							const latestDate = validDates[validDates.length - 1];
+							
+							// Get Monday of the week for the earliest date
+							const earliestMonday = new Date(earliestDate);
+							const dayOfWeek = earliestMonday.getDay();
+							const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+							earliestMonday.setDate(earliestMonday.getDate() - daysToMonday);
+							
+							// Get Sunday of the week for the latest date
+							const latestSunday = new Date(latestDate);
+							const dayOfWeekLatest = latestSunday.getDay();
+							const daysToSunday = dayOfWeekLatest === 0 ? 0 : 7 - dayOfWeekLatest;
+							latestSunday.setDate(latestSunday.getDate() + daysToSunday);
+							
+							fullDateRange = {
+								start: earliestMonday.toISOString().split('T')[0],
+								end: latestSunday.toISOString().split('T')[0],
+							};
+						}
+					}
+					
 					// Filter streakData to only include games in the actual streak sequence
 					// This ensures the calendar only shows streak games, not all games of that type
 					const streakDatesSet = new Set<string>();
@@ -4409,6 +4444,7 @@ export class ChatbotService {
 							streakType: streakType, // Pass streak type for styling (red for negative streaks)
 							showGoalInvolvements: showGoalInvolvements, // Flag to show goal involvements vs apps
 							contributionLabel: contributionLabel, // Label for contribution metric (Goals, Assists, or Goal Involvements)
+							fullDateRange: fullDateRange, // Full date range for calendar expansion
 						},
 					};
 				}
@@ -4669,6 +4705,13 @@ export class ChatbotService {
 					const mentionsOpenPlay = questionLower.includes("open play") || questionLower.includes("openplay");
 					if (!mentionsOpenPlay) {
 						metricDisplayName = "Goals";
+					}
+				}
+				
+				// For "A" metric (assists), ensure "Assists" is capitalized
+				if (metric.toUpperCase() === "A" && !isPenaltyRecord) {
+					if (metricDisplayName.toLowerCase() === "assists") {
+						metricDisplayName = "Assists";
 					}
 				}
 				
@@ -5098,6 +5141,61 @@ export class ChatbotService {
 					},
 				};
 			}
+		} else if (data && data.type === "games_conceded_x_or_more") {
+			// Handle games where team conceded X+ goals queries
+			const gamesArray = (data.data as Array<{
+				date: string;
+				opposition: string;
+				homeOrAway: string;
+				result: string;
+				dorkiniansGoals: number;
+				conceded: number;
+			}>) || [];
+			const playerName = (data.playerName as string) || "You";
+			const minConceded = (data.minConceded as number) || 0;
+			
+			if (gamesArray.length === 0) {
+				answer = `You haven't played in any games where the team has conceded ${minConceded}+ goals.`;
+				answerValue = 0;
+			} else {
+				const gameCount = gamesArray.length;
+				const gameText = gameCount === 1 ? "game" : "games";
+				answer = `You've played in ${gameCount} ${gameText} where the team has conceded ${minConceded}+ goals.`;
+				answerValue = gameCount;
+				
+				// Create table visualization with fixture details
+				const tableData = gamesArray.map((game) => {
+					// Format score based on home/away
+					let score = "";
+					if (game.homeOrAway === "Home") {
+						score = `${game.dorkiniansGoals || 0}-${game.conceded || 0}`;
+					} else {
+						score = `${game.conceded || 0}-${game.dorkiniansGoals || 0}`;
+					}
+					
+					return {
+						Date: game.date ? new Date(game.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : "",
+						Opposition: game.opposition || "",
+						"Home/Away": game.homeOrAway || "",
+						Score: score,
+						Result: game.result || "",
+					};
+				});
+				
+				visualization = {
+					type: "Table",
+					data: tableData,
+					config: {
+						columns: [
+							{ key: "Date", label: "Date" },
+							{ key: "Opposition", label: "Opposition" },
+							{ key: "Home/Away", label: "H/A" },
+							{ key: "Score", label: "Score" },
+							{ key: "Result", label: "Result" },
+						],
+					},
+				};
+			}
 		} else if (data && data.type === "highest_player_goals_in_game") {
 			// Handle highest individual player goals in one game queries
 			const playerGameDataArray = (data.data as Array<{
@@ -5268,45 +5366,48 @@ export class ChatbotService {
 				},
 			};
 		} else if (data && data.type === "players_5plus_goals_per_game") {
-			// Handle "how many players scored 5+ goals per game" queries
-			const playerData = (data.data as Array<{ playerCount: number }>) || [];
+			// Handle "how many players scored 5+ goals" queries
+			const playerData = (data.data as Array<{ playerName: string; goals: number }>) || [];
 			const teamName = (data.teamName as string) || "";
 			const season = (data.season as string) || "";
 			
-			if (playerData.length > 0) {
-				const playerCount = playerData[0].playerCount || 0;
-				const teamDisplayName = teamName
-					.replace("1st XI", "1s")
-					.replace("2nd XI", "2s")
-					.replace("3rd XI", "3s")
-					.replace("4th XI", "4s")
-					.replace("5th XI", "5s")
-					.replace("6th XI", "6s")
-					.replace("7th XI", "7s")
-					.replace("8th XI", "8s");
-				
-				if (playerCount === 0) {
-					answer = `No players scored 5 or more goals in a single game for the ${teamDisplayName} in the ${season} season.`;
-				} else {
-					answer = `${playerCount} ${playerCount === 1 ? "player" : "players"} scored 5 or more goals in a single game for the ${teamDisplayName} in the ${season} season.`;
-				}
+			const teamDisplayName = teamName
+				.replace("1st XI", "1s")
+				.replace("2nd XI", "2s")
+				.replace("3rd XI", "3s")
+				.replace("4th XI", "4s")
+				.replace("5th XI", "5s")
+				.replace("6th XI", "6s")
+				.replace("7th XI", "7s")
+				.replace("8th XI", "8s");
+			
+			if (playerData.length === 0) {
+				answer = `No players scored 5 or more goals for the ${teamDisplayName} in the ${season} season.`;
+				answerValue = 0;
+			} else {
+				const playerCount = playerData.length;
+				answer = `${playerCount} ${playerCount === 1 ? "player" : "players"} scored 5 or more goals for the ${teamDisplayName} in the ${season} season.`;
 				answerValue = playerCount;
 				
+				// Create table with player names and goal counts
+				const tableData = playerData.map((item) => ({
+					Player: item.playerName,
+					Goals: item.goals,
+				}));
+				
 				visualization = {
-					type: "NumberCard",
-					data: [{ 
-						name: "Players", 
-						wordedText: "players", 
-						value: playerCount,
-						iconName: this.getIconNameForMetric("APP")
-					}],
+					type: "Table",
+					data: tableData,
 					config: {
-						title: `Players with 5+ Goals in a Game - ${teamDisplayName} (${season})`,
-						type: "bar",
+						columns: [
+							{ key: "Player", label: "Player" },
+							{ key: "Goals", label: "Goals" },
+						],
+						initialDisplayLimit: 10,
+						expandableLimit: 50,
+						isExpandable: true,
 					},
 				};
-			} else {
-				answer = `I couldn't find data for players who scored 5+ goals per game for the ${teamName} in the ${season} season.`;
 			}
 		} else if (data && data.type === "team_stats") {
 			// Handle team statistics queries
@@ -7615,9 +7716,36 @@ export class ChatbotService {
 								
 								const goalCount = value as number;
 								
-								// If goal count is 0, use "has not scored" format
+								// If goal count is 0, use "has not scored" format with all applicable filters
 								if (goalCount === 0) {
-									answer = `${playerName} has not scored for the ${teamDisplayName}.`;
+									// Build answer parts for zero goals
+									let answerParts: string[] = [];
+									
+									// Start with player name and "has not scored"
+									answerParts.push(`${playerName} has not scored`);
+									
+									// Add team filter
+									answerParts.push(`for the ${teamDisplayName}`);
+									
+									// Add location filter if present
+									if (hasHomeLocation) {
+										answerParts.push("at home");
+									} else if (hasAwayLocation) {
+										answerParts.push("away");
+									}
+									
+									// Add date range filter if present
+									if (dateRangeText) {
+										// For date ranges, use "in this time period" phrasing
+										if (dateRangeText.includes("between")) {
+											answerParts.push("in this time period");
+										} else {
+											answerParts.push(dateRangeText);
+										}
+									}
+									
+									// Join parts and add period
+									answer = answerParts.join(" ") + ".";
 								} else {
 									const goalText = goalCount === 1 ? "goal" : "goals";
 									

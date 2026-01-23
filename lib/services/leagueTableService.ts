@@ -409,17 +409,40 @@ export async function getAllHistoricalPositions(): Promise<HistoricalPositionEnt
 }
 
 /**
- * Get the highest (best) league finish across all teams and seasons
+ * Get the current season string from Neo4j
+ */
+async function getCurrentSeasonString(): Promise<string | null> {
+	try {
+		const currentSeasonData = await getCurrentSeasonDataFromNeo4j();
+		return currentSeasonData?.season || null;
+	} catch (error) {
+		console.error('Error fetching current season:', error);
+		return null;
+	}
+}
+
+/**
+ * Get the highest (best) league finish across all teams and seasons (excluding current season)
  */
 export async function getHighestLeagueFinish(): Promise<HistoricalPositionEntry | null> {
 	const allPositions = await getAllHistoricalPositions();
+	const currentSeason = await getCurrentSeasonString();
 	
-	if (allPositions.length === 0) {
+	// Filter out current season positions
+	const filteredPositions = currentSeason 
+		? allPositions.filter((pos) => {
+			const normalizedPosSeason = normalizeSeasonFormat(pos.season, 'slash');
+			const normalizedCurrentSeason = normalizeSeasonFormat(currentSeason, 'slash');
+			return normalizedPosSeason !== normalizedCurrentSeason;
+		})
+		: allPositions;
+	
+	if (filteredPositions.length === 0) {
 		return null;
 	}
 	
 	// Find the best position (lowest number = highest finish)
-	const bestPosition = allPositions.reduce((best, current) => {
+	const bestPosition = filteredPositions.reduce((best, current) => {
 		return current.position < best.position ? current : best;
 	});
 	
@@ -527,8 +550,22 @@ export async function getPlayerHighestLeagueFinish(playerName: string): Promise<
 			return null;
 		}
 		
+		// Get current season and filter it out
+		const currentSeason = await getCurrentSeasonString();
+		const filteredPositions = currentSeason
+			? playerPositions.filter((pos) => {
+				const normalizedPosSeason = normalizeSeasonFormat(pos.season, 'slash');
+				const normalizedCurrentSeason = normalizeSeasonFormat(currentSeason, 'slash');
+				return normalizedPosSeason !== normalizedCurrentSeason;
+			})
+			: playerPositions;
+		
+		if (filteredPositions.length === 0) {
+			return null;
+		}
+		
 		// Find the best position (lowest number = highest finish)
-		const bestPosition = playerPositions.reduce((best, current) => {
+		const bestPosition = filteredPositions.reduce((best, current) => {
 			return current.position < best.position ? current : best;
 		});
 		

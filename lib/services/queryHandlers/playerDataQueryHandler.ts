@@ -315,6 +315,67 @@ export class PlayerDataQueryHandler {
 			}
 		}
 
+		// Check for "how many games where team conceded X+ goals" questions
+		// Pattern: "how many games have I played where the team conceded 6+ goals" or similar
+		const hasHowManyGames = questionLower.includes("how many games") || questionLower.includes("how many game");
+		const hasConceded = questionLower.includes("conceded");
+		const hasWhereTeam = questionLower.includes("where") && questionLower.includes("team");
+		const hasPlayed = questionLower.includes("played") || questionLower.includes("play");
+		
+		// Extract the number from patterns like "6+", "6 or more", "6+ goals", etc.
+		const concededNumberMatch = questionLower.match(/conceded\s+(\d+)\s*[+\u002B]|conceded\s+(\d+)\s+or\s+more|conceded\s+(\d+)\s+goals/i);
+		const minConceded = concededNumberMatch ? parseInt(concededNumberMatch[1] || concededNumberMatch[2] || concededNumberMatch[3] || "0", 10) : null;
+		
+		const isGamesWhereTeamConcededXQuestion = 
+			hasHowManyGames && 
+			hasConceded && 
+			(hasWhereTeam || hasPlayed) &&
+			minConceded !== null &&
+			minConceded > 0;
+		
+		if (isGamesWhereTeamConcededXQuestion) {
+			// Resolve player name - use userContext if available, otherwise use entities
+			let playerName: string | undefined;
+			
+			const hasFirstPerson = questionLower.includes(" i ") || 
+			                       questionLower.match(/\bi\b/) ||
+			                       questionLower.includes("have i") ||
+			                       questionLower.includes("has i") ||
+			                       questionLower.includes("did i");
+			
+			if (hasFirstPerson && userContext) {
+				playerName = userContext;
+			} else if (validEntities.length > 0) {
+				playerName = validEntities[0];
+			} else if (userContext) {
+				playerName = userContext;
+			}
+			
+			if (!playerName) {
+				loggingService.log(`❌ No player context found for games where team conceded question`, null, "error");
+				return {
+					type: "no_context",
+					data: [],
+					message: "I need to know which player you're asking about. Please specify a player name or select a player.",
+				};
+			}
+			
+			const resolvedPlayerName = await EntityResolutionUtils.resolvePlayerName(playerName);
+			
+			if (!resolvedPlayerName) {
+				loggingService.log(`❌ Player not found: ${playerName}`, null, "error");
+				return {
+					type: "player_not_found",
+					data: [],
+					message: `I couldn't find a player named "${playerName}". Please check the spelling or try a different player name.`,
+					playerName,
+				};
+			}
+			
+			loggingService.log(`🔍 Detected games where team conceded ${minConceded}+ goals question, routing to queryGamesWherePlayerPlayedAndTeamConcededXOrMore`, null, "log");
+			return await FixtureDataQueryHandler.queryGamesWherePlayerPlayedAndTeamConcededXOrMore(resolvedPlayerName, minConceded, analysis);
+		}
+
 		// Check if we have valid entities (player names) to query
 		// If no valid entities but we have userContext, use that instead
 		if (validEntities.length === 0) {
