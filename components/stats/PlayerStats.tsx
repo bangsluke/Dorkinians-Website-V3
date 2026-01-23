@@ -1644,7 +1644,7 @@ function PositionalStatsVisualization({ gk, def, mid, fwd, appearances, gkMinute
 }
 
 export default function PlayerStats() {
-	const { selectedPlayer, cachedPlayerData, isLoadingPlayerData, enterEditMode, setMainPage, currentStatsSubPage, playerFilters, filterData, getCachedPageData, setCachedPageData } = useNavigationStore();
+	const { selectedPlayer, cachedPlayerData, isLoadingPlayerData, enterEditMode, setMainPage, currentStatsSubPage, playerFilters, filterData, getCachedPageData, setCachedPageData, hasUnsavedFilters, isFilterSidebarOpen } = useNavigationStore();
 	const { showError } = useToast();
 	const [error, setError] = useState<string | null>(null);
 	
@@ -1880,6 +1880,7 @@ export default function PlayerStats() {
 		if (appConfig.forceSkeletonView) {
 			return;
 		}
+		if (hasUnsavedFilters || isFilterSidebarOpen) return; // Skip API calls while editing filters or sidebar is open
 
 		const fetchAllAboveFoldData = async () => {
 			// Set loading states
@@ -2002,7 +2003,7 @@ export default function PlayerStats() {
 		};
 
 		fetchAllAboveFoldData();
-	}, [selectedPlayer, allSeasonsSelected, allTeamsSelected, playerFilters]);
+	}, [selectedPlayer, allSeasonsSelected, allTeamsSelected, playerFilters, hasUnsavedFilters, isFilterSidebarOpen]);
 
 	// Priority 3: Below fold - Parallelized data fetching for filter-dependent content
 	// Fetch monthly stats, fantasy breakdown, and game details in parallel
@@ -2016,6 +2017,7 @@ export default function PlayerStats() {
 		if (appConfig.forceSkeletonView) {
 			return;
 		}
+		if (hasUnsavedFilters || isFilterSidebarOpen) return; // Skip API calls while editing filters or sidebar is open
 
 		const fetchAllBelowFoldData = async () => {
 			// Set loading states
@@ -2086,7 +2088,7 @@ export default function PlayerStats() {
 		};
 
 		fetchAllBelowFoldData();
-	}, [selectedPlayer, playerFilters]);
+	}, [selectedPlayer, playerFilters, hasUnsavedFilters, isFilterSidebarOpen]);
 
 	// Priority 3: Below fold - Captaincies, Awards and Achievements section
 	// Fetch awards, captain history, and award history in parallel

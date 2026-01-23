@@ -370,6 +370,8 @@ export default function TeamStats() {
 		setDataTableMode,
 		getCachedPageData,
 		setCachedPageData,
+		hasUnsavedFilters,
+		isFilterSidebarOpen,
 	} = useNavigationStore();
 
 	// Initialize selected team from localStorage, player's most played team, or first available team
@@ -567,6 +569,7 @@ export default function TeamStats() {
 	
 	useEffect(() => {
 		if (!selectedTeam || !playerFilters) return;
+		if (hasUnsavedFilters || isFilterSidebarOpen) return; // Skip API calls while editing filters or sidebar is open
 
 		// Check if we already have data for this filter combination
 		if (teamData && lastFetchedFiltersRef.current === filtersKey) {
@@ -618,13 +621,14 @@ export default function TeamStats() {
 		};
 
 		fetchTeamData();
-	}, [filtersKey, selectedTeam, playerFilters]);
+	}, [filtersKey, selectedTeam, playerFilters, hasUnsavedFilters, isFilterSidebarOpen]);
 
 
 	// Priority 1: Above fold on mobile - Top Players section
 	// Fetch top players when selected team, filters or stat type changes
 	useEffect(() => {
 		if (!selectedTeam || !apiFilters) return;
+		if (hasUnsavedFilters || isFilterSidebarOpen) return; // Skip API calls while editing filters or sidebar is open
 
 		const fetchTopPlayers = async () => {
 			setIsLoadingTopPlayers(true);
@@ -666,7 +670,7 @@ export default function TeamStats() {
 		};
 
 		fetchTopPlayers();
-	}, [filtersKey, selectedStatType, selectedTeam, apiFilters]);
+	}, [filtersKey, selectedStatType, selectedTeam, apiFilters, hasUnsavedFilters, isFilterSidebarOpen]);
 
 	// Check if all seasons are selected
 	const allSeasonsSelected = useMemo(() => {
@@ -723,6 +727,7 @@ export default function TeamStats() {
 			setUniquePlayerStats(null);
 			return;
 		}
+		if (hasUnsavedFilters || isFilterSidebarOpen) return; // Skip API calls while editing filters or sidebar is open
 
 		const fetchUniqueStats = async () => {
 			setIsLoadingUniqueStats(true);
@@ -749,7 +754,7 @@ export default function TeamStats() {
 		};
 
 		fetchUniqueStats();
-	}, [selectedTeam, apiFilters]);
+	}, [selectedTeam, apiFilters, hasUnsavedFilters, isFilterSidebarOpen]);
 
 	// Priority 3: Below fold - Best Season Finish section
 	// Fetch best season finish data when team selected and filters change
@@ -804,6 +809,7 @@ export default function TeamStats() {
 			setSeasonalStats([]);
 			return;
 		}
+		if (hasUnsavedFilters || isFilterSidebarOpen) return; // Skip API calls while editing filters or sidebar is open
 
 		const fetchSeasonalStats = async () => {
 			setIsLoadingSeasonalStats(true);
@@ -829,7 +835,7 @@ export default function TeamStats() {
 		};
 
 		fetchSeasonalStats();
-	}, [selectedTeam, allSeasonsSelected, apiFilters]);
+	}, [selectedTeam, allSeasonsSelected, apiFilters, hasUnsavedFilters, isFilterSidebarOpen]);
 
 	// Calculate linear regression for trendline
 	const calculateTrendline = (data: Array<{ name: string; value: number }>) => {
