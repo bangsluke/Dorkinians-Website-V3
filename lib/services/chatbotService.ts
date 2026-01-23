@@ -4137,6 +4137,28 @@ export class ChatbotService {
 						contributionLabel = "Goal Involvements"; // For longest_no_goal_involvement and consecutive_goal_involvement
 					}
 					
+					// Filter streakData to only include games in the actual streak sequence
+					// This ensures the calendar only shows streak games, not all games of that type
+					const streakDatesSet = new Set<string>();
+					if (streakSequence.length > 0) {
+						for (const dateStr of streakSequence) {
+							// Normalize date to YYYY-MM-DD format for comparison
+							const d = new Date(dateStr);
+							if (!isNaN(d.getTime())) {
+								streakDatesSet.add(d.toISOString().split('T')[0]);
+							}
+						}
+					}
+					
+					// Filter streakData to only include games in the streak
+					const filteredStreakData = streakData.filter(item => {
+						if (!item.date) return false;
+						const itemDate = new Date(item.date);
+						if (isNaN(itemDate.getTime())) return false;
+						const normalizedDate = itemDate.toISOString().split('T')[0];
+						return streakDatesSet.has(normalizedDate);
+					});
+					
 					// Group dates by year and week, tracking goal involvements and game counts
 					const weekMap = new Map<string, { 
 						year: number; 
@@ -4146,7 +4168,7 @@ export class ChatbotService {
 						gameCount: number;
 					}>();
 					
-					for (const item of streakData) {
+					for (const item of filteredStreakData) {
 						if (item.date) {
 							const date = new Date(item.date);
 							const year = date.getFullYear();
@@ -4271,12 +4293,25 @@ export class ChatbotService {
 						}
 					}
 
+					// Convert streakSequence to streakDates format (YYYY-MM-DD) for calendar highlighting
+					const streakDates = streakSequence.length > 0 
+						? streakSequence.map(dateStr => {
+							const d = new Date(dateStr);
+							if (!isNaN(d.getTime())) {
+								return d.toISOString().split('T')[0];
+							}
+							return null;
+						}).filter((d): d is string => d !== null)
+						: [];
+
 					visualization = {
 						type: "Calendar",
 						data: {
 							weeks: weeks,
 							highlightRange: highlightRange,
 							allFixtureDates: allFixtureDates,
+							streakSequence: streakSequence, // Pass streak sequence for reference
+							streakDates: streakDates, // Pass normalized streak dates for precise calendar highlighting
 							streakType: streakType, // Pass streak type for styling (red for negative streaks)
 							showGoalInvolvements: showGoalInvolvements, // Flag to show goal involvements vs apps
 							contributionLabel: contributionLabel, // Label for contribution metric (Goals, Assists, or Goal Involvements)

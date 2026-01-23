@@ -79,7 +79,6 @@ export const allExampleQuestions: string[] = [
 	"How many times have I played Old Hamptonians?",
 	"How many goals has Craig Kingswell scored in the Premier?",
 	"How many assists has Oli Goddard managed at Pixham?",
-	"What was my most prolific season?",
 	"What team have I played for most?",
 	"How many penalties has Matt Morley taken?",
 	"What is Max Ridler's penalty record?",

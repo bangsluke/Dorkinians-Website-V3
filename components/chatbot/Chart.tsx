@@ -66,7 +66,7 @@ export default function Chart({ visualization }: ChartProps) {
 						textAnchor='end'
 						height={60}
 					/>
-					<YAxis stroke='#f3f3f3' fontSize={12} width={30} />
+					<YAxis stroke='#f3f3f3' fontSize={12} width={30} allowDecimals={false} />
 					<Tooltip content={<CustomTooltip />} />
 					<Bar
 						dataKey='value'

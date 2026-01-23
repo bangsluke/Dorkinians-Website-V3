@@ -756,16 +756,16 @@ export class TemporalQueryHandler {
 		try {
 			// Get all games the player played
 			const allGamesResult = await neo4jService.executeQuery(allGamesQuery, { graphLabel, playerName });
-			const allGameDates = (allGamesResult || [])
+			const allGameDates = Array.from(new Set((allGamesResult || [])
 				.map((record: any) => TemporalQueryHandler.normalizeDate(record?.date))
-				.filter((date: string) => date !== '')
+				.filter((date: string) => date !== '')))
 				.sort();
 
 			// Get clean sheet games
 			const result = await neo4jService.executeQuery(cleanSheetsQuery, { graphLabel, playerName });
-			const cleanSheetDates = (result || [])
+			const cleanSheetDates = Array.from(new Set((result || [])
 				.map((record: any) => TemporalQueryHandler.normalizeDate(record?.date))
-				.filter((date: string) => date !== '');
+				.filter((date: string) => date !== '')));
 
 			if (cleanSheetDates.length === 0) {
 				loggingService.log(`⚠️ No clean sheet games found for player: ${playerName}`, null, "warn");
@@ -887,16 +887,16 @@ export class TemporalQueryHandler {
 		try {
 			// Get all games the player played
 			const allGamesResult = await neo4jService.executeQuery(allGamesQuery, { graphLabel, playerName });
-			const allGameDates = (allGamesResult || [])
+			const allGameDates = Array.from(new Set((allGamesResult || [])
 				.map((record: any) => TemporalQueryHandler.normalizeDate(record?.date))
-				.filter((date: string) => date !== '')
+				.filter((date: string) => date !== '')))
 				.sort();
 
 			// Get goal involvement games
 			const result = await neo4jService.executeQuery(goalInvolvementQuery, { graphLabel, playerName });
-			const goalInvolvementDates = (result || [])
+			const goalInvolvementDates = Array.from(new Set((result || [])
 				.map((record: any) => TemporalQueryHandler.normalizeDate(record?.date))
-				.filter((date: string) => date !== '');
+				.filter((date: string) => date !== '')));
 
 			if (goalInvolvementDates.length === 0) {
 				loggingService.log(`⚠️ No goal involvement games found for player: ${playerName}`, null, "warn");
@@ -1039,16 +1039,16 @@ export class TemporalQueryHandler {
 		try {
 			// Get all games the player played
 			const allGamesResult = await neo4jService.executeQuery(allGamesQuery, { graphLabel, playerName });
-			const allGameDates = (allGamesResult || [])
+			const allGameDates = Array.from(new Set((allGamesResult || [])
 				.map((record: any) => TemporalQueryHandler.normalizeDate(record?.date))
-				.filter((date: string) => date !== '')
+				.filter((date: string) => date !== '')))
 				.sort();
 
 			// Get goal scoring games
 			const result = await neo4jService.executeQuery(goalScoringQuery, { graphLabel, playerName });
-			const goalScoringDates = (result || [])
+			const goalScoringDates = Array.from(new Set((result || [])
 				.map((record: any) => TemporalQueryHandler.normalizeDate(record?.date))
-				.filter((date: string) => date !== '');
+				.filter((date: string) => date !== '')));
 
 			if (goalScoringDates.length === 0) {
 				loggingService.log(`⚠️ No goal scoring games found for player: ${playerName}`, null, "warn");
@@ -1191,16 +1191,16 @@ export class TemporalQueryHandler {
 		try {
 			// Get all games the player played
 			const allGamesResult = await neo4jService.executeQuery(allGamesQuery, { graphLabel, playerName });
-			const allGameDates = (allGamesResult || [])
+			const allGameDates = Array.from(new Set((allGamesResult || [])
 				.map((record: any) => TemporalQueryHandler.normalizeDate(record?.date))
-				.filter((date: string) => date !== '')
+				.filter((date: string) => date !== '')))
 				.sort();
 
 			// Get assisting games
 			const assistingResult = await neo4jService.executeQuery(assistingQuery, { graphLabel, playerName });
-			const assistingDates = (assistingResult || [])
+			const assistingDates = Array.from(new Set((assistingResult || [])
 				.map((record: any) => TemporalQueryHandler.normalizeDate(record?.date))
-				.filter((date: string) => date !== '');
+				.filter((date: string) => date !== '')));
 
 			if (assistingDates.length === 0) {
 				loggingService.log(`⚠️ No assisting games found for player: ${playerName}`, null, "warn");
@@ -1342,16 +1342,16 @@ export class TemporalQueryHandler {
 		try {
 			// Get all games the player played with full data
 			const allGamesResult = await neo4jService.executeQuery(allGamesQuery, { graphLabel, playerName });
-			const allGameDates = (allGamesResult || [])
+			const allGameDates = Array.from(new Set((allGamesResult || [])
 				.map((record: any) => TemporalQueryHandler.normalizeDate(record?.date))
-				.filter((date: string) => date !== '')
+				.filter((date: string) => date !== '')))
 				.sort();
 
 			// Get goal involvement games (dates only)
 			const goalInvolvementResult = await neo4jService.executeQuery(goalInvolvementQuery, { graphLabel, playerName });
-			const goalInvolvementDates = (goalInvolvementResult || [])
+			const goalInvolvementDates = Array.from(new Set((goalInvolvementResult || [])
 				.map((record: any) => TemporalQueryHandler.normalizeDate(record?.date))
-				.filter((date: string) => date !== '');
+				.filter((date: string) => date !== '')));
 
 			// Create a set of dates with goal involvements for quick lookup
 			const goalInvolvementSet = new Set(goalInvolvementDates);
