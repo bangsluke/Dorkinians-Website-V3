@@ -36,8 +36,8 @@ function buildBaseCSP(nonce?: string): string {
 		`script-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.googleapis.com https://*.umami.is`, // Allow Next.js chunks from 'self' and inline scripts (nonce cannot be used with unsafe-inline)
 		"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com", // Keep unsafe-inline for styles (Next.js requirement)
 		"font-src 'self' https://fonts.gstatic.com data:",
-		"img-src 'self' data: https://docs.google.com https://*.googleusercontent.com blob:",
-		"connect-src 'self' https://*.herokuapp.com https://*.netlify.app https://*.umami.is https://api-gateway.umami.dev https://*.databases.neo4j.io",
+		"img-src 'self' data: https://docs.google.com https://*.googleusercontent.com https://maps.googleapis.com https://maps.gstatic.com blob:",
+		"connect-src 'self' https://*.herokuapp.com https://*.netlify.app https://*.umami.is https://api-gateway.umami.dev https://*.databases.neo4j.io https://accounts.google.com https://oauth2.googleapis.com https://*.googleapis.com",
 		"frame-src 'self' https://docs.google.com",
 		"object-src 'none'",
 		"base-uri 'self'",
