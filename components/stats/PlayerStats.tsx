@@ -33,6 +33,7 @@ import "react-loading-skeleton/dist/skeleton.css";
 import { ChartSkeleton, TableSkeleton, StatCardSkeleton, AwardsListSkeleton, DataTableSkeleton } from "@/components/skeletons";
 import { log } from "@/lib/utils/logger";
 import Button from "@/components/ui/Button";
+import { calculateFTPBreakdown } from "@/lib/utils/fantasyPoints";
 import { ErrorState, EmptyState } from "@/components/ui/StateComponents";
 import { useToast } from "@/lib/hooks/useToast";
 
@@ -827,6 +828,8 @@ function FantasyPointsSection({
 	fantasyBreakdown: any; 
 	isLoading: boolean;
 }) {
+	const [isMonthExpanded, setIsMonthExpanded] = useState(false);
+
 	if (isLoading) {
 		return (
 			<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
@@ -888,8 +891,31 @@ function FantasyPointsSection({
 		};
 	};
 
-	// Get match stats summary
+	// Calculate total fantasy points for a match
+	const getMatchPoints = (match: any): number => {
+		const breakdown = calculateFTPBreakdown({
+			class: match.class,
+			min: match.min,
+			mom: match.mom,
+			goals: match.goals,
+			assists: match.assists,
+			conceded: match.conceded,
+			cleanSheets: match.conceded === 0 ? 1 : 0,
+			yellowCards: match.yellowCards,
+			redCards: match.redCards,
+			saves: match.saves,
+			ownGoals: match.ownGoals,
+			penaltiesScored: match.penaltiesScored,
+			penaltiesMissed: match.penaltiesMissed,
+			penaltiesConceded: match.penaltiesConceded,
+			penaltiesSaved: match.penaltiesSaved,
+		});
+		return breakdown.reduce((sum, stat) => sum + stat.points, 0);
+	};
+
+	// Get match stats summary with points first
 	const getMatchStatsSummary = (match: any): string => {
+		const points = getMatchPoints(match);
 		const parts: string[] = [];
 		
 		// Always show minutes if available (player appeared in match)
@@ -908,7 +934,24 @@ function FantasyPointsSection({
 			parts.push("1 Clean Sheet");
 		}
 		
-		return parts.join(", ");
+		const statsText = parts.join(", ");
+		return `${points} point${points !== 1 ? "s" : ""} (${statsText})`;
+	};
+
+	// Stat order mapping for Total Points Breakdown
+	const statOrder: { [key: string]: number } = {
+		"Minutes played": 1,
+		"Man of the Match": 2,
+		"Goals scored": 3,
+		"Assists": 4,
+		"Clean Sheets": 5,
+		"Saves": 6,
+		"Goals Conceded": 7,
+		"Own Goals": 8,
+		"Yellow Cards": 9,
+		"Red Cards": 10,
+		"Penalties Missed": 11,
+		"Penalties Saved": 12,
 	};
 
 	// Convert breakdown object to sorted array with values
@@ -919,7 +962,11 @@ function FantasyPointsSection({
 			value: fantasyBreakdown.breakdownValues?.[stat] || 0
 		}))
 		.filter((entry) => entry.points !== 0)
-		.sort((a, b) => Math.abs(b.points) - Math.abs(a.points));
+		.sort((a, b) => {
+			const orderA = statOrder[a.stat] ?? 999;
+			const orderB = statOrder[b.stat] ?? 999;
+			return orderA - orderB;
+		});
 
 	return (
 		<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
@@ -1058,7 +1105,7 @@ function FantasyPointsSection({
 							</p>
 						</div>
 						<div className='mt-3 space-y-1'>
-							{fantasyBreakdown.highestScoringMonth.matches.slice(0, 5).map((match: any, index: number) => {
+							{(isMonthExpanded ? fantasyBreakdown.highestScoringMonth.matches : fantasyBreakdown.highestScoringMonth.matches.slice(0, 5)).map((match: any, index: number) => {
 								const summary = getMatchSummary(match);
 								const statsSummary = getMatchStatsSummary(match);
 								return (
@@ -1075,11 +1122,14 @@ function FantasyPointsSection({
 									</div>
 								);
 							})}
-							{fantasyBreakdown.highestScoringMonth.matches.length > 5 && (
-								<p className='text-white/70 text-xs mt-2'>
+							{fantasyBreakdown.highestScoringMonth.matches.length > 5 && !isMonthExpanded && (
+								<button
+									onClick={() => setIsMonthExpanded(true)}
+									className='text-white/70 text-xs mt-2 hover:text-white cursor-pointer transition-colors underline underline-offset-2'
+								>
 									+ {fantasyBreakdown.highestScoringMonth.matches.length - 5} more match
 									{fantasyBreakdown.highestScoringMonth.matches.length - 5 !== 1 ? "es" : ""}
-								</p>
+								</button>
 							)}
 						</div>
 					</div>
@@ -2167,12 +2217,24 @@ export default function PlayerStats() {
 			const trendlinePoints = calculateTrendline(baseData);
 			return baseData.map((point, index) => ({
 				...point,
-				trendline: trendlinePoints[index]?.value || 0,
+				trendline: Math.max(0, trendlinePoints[index]?.value || 0),
 			}));
 		}
 
 		return baseData;
 	}, [seasonalStats, seasonalSelectedStat, statOptions, showTrend]);
+
+	// Force Seasonal Performance Y-axis to start at 0 with integer ticks only
+	const seasonalYAxisDomain = useMemo(() => {
+		if (!seasonalChartData.length) return [0, 1];
+		// Only consider bar values (not trendline) for the max to prevent gap
+		const max = Math.max(
+			0,
+			...seasonalChartData.map((d: any) => toNumber(d?.value ?? 0)),
+		);
+		const maxRounded = Math.max(1, Math.ceil(max));
+		return [0, maxRounded] as [number, number];
+	}, [seasonalChartData]);
 
 	// Prepare team chart data (must be before early returns)
 	const teamChartData = useMemo(() => {
@@ -2856,7 +2918,7 @@ export default function PlayerStats() {
 									>
 										<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
 										<XAxis dataKey='name' stroke='#fff' fontSize={12} />
-										<YAxis stroke='#fff' fontSize={12} />
+										<YAxis stroke='#fff' fontSize={12} domain={[0, 'auto']} allowDecimals={false} />
 										<Tooltip content={seasonalTooltip} />
 										<Bar 
 											dataKey='value' 
@@ -2944,10 +3006,10 @@ export default function PlayerStats() {
 										data={teamChartData} 
 										margin={{ top: 5, right: 5, left: -20, bottom: 5 }}
 									>
-										<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
-										<XAxis dataKey='name' stroke='#fff' fontSize={12} />
-										<YAxis stroke='#fff' fontSize={12} />
-										<Tooltip content={teamTooltip} />
+									<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
+									<XAxis dataKey='name' stroke='#fff' fontSize={12} />
+									<YAxis stroke='#fff' fontSize={12} domain={[0, 'auto']} allowDecimals={false} />
+									<Tooltip content={teamTooltip} />
 										<Bar
 											dataKey='value' 
 											fill='#22c55e' 

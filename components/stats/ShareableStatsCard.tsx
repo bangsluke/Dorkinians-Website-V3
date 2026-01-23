@@ -110,7 +110,7 @@ function renderVisualization(viz: { type: string; data?: any }, accentColor: str
 						<BarChart data={data.chartData} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
 							<CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.1)" />
 							<XAxis dataKey="name" stroke="#fff" fontSize={14} />
-							<YAxis stroke="#fff" fontSize={14} />
+							<YAxis stroke="#fff" fontSize={14} domain={[0, 'auto']} allowDecimals={false} />
 							<Bar dataKey="value" fill={accentColor} radius={[4, 4, 0, 0]} opacity={0.9} />
 						</BarChart>
 					</ResponsiveContainer>
@@ -126,7 +126,7 @@ function renderVisualization(viz: { type: string; data?: any }, accentColor: str
 						<BarChart data={data.chartData} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
 							<CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.1)" />
 							<XAxis dataKey="name" stroke="#fff" fontSize={14} />
-							<YAxis stroke="#fff" fontSize={14} />
+							<YAxis stroke="#fff" fontSize={14} domain={[0, 'auto']} allowDecimals={false} />
 							<Bar dataKey="value" fill={accentColor} radius={[4, 4, 0, 0]} opacity={0.9} />
 						</BarChart>
 					</ResponsiveContainer>
@@ -1073,7 +1073,7 @@ function renderVisualization(viz: { type: string; data?: any }, accentColor: str
 						<BarChart data={data.chartData} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
 							<CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.1)" />
 							<XAxis dataKey="name" stroke="#fff" fontSize={14} />
-							<YAxis stroke="#fff" fontSize={14} />
+							<YAxis stroke="#fff" fontSize={14} domain={[0, 'auto']} allowDecimals={false} />
 							<Bar dataKey="value" fill={accentColor} radius={[4, 4, 0, 0]} opacity={0.9} />
 						</BarChart>
 					</ResponsiveContainer>

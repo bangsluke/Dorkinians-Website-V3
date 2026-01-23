@@ -100,7 +100,7 @@ export default function OppositionPerformanceScatter({ data, isLoading }: Opposi
 							stroke='#fff'
 							fontSize={12}
 							domain={['dataMin', 'auto']}
-							width={40}
+							width={55}
 						/>
 						<Tooltip content={scatterTooltip} cursor={{ strokeDasharray: '3 3' }} />
 						<Scatter

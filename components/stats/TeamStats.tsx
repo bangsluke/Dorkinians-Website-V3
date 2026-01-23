@@ -875,7 +875,7 @@ export default function TeamStats() {
 			const trendlinePoints = calculateTrendline(baseData);
 			return baseData.map((point, index) => ({
 				...point,
-				trendline: trendlinePoints[index]?.value || 0,
+				trendline: Math.max(0, trendlinePoints[index]?.value || 0),
 			}));
 		}
 
@@ -1553,7 +1553,7 @@ export default function TeamStats() {
 													>
 														<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
 														<XAxis dataKey='name' stroke='#fff' fontSize={12} />
-														<YAxis stroke='#fff' fontSize={12} />
+														<YAxis stroke='#fff' fontSize={12} domain={[0, 'auto']} allowDecimals={false} />
 														<Tooltip content={customTooltip} />
 														<Bar 
 															dataKey='value' 
