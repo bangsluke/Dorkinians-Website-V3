@@ -1200,7 +1200,7 @@ function DefensiveRecordSection({
 	const gamesPerCleanSheet = cleanSheets > 0 ? (appearances / cleanSheets) : 0;
 	
 	// Dynamic height: increase when GK stats are shown
-	const sectionHeight = gk > 0 ? '340px' : '260px';
+	const sectionHeight = gk > 0 ? '360px' : '260px';
 
 	return (
 		<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
@@ -1224,7 +1224,7 @@ function DefensiveRecordSection({
 				</div>
 				
 				{/* Content Overlay */}
-				<div className='relative z-10 h-full flex flex-col justify-center px-3 md:px-4'>
+				<div className='relative z-10 h-full flex flex-col justify-center pt-4 pb-4 px-3 md:px-4'>
 					<div className='bg-black/60 backdrop-blur-sm rounded-lg p-3 md:p-4'>
 						<table className='w-full text-white text-sm'>
 							<thead>
