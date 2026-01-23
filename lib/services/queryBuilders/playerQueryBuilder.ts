@@ -727,12 +727,17 @@ export class PlayerQueryBuilder {
 		// Check question text directly if seasonFrame was invalid or not found, and timeRange wasn't processed
 		const seasonFrameWasValid = seasonFrame && /^(\d{4}|\d{2})[\/\-](\d{2})$/.test(seasonFrame.value || "");
 		const timeRangeWasProcessed = timeRange && whereConditions.some(cond => cond.includes("season"));
-		if (!seasonFrameWasValid && !timeRangeWasProcessed && !isTeamSpecificMetric) {
+		// Check if a date range was already processed (not just season)
+		const dateRangeWasProcessed = whereConditions.some(cond => cond.includes("date") && (cond.includes(">=") || cond.includes("<=")));
+		if (!seasonFrameWasValid && !timeRangeWasProcessed && !dateRangeWasProcessed && !isTeamSpecificMetric) {
 			// If no valid season frame or timeRange found, check question text directly for abbreviated seasons
 			// This handles cases where "20/21" or "21/22" wasn't extracted by the analyzer, or seasonFrame has invalid value like "season"
 			const questionText = analysis.question || "";
+			// Skip season extraction if question contains a date range (between X and Y format)
+			const hasDateRangeInQuestion = questionText.match(/between\s+(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})\s+and\s+(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/i);
 			// Try full format first (2019/20) - use flexible pattern without word boundaries
-			let seasonMatch = questionText.match(/(\d{4})[\/\-](\d{2})/);
+			// BUT skip if we already have a date range or if the question contains a date range pattern
+			let seasonMatch = !hasDateRangeInQuestion ? questionText.match(/(\d{4})[\/\-](\d{2})/) : null;
 			if (seasonMatch) {
 				const season = `${seasonMatch[1]}/${seasonMatch[2]}`;
 				const normalizedSeason = season.replace("-", "/");
@@ -741,7 +746,8 @@ export class PlayerQueryBuilder {
 				whereConditions.push(`(${seasonField} = '${normalizedSeason}' OR ${seasonField} = '${dashSeason}')`);
 			} else {
 				// Try abbreviated format (20/21) - use flexible pattern without word boundaries
-				seasonMatch = questionText.match(/(\d{2})[\/\-](\d{2})/);
+				// BUT skip if we already have a date range or if the question contains a date range pattern
+				seasonMatch = !hasDateRangeInQuestion ? questionText.match(/(\d{2})[\/\-](\d{2})/) : null;
 				if (seasonMatch) {
 					const expandedSeason = PlayerQueryBuilder.expandAbbreviatedSeason(seasonMatch[1], seasonMatch[2]);
 					const normalizedSeason = expandedSeason.replace("-", "/");
@@ -796,9 +802,6 @@ export class PlayerQueryBuilder {
 				return `f.competition = '${comp}'`;
 			});
 			whereConditions.push(`(${competitionFilters.join(" OR ")})`);
-			// #region agent log
-			fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'playerQueryBuilder.ts:796',message:'Added competition filter to WHERE conditions',data:{competitions:analysis.competitions,competitionFilters,metric,metricUpper},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-			// #endregion
 		} else if (analysis.competitions && analysis.competitions.length > 0) {
 		}
 
@@ -1873,9 +1876,6 @@ export class PlayerQueryBuilder {
 			if (whereConditions.length > 0) {
 				const optimizedConditions = PlayerQueryBuilder.optimizeWhereConditionOrder(whereConditions);
 				query += ` WHERE ${optimizedConditions.join(" AND ")}`;
-				// #region agent log
-				fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'playerQueryBuilder.ts:1868',message:'Final query with WHERE clause',data:{whereConditions:optimizedConditions,queryLength:query.length,hasOppositionFilter:optimizedConditions.some(c=>c.includes('od.opposition')),hasCompetitionFilter:optimizedConditions.some(c=>c.includes('f.competition'))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-				// #endregion
 			}
 
 			// Handle non-team-specific metrics with team exclusions FIRST (e.g., assists, goals)

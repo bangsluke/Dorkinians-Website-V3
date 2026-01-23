@@ -618,6 +618,66 @@ export class FixtureDataQueryHandler {
 	}
 
 	/**
+	 * Query games where player played and team conceded X or more goals
+	 */
+	static async queryGamesWherePlayerPlayedAndTeamConcededXOrMore(
+		playerName: string,
+		minConceded: number,
+		analysis?: EnhancedQuestionAnalysis,
+	): Promise<Record<string, unknown>> {
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		const query = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+			WHERE f.conceded IS NOT NULL AND f.conceded >= $minConceded
+			RETURN DISTINCT f.date as date,
+			       f.opposition as opposition,
+			       f.homeOrAway as homeOrAway,
+			       f.result as result,
+			       f.dorkiniansGoals as dorkiniansGoals,
+			       f.conceded as conceded
+			ORDER BY f.date DESC
+		`;
+
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$playerName/g, `'${playerName}'`)
+				.replace(/\$minConceded/g, `${minConceded}`);
+			chatbotService.lastExecutedQueries.push(`GAMES_CONCEDED_X_OR_MORE_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`GAMES_CONCEDED_X_OR_MORE_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
+		try {
+			const result = await neo4jService.executeQuery(query, { playerName, graphLabel, minConceded });
+			
+			if (!result || result.length === 0) {
+				return { 
+					type: "games_conceded_x_or_more", 
+					data: [], 
+					playerName,
+					minConceded
+				};
+			}
+			
+			return { 
+				type: "games_conceded_x_or_more", 
+				data: result, 
+				playerName,
+				minConceded
+			};
+		} catch (error) {
+			loggingService.log(`❌ Error in queryGamesWherePlayerPlayedAndTeamConcededXOrMore:`, error, "error");
+			return { type: "error", data: [], error: error instanceof Error ? error.message : String(error) };
+		}
+	}
+
+	/**
 	 * Query highest scoring game for a team in a season
 	 * Returns the fixture with highest combined dorkiniansGoals + conceded
 	 */
