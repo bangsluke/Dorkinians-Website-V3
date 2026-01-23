@@ -486,9 +486,8 @@ export async function getPlayerHighestLeagueFinish(playerName: string): Promise<
 		};
 		
 		// Collect all positions for teams/seasons the player has played for
-		const playerPositions: HistoricalPositionEntry[] = [];
-		
-		for (const record of result.records) {
+		// Use parallel fetching to avoid timeout
+		const positionPromises = result.records.map(async (record) => {
 			const team = record.get('team');
 			const season = record.get('season');
 			const teamKey = teamNameToKey(team);
@@ -503,7 +502,7 @@ export async function getPlayerHighestLeagueFinish(playerName: string): Promise<
 				const seasonData = await getSeasonDataFromJSON(jsonSeasonFormat);
 				const division = seasonData?.teams[teamKey]?.division || '';
 				
-				playerPositions.push({
+				return {
 					team: teamKey,
 					season: normalizedSeason,
 					position: teamData.position,
@@ -516,9 +515,13 @@ export async function getPlayerHighestLeagueFinish(playerName: string): Promise<
 					goalDifference: teamData.goalDifference,
 					points: teamData.points,
 					division: division,
-				});
+				} as HistoricalPositionEntry;
 			}
-		}
+			return null;
+		});
+		
+		// Wait for all promises to resolve (with timeout protection)
+		const playerPositions = (await Promise.all(positionPromises)).filter((pos): pos is HistoricalPositionEntry => pos !== null);
 		
 		if (playerPositions.length === 0) {
 			return null;

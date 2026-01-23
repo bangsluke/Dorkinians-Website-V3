@@ -644,4 +644,57 @@ export class ClubDataQueryHandler {
 			return { type: "error", data: [], error: error instanceof Error ? error.message : String(error) };
 		}
 	}
+
+	/**
+	 * Query players who scored 5+ goals (goals + penalties) in a single game for a specific team in a specific season
+	 * Returns count of unique players who achieved this feat
+	 */
+	static async queryPlayersScored5PlusGoalsPerGame(teamName: string, season: string): Promise<Record<string, unknown>> {
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		// Normalize season format to slash format (e.g., "2021/22")
+		const { normalizeSeasonFormat } = await import("../leagueTableService");
+		const normalizedSeason = normalizeSeasonFormat(season, 'slash');
+		
+		// Query to find players who scored 5+ goals (goals + penalties) in at least one game
+		// Group by player and fixture to check per-game totals
+		const query = `
+			MATCH (p:Player {graphLabel: $graphLabel})
+			WHERE p.allowOnSite = true
+			MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+			WHERE md.team = $teamName AND f.season = $season
+			WITH p, f, 
+				coalesce(md.goals, 0) + coalesce(md.penaltiesScored, 0) as goalsInGame
+			WHERE goalsInGame >= 5
+			RETURN count(DISTINCT p.playerName) as playerCount
+		`;
+
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$teamName/g, `'${teamName}'`)
+				.replace(/\$season/g, `'${normalizedSeason}'`);
+			chatbotService.lastExecutedQueries.push(`PLAYERS_5PLUS_GOALS_PER_GAME_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`PLAYERS_5PLUS_GOALS_PER_GAME_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
+		try {
+			const result = await neo4jService.executeQuery(query, { graphLabel, teamName, season: normalizedSeason });
+			const playerCount = result && result.length > 0 ? (result[0].playerCount || 0) : 0;
+			return { 
+				type: "players_5plus_goals_per_game", 
+				data: [{ playerCount }], 
+				teamName,
+				season: normalizedSeason 
+			};
+		} catch (error) {
+			loggingService.log(`❌ Error in queryPlayersScored5PlusGoalsPerGame:`, error, "error");
+			return { type: "error", data: [], error: error instanceof Error ? error.message : String(error) };
+		}
+	}
 }

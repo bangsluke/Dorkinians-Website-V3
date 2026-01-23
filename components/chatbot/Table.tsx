@@ -106,10 +106,12 @@ export default function Table({ visualization }: TableProps) {
 								key === "Played" || key === "Won" || key === "Drawn" || key === "Lost" || 
 								key === "Goals For" || key === "Goals Against" || key === "Goal Difference" || key === "Points";
 							const isPositionColumn = key === "Position" || key === "position";
+							// Always center align the third column (index 2)
+							const isThirdColumn = index === 2;
 							return (
 								<th
 									key={index}
-									className={`${isNumeric ? "text-center" : "text-left"} ${
+									className={`${isThirdColumn || isNumeric ? "text-center" : "text-left"} ${
 										isPositionColumn ? "px-2 md:px-3" : "px-2 md:px-3"
 									} py-2 md:py-2 text-white font-semibold ${
 										isPositionColumn ? "text-xs md:text-sm" : "text-xs md:text-sm"
@@ -145,10 +147,12 @@ export default function Table({ visualization }: TableProps) {
 										key === "Goals For" || key === "Goals Against" || key === "Goal Difference" || key === "Points";
 									const isPositionColumn = key === "Position" || key === "position";
 									const isTeamColumn = key === "Team" || key === "team";
+									// Always center align the third column (index 2)
+									const isThirdColumn = colIndex === 2;
 									return (
 										<td 
 											key={colIndex} 
-											className={`${isNumeric ? "text-center" : "text-left"} ${
+											className={`${isThirdColumn || isNumeric ? "text-center" : "text-left"} ${
 												isPositionColumn ? "px-2 md:px-3" : isTeamColumn ? "px-2 md:px-3" : "px-2 md:px-3"
 											} py-2 md:py-2 text-white ${
 												isPositionColumn ? "text-xs md:text-sm" : "text-xs md:text-sm"

@@ -580,6 +580,15 @@ export class PlayerDataQueryHandler {
 			}
 		}
 
+		// Check if this is a "how many games where both X and Y also played" question (3 players: user + 2 others)
+		const hasBothPattern = questionLower.includes("both") && questionLower.includes("and") && questionLower.includes("also");
+		const isThreePlayerQuestion = 
+			hasBothPattern &&
+			(questionLower.includes("how many games") || questionLower.includes("how many game")) &&
+			(questionLower.includes("played") || questionLower.includes("play")) &&
+			entities.length >= 2 &&
+			(userContext || questionLower.includes("i ") || questionLower.includes(" i") || questionLower.includes("my "));
+
 		// Check if this is a "how many games/appearances with [specific player]" question (2+ entities)
 		const hasHowMany = questionLower.includes("how many") || questionLower.includes("how much");
 		const hasWith = questionLower.includes("with");
@@ -600,9 +609,52 @@ export class PlayerDataQueryHandler {
 			entities.length >= 2 && 
 			hasHowMany &&
 			hasWith &&
-			(hasDirectPattern || hasGamesAppearancesWithPattern);
+			(hasDirectPattern || hasGamesAppearancesWithPattern) &&
+			!isThreePlayerQuestion;
 
 		loggingService.log(`🔍 Checking for "played with" question. Question: "${questionLower}", isPlayedWithQuestion: ${isPlayedWithQuestion}, isSpecificPlayerPairQuestion: ${isSpecificPlayerPairQuestion}`, null, "log");
+
+		// If this is a "both X and Y also played" question (3 players: user + 2 others)
+		if (isThreePlayerQuestion && entities.length >= 2 && userContext) {
+			// Extract the two other players from entities (filter out pronouns)
+			const pronouns = ["i", "me", "my", "myself", "i've", "you", "your", "player", "players"];
+			const validEntities = entities.filter(e => !pronouns.includes(e.toLowerCase()));
+			
+			if (validEntities.length >= 2) {
+				const playerName2 = validEntities[0];
+				const playerName3 = validEntities[1];
+				const playerName1 = userContext;
+				
+				// Resolve player names
+				const resolvedPlayerName1 = await EntityResolutionUtils.resolvePlayerName(playerName1);
+				const resolvedPlayerName2 = await EntityResolutionUtils.resolvePlayerName(playerName2);
+				const resolvedPlayerName3 = await EntityResolutionUtils.resolvePlayerName(playerName3);
+				
+				if (!resolvedPlayerName1 || !resolvedPlayerName2 || !resolvedPlayerName3) {
+					return {
+						type: "player_not_found",
+						data: [],
+						message: "I couldn't find one or more of the players mentioned. Please check the spelling.",
+					};
+				}
+				
+				// Extract filters
+				let teamName: string | undefined = undefined;
+				if (teamEntities.length > 0) {
+					teamName = TeamMappingUtils.mapTeamName(teamEntities[0]);
+				}
+				
+				const timeFrames = analysis.extractionResult?.timeFrames || [];
+				let season: string | null = null;
+				const seasonFrame = timeFrames.find(tf => tf.type === "season");
+				if (seasonFrame) {
+					season = seasonFrame.value.replace("-", "/");
+				}
+				
+				loggingService.log(`🔍 Resolved player names: ${resolvedPlayerName1}, ${resolvedPlayerName2}, and ${resolvedPlayerName3}, calling queryGamesPlayedTogetherThreePlayers`, null, "log");
+				return await RelationshipQueryHandler.queryGamesPlayedTogetherThreePlayers(resolvedPlayerName1, resolvedPlayerName2, resolvedPlayerName3, teamName, season);
+			}
+		}
 
 		// If this is a specific player pair question ("How many games have I played with [Player]?")
 		if (isSpecificPlayerPairQuestion && entities.length >= 2) {
@@ -1141,9 +1193,6 @@ export class PlayerDataQueryHandler {
 			!(analysis.competitions && analysis.competitions.length > 0);
 
 		loggingService.log(`🔍 Checking opposition appearance query. oppositionEntities: ${oppositionEntities.length}, extractedOppositionName: "${extractedOppositionName}", question: "${questionLower}", hasTeamExclusions: ${hasTeamExclusions}, isOppositionAppearanceQuery: ${isOppositionAppearanceQuery}`, null, "log");
-		// #region agent log
-		fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'playerDataQueryHandler.ts:1135',message:'Opposition appearance query check',data:{oppositionEntities:oppositionEntities.length,extractedOppositionName,questionLower,hasTeamExclusions,isOppositionAppearanceQuery,hasCompetitionFilter:!!(analysis.competitions&&analysis.competitions.length>0),hasCompetitionTypeFilter:!!(analysis.competitionTypes&&analysis.competitionTypes.length>0)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-		// #endregion
 
 		if (isOppositionAppearanceQuery) {
 			// Resolve player name - use userContext if available (for "I" questions), otherwise use entities
@@ -1174,9 +1223,6 @@ export class PlayerDataQueryHandler {
 			}
 
 			loggingService.log(`🔍 Querying appearances against opposition: ${resolvedPlayerName} vs ${oppositionName}`, null, "log");
-			// #region agent log
-			fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'playerDataQueryHandler.ts:1165',message:'Routing to queryOppositionAppearances',data:{resolvedPlayerName,oppositionName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-			// #endregion
 			return await PlayerDataQueryHandler.queryOppositionAppearances(resolvedPlayerName, oppositionName);
 		}
 
@@ -3198,9 +3244,6 @@ export class PlayerDataQueryHandler {
 	 */
 	static async queryOppositionAppearances(playerName: string, oppositionName: string): Promise<Record<string, unknown>> {
 		loggingService.log(`🔍 Querying appearances against opposition: ${playerName} vs ${oppositionName}`, null, "log");
-		// #region agent log
-		fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'playerDataQueryHandler.ts:3185',message:'queryOppositionAppearances entry',data:{playerName,oppositionName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-		// #endregion
 		const graphLabel = neo4jService.getGraphLabel();
 
 		// Query to count MatchDetail nodes where player played against the opposition
@@ -3218,14 +3261,8 @@ export class PlayerDataQueryHandler {
 		`;
 
 		try {
-			// #region agent log
-			fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'playerDataQueryHandler.ts:3203',message:'Executing opposition appearances query',data:{query,playerName,oppositionName,graphLabel},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-			// #endregion
 			const result = await neo4jService.executeQuery(query, { playerName, oppositionName, graphLabel });
 			const appearances = result && result.length > 0 ? (result[0].appearances || 0) : 0;
-			// #region agent log
-			fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'playerDataQueryHandler.ts:3205',message:'Opposition appearances query result',data:{appearances,resultLength:result?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-			// #endregion
 			
 			return { 
 				type: "player_opposition_appearances", 

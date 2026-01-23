@@ -718,6 +718,52 @@ export class ChatbotService {
 				}
 			}
 
+			// Check for "how many players scored 5+ goals for [team] in [season]" questions
+			// This checks for players who scored 5+ goals (goals + penalties) in a SINGLE game, not total season goals
+			const isPlayersScored5PlusGoalsQuestion = 
+				(question.includes("how many players") || question.includes("how many player")) &&
+				question.includes("scored") &&
+				(question.includes("5+") || question.includes("5 or more") || question.match(/\b5\s*\+/)) &&
+				(analysis.teamEntities && analysis.teamEntities.length > 0 || 
+				 entities.some(e => /^\d+(?:st|nd|rd|th|s)?$/i.test(e)) ||
+				 question.match(/\b(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th)\b/i)) &&
+				(/\d{4}[\/\-]\d{2}/.test(question) || analysis.timeRange);
+
+			if (isPlayersScored5PlusGoalsQuestion) {
+				// Extract team name
+				let teamName = "";
+				if (analysis.teamEntities && analysis.teamEntities.length > 0) {
+					teamName = TeamMappingUtils.mapTeamName(analysis.teamEntities[0]);
+				} else {
+					const teamEntity = entities.find(e => /^\d+(?:st|nd|rd|th|s)?$/i.test(e));
+					if (teamEntity) {
+						teamName = TeamMappingUtils.mapTeamName(teamEntity);
+					} else {
+						const teamMatch = question.match(/\b(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th)\b/i);
+						if (teamMatch) {
+							teamName = TeamMappingUtils.mapTeamName(teamMatch[1]);
+						}
+					}
+				}
+				
+				// Extract season
+				let season: string | null = null;
+				const seasonMatch = question.match(/(\d{4})[\/\-](\d{2})/);
+				if (seasonMatch) {
+					season = `${seasonMatch[1]}/${seasonMatch[2]}`;
+				} else if (analysis.timeRange) {
+					const timeFrameMatch = analysis.timeRange.match(/(\d{4})[\/\-](\d{2})/);
+					if (timeFrameMatch) {
+						season = `${timeFrameMatch[1]}/${timeFrameMatch[2]}`;
+					}
+				}
+				
+				if (teamName && season) {
+					this.lastProcessingSteps.push(`Detected players scored 5+ goals per game question, routing to ClubDataQueryHandler with team: ${teamName}, season: ${season}`);
+					return await ClubDataQueryHandler.queryPlayersScored5PlusGoalsPerGame(teamName, season);
+				}
+			}
+
 			// Check for "which team used the most players in [season]" questions
 			const isTeamPlayerCountBySeasonQuestion = 
 				(question.includes("which team") || question.includes("what team")) &&
@@ -3333,6 +3379,54 @@ export class ChatbotService {
 					],
 				},
 			};
+		} else if (data && data.type === "games_played_together_three") {
+			// Handle games played together for three players (user + 2 others)
+			const playerName1 = data.playerName1 as string;
+			const playerName2 = data.playerName2 as string;
+			const playerName3 = data.playerName3 as string;
+			const teamName = (data.teamName as string) || undefined;
+			const season = (data.season as string) || undefined;
+			
+			let gamesTogether = 0;
+			if (typeof data.data === "number") {
+				gamesTogether = data.data;
+			} else if (data.data !== null && data.data !== undefined) {
+				if (typeof data.data === "object") {
+					if ("toNumber" in data.data && typeof data.data.toNumber === "function") {
+						gamesTogether = (data.data as { toNumber: () => number }).toNumber();
+					} else if ("low" in data.data && "high" in data.data) {
+						const neo4jInt = data.data as { low?: number; high?: number };
+						gamesTogether = (neo4jInt.low || 0) + (neo4jInt.high || 0) * 4294967296;
+					} else {
+						gamesTogether = Number(data.data) || 0;
+					}
+				} else {
+					gamesTogether = Number(data.data) || 0;
+				}
+			}
+
+			if (gamesTogether === 0) {
+				answer = `${playerName1} has not played a game with both ${playerName2} and ${playerName3}.`;
+			} else {
+				let contextMessage = "";
+				if (teamName) {
+					const teamDisplayName = teamName
+						.replace("1st XI", "1s")
+						.replace("2nd XI", "2s")
+						.replace("3rd XI", "3s")
+						.replace("4th XI", "4s")
+						.replace("5th XI", "5s")
+						.replace("6th XI", "6s")
+						.replace("7th XI", "7s")
+						.replace("8th XI", "8s");
+					contextMessage = ` for the ${teamDisplayName}`;
+				}
+				if (season) {
+					contextMessage += season ? ` in ${season}` : "";
+				}
+				answer = `${playerName1} has played ${gamesTogether} ${gamesTogether === 1 ? "game" : "games"} with both ${playerName2} and ${playerName3}${contextMessage}.`;
+				answerValue = gamesTogether;
+			}
 		} else if (data && data.type === "games_played_together") {
 			// Handle games played together data (specific player pair) - check early before other data.data checks
 			console.log(`🔍 [RESPONSE_GEN] games_played_together data:`, data);
@@ -4567,7 +4661,16 @@ export class ChatbotService {
 				answer = "No ranking data found.";
 			} else {
 				const topRanking = rankingData[0];
-				const metricDisplayName = isPenaltyRecord ? "Conversion" : getMetricDisplayName(metric, topRanking.value);
+				let metricDisplayName = isPenaltyRecord ? "Conversion" : getMetricDisplayName(metric, topRanking.value);
+				
+				// For "G" metric (goals), ensure "Goals" is used instead of "open play goals" unless question explicitly mentions "open play"
+				if (metric.toUpperCase() === "G" && !isPenaltyRecord) {
+					const questionLower = question.toLowerCase();
+					const mentionsOpenPlay = questionLower.includes("open play") || questionLower.includes("openplay");
+					if (!mentionsOpenPlay) {
+						metricDisplayName = "Goals";
+					}
+				}
 				
 				// Check if table is expandable (has more data than requestedLimit)
 				// Table is expandable if there are more results than the initial display limit
@@ -5164,6 +5267,47 @@ export class ChatbotService {
 					type: "bar",
 				},
 			};
+		} else if (data && data.type === "players_5plus_goals_per_game") {
+			// Handle "how many players scored 5+ goals per game" queries
+			const playerData = (data.data as Array<{ playerCount: number }>) || [];
+			const teamName = (data.teamName as string) || "";
+			const season = (data.season as string) || "";
+			
+			if (playerData.length > 0) {
+				const playerCount = playerData[0].playerCount || 0;
+				const teamDisplayName = teamName
+					.replace("1st XI", "1s")
+					.replace("2nd XI", "2s")
+					.replace("3rd XI", "3s")
+					.replace("4th XI", "4s")
+					.replace("5th XI", "5s")
+					.replace("6th XI", "6s")
+					.replace("7th XI", "7s")
+					.replace("8th XI", "8s");
+				
+				if (playerCount === 0) {
+					answer = `No players scored 5 or more goals in a single game for the ${teamDisplayName} in the ${season} season.`;
+				} else {
+					answer = `${playerCount} ${playerCount === 1 ? "player" : "players"} scored 5 or more goals in a single game for the ${teamDisplayName} in the ${season} season.`;
+				}
+				answerValue = playerCount;
+				
+				visualization = {
+					type: "NumberCard",
+					data: [{ 
+						name: "Players", 
+						wordedText: "players", 
+						value: playerCount,
+						iconName: this.getIconNameForMetric("APP")
+					}],
+					config: {
+						title: `Players with 5+ Goals in a Game - ${teamDisplayName} (${season})`,
+						type: "bar",
+					},
+				};
+			} else {
+				answer = `I couldn't find data for players who scored 5+ goals per game for the ${teamName} in the ${season} season.`;
+			}
 		} else if (data && data.type === "team_stats") {
 			// Handle team statistics queries
 			// BUT FIRST: Check if this should actually be a player query that was misrouted
@@ -7554,6 +7698,72 @@ export class ChatbotService {
 									answerParts.push(finalDateRangeText);
 								}
 								
+								// Add result filter if present (e.g., "in games he lost")
+								const hasResultFilter = analysis.results && analysis.results.length > 0;
+								if (hasResultFilter) {
+									const resultType = analysis.results?.[0]?.toLowerCase();
+									if (resultType === "loss" || resultType === "l") {
+										answerParts.push("in games he lost");
+									} else if (resultType === "win" || resultType === "w") {
+										answerParts.push("in games he won");
+									} else if (resultType === "draw" || resultType === "d") {
+										answerParts.push("in games he drew");
+									}
+								}
+								
+								// Join parts and add period
+								answer = answerParts.join(" ") + ".";
+							} else if (isAssistsQuery && (hasHomeLocation || hasAwayLocation || dateRangeText || (analysis.results && analysis.results.length > 0))) {
+								// Build answer text for assists queries with location/date/result filters (but no team filter)
+								const assistCount = value as number;
+								const assistText = assistCount === 1 ? "assist" : "assists";
+								
+								// Build answer parts
+								let answerParts: string[] = [];
+								
+								// Start with player name and assist count
+								answerParts.push(`${playerName} provided ${assistCount} ${assistText}`);
+								
+								// Add location filter if present
+								if (hasHomeLocation) {
+									answerParts.push("whilst playing at home");
+								} else if (hasAwayLocation) {
+									answerParts.push("whilst playing away");
+								}
+								
+								// Add date range filter if present
+								let finalDateRangeText = dateRangeText;
+								if (!finalDateRangeText) {
+									// Check if question contains "during [YEAR]" pattern
+									const duringYearMatch = lowerQuestion.match(/\bduring\s+(\d{4})\b/);
+									if (duringYearMatch) {
+										finalDateRangeText = `in ${duringYearMatch[1]}`;
+									}
+								} else {
+									// Check if dateRangeText contains a year (e.g., "in 2023" or "during 2023")
+									// If it's a year, format it as "in 2023"
+									const yearMatch = dateRangeText.match(/\b(20\d{2})\b/);
+									if (yearMatch && (dateRangeText.includes("during") || lowerQuestion.includes("during"))) {
+										finalDateRangeText = `in ${yearMatch[1]}`;
+									}
+								}
+								
+								if (finalDateRangeText) {
+									answerParts.push(finalDateRangeText);
+								}
+								
+								// Add result filter if present (e.g., "in games he lost")
+								if (analysis.results && analysis.results.length > 0) {
+									const resultType = analysis.results[0].toLowerCase();
+									if (resultType === "loss" || resultType === "l") {
+										answerParts.push("in games he lost");
+									} else if (resultType === "win" || resultType === "w") {
+										answerParts.push("in games he won");
+									} else if (resultType === "draw" || resultType === "d") {
+										answerParts.push("in games he drew");
+									}
+								}
+								
 								// Join parts and add period
 								answer = answerParts.join(" ") + ".";
 							} else if (hasTeamFilter || hasHomeLocation || hasAwayLocation || dateRangeText) {
@@ -7664,47 +7874,6 @@ export class ChatbotService {
 									
 									// Start with player name and goal count - use "got" and "scored" format
 									answerParts.push(`${playerName} got ${goalCount} ${goalText}`);
-									
-									// Add location filter if present
-									if (hasHomeLocation) {
-										answerParts.push("whilst playing at home");
-									} else if (hasAwayLocation) {
-										answerParts.push("whilst playing away");
-									}
-									
-									// Add date range filter if present
-									let finalDateRangeText = dateRangeText;
-									if (!finalDateRangeText) {
-										// Check if question contains "during [YEAR]" pattern
-										const duringYearMatch = lowerQuestion.match(/\bduring\s+(\d{4})\b/);
-										if (duringYearMatch) {
-											finalDateRangeText = `in ${duringYearMatch[1]}`;
-										}
-									} else {
-										// Check if dateRangeText contains a year (e.g., "in 2023" or "during 2023")
-										// If it's a year, format it as "in 2023"
-										const yearMatch = dateRangeText.match(/\b(20\d{2})\b/);
-										if (yearMatch && (dateRangeText.includes("during") || lowerQuestion.includes("during"))) {
-											finalDateRangeText = `in ${yearMatch[1]}`;
-										}
-									}
-									
-									if (finalDateRangeText) {
-										answerParts.push(finalDateRangeText);
-									}
-									
-									// Join parts and add period
-									answer = answerParts.join(" ") + ".";
-								} else if (isAssistsQuery && (hasHomeLocation || hasAwayLocation || dateRangeText)) {
-									// Build answer text for assists queries with location/date filters (but no team filter)
-									const assistCount = value as number;
-									const assistText = assistCount === 1 ? "assist" : "assists";
-									
-									// Build answer parts
-									let answerParts: string[] = [];
-									
-									// Start with player name and assist count
-									answerParts.push(`${playerName} provided ${assistCount} ${assistText}`);
 									
 									// Add location filter if present
 									if (hasHomeLocation) {
@@ -8415,15 +8584,7 @@ export class ChatbotService {
 					answerValue = `${playerTeamCount}/${totalTeamCount}`;
 				} else if (value !== undefined && value !== null) {
 					answerValue = value as number;
-					// #region agent log
-					console.log('[DEBUG] Before buildContextualResponse call', {playerName,metric,value,question:analysis.question});
-					fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'chatbotService.ts:8377',message:'Before buildContextualResponse call',data:{playerName,metric,value,question:analysis.question},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-					// #endregion
 					answer = ResponseBuilder.buildContextualResponse(playerName, metric, value, analysis);
-					// #region agent log
-					console.log('[DEBUG] After buildContextualResponse call', {answer});
-					fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'chatbotService.ts:8380',message:'After buildContextualResponse call',data:{answer},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-					// #endregion
 				} else {
 					answer = "No data found for your query.";
 				}

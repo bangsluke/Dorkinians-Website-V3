@@ -61,19 +61,12 @@ export class ResponseBuilder {
 	 * Build contextual response for player metrics
 	 */
 	static buildContextualResponse(playerName: string, metric: string, value: unknown, analysis: EnhancedQuestionAnalysis): string {
-		// #region agent log
-		console.log('[DEBUG] buildContextualResponse entry', {playerName,metric,value,question:analysis.question});
-		fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'responseBuilder.ts:63',message:'buildContextualResponse entry',data:{playerName,metric,value,question:analysis.question},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-		// #endregion
 		// Resolve metric alias to canonical key for display and formatting
 		const resolvedMetricForDisplay = findMetricByAlias(metric)?.key || metric;
 		// Get the metric display name
 		const metricName = getMetricDisplayName(resolvedMetricForDisplay, value as number);
 		const formattedValue = FormattingUtils.formatValueByMetric(resolvedMetricForDisplay, value as number);
 		let verb = getAppropriateVerb(metric, value as number);
-		// #region agent log
-		fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'responseBuilder.ts:69',message:'After initial setup',data:{resolvedMetricForDisplay,metricName,formattedValue,verb},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-		// #endregion
 
 		// Special handling for MostPlayedForTeam/TEAM_ANALYSIS - value is a team name string
 		if (metric === "MostPlayedForTeam" || metric === "MOSTPLAYEDFORTEAM" || metric === "TEAM_ANALYSIS") {
@@ -384,11 +377,6 @@ export class ResponseBuilder {
 			finalMetricName = adjustedMetricName.toLowerCase().replace(verb.toLowerCase(), "").trim();
 		}
 		
-		// #region agent log
-		console.log('[DEBUG] Before goal metric logic', {questionLower,isGoalMetric,mentionsOpenPlay,finalMetricName,resolvedMetricForDisplay,metricName,adjustedMetricName});
-		fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'responseBuilder.ts:371',message:'Before goal metric logic',data:{questionLower,isGoalMetric,mentionsOpenPlay,finalMetricName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-		// #endregion
-		
 		// Special handling for open play goals - use "scored" verb and format as "open play goals" only if mentioned in question
 		const isOpenPlayGoalsMetric = resolvedMetricForDisplay.toUpperCase() === "OPENPLAYGOALS";
 		if (isOpenPlayGoalsMetric) {
@@ -400,10 +388,6 @@ export class ResponseBuilder {
 			// This ensures we don't show "open play goals" when the question just asks about "goals"
 			finalMetricName = "goals";
 		}
-		// #region agent log
-		console.log('[DEBUG] After goal metric logic', {isOpenPlayGoalsMetric,verb,finalMetricName});
-		fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'responseBuilder.ts:383',message:'After goal metric logic',data:{isOpenPlayGoalsMetric,verb,finalMetricName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-		// #endregion
 
 		// Special handling for red cards - match question phrasing for "sent off"
 		const isRedCardMetric = resolvedMetricForDisplay === "R" || resolvedMetricForDisplay.toUpperCase() === "REDCARDS";
@@ -419,11 +403,10 @@ export class ResponseBuilder {
 		}
 
 		// Start with the basic response
-		let response = `${playerName} has ${verb} ${formattedValue} ${finalMetricName}`;
-		// #region agent log
-		console.log('[DEBUG] Initial response string', {response,verb,finalMetricName});
-		fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'responseBuilder.ts:399',message:'Initial response string',data:{response,verb,finalMetricName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-		// #endregion
+		// Ensure "has" is used for singular player names (not "have")
+		// Replace "have" with "has" if verb is "have" or "have been"
+		const correctedVerb = (verb === "have" || verb === "have been") ? verb.replace("have", "has") : verb;
+		let response = `${playerName} ${correctedVerb} ${formattedValue} ${finalMetricName}`;
 
 		// Add team context if present
 		if (analysis.teamEntities && analysis.teamEntities.length > 0) {
@@ -529,10 +512,6 @@ export class ResponseBuilder {
 		// Add period for final sentence
 		response += ".";
 
-		// #region agent log
-		console.log('[DEBUG] buildContextualResponse exit', {response});
-		fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'responseBuilder.ts:495',message:'buildContextualResponse exit',data:{response},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-		// #endregion
 		return response;
 	}
 }
