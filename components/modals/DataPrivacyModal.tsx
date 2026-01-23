@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { XMarkIcon, ShieldCheckIcon } from "@heroicons/react/24/outline";
 import { appConfig } from "@/config/config";
 import Input from "@/components/ui/Input";
 import ModalWrapper from "./ModalWrapper";
+import { useNavigationStore } from "@/lib/stores/navigation";
 
 interface DataPrivacyModalProps {
 	isOpen: boolean;
@@ -12,10 +14,43 @@ interface DataPrivacyModalProps {
 }
 
 export default function DataPrivacyModal({ isOpen, onClose }: DataPrivacyModalProps) {
-	const [name, setName] = useState("");
+	const { selectedPlayer } = useNavigationStore();
+	
+	// Get selectedPlayer from store or localStorage as fallback
+	const getSelectedPlayer = (): string | null => {
+		if (selectedPlayer) return selectedPlayer;
+		if (typeof window !== "undefined") {
+			const stored = localStorage.getItem("dorkinians-selected-player");
+			return stored || null;
+		}
+		return null;
+	};
+	
+	const currentSelectedPlayer = getSelectedPlayer();
+	const initialName = currentSelectedPlayer || "";
+	const [name, setName] = useState(initialName);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [submitStatus, setSubmitStatus] = useState<"idle" | "success" | "error">("idle");
 	const nameInputRef = useRef<HTMLInputElement>(null);
+
+	// Pre-populate name with selectedPlayer when modal opens
+	useEffect(() => {
+		if (isOpen) {
+			const playerName = getSelectedPlayer();
+			if (playerName) {
+				setName(playerName);
+				// Select the text after a delay to ensure the input is focused
+				setTimeout(() => {
+					if (nameInputRef.current) {
+						nameInputRef.current.focus();
+						nameInputRef.current.select();
+					}
+				}, 200);
+			} else {
+				setName("");
+			}
+		}
+	}, [isOpen, selectedPlayer]);
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -70,12 +105,16 @@ export default function DataPrivacyModal({ isOpen, onClose }: DataPrivacyModalPr
 
 	if (!isOpen) return null;
 
-	return (
+	if (typeof window === 'undefined') {
+		return null;
+	}
+
+	const modalContent = (
 		<ModalWrapper
 			isOpen={isOpen}
 			onClose={handleClose}
-			backdropClassName="fixed inset-0 z-50"
-			modalClassName="fixed inset-0 z-50 flex flex-col"
+			backdropClassName="fixed inset-0 bg-black/50 z-[9999]"
+			modalClassName="fixed inset-0 h-screen w-screen z-[10000] shadow-xl"
 			ariaLabel="Data Removal Request"
 			initialFocusRef={nameInputRef}>
 			<div 
@@ -119,6 +158,12 @@ export default function DataPrivacyModal({ isOpen, onClose }: DataPrivacyModalPr
 								label='Your Name'
 								value={name}
 								onChange={(e) => setName(e.target.value)}
+								onFocus={(e) => {
+									const playerName = getSelectedPlayer();
+									if (playerName && e.target.value === playerName) {
+										e.target.select();
+									}
+								}}
 								required
 								disabled={isSubmitting}
 								placeholder='Enter your name to be removed'
@@ -165,4 +210,6 @@ export default function DataPrivacyModal({ isOpen, onClose }: DataPrivacyModalPr
 			</div>
 		</ModalWrapper>
 	);
+
+	return createPortal(modalContent, document.body);
 }

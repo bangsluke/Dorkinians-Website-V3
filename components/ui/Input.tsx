@@ -46,7 +46,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
 		};
 
 		const baseClasses = cn(
-			"w-full rounded-2xl transition-all duration-200 ease-out",
+			"w-full max-w-full min-w-0 rounded-2xl transition-all duration-200 ease-out",
 			"bg-[var(--color-field-bg)]",
 			"text-[var(--color-text-primary)]",
 			"border border-[var(--color-field-border)]",
@@ -66,7 +66,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
 		);
 
 		return (
-			<div className={cn("input-wrapper", fullWidth && "w-full")}>
+			<div className={cn("input-wrapper max-w-full min-w-0", fullWidth && "w-full")}>
 				{label && (
 					<label htmlFor={inputId} className="block text-sm font-medium text-[var(--color-text-primary)] mb-1">
 						{label}

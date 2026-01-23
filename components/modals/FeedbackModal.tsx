@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { XMarkIcon, BugAntIcon, LightBulbIcon } from "@heroicons/react/24/outline";
 import { appConfig } from "@/config/config";
 import Input, { Textarea } from "@/components/ui/Input";
 import ModalWrapper from "./ModalWrapper";
+import { useNavigationStore } from "@/lib/stores/navigation";
 
 interface FeedbackModalProps {
 	isOpen: boolean;
@@ -14,12 +16,45 @@ interface FeedbackModalProps {
 type FeedbackType = "bug" | "feature";
 
 export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
+	const { selectedPlayer } = useNavigationStore();
+	
+	// Get selectedPlayer from store or localStorage as fallback
+	const getSelectedPlayer = (): string | null => {
+		if (selectedPlayer) return selectedPlayer;
+		if (typeof window !== "undefined") {
+			const stored = localStorage.getItem("dorkinians-selected-player");
+			return stored || null;
+		}
+		return null;
+	};
+	
+	const currentSelectedPlayer = getSelectedPlayer();
 	const [feedbackType, setFeedbackType] = useState<FeedbackType>("bug");
-	const [name, setName] = useState("");
+	const initialName = currentSelectedPlayer || "";
+	const [name, setName] = useState(initialName);
 	const [message, setMessage] = useState("");
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [submitStatus, setSubmitStatus] = useState<"idle" | "success" | "error">("idle");
 	const nameInputRef = useRef<HTMLInputElement>(null);
+
+	// Pre-populate name with selectedPlayer when modal opens
+	useEffect(() => {
+		if (isOpen) {
+			const playerName = getSelectedPlayer();
+			if (playerName) {
+				setName(playerName);
+				// Select the text after a delay to ensure the input is focused
+				setTimeout(() => {
+					if (nameInputRef.current) {
+						nameInputRef.current.focus();
+						nameInputRef.current.select();
+					}
+				}, 200);
+			} else {
+				setName("");
+			}
+		}
+	}, [isOpen, selectedPlayer]);
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -80,12 +115,16 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
 
 	if (!isOpen) return null;
 
-	return (
+	if (typeof window === 'undefined') {
+		return null;
+	}
+
+	const modalContent = (
 		<ModalWrapper
 			isOpen={isOpen}
 			onClose={handleClose}
-			backdropClassName="fixed inset-0 z-50"
-			modalClassName="fixed inset-0 z-50 flex flex-col"
+			backdropClassName="fixed inset-0 bg-black/50 z-[9999]"
+			modalClassName="fixed inset-0 h-screen w-screen z-[10000] shadow-xl"
 			ariaLabel={feedbackType === "bug" ? "Report a Bug" : "Request a Feature"}
 			initialFocusRef={nameInputRef}>
 			<div 
@@ -133,7 +172,7 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
 									feedbackType === "feature" ? "bg-dorkinians-yellow text-black shadow-sm" : "text-[var(--color-text-primary)] hover:text-dorkinians-yellow"
 								}`}>
 								<LightBulbIcon className='w-4 h-4' />
-								<span className='text-sm font-medium'>Feature Request</span>
+								<span className='text-sm font-medium whitespace-nowrap'>Feature Request</span>
 							</button>
 						</div>
 					</div>
@@ -149,6 +188,12 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
 								label='Your Name'
 								value={name}
 								onChange={(e) => setName(e.target.value)}
+								onFocus={(e) => {
+									const playerName = getSelectedPlayer();
+									if (playerName && e.target.value === playerName) {
+										e.target.select();
+									}
+								}}
 								required
 								disabled={isSubmitting}
 								placeholder='Enter your name'
@@ -214,4 +259,6 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
 			</div>
 		</ModalWrapper>
 	);
+
+	return createPortal(modalContent, document.body);
 }
