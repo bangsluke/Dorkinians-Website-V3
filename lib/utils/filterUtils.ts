@@ -98,11 +98,12 @@ export function getActiveFilters(
 
 	// Competition filter
 	if (playerFilters.competition) {
+		const competitionMode = playerFilters.competition.mode ?? "types";
 		const competitionParts: string[] = [];
-		if (playerFilters.competition.types?.length > 0 && playerFilters.competition.types.length < 3) {
+		
+		if (competitionMode === "types" && playerFilters.competition.types?.length > 0 && playerFilters.competition.types.length < 3) {
 			competitionParts.push(playerFilters.competition.types.join(", "));
-		}
-		if (playerFilters.competition.searchTerm !== "") {
+		} else if (competitionMode === "individual" && playerFilters.competition.searchTerm !== "") {
 			competitionParts.push(playerFilters.competition.searchTerm);
 		}
 		

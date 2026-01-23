@@ -391,6 +391,10 @@ function validateFilters(filters: any): string | null {
 			return "Competition filter must be an object";
 		}
 
+		if (!["types", "individual"].includes(filters.competition.mode ?? "types")) {
+			return "Competition mode must be 'types' or 'individual'";
+		}
+
 		if (
 			filters.competition.types &&
 			(!Array.isArray(filters.competition.types) ||

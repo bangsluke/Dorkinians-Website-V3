@@ -223,6 +223,7 @@ export interface PlayerFilters {
 		searchTerm: string;
 	};
 	competition: {
+		mode: "types" | "individual";
 		types: ("League" | "Cup" | "Friendly")[];
 		searchTerm: string;
 	};
@@ -375,6 +376,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 				searchTerm: "",
 			},
 			competition: {
+				mode: "types",
 				types: ["League", "Cup", "Friendly"],
 				searchTerm: "",
 			},
@@ -397,6 +399,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 				searchTerm: "",
 			},
 			competition: {
+				mode: "types",
 				types: ["League", "Cup", "Friendly"],
 				searchTerm: "",
 			},
@@ -419,6 +422,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 				searchTerm: "",
 			},
 			competition: {
+				mode: "types",
 				types: ["League", "Cup", "Friendly"],
 				searchTerm: "",
 			},
@@ -441,6 +445,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 				searchTerm: "",
 			},
 			competition: {
+				mode: "types",
 				types: ["League", "Cup", "Friendly"],
 				searchTerm: "",
 			},
@@ -464,10 +469,11 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 			mode: "all",
 			searchTerm: "",
 		},
-		competition: {
-			types: ["League", "Cup", "Friendly"],
-			searchTerm: "",
-		},
+			competition: {
+				mode: "types",
+				types: ["League", "Cup", "Friendly"],
+				searchTerm: "",
+			},
 		result: ["Win", "Draw", "Loss"],
 		position: ["GK", "DEF", "MID", "FWD"],
 	},
@@ -1078,6 +1084,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 				searchTerm: "",
 			},
 			competition: {
+				mode: "types",
 				types: ["League", "Cup", "Friendly"],
 				searchTerm: "",
 			},
@@ -1245,6 +1252,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 			...currentFilters,
 			competition: {
 				...currentFilters.competition,
+				mode: "types",
 				searchTerm: "",
 			},
 		};

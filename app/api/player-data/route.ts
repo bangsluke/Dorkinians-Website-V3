@@ -70,13 +70,13 @@ export function buildFilterConditions(filters: any, params: any): string[] {
 
 	// Competition filters
 	if (filters.competition) {
-		if (filters.competition.types && filters.competition.types.length > 0) {
+		const mode = filters.competition.mode ?? "types";
+		if (mode === "types" && filters.competition.types && filters.competition.types.length > 0) {
 			conditions.push(`f.compType IN $compTypes`);
 			params.compTypes = filters.competition.types;
-		}
-		if (filters.competition.searchTerm) {
+		} else if (mode === "individual" && filters.competition.searchTerm && filters.competition.searchTerm.trim()) {
 			conditions.push(`toLower(f.competition) CONTAINS toLower($competitionSearch)`);
-			params.competitionSearch = filters.competition.searchTerm;
+			params.competitionSearch = filters.competition.searchTerm.trim();
 		}
 	}
 

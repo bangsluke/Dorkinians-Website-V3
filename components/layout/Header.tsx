@@ -79,13 +79,18 @@ export default function Header({ onSettingsClick, isSettingsPage = false, onFilt
 		if (oppositionCounted) count++;
 		filterChecks.opposition = { counted: !!oppositionCounted, value: { mode: oppositionMode, searchTerm: oppositionSearchTerm, searchTermTrimmed: oppositionSearchTermTrimmed }, reason: oppositionCounted ? (oppositionMode !== "all" ? `mode is "${oppositionMode}"` : `searchTerm has value: "${oppositionSearchTermTrimmed}"`) : 'mode is "all" and searchTerm is empty' };
 		
-		// Count competition if types array has fewer than all 3 types (default is all 3) or searchTerm has value
+		// Count competition if mode is "individual" or types array has fewer than all 3 types
+		const competitionMode = playerFilters.competition?.mode ?? "types";
 		const defaultCompetitionTypes: ("League" | "Cup" | "Friendly")[] = ["League", "Cup", "Friendly"];
 		const competitionTypes = playerFilters.competition?.types || [];
 		const hasAllCompetitionTypes = defaultCompetitionTypes.every(type => competitionTypes.includes(type as any)) && competitionTypes.length === defaultCompetitionTypes.length;
-		const competitionCounted = !!(playerFilters.competition && ((!hasAllCompetitionTypes && competitionTypes.length > 0) || (playerFilters.competition.searchTerm && playerFilters.competition.searchTerm.trim() !== "")));
+		const competitionCounted = !!(playerFilters.competition && (
+			competitionMode === "individual" || 
+			(!hasAllCompetitionTypes && competitionTypes.length > 0) || 
+			(competitionMode === "individual" && playerFilters.competition.searchTerm && playerFilters.competition.searchTerm.trim() !== "")
+		));
 		if (competitionCounted) count++;
-		filterChecks.competition = { counted: !!competitionCounted, value: { types: competitionTypes, hasAll: hasAllCompetitionTypes, searchTerm: playerFilters.competition?.searchTerm }, reason: competitionCounted ? (!hasAllCompetitionTypes ? `missing types (has ${competitionTypes.length}/3)` : `searchTerm has value: "${playerFilters.competition?.searchTerm}"`) : 'all 3 types selected and searchTerm empty' };
+		filterChecks.competition = { counted: !!competitionCounted, value: { mode: competitionMode, types: competitionTypes, hasAll: hasAllCompetitionTypes, searchTerm: playerFilters.competition?.searchTerm }, reason: competitionCounted ? (competitionMode === "individual" ? `mode is "individual"` : !hasAllCompetitionTypes ? `missing types (has ${competitionTypes.length}/3)` : `searchTerm has value: "${playerFilters.competition?.searchTerm}"`) : 'mode is "types" with all 3 types selected and searchTerm empty' };
 		
 		// Count result if array has fewer than all 3 results (default is all 3)
 		const defaultResults: ("Win" | "Draw" | "Loss")[] = ["Win", "Draw", "Loss"];

@@ -2784,7 +2784,7 @@ export default function PlayerStats() {
 	const chartContent = (
 		<div className='space-y-4 pb-4 md:space-y-0 player-stats-masonry'>
 			{/* Key Performance Stats Grid */}
-			{keyPerformanceData.some(item => typeof item.value === 'number' && item.value > 0) ? (
+			{playerData && keyPerformanceData.length > 0 ? (
 				<div className='md:break-inside-avoid md:mb-4 relative'>
 					{/* Skeleton - shown while loading or icons not loaded */}
 					{(isLoadingPlayerData || !allIconsLoaded) && (
@@ -3364,7 +3364,7 @@ export default function PlayerStats() {
 			<div id='opposition-performance' className='md:break-inside-avoid md:mb-4'>
 			{(() => {
 				const hasGoalsOrAssists = toNumber(validPlayerData.goals) > 0 || toNumber(validPlayerData.assists) > 0;
-				const isSingleOppositionSelected = !playerFilters.opposition.allOpposition && playerFilters.opposition.searchTerm !== "";
+				const isSingleOppositionSelected = (playerFilters.opposition?.mode ?? "all") !== "all" && playerFilters.opposition?.searchTerm !== "";
 				
 				if (!hasGoalsOrAssists || isSingleOppositionSelected) {
 					return null;
