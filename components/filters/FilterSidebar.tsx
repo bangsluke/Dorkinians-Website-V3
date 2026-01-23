@@ -1302,7 +1302,7 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 																},
 															})
 														}
-														size="md"
+														size="sm"
 														className='w-full max-w-full'
 													/>
 													{dateValidationErrors.afterDate && (
@@ -1333,7 +1333,7 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 																	},
 																})
 															}
-															size="md"
+															size="sm"
 															className='w-full max-w-[200px]'
 														/>
 														{dateValidationErrors.startDate && (
