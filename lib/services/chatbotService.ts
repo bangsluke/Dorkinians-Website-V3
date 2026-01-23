@@ -5119,19 +5119,19 @@ export class ChatbotService {
 			const periodLabel = period === "weekly" ? "Team of the Week" : "Team of the Season";
 			
 			if (count === 0) {
-				answer = `${playerName} have not been in ${periodLabel}.`;
+				answer = `${playerName} has not been in ${periodLabel}.`;
 				answerValue = 0;
 			} else {
-				answer = `${playerName} have been in ${periodLabel} ${count} ${count === 1 ? "time" : "times"}.`;
+				answer = `${playerName} has been in ${periodLabel} ${count} ${count === 1 ? "time" : "times"}.`;
 				answerValue = count;
 			}
 			
 			visualization = {
 				type: "NumberCard",
 				data: [{ 
-					name: periodLabel, 
+					wordedText: "TOTW appearances", 
 					value: count,
-					iconName: this.getIconNameForMetric("TOTW")
+					iconName: this.getIconNameForMetric("APP")
 				}],
 				config: {
 					title: periodLabel,
@@ -5155,7 +5155,7 @@ export class ChatbotService {
 			visualization = {
 				type: "NumberCard",
 				data: [{ 
-					name: "Highest Weekly Score", 
+					wordedText: "fantasy points", 
 					value: roundedScore,
 					iconName: this.getIconNameForMetric("FTP")
 				}],
@@ -6120,24 +6120,66 @@ export class ChatbotService {
 				// Use original question from analysis if available, otherwise use question parameter
 				const questionText = analysis.question || question;
 				
-				// Check for range timeFrame first (date ranges like "2021 to 2022")
-				const rangeFrame = analysis.extractionResult?.timeFrames?.find((tf) => tf.type === "range");
-				if (rangeFrame && rangeFrame.value.includes(" to ")) {
-					const rangeMatch = rangeFrame.value.match(/(\d{4})\s+to\s+(\d{4})/i);
-					if (rangeMatch) {
-						dateRange = { start: rangeMatch[1], end: rangeMatch[2] };
+				// Check for date format ranges first (DD/MM/YYYY or DD-MM-YYYY format)
+				// This handles queries like "between 19/08/2017 and 16/09/2019"
+				const dateFormatRangeMatch = questionText.match(/between\s+(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})\s+and\s+(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/i);
+				if (dateFormatRangeMatch) {
+					const startDateStr = dateFormatRangeMatch[1];
+					const endDateStr = dateFormatRangeMatch[2];
+					const startDate = DateUtils.convertDateFormat(startDateStr);
+					const endDate = DateUtils.convertDateFormat(endDateStr);
+					// Only use if conversion was successful (not the original string)
+					if (startDate !== startDateStr && endDate !== endDateStr) {
+						dateRange = { start: startDate, end: endDate };
+					}
+				}
+				
+				// Check for range timeFrame (date ranges like "2021 to 2022")
+				if (!dateRange) {
+					const rangeFrame = analysis.extractionResult?.timeFrames?.find((tf) => tf.type === "range");
+					if (rangeFrame && rangeFrame.value.includes(" to ")) {
+						// Check if it's a date format range
+						const dateFormatMatch = rangeFrame.value.match(/between\s+(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})\s+and\s+(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/i);
+						if (dateFormatMatch) {
+							const startDateStr = dateFormatMatch[1];
+							const endDateStr = dateFormatMatch[2];
+							const startDate = DateUtils.convertDateFormat(startDateStr);
+							const endDate = DateUtils.convertDateFormat(endDateStr);
+							if (startDate !== startDateStr && endDate !== endDateStr) {
+								dateRange = { start: startDate, end: endDate };
+							}
+						} else {
+							// Check for year range format
+							const rangeMatch = rangeFrame.value.match(/(\d{4})\s+to\s+(\d{4})/i);
+							if (rangeMatch) {
+								dateRange = { start: rangeMatch[1], end: rangeMatch[2] };
+							}
+						}
 					}
 				}
 				
 				// If no range frame, check timeRange directly
 				if (!dateRange && analysis.timeRange && analysis.timeRange.includes(" to ")) {
-					const rangeMatch = analysis.timeRange.match(/(\d{4})\s+to\s+(\d{4})/i);
-					if (rangeMatch) {
-						dateRange = { start: rangeMatch[1], end: rangeMatch[2] };
+					// Check for date format first
+					const dateFormatMatch = analysis.timeRange.match(/between\s+(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})\s+and\s+(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/i);
+					if (dateFormatMatch) {
+						const startDateStr = dateFormatMatch[1];
+						const endDateStr = dateFormatMatch[2];
+						const startDate = DateUtils.convertDateFormat(startDateStr);
+						const endDate = DateUtils.convertDateFormat(endDateStr);
+						if (startDate !== startDateStr && endDate !== endDateStr) {
+							dateRange = { start: startDate, end: endDate };
+						}
+					} else {
+						// Check for year range format
+						const rangeMatch = analysis.timeRange.match(/(\d{4})\s+to\s+(\d{4})/i);
+						if (rangeMatch) {
+							dateRange = { start: rangeMatch[1], end: rangeMatch[2] };
+						}
 					}
 				}
 				
-				// If no range, check question text for date range (try both question parameter and analysis.question)
+				// If no range, check question text for year range (DD/MM/YYYY already checked above)
 				if (!dateRange) {
 					const questionRangeMatch = questionText.match(/(\d{4})\s+to\s+(\d{4})/i);
 					if (questionRangeMatch) {
@@ -6147,7 +6189,19 @@ export class ChatbotService {
 				
 				// If we have a date range, use it
 				if (dateRange) {
-					answer = `${String(playerName)} did not score a goal between ${dateRange.start} and ${dateRange.end}.`;
+					// Format dates for display (convert YYYY-MM-DD back to DD/MM/YYYY if needed)
+					let startDisplay = dateRange.start;
+					let endDisplay = dateRange.end;
+					// If dates are in YYYY-MM-DD format, convert to DD/MM/YYYY for display
+					if (dateRange.start.match(/^\d{4}-\d{2}-\d{2}$/)) {
+						const startParts = dateRange.start.split("-");
+						startDisplay = `${startParts[2]}/${startParts[1]}/${startParts[0]}`;
+					}
+					if (dateRange.end.match(/^\d{4}-\d{2}-\d{2}$/)) {
+						const endParts = dateRange.end.split("-");
+						endDisplay = `${endParts[2]}/${endParts[1]}/${endParts[0]}`;
+					}
+					answer = `${String(playerName)} did not score a goal between ${startDisplay} and ${endDisplay}.`;
 				} else {
 					// Check for season
 					const seasonFrame = analysis.extractionResult?.timeFrames?.find((tf) => tf.type === "season");
@@ -7600,6 +7654,47 @@ export class ChatbotService {
 										// Join parts and add period
 										answer = answerParts.join(" ") + ".";
 									}
+								} else if (isGoalsQuery && (hasHomeLocation || hasAwayLocation || dateRangeText)) {
+									// Build answer text for goals queries with location/date filters (but no team filter)
+									const goalCount = value as number;
+									const goalText = goalCount === 1 ? "goal" : "goals";
+									
+									// Build answer parts
+									let answerParts: string[] = [];
+									
+									// Start with player name and goal count - use "got" and "scored" format
+									answerParts.push(`${playerName} got ${goalCount} ${goalText}`);
+									
+									// Add location filter if present
+									if (hasHomeLocation) {
+										answerParts.push("whilst playing at home");
+									} else if (hasAwayLocation) {
+										answerParts.push("whilst playing away");
+									}
+									
+									// Add date range filter if present
+									let finalDateRangeText = dateRangeText;
+									if (!finalDateRangeText) {
+										// Check if question contains "during [YEAR]" pattern
+										const duringYearMatch = lowerQuestion.match(/\bduring\s+(\d{4})\b/);
+										if (duringYearMatch) {
+											finalDateRangeText = `in ${duringYearMatch[1]}`;
+										}
+									} else {
+										// Check if dateRangeText contains a year (e.g., "in 2023" or "during 2023")
+										// If it's a year, format it as "in 2023"
+										const yearMatch = dateRangeText.match(/\b(20\d{2})\b/);
+										if (yearMatch && (dateRangeText.includes("during") || lowerQuestion.includes("during"))) {
+											finalDateRangeText = `in ${yearMatch[1]}`;
+										}
+									}
+									
+									if (finalDateRangeText) {
+										answerParts.push(finalDateRangeText);
+									}
+									
+									// Join parts and add period
+									answer = answerParts.join(" ") + ".";
 								} else if (isAssistsQuery && (hasHomeLocation || hasAwayLocation || dateRangeText)) {
 									// Build answer text for assists queries with location/date filters (but no team filter)
 									const assistCount = value as number;
@@ -8320,7 +8415,15 @@ export class ChatbotService {
 					answerValue = `${playerTeamCount}/${totalTeamCount}`;
 				} else if (value !== undefined && value !== null) {
 					answerValue = value as number;
+					// #region agent log
+					console.log('[DEBUG] Before buildContextualResponse call', {playerName,metric,value,question:analysis.question});
+					fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'chatbotService.ts:8377',message:'Before buildContextualResponse call',data:{playerName,metric,value,question:analysis.question},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+					// #endregion
 					answer = ResponseBuilder.buildContextualResponse(playerName, metric, value, analysis);
+					// #region agent log
+					console.log('[DEBUG] After buildContextualResponse call', {answer});
+					fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'chatbotService.ts:8380',message:'After buildContextualResponse call',data:{answer},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+					// #endregion
 				} else {
 					answer = "No data found for your query.";
 				}
