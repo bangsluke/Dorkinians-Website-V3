@@ -14,6 +14,7 @@ import "react-loading-skeleton/dist/skeleton.css";
 import { TOTWPitchSkeleton, TOTWPlayerDetailsSkeleton } from "@/components/skeletons";
 import { appConfig } from "@/config/config";
 import { log } from "@/lib/utils/logger";
+import { cachedFetch, generatePageCacheKey } from "@/lib/utils/pageCache";
 
 interface MatchDetailWithSummary extends MatchDetail {
 	matchSummary?: string | null;
@@ -40,6 +41,8 @@ export default function TeamOfTheWeek() {
 		getCachedTOTWSeasons,
 		getCachedTOTWWeeks,
 		getCachedTOTWWeekData,
+		getCachedPageData,
+		setCachedPageData,
 	} = useNavigationStore();
 
 	const [seasons, setSeasons] = useState<string[]>([]);
@@ -82,9 +85,17 @@ export default function TeamOfTheWeek() {
 					// We have weeks cached, fetch week data immediately
 					const cachedWeekData = getCachedTOTWWeekData(cachedSeasons.currentSeason, cachedWeeks.currentWeek);
 					if (!cachedWeekData) {
-						// Fetch week data in background
-						fetch(`/api/totw/week-data?season=${encodeURIComponent(cachedSeasons.currentSeason)}&week=${cachedWeeks.currentWeek}`)
-							.then(res => res.ok ? res.json() : null)
+						// Fetch week data in background with caching
+						const cacheKey = generatePageCacheKey("totw", "team-of-the-week", "week-data", { 
+							season: cachedSeasons.currentSeason, 
+							week: cachedWeeks.currentWeek 
+						});
+						cachedFetch(`/api/totw/week-data?season=${encodeURIComponent(cachedSeasons.currentSeason)}&week=${cachedWeeks.currentWeek}`, {
+							method: "GET",
+							cacheKey,
+							getCachedPageData,
+							setCachedPageData,
+						})
 							.then(data => {
 								if (data?.totwData && cachedSeasons.currentSeason && cachedWeeks.currentWeek !== null) {
 									cacheTOTWWeekData(cachedSeasons.currentSeason, cachedWeeks.currentWeek, data.totwData, data.players || []);
@@ -101,9 +112,14 @@ export default function TeamOfTheWeek() {
 
 		const fetchSeasonsAndCurrentWeek = async () => {
 			try {
-				// Fetch seasons
-				const seasonsResponse = await fetch("/api/totw/seasons");
-				const seasonsData = await seasonsResponse.json();
+				// Fetch seasons with caching
+				const seasonsCacheKey = generatePageCacheKey("totw", "team-of-the-week", "seasons", {});
+				const seasonsData = await cachedFetch("/api/totw/seasons", {
+					method: "GET",
+					cacheKey: seasonsCacheKey,
+					getCachedPageData,
+					setCachedPageData,
+				});
 				
 				if (seasonsData.seasons) {
 					setSeasons(seasonsData.seasons);
@@ -113,9 +129,14 @@ export default function TeamOfTheWeek() {
 						setCurrentSeason(seasonToUse);
 						setSelectedSeason(seasonToUse);
 						
-						// Parallelize: Fetch weeks for current season immediately
-						fetch(`/api/totw/weeks?season=${encodeURIComponent(seasonToUse)}`)
-							.then(res => res.ok ? res.json() : null)
+						// Parallelize: Fetch weeks for current season immediately with caching
+						const weeksCacheKey = generatePageCacheKey("totw", "team-of-the-week", "weeks", { season: seasonToUse });
+						cachedFetch(`/api/totw/weeks?season=${encodeURIComponent(seasonToUse)}`, {
+							method: "GET",
+							cacheKey: weeksCacheKey,
+							getCachedPageData,
+							setCachedPageData,
+						})
 							.then(weeksData => {
 								if (weeksData?.weeks) {
 									// Skip week 0 (Team of the Season) for default selection
@@ -124,9 +145,17 @@ export default function TeamOfTheWeek() {
 										(weeksData.currentWeek ?? (regularWeeks.length > 0 ? regularWeeks[regularWeeks.length - 1].week : null));
 									if (weekToSelect && weekToSelect !== 0) {
 										cacheTOTWWeeks(seasonToUse, weeksData.weeks, weekToSelect, weeksData.latestGameweek);
-										// Pre-fetch current week data in background
-										fetch(`/api/totw/week-data?season=${encodeURIComponent(seasonToUse)}&week=${weekToSelect}`)
-											.then(res => res.ok ? res.json() : null)
+										// Pre-fetch current week data in background with caching
+										const weekDataCacheKey = generatePageCacheKey("totw", "team-of-the-week", "week-data", { 
+											season: seasonToUse, 
+											week: weekToSelect 
+										});
+										cachedFetch(`/api/totw/week-data?season=${encodeURIComponent(seasonToUse)}&week=${weekToSelect}`, {
+											method: "GET",
+											cacheKey: weekDataCacheKey,
+											getCachedPageData,
+											setCachedPageData,
+										})
 											.then(weekData => {
 												if (weekData?.totwData) {
 													cacheTOTWWeekData(seasonToUse, weekToSelect, weekData.totwData, weekData.players || []);
@@ -153,7 +182,7 @@ export default function TeamOfTheWeek() {
 			}
 		};
 		fetchSeasonsAndCurrentWeek();
-	}, [getCachedTOTWSeasons, cacheTOTWSeasons, getCachedTOTWWeeks, cacheTOTWWeeks, getCachedTOTWWeekData, cacheTOTWWeekData]);
+	}, [getCachedTOTWSeasons, cacheTOTWSeasons, getCachedTOTWWeeks, cacheTOTWWeeks, getCachedTOTWWeekData, cacheTOTWWeekData, getCachedPageData, setCachedPageData]);
 
 	// Handle season selection change
 	useEffect(() => {
@@ -204,11 +233,13 @@ export default function TeamOfTheWeek() {
 
 		const fetchWeeks = async () => {
 			try {
-				const response = await fetch(`/api/totw/weeks?season=${encodeURIComponent(selectedSeason)}`);
-				if (!response.ok) {
-					throw new Error(`HTTP error! status: ${response.status}`);
-				}
-				const data = await response.json();
+				const cacheKey = generatePageCacheKey("totw", "team-of-the-week", "weeks", { season: selectedSeason });
+				const data = await cachedFetch(`/api/totw/weeks?season=${encodeURIComponent(selectedSeason)}`, {
+					method: "GET",
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
+				});
 				
 				if (data.error) {
 					log("error", "API Error:", data.error);
@@ -283,20 +314,16 @@ export default function TeamOfTheWeek() {
 			const fetchSeasonData = async () => {
 				setLoading(true);
 				try {
-					const response = await fetch(
+					const cacheKey = generatePageCacheKey("totw", "team-of-the-week", "season-data", { season: selectedSeason });
+					const data = await cachedFetch(
 						`/api/totw/season-data?season=${encodeURIComponent(selectedSeason)}`,
+						{
+							method: "GET",
+							cacheKey,
+							getCachedPageData,
+							setCachedPageData,
+						}
 					);
-					
-					if (!response.ok) {
-						log("error", `[TOTW] Season-data API error: ${response.status} ${response.statusText}`);
-						const errorData = await response.json().catch(() => ({}));
-						log("error", `[TOTW] Error details:`, errorData);
-						setTotwData(null);
-						setPlayers([]);
-						return;
-					}
-					
-					const data = await response.json();
 					
 					if (data.totwData) {
 						setTotwData(data.totwData);
@@ -334,20 +361,16 @@ export default function TeamOfTheWeek() {
 			const fetchSeasonData = async () => {
 				setLoading(true);
 				try {
-					const response = await fetch(
+					const cacheKey = generatePageCacheKey("totw", "team-of-the-week", "season-data", { season: selectedSeason });
+					const data = await cachedFetch(
 						`/api/totw/season-data?season=${encodeURIComponent(selectedSeason)}`,
+						{
+							method: "GET",
+							cacheKey,
+							getCachedPageData,
+							setCachedPageData,
+						}
 					);
-					
-					if (!response.ok) {
-						log("error", `[TOTW] Season-data API error: ${response.status} ${response.statusText}`);
-						const errorData = await response.json().catch(() => ({}));
-						log("error", `[TOTW] Error details:`, errorData);
-						setTotwData(null);
-						setPlayers([]);
-						return;
-					}
-					
-					const data = await response.json();
 					
 					if (data.totwData) {
 						setTotwData(data.totwData);
@@ -392,20 +415,19 @@ export default function TeamOfTheWeek() {
 		const fetchWeekData = async () => {
 			setLoading(true);
 			try {
-				const response = await fetch(
+				const cacheKey = generatePageCacheKey("totw", "team-of-the-week", "week-data", { 
+					season: selectedSeason, 
+					week: selectedWeek 
+				});
+				const data = await cachedFetch(
 					`/api/totw/week-data?season=${encodeURIComponent(selectedSeason)}&week=${selectedWeek}`,
+					{
+						method: "GET",
+						cacheKey,
+						getCachedPageData,
+						setCachedPageData,
+					}
 				);
-				
-				if (!response.ok) {
-					log("error", `[TOTW] Week-data API error: ${response.status} ${response.statusText}`);
-					const errorData = await response.json().catch(() => ({}));
-					log("error", `[TOTW] Error details:`, errorData);
-					setTotwData(null);
-					setPlayers([]);
-					return;
-				}
-				
-				const data = await response.json();
 				
 				if (data.totwData) {
 					setTotwData(data.totwData);
@@ -468,8 +490,16 @@ export default function TeamOfTheWeek() {
 				const queryUrl = `/api/totw/season-player-details?season=${encodeURIComponent(selectedSeason)}&playerName=${encodeURIComponent(playerName)}`;
 				log("info", "[TOTW] Season player details query:", queryUrl);
 
-				const response = await fetch(queryUrl);
-				const data = await response.json();
+				const cacheKey = generatePageCacheKey("totw", "team-of-the-week", "season-player-details", { 
+					season: selectedSeason, 
+					playerName 
+				});
+				const data = await cachedFetch(queryUrl, {
+					method: "GET",
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
+				});
 				if (data.aggregatedStats) {
 					setAggregatedPlayerStats(data);
 					setPlayerDetails(null);
@@ -483,8 +513,17 @@ export default function TeamOfTheWeek() {
 				const queryUrl = `/api/totw/player-details?season=${encodeURIComponent(selectedSeason)}&week=${selectedWeek}&playerName=${encodeURIComponent(playerName)}`;
 				log("info", "[TOTW] Player details query:", queryUrl);
 
-				const response = await fetch(queryUrl);
-				const data = await response.json();
+				const cacheKey = generatePageCacheKey("totw", "team-of-the-week", "player-details", { 
+					season: selectedSeason, 
+					week: selectedWeek, 
+					playerName 
+				});
+				const data = await cachedFetch(queryUrl, {
+					method: "GET",
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
+				});
 				if (data.matchDetails) {
 					setPlayerDetails(data.matchDetails);
 					setAggregatedPlayerStats(null);
@@ -1045,6 +1084,7 @@ export default function TeamOfTheWeek() {
 												alt='Star Man Kit'
 												fill
 												className='object-contain'
+												priority
 											/>
 										</div>
 										<div className='text-white px-4 py-1 rounded text-center' style={{ background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05))' }}>
@@ -1124,6 +1164,8 @@ export default function TeamOfTheWeek() {
 												alt={`${player.name} kit`}
 												fill
 												className='object-contain'
+												priority={isGoalkeeper}
+												loading={isGoalkeeper ? undefined : "lazy"}
 											/>
 										</div>
 										<div 
