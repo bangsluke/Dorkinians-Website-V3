@@ -1101,13 +1101,13 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 					{/* Sidebar */}
 					<motion.div
 						data-testid="filter-sidebar"
-						className='fixed right-0 top-0 h-full w-full max-w-md z-50 shadow-xl'
+						className='fixed right-0 top-0 h-full w-full max-w-md z-50 shadow-xl overflow-x-hidden'
 						style={{ backgroundColor: '#0f0f0f' }}
 						initial={{ x: "100%" }}
 						animate={{ x: 0 }}
 						exit={{ x: "100%" }}
 						transition={{ type: "spring", stiffness: 300, damping: 30 }}>
-						<div className='h-full flex flex-col'>
+						<div className='h-full flex flex-col overflow-x-hidden'>
 							{/* Header */}
 							<div className='flex items-center justify-between p-4 border-b border-[var(--color-border)]'>
 								<h2 className='text-lg font-semibold text-[var(--color-text-primary)]'>Filter Options</h2>
@@ -1133,7 +1133,7 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 
 							{/* Filter Content */}
 							<div 
-								className='flex-1 overflow-y-auto p-4 space-y-2'
+								className='flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-2'
 								style={{ WebkitOverflowScrolling: 'touch' }}>
 								{/* Filter Presets */}
 								{isFilterDataLoaded && filterData && filterData.seasons.length > 0 && (
@@ -1334,7 +1334,7 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 																})
 															}
 															size="md"
-															className='w-full max-w-full'
+															className='w-full max-w-[200px]'
 														/>
 														{dateValidationErrors.startDate && (
 															<p className='text-sm text-red-400 mt-1'>{dateValidationErrors.startDate}</p>
@@ -1361,7 +1361,7 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 																})
 															}
 															size="md"
-															className='w-full max-w-full'
+															className='w-full max-w-[200px]'
 														/>
 														{dateValidationErrors.endDate && (
 															<p className='text-sm text-red-400 mt-1'>{dateValidationErrors.endDate}</p>
