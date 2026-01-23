@@ -16,8 +16,8 @@ export interface ToastProps {
 
 const toastStyles = {
 	success: {
-		bg: 'bg-dorkinians-yellow',
-		text: 'text-black',
+		bg: 'bg-[var(--color-surface)] backdrop-blur-sm border border-[var(--color-border)]',
+		text: 'text-[var(--color-text-primary)]',
 		icon: '✅',
 	},
 	error: {
@@ -59,7 +59,7 @@ export default function Toast({ message, type, duration = 5000, onDismiss, id }:
 				duration: 0.2, // Matches --duration-normal
 				ease: [0, 0, 0.2, 1] // Matches --ease-out
 			}}
-			className={`fixed top-4 right-2 sm:right-4 z-50 p-3 sm:p-4 rounded-lg shadow-lg transition-all max-w-[calc(100vw-1rem)] sm:max-w-md ${style.bg} ${style.text}`}
+			className={`fixed top-4 right-2 sm:right-4 z-50 p-3 sm:p-4 rounded-md shadow-lg transition-all max-w-[calc(100vw-1rem)] sm:max-w-md ${style.bg} ${style.text}`}
 		>
 			<div className="flex items-center gap-2">
 				<span className="flex-shrink-0">{style.icon}</span>
@@ -69,7 +69,7 @@ export default function Toast({ message, type, duration = 5000, onDismiss, id }:
 						onClick={onDismiss}
 						className={`flex-shrink-0 p-1 rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${
 							type === 'success' 
-								? 'hover:bg-black/20 focus-visible:ring-black' 
+								? 'hover:bg-[var(--color-surface-elevated)] focus-visible:ring-[var(--color-field-focus)]' 
 								: 'hover:bg-white/20 focus-visible:ring-white'
 						}`}
 						aria-label="Dismiss notification"
