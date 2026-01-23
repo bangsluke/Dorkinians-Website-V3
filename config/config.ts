@@ -185,7 +185,13 @@ export const usefulLinks: UsefulLink[] = [
 		description: "For annual membership payments and payment plans",
 		category: "official",
 	},
-
+	{
+		id: "old-website",
+		title: "Old Dorkinians Stats Website",
+		url: "https://dorkinians-stats-site.netlify.app",
+		description: "For any weirdos feeling nostalgic for the old stats website",
+		category: "official",
+	},
 	{
 		id: "twitter",
 		title: "Club Twitter",

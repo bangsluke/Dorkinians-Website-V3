@@ -57,7 +57,7 @@ export function middleware(request: NextRequest) {
 	const csp = [
 		"default-src 'self'",
 		`script-src 'self' 'strict-dynamic' 'nonce-${nonce}'${unsafeEval} ${scriptHashes} https://fonts.googleapis.com https://*.umami.is`,
-		`script-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.umami.is`,
+		`script-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.googleapis.com https://*.umami.is`,
 		"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com",
 		"font-src 'self' https://fonts.gstatic.com data:",
 		"img-src 'self' data: https://docs.google.com https://*.googleusercontent.com blob:",
