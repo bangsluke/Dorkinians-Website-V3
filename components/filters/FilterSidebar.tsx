@@ -1273,7 +1273,7 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 															})
 														}
 														size="md"
-														className='w-[95%] md:w-full'
+														className='w-full max-w-full'
 													/>
 													{dateValidationErrors.beforeDate && (
 														<p className='text-sm text-red-400 mt-1'>{dateValidationErrors.beforeDate}</p>
@@ -1303,7 +1303,7 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 															})
 														}
 														size="md"
-														className='w-[95%] md:w-full'
+														className='w-full max-w-full'
 													/>
 													{dateValidationErrors.afterDate && (
 														<p className='text-sm text-red-400 mt-1'>{dateValidationErrors.afterDate}</p>
@@ -1334,7 +1334,7 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 																})
 															}
 															size="md"
-															className='w-[95%] md:w-full'
+															className='w-full max-w-full'
 														/>
 														{dateValidationErrors.startDate && (
 															<p className='text-sm text-red-400 mt-1'>{dateValidationErrors.startDate}</p>
@@ -1361,7 +1361,7 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 																})
 															}
 															size="md"
-															className='w-[95%] md:w-full'
+															className='w-full max-w-full'
 														/>
 														{dateValidationErrors.endDate && (
 															<p className='text-sm text-red-400 mt-1'>{dateValidationErrors.endDate}</p>
