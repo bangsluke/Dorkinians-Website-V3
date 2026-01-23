@@ -30,8 +30,7 @@ const statsNavigationItems = [
 			{ id: "opposition-performance", label: "Opposition Performance" },
 			{ id: "fantasy-points", label: "Fantasy Points" },
 			{ id: "penalty-stats", label: "Penalty Stats" },
-			{ id: "awards-and-achievements", label: "Awards and Achievements" },
-			{ id: "player-data-table", label: "Data Table", isDataTable: true },
+			{ id: "captaincies-awards-and-achievements", label: "Captaincies, Awards and Achievements" },
 		],
 	},
 	{
@@ -48,7 +47,6 @@ const statsNavigationItems = [
 			{ id: "team-key-team-stats", label: "Key Team Stats" },
 			{ id: "team-unique-player-stats", label: "Unique Player Stats" },
 			{ id: "team-best-season-finish", label: "Best Season Finish" },
-			{ id: "team-data-table", label: "Data Table", isDataTable: true },
 		],
 	},
 	{
@@ -69,7 +67,6 @@ const statsNavigationItems = [
 			{ id: "club-home-away-performance", label: "Home vs Away Performance" },
 			{ id: "club-other-club-stats", label: "Other Club Stats" },
 			{ id: "club-unique-player-stats", label: "Unique Player Stats" },
-			{ id: "club-data-table", label: "Data Table", isDataTable: true },
 		],
 	},
 	{
@@ -198,7 +195,7 @@ export default function StatsNavigationMenu({ isOpen, onClose }: StatsNavigation
 			(navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
 		// Calculate offset for fixed headers and navigation
-		const offset = 120;
+		const offset = 10;
 
 		if (scrollableContainer) {
 			// Scroll within the container
