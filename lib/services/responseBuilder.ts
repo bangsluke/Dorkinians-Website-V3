@@ -357,29 +357,36 @@ export class ResponseBuilder {
 			}
 		}
 
-		// Handle cases where verb and metric name overlap (e.g., "conceded" + "goals conceded")
-		let finalMetricName = metricName;
-		if (verb && metricName.toLowerCase().includes(verb.toLowerCase())) {
-			// Remove the verb from the metric name to avoid duplication
-			finalMetricName = metricName.toLowerCase().replace(verb.toLowerCase(), "").trim();
-		}
-
 		// Check if this is a goal metric and "open play" wasn't mentioned in the question
-		// If so, replace "open play goals" with "goals"
+		// If so, replace "open play goals" with "goals" BEFORE handling verb overlap
 		const questionLower = (analysis.question || "").toLowerCase();
 		const isGoalMetric = resolvedMetricForDisplay === "G" || resolvedMetricForDisplay.toUpperCase() === "OPENPLAYGOALS";
 		const mentionsOpenPlay = questionLower.includes("open play") || questionLower.includes("openplay");
 		
-		if (isGoalMetric && !mentionsOpenPlay && finalMetricName.toLowerCase().includes("open play")) {
-			// Replace "open play goals" with "goals"
-			finalMetricName = finalMetricName.toLowerCase().replace("open play ", "").replace("openplay ", "");
+		// For G metric, override metricName early to ensure "goals" instead of "open play goals" when not mentioned
+		let adjustedMetricName = metricName;
+		if (isGoalMetric && !mentionsOpenPlay && resolvedMetricForDisplay === "G") {
+			// Force "goals" for G metric when "open play" isn't mentioned, regardless of what getMetricDisplayName returned
+			adjustedMetricName = "goals";
 		}
-
-		// Special handling for open play goals - use "scored" verb and format as "open play goals"
+		
+		// Handle cases where verb and metric name overlap (e.g., "conceded" + "goals conceded")
+		let finalMetricName = adjustedMetricName;
+		if (verb && adjustedMetricName.toLowerCase().includes(verb.toLowerCase())) {
+			// Remove the verb from the metric name to avoid duplication
+			finalMetricName = adjustedMetricName.toLowerCase().replace(verb.toLowerCase(), "").trim();
+		}
+		
+		// Special handling for open play goals - use "scored" verb and format as "open play goals" only if mentioned in question
 		const isOpenPlayGoalsMetric = resolvedMetricForDisplay.toUpperCase() === "OPENPLAYGOALS";
 		if (isOpenPlayGoalsMetric) {
 			verb = "scored";
-			finalMetricName = "open play goals";
+			// Only use "open play goals" if the question mentions "open play", otherwise use "goals"
+			finalMetricName = mentionsOpenPlay ? "open play goals" : "goals";
+		} else if (isGoalMetric && !mentionsOpenPlay) {
+			// For G metric (not OPENPLAYGOALS), always use "goals" if question doesn't mention "open play"
+			// This ensures we don't show "open play goals" when the question just asks about "goals"
+			finalMetricName = "goals";
 		}
 
 		// Special handling for red cards - match question phrasing for "sent off"
@@ -396,7 +403,10 @@ export class ResponseBuilder {
 		}
 
 		// Start with the basic response
-		let response = `${playerName} has ${verb} ${formattedValue} ${finalMetricName}`;
+		// Ensure "has" is used for singular player names (not "have")
+		// Replace "have" with "has" if verb is "have" or "have been"
+		const correctedVerb = (verb === "have" || verb === "have been") ? verb.replace("have", "has") : verb;
+		let response = `${playerName} ${correctedVerb} ${formattedValue} ${finalMetricName}`;
 
 		// Add team context if present
 		if (analysis.teamEntities && analysis.teamEntities.length > 0) {
@@ -471,13 +481,22 @@ export class ResponseBuilder {
 			if (dateRange.length === 2) {
 				const formattedStart = DateUtils.formatDate(DateUtils.convertDateFormat(dateRange[0].trim()));
 				const formattedEnd = DateUtils.formatDate(DateUtils.convertDateFormat(dateRange[1].trim()));
+				// #region agent log
+				console.log('[DEBUG] Adding rangeFrame date context', {rangeFrame:rangeFrame.value,formattedStart,formattedEnd,responseBefore:response});
+				// #endregion
 				response += ` between ${formattedStart} and ${formattedEnd}`;
 				dateContextAdded = true;
+				// #region agent log
+				console.log('[DEBUG] After adding rangeFrame date context', {response});
+				// #endregion
 			}
 		}
 
 		// Add time range context if present (but ignore placeholder values and skip if we already added date context)
 		if (!dateContextAdded && analysis.timeRange && analysis.timeRange !== "between_dates" && analysis.timeRange.trim() !== "") {
+			// #region agent log
+			console.log('[DEBUG] Adding timeRange context', {timeRange:analysis.timeRange,responseBefore:response,dateContextAdded});
+			// #endregion
 			if (analysis.timeRange.includes(" to ")) {
 				const formattedTimeRange = DateUtils.formatTimeRange(analysis.timeRange);
 				response += ` between ${formattedTimeRange}`;
@@ -485,6 +504,9 @@ export class ResponseBuilder {
 				const formattedDate = DateUtils.formatDate(analysis.timeRange);
 				response += ` on ${formattedDate}`;
 			}
+			// #region agent log
+			console.log('[DEBUG] After adding timeRange context', {response});
+			// #endregion
 		}
 
 		// Add period for final sentence

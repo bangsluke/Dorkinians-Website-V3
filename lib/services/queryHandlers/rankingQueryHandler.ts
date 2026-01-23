@@ -215,6 +215,79 @@ export class RankingQueryHandler {
 			params.teamName = teamName;
 		}
 		
+		// Extract season information for filtering
+		let season: string | null = null;
+		const timeFrames = analysis.extractionResult?.timeFrames || [];
+		const seasonFrame = timeFrames.find((tf) => tf.type === "season");
+		
+		if (seasonFrame) {
+			let seasonValue = seasonFrame.value;
+			// Validate that seasonFrame.value is actually a season format, not the literal word "season"
+			const isValidSeasonFormat = /^(\d{4}|\d{2})[\/\-](\d{2})$/.test(seasonValue);
+			if (isValidSeasonFormat) {
+				// Expand abbreviated format if needed (20/21 -> 2020/21)
+				if (/^\d{2}[\/\-]\d{2}$/.test(seasonValue)) {
+					const seasonMatch = seasonValue.match(/(\d{2})[\/\-](\d{2})/);
+					if (seasonMatch) {
+						// Use PlayerQueryBuilder's expandAbbreviatedSeason method
+						const startYear = seasonMatch[1];
+						const endYear = seasonMatch[2];
+						const start = parseInt(startYear, 10);
+						const fullStartYear = start < 50 ? 2000 + start : 1900 + start;
+						seasonValue = `${fullStartYear}/${endYear}`;
+					}
+				}
+				season = seasonValue;
+			}
+		}
+		
+		// If not found in timeFrames, try timeRange
+		if (!season && analysis.timeRange) {
+			const timeRange = analysis.timeRange;
+			// Check if timeRange itself is a season string (full format: 2019/20)
+			let seasonMatch = timeRange.match(/^(\d{4})[\/\-](\d{2})$/);
+			if (seasonMatch && !timeRange.includes(" to ")) {
+				season = timeRange;
+			} else {
+				// Try abbreviated format (20/21)
+				seasonMatch = timeRange.match(/^(\d{2})[\/\-](\d{2})$/);
+				if (seasonMatch) {
+					const startYear = seasonMatch[1];
+					const endYear = seasonMatch[2];
+					const start = parseInt(startYear, 10);
+					const fullStartYear = start < 50 ? 2000 + start : 1900 + start;
+					season = `${fullStartYear}/${endYear}`;
+				}
+			}
+		}
+		
+		// If still not found, extract from question text
+		if (!season && analysis.question) {
+			const questionText = analysis.question;
+			// Try full format first (2020/21)
+			let seasonMatch = questionText.match(/(\d{4})[\/\-](\d{2})/);
+			if (seasonMatch) {
+				season = `${seasonMatch[1]}/${seasonMatch[2]}`;
+			} else {
+				// Try abbreviated format (20/21)
+				seasonMatch = questionText.match(/(\d{2})[\/\-](\d{2})/);
+				if (seasonMatch) {
+					const startYear = seasonMatch[1];
+					const endYear = seasonMatch[2];
+					const start = parseInt(startYear, 10);
+					const fullStartYear = start < 50 ? 2000 + start : 1900 + start;
+					season = `${fullStartYear}/${endYear}`;
+				}
+			}
+		}
+		
+		// Add season filter to WHERE conditions if season was found
+		if (season) {
+			const normalizedSeason = season.replace("-", "/");
+			const dashSeason = season.replace("/", "-");
+			whereConditions.push(`(md.season = '${normalizedSeason}' OR md.season = '${dashSeason}')`);
+		}
+		
 		// Add minimum appearances filter for GperAPP queries if specified
 		if (isGperAPPQuestion && minAppearances !== null) {
 			params.minAppearances = minAppearances;

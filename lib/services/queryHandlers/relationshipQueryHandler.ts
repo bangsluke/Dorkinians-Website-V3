@@ -887,6 +887,125 @@ export class RelationshipQueryHandler {
 	}
 
 	/**
+	 * Query games played together for three specific players (user + 2 others)
+	 */
+	static async queryGamesPlayedTogetherThreePlayers(
+		playerName1: string,
+		playerName2: string,
+		playerName3: string,
+		teamName?: string,
+		season?: string | null
+	): Promise<Record<string, unknown>> {
+		loggingService.log(`🔍 Querying games played together for three players: ${playerName1}, ${playerName2}, and ${playerName3}`, null, "log");
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		const whereConditions: string[] = [
+			"p1.playerName = $playerName1",
+			"p2.playerName = $playerName2",
+			"p3.playerName = $playerName3",
+			"p1 <> p2",
+			"p1 <> p3",
+			"p2 <> p3"
+		];
+		
+		if (teamName) {
+			whereConditions.push("md1.team = $teamName", "md2.team = $teamName", "md3.team = $teamName");
+		}
+		
+		if (season) {
+			whereConditions.push("f.season = $season");
+		}
+		
+		const query = `
+			MATCH (p1:Player {graphLabel: $graphLabel, playerName: $playerName1})-[:PLAYED_IN]->(md1:MatchDetail {graphLabel: $graphLabel})
+			MATCH (p2:Player {graphLabel: $graphLabel, playerName: $playerName2})-[:PLAYED_IN]->(md2:MatchDetail {graphLabel: $graphLabel})
+			MATCH (p3:Player {graphLabel: $graphLabel, playerName: $playerName3})-[:PLAYED_IN]->(md3:MatchDetail {graphLabel: $graphLabel})
+			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md1)
+			MATCH (f)-[:HAS_MATCH_DETAILS]->(md2)
+			MATCH (f)-[:HAS_MATCH_DETAILS]->(md3)
+			WHERE ${whereConditions.join(" AND ")}
+			RETURN count(DISTINCT f) as gamesTogether
+		`;
+		
+		const queryParams: Record<string, string> = {
+			playerName1,
+			playerName2,
+			playerName3,
+			graphLabel
+		};
+		if (teamName) {
+			queryParams.teamName = teamName;
+		}
+		if (season) {
+			queryParams.season = season;
+		}
+
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			let readyToExecuteQuery = query
+				.replace(/\$playerName1/g, `'${playerName1}'`)
+				.replace(/\$playerName2/g, `'${playerName2}'`)
+				.replace(/\$playerName3/g, `'${playerName3}'`)
+				.replace(/\$graphLabel/g, `'${graphLabel}'`);
+			if (teamName) {
+				readyToExecuteQuery = readyToExecuteQuery.replace(/\$teamName/g, `'${teamName}'`);
+			}
+			if (season) {
+				readyToExecuteQuery = readyToExecuteQuery.replace(/\$season/g, `'${season}'`);
+			}
+			chatbotService.lastExecutedQueries.push(`GAMES_PLAYED_TOGETHER_THREE_PLAYERS_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`GAMES_PLAYED_TOGETHER_THREE_PLAYERS_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
+		try {
+			const result = await neo4jService.executeQuery(query, queryParams);
+			
+			// Extract the count from the result
+			let gamesTogether = 0;
+			if (result && Array.isArray(result) && result.length > 0) {
+				const record = result[0];
+				if (record && typeof record === "object" && "gamesTogether" in record) {
+					let count = record.gamesTogether;
+					
+					// Handle Neo4j Integer objects
+					if (count !== null && count !== undefined) {
+						if (typeof count === "number") {
+							gamesTogether = count;
+						} else if (typeof count === "object") {
+							if ("toNumber" in count && typeof count.toNumber === "function") {
+								gamesTogether = (count as { toNumber: () => number }).toNumber();
+							} else if ("low" in count && "high" in count) {
+								const neo4jInt = count as { low?: number; high?: number };
+								gamesTogether = (neo4jInt.low || 0) + (neo4jInt.high || 0) * 4294967296;
+							} else {
+								gamesTogether = Number(count) || 0;
+							}
+						} else {
+							gamesTogether = Number(count) || 0;
+						}
+					}
+				}
+			}
+			
+			return {
+				type: "games_played_together_three",
+				data: gamesTogether,
+				playerName1,
+				playerName2,
+				playerName3,
+				teamName,
+				season
+			};
+		} catch (error) {
+			loggingService.log(`❌ Error in games played together three players query:`, error, "error");
+			return { type: "error", data: [], error: "Error querying games played together data" };
+		}
+	}
+
+	/**
 	 * Query clean sheets (games with 0 conceded) where two specific players played together
 	 */
 	static async queryCleanSheetsPlayedTogether(
