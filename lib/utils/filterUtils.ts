@@ -76,12 +76,14 @@ export function getActiveFilters(
 	}
 
 	// Opposition filter
-	if (playerFilters.opposition && (!playerFilters.opposition.allOpposition || playerFilters.opposition.searchTerm !== "")) {
+	const oppositionMode = playerFilters.opposition?.mode ?? "all";
+	if (playerFilters.opposition && (oppositionMode !== "all" || playerFilters.opposition.searchTerm !== "")) {
 		let oppositionValue = "";
 		if (playerFilters.opposition.searchTerm) {
-			oppositionValue = playerFilters.opposition.searchTerm;
-		} else if (!playerFilters.opposition.allOpposition) {
-			oppositionValue = "Specific Opposition";
+			const modeLabel = oppositionMode === "club" ? "Club: " : oppositionMode === "team" ? "Team: " : "";
+			oppositionValue = modeLabel + playerFilters.opposition.searchTerm;
+		} else if (oppositionMode !== "all") {
+			oppositionValue = oppositionMode === "club" ? "Individual Club" : "Individual Team";
 		}
 		
 		if (oppositionValue) {
@@ -96,11 +98,12 @@ export function getActiveFilters(
 
 	// Competition filter
 	if (playerFilters.competition) {
+		const competitionMode = playerFilters.competition.mode ?? "types";
 		const competitionParts: string[] = [];
-		if (playerFilters.competition.types?.length > 0 && playerFilters.competition.types.length < 3) {
+		
+		if (competitionMode === "types" && playerFilters.competition.types?.length > 0 && playerFilters.competition.types.length < 3) {
 			competitionParts.push(playerFilters.competition.types.join(", "));
-		}
-		if (playerFilters.competition.searchTerm !== "") {
+		} else if (competitionMode === "individual" && playerFilters.competition.searchTerm !== "") {
 			competitionParts.push(playerFilters.competition.searchTerm);
 		}
 		

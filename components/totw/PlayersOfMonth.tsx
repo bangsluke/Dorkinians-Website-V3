@@ -355,14 +355,13 @@ export default function PlayersOfMonth() {
 		const cachedMonthData = getCachedPOMMonthData(selectedSeason, monthToUse);
 		if (cachedMonthData) {
 			log("info", `[PlayersOfMonth] Using cached data for ${monthToUse} ${selectedSeason}`);
-			// Ensure loading state is maintained - stats still need to be fetched
-			setLoading(true);
-			setLoadingStats(true);
 			// Set players after clearing to ensure stats fetch uses correct data
 			setPlayers(cachedMonthData.players);
 			// Ensure fetching flag is cleared so stats can load
 			setIsFetchingMonthData(false);
-			// Loading state will be cleared by the loading check effect when stats are ready
+			// Clear loading immediately - stats will load in background
+			setLoading(false);
+			setLoadingStats(false);
 			return;
 		}
 
@@ -387,10 +386,15 @@ export default function PlayersOfMonth() {
 					setPlayerStats({});
 					setPlayers(data.players);
 					cachePOMMonthData(selectedSeason, monthToUse, data.players);
+					// Clear loading immediately - stats will load in background
+					setLoading(false);
+					setLoadingStats(false);
 				} else {
 					log("info", `[PlayersOfMonth] No players found for ${monthToUse} ${selectedSeason}`);
 					setPlayers([]);
 					setPlayerStats({});
+					setLoading(false);
+					setLoadingStats(false);
 				}
 				setIsFetchingMonthData(false);
 			} catch (error) {
@@ -409,7 +413,7 @@ export default function PlayersOfMonth() {
 	// Priority 1: Above fold on mobile - Top 5 Players section (loaded via month data fetch above)
 
 	// Priority 2: Above fold on desktop - This Month FTP Ranking section
-	// Fetch month rankings when season and month change
+	// Fetch month rankings when season and month change (de-prioritized - async)
 	useEffect(() => {
 		if (!selectedSeason || !selectedMonth || !selectedPlayer) {
 			setMonthRankings([]);
@@ -439,11 +443,16 @@ export default function PlayersOfMonth() {
 			}
 		};
 
-		fetchMonthRankings();
+		// Defer rankings fetch to not block initial render
+		const timeoutId = setTimeout(() => {
+			fetchMonthRankings();
+		}, 100);
+
+		return () => clearTimeout(timeoutId);
 	}, [selectedSeason, selectedMonth, selectedPlayer]);
 
 	// Priority 3: Below fold - This Season FTP Ranking section
-	// Fetch season rankings when season changes
+	// Fetch season rankings when season changes (de-prioritized - async)
 	useEffect(() => {
 		if (!selectedSeason || !selectedPlayer) {
 			setSeasonRankings([]);
@@ -472,7 +481,12 @@ export default function PlayersOfMonth() {
 			}
 		};
 
-		fetchSeasonRankings();
+		// Defer rankings fetch to not block initial render
+		const timeoutId = setTimeout(() => {
+			fetchSeasonRankings();
+		}, 150);
+
+		return () => clearTimeout(timeoutId);
 	}, [selectedSeason, selectedPlayer]);
 
 	// Priority 3: Below fold - Player stats for expanded rows
@@ -481,25 +495,16 @@ export default function PlayersOfMonth() {
 		const playerNames = players.map(p => p.playerName).join(", ");
 		log("info", `[PlayersOfMonth] Stats fetch effect triggered. Season: "${selectedSeason}", Month: "${selectedMonth}", players: ${players.length} [${playerNames}], isFetchingMonthData: ${isFetchingMonthData}`);
 		
-		// If we're still fetching month data, maintain loading state and wait
+		// If we're still fetching month data, wait
 		if (isFetchingMonthData) {
-			setLoading(true);
-			setLoadingStats(true);
 			return;
 		}
 		
 		if (!selectedSeason || !selectedMonth) {
-			// No season/month selected - maintain loading state
-			setLoading(true);
-			setLoadingStats(true);
 			return;
 		}
 		
 		if (players.length === 0) {
-			// No players yet - maintain loading state until we know if there are any
-			// The loading check effect will clear it if month data fetch is complete
-			setLoading(true);
-			setLoadingStats(true);
 			return;
 		}
 
@@ -516,8 +521,7 @@ export default function PlayersOfMonth() {
 
 		const fetchAllPlayerStats = async () => {
 			log("info", `[PlayersOfMonth] Fetching stats for ${players.length} players: [${playerNames}]`);
-			setLoadingStats(true);
-			setLoading(true);
+			// Don't set loading state - this is background loading
 			
 			// Collect all stats in a single object to batch state update
 			const newStats: Record<string, PlayerStats> = {};
@@ -624,20 +628,9 @@ export default function PlayersOfMonth() {
 			return;
 		}
 
-		// Check if all stats are loaded for all players
-		const allStatsLoaded = players.length > 0 && players.every((player) => {
-			return playerStats[player.playerName] !== undefined;
-		});
-
-		if (allStatsLoaded) {
-			// All data is ready - clear loading state
-			setLoadingStats(false);
-			setLoading(false);
-		} else {
-			// Stats still loading - maintain loading state
-			setLoading(true);
-			setLoadingStats(true);
-		}
+		// Month data is loaded, clear loading state (stats load in background)
+		setLoadingStats(false);
+		setLoading(false);
 	}, [playerStats, players, selectedSeason, selectedMonth, isFetchingMonthData, isMonthValidating]);
 
 	// Fetch player stats when row is expanded - check cache first
@@ -995,7 +988,7 @@ export default function PlayersOfMonth() {
 						</div>
 					</div>
 					{/* This Months Top Players Section Skeleton */}
-					<div className='mt-8 mb-8'>
+					<div>
 						<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 							<div className='mb-4'>
 								<h2 className='text-lg md:text-xl font-bold text-dorkinians-yellow mb-1'>
@@ -1016,7 +1009,7 @@ export default function PlayersOfMonth() {
 
 			{/* Filters - Hide during initial load */}
 			{!isInitialLoading && (
-				<div className='flex flex-row gap-4 mb-6'>
+				<div className='flex flex-row gap-4 mb-4'>
 					<div className='flex-1'>
 						<Listbox value={selectedSeason} onChange={(newSeason) => {
 							log("info", `[PlayersOfMonth] User selected season: "${newSeason}"`);
@@ -1106,10 +1099,10 @@ export default function PlayersOfMonth() {
 
 			{/* Loading Skeleton - Show when loading month data */}
 			{!isInitialLoading && (loading || loadingStats || appConfig.forceSkeletonView) && (
-				<div data-testid="loading-skeleton">
+				<div data-testid="loading-skeleton" className="mt-0">
 					<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
 						{/* This Months Top Players Section Skeleton */}
-						<div className='mt-8 mb-8'>
+						<div className="mt-0">
 							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 								<div className='mb-4'>
 									<h2 className='text-lg md:text-xl font-bold text-dorkinians-yellow mb-1'>
@@ -1130,10 +1123,8 @@ export default function PlayersOfMonth() {
 			)}
 
 			{/* Players Table */}
-			{!loading && !loadingStats && players.length > 0 && (
-				<div>
-					
-					<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+			{!loading && !loadingStats && players.length > 0 && players.every((player) => playerStats[player.playerName] !== undefined) && (
+				<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 					<div className='mb-4'>
 						<h2 className='text-lg md:text-xl font-bold text-dorkinians-yellow mb-1'>
 							This Months Top Players
@@ -1160,7 +1151,7 @@ export default function PlayersOfMonth() {
 										<tr
 											className={`cursor-pointer hover:bg-gray-800 transition-colors ${isLastPlayer ? '' : 'border-b border-green-500'}`}
 											style={{
-												background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05))',
+												background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05))',
 											}}
 											onClick={() => handleRowExpand(player.playerName)}
 										>
@@ -1312,20 +1303,19 @@ export default function PlayersOfMonth() {
 						</tbody>
 					</table>
 					</div>
-					</div>
 				</div>
 			)}
 
 			{/* Empty State - Only show when loading is complete and no players found */}
 			{!loading && !loadingStats && !isFetchingMonthData && !isMonthValidating && !isMonthValidatingRef.current && players.length === 0 && selectedSeason && selectedMonth && (
-				<div className='text-center py-8 text-gray-400'>
+				<div className='text-center py-2 text-gray-400'>
 					<p>No players found for {selectedMonth} {selectedSeason}</p>
 				</div>
 			)}
 
 			{/* FTP Ranking Section */}
 			{!loading && !loadingStats && (
-				<div className='mt-8'>
+				<div className='mt-4'>
 					{selectedPlayer ? (
 						<div className='bg-white/10 rounded-lg p-4 md:p-6 space-y-6'>
 							{/* Current Month Ranking Table */}

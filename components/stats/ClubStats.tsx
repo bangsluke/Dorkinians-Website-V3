@@ -362,6 +362,8 @@ export default function ClubStats() {
 		setDataTableMode,
 		getCachedPageData,
 		setCachedPageData,
+		hasUnsavedFilters,
+		isFilterSidebarOpen,
 	} = useNavigationStore();
 
 	const [teamData, setTeamData] = useState<TeamData | null>(null);
@@ -484,6 +486,7 @@ export default function ClubStats() {
 	
 	useEffect(() => {
 		if (!playerFilters) return;
+		if (hasUnsavedFilters || isFilterSidebarOpen) return; // Skip API calls while editing filters or sidebar is open
 		
 		// Check if we already have data for this filter combination
 		if (teamData && lastFetchedFiltersRef.current === filtersKey) {
@@ -524,12 +527,13 @@ export default function ClubStats() {
 		};
 
 		fetchTeamData();
-	}, [filtersKey, playerFilters]);
+	}, [filtersKey, playerFilters, hasUnsavedFilters, isFilterSidebarOpen]);
 
 	// Priority 1: Above fold on mobile - Team Comparison section
 	// Fetch team comparison data
 	useEffect(() => {
 		if (!playerFilters) return;
+		if (hasUnsavedFilters || isFilterSidebarOpen) return; // Skip API calls while editing filters or sidebar is open
 
 		const fetchTeamComparison = async () => {
 			setIsLoadingTeamComparison(true);
@@ -582,12 +586,13 @@ export default function ClubStats() {
 		};
 
 		fetchTeamComparison();
-	}, [filtersKey, playerFilters]);
+	}, [filtersKey, playerFilters, hasUnsavedFilters, isFilterSidebarOpen]);
 
 	// Priority 2: Above fold on desktop - Top Players section
 	// Fetch top players when filters or stat type changes
 	useEffect(() => {
 		if (!playerFilters) return;
+		if (hasUnsavedFilters || isFilterSidebarOpen) return; // Skip API calls while editing filters or sidebar is open
 		
 		const fetchTopPlayers = async () => {
 			setIsLoadingTopPlayers(true);
@@ -620,12 +625,13 @@ export default function ClubStats() {
 		};
 
 		fetchTopPlayers();
-	}, [filtersKey, selectedStatType, playerFilters]);
+	}, [filtersKey, selectedStatType, playerFilters, hasUnsavedFilters, isFilterSidebarOpen]);
 
 	// Priority 2: Above fold on desktop - Stats Distribution section
 	// Fetch position stats data
 	useEffect(() => {
 		if (!playerFilters) return;
+		if (hasUnsavedFilters || isFilterSidebarOpen) return; // Skip API calls while editing filters or sidebar is open
 
 		const fetchPositionStats = async () => {
 			setIsLoadingPositionStats(true);
@@ -656,7 +662,7 @@ export default function ClubStats() {
 		};
 
 		fetchPositionStats();
-	}, [filtersKey, selectedPositionStat, playerFilters]);
+	}, [filtersKey, selectedPositionStat, playerFilters, hasUnsavedFilters, isFilterSidebarOpen]);
 
 	// Check if all seasons are selected
 	const allSeasonsSelected = useMemo(() => {
@@ -701,6 +707,7 @@ export default function ClubStats() {
 			setSeasonalStats([]);
 			return;
 		}
+		if (hasUnsavedFilters || isFilterSidebarOpen) return; // Skip API calls while editing filters or sidebar is open
 
 		const fetchSeasonalStats = async () => {
 			setIsLoadingSeasonalStats(true);
@@ -726,7 +733,7 @@ export default function ClubStats() {
 		};
 
 		fetchSeasonalStats();
-	}, [allSeasonsSelected, playerFilters]);
+	}, [allSeasonsSelected, playerFilters, hasUnsavedFilters, isFilterSidebarOpen]);
 
 	// Priority 3: Below fold - Game Details section
 	// Fetch game details when filters change
@@ -735,6 +742,7 @@ export default function ClubStats() {
 			setGameDetails(null);
 			return;
 		}
+		if (hasUnsavedFilters || isFilterSidebarOpen) return; // Skip API calls while editing filters or sidebar is open
 
 		const fetchGameDetails = async () => {
 			setIsLoadingGameDetails(true);
@@ -761,7 +769,7 @@ export default function ClubStats() {
 		};
 
 		fetchGameDetails();
-	}, [playerFilters]);
+	}, [playerFilters, hasUnsavedFilters, isFilterSidebarOpen]);
 
 	// Priority 3: Below fold - Unique Player Stats section
 	// Fetch unique player stats when filters change
@@ -770,6 +778,7 @@ export default function ClubStats() {
 			setUniquePlayerStats(null);
 			return;
 		}
+		if (hasUnsavedFilters || isFilterSidebarOpen) return; // Skip API calls while editing filters or sidebar is open
 
 		const fetchUniqueStats = async () => {
 			setIsLoadingUniqueStats(true);
@@ -796,12 +805,13 @@ export default function ClubStats() {
 		};
 
 		fetchUniqueStats();
-	}, [playerFilters]);
+	}, [playerFilters, hasUnsavedFilters, isFilterSidebarOpen]);
 
 	// Priority 3: Below fold - Player Distribution section
 	// Fetch player distribution data
 	useEffect(() => {
 		if (!playerFilters) return;
+		if (hasUnsavedFilters || isFilterSidebarOpen) return; // Skip API calls while editing filters or sidebar is open
 
 		const fetchPlayerDistribution = async () => {
 			setIsLoadingPlayerDistribution(true);
@@ -827,12 +837,13 @@ export default function ClubStats() {
 		};
 
 		fetchPlayerDistribution();
-	}, [filtersKey, playerFilters]);
+	}, [filtersKey, playerFilters, hasUnsavedFilters, isFilterSidebarOpen]);
 
 	// Priority 3: Below fold - Player Tenure section
 	// Fetch player tenure data
 	useEffect(() => {
 		if (!playerFilters) return;
+		if (hasUnsavedFilters || isFilterSidebarOpen) return; // Skip API calls while editing filters or sidebar is open
 
 		const fetchPlayerTenure = async () => {
 			setIsLoadingPlayerTenure(true);
@@ -858,7 +869,7 @@ export default function ClubStats() {
 		};
 
 		fetchPlayerTenure();
-	}, [filtersKey, playerFilters]);
+	}, [filtersKey, playerFilters, hasUnsavedFilters, isFilterSidebarOpen]);
 
 	// Calculate linear regression for trendline
 	const calculateTrendline = (data: Array<{ name: string; value: number }>) => {
@@ -904,7 +915,7 @@ export default function ClubStats() {
 			const trendlinePoints = calculateTrendline(baseData);
 			return baseData.map((point, index) => ({
 				...point,
-				trendline: trendlinePoints[index]?.value || 0,
+				trendline: Math.max(0, trendlinePoints[index]?.value || 0),
 			}));
 		}
 
@@ -1928,7 +1939,7 @@ export default function ClubStats() {
 														>
 															<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
 															<XAxis dataKey='name' stroke='#fff' fontSize={12} />
-															<YAxis stroke='#fff' fontSize={12} />
+															<YAxis stroke='#fff' fontSize={12} domain={[0, 'auto']} allowDecimals={false} />
 															<Tooltip content={customTooltip} />
 															<Bar 
 																dataKey='value' 

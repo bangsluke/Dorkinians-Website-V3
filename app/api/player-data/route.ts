@@ -49,22 +49,34 @@ export function buildFilterConditions(filters: any, params: any): string[] {
 	}
 
 	// Opposition filters
-	if (filters.opposition && !filters.opposition.allOpposition) {
-		if (filters.opposition.searchTerm) {
+	if (filters.opposition) {
+		const mode = filters.opposition.mode ?? "all";
+		if (mode === "team" && filters.opposition.searchTerm) {
 			conditions.push(`toLower(f.opposition) CONTAINS toLower($oppositionSearch)`);
+			params.oppositionSearch = filters.opposition.searchTerm;
+		} else if (mode === "club" && filters.opposition.searchTerm) {
+			// Join with OppositionDetails to filter by shortTeamName
+			// Need to match OppositionDetails node and check shortTeamName
+			conditions.push(`EXISTS {
+				MATCH (od:OppositionDetails {graphLabel: $graphLabel})
+				WHERE od.opposition = f.opposition 
+				AND od.shortTeamName IS NOT NULL
+				AND od.shortTeamName <> ''
+				AND toLower(od.shortTeamName) CONTAINS toLower($oppositionSearch)
+			}`);
 			params.oppositionSearch = filters.opposition.searchTerm;
 		}
 	}
 
 	// Competition filters
 	if (filters.competition) {
-		if (filters.competition.types && filters.competition.types.length > 0) {
+		const mode = filters.competition.mode ?? "types";
+		if (mode === "types" && filters.competition.types && filters.competition.types.length > 0) {
 			conditions.push(`f.compType IN $compTypes`);
 			params.compTypes = filters.competition.types;
-		}
-		if (filters.competition.searchTerm) {
+		} else if (mode === "individual" && filters.competition.searchTerm && filters.competition.searchTerm.trim()) {
 			conditions.push(`toLower(f.competition) CONTAINS toLower($competitionSearch)`);
-			params.competitionSearch = filters.competition.searchTerm;
+			params.competitionSearch = filters.competition.searchTerm.trim();
 		}
 	}
 

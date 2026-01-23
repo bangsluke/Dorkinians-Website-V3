@@ -1,5 +1,5 @@
 export const appConfig = {
-	version: "1.1.31",
+	version: "1.1.32",
 	name: "Dorkinians FC",
 	description: "Comprehensive source for club statistics, player performance, and team insights",
 	author: "Luke Bangs",
@@ -478,18 +478,6 @@ export const statObject = {
 		statCategory: "Performance Stat",
 		iconName: "Assists-Icon",
 	},
-	AperAPP: {
-		statName: "assistsPerApp",
-		displayText: "Assists Per Appearance", // The text displayed at all times on the page.
-		shortText: "AperApp", // Used for short displays such as on the Comparison tab.
-		wordedText: "assists per appearance", // Used for chatbot responses
-		statFormat: "Decimal2",
-		description: "The average number of assists provided per appearance by the player.",
-		statHigherBetterBoolean: true,
-		numberDecimalPlaces: 2,
-		statCategory: "Per App/Minute Stat",
-		iconName: "AssistsPerAppearance-Icon",
-	},
 	Y: {
 		statName: "yellowCards",
 		displayText: "Yellow Cards Received", // The text displayed at all times on the page.
@@ -705,6 +693,18 @@ export const statObject = {
 		numberDecimalPlaces: 2,
 		statCategory: "Per App/Minute Stat",
 		iconName: "GoalsPerAppearance-Icon",
+	},
+	AperAPP: {
+		statName: "assistsPerApp",
+		displayText: "Assists Per Appearance", // The text displayed at all times on the page.
+		shortText: "AperApp", // Used for short displays such as on the Comparison tab.
+		wordedText: "assists per appearance", // Used for chatbot responses
+		statFormat: "Decimal2",
+		description: "The average number of assists provided per appearance by the player.",
+		statHigherBetterBoolean: true,
+		numberDecimalPlaces: 2,
+		statCategory: "Per App/Minute Stat",
+		iconName: "AssistsPerAppearance-Icon",
 	},
 	CperAPP: {
 		statName: "concededPerApp",
