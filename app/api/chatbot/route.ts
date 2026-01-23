@@ -20,42 +20,64 @@ export async function POST(request: NextRequest) {
 	// Apply rate limiting
 	const rateLimitResponse = await chatbotRateLimiter(request);
 	if (rateLimitResponse) {
+		// #region agent log
+		fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/api/chatbot/route.ts:rateLimit',message:'Rate limit triggered',data:{status:rateLimitResponse?.status},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
+		// #endregion
 		return rateLimitResponse;
 	}
 
 	// Enhanced origin validation for public API (alternative to CSRF for stateless APIs)
+	// ALLOWED_ORIGIN may be comma-separated to allow multiple (e.g. custom domain + Netlify URL)
 	const origin = request.headers.get("origin");
 	const referer = request.headers.get("referer");
-	const allowedOrigin = process.env.ALLOWED_ORIGIN || "https://dorkinians-website-v3.netlify.app";
+	const allowedOrigins = (process.env.ALLOWED_ORIGIN || "https://dorkinians-website-v3.netlify.app")
+		.split(",")
+		.map((s) => s.trim())
+		.filter(Boolean);
+	const isOriginAllowed = (o: string | null) => o != null && allowedOrigins.includes(o);
+	const isRefererAllowed = (r: string | null) =>
+		r != null && allowedOrigins.some((a) => r === a || r.startsWith(a + "/"));
 	const isProduction = process.env.NODE_ENV === "production";
-	
-	// In production, require origin header for cross-origin requests
+
+	// #region agent log
+	fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/api/chatbot/route.ts:originCheck',message:'Origin validation start',data:{origin,referer,allowedOrigins,isProduction},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'H1_H2_H4_H5'})}).catch(()=>{});
+	// #endregion
+
+	// In production, require origin/referer to match one of the allowed origins
 	if (isProduction) {
-		// Allow same-origin requests (no origin header) only from allowed domain
 		if (!origin) {
-			// Check referer as fallback for same-origin requests
-			if (referer && !referer.startsWith(allowedOrigin)) {
-				log("warn", "Blocked request with no origin from invalid referer", { referer, allowedOrigin });
+			if (referer && !isRefererAllowed(referer)) {
+				// #region agent log
+				fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/api/chatbot/route.ts:403',message:'403: Invalid origin (referer fallback)',data:{referer,allowedOrigins},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'H2'})}).catch(()=>{});
+				// #endregion
+				log("warn", "Blocked request with no origin from invalid referer", { referer, allowedOrigins });
 				return NextResponse.json({ error: "Invalid origin" }, { status: 403, headers: corsHeaders });
 			}
-			// Allow if referer matches or is same-origin (no referer = same-origin)
-			if (!referer || referer.startsWith(allowedOrigin)) {
+			if (!referer || isRefererAllowed(referer)) {
 				// Same-origin request, allow
 			} else {
+				// #region agent log
+				fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/api/chatbot/route.ts:403',message:'403: Origin required',data:{origin,referer},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'H4'})}).catch(()=>{});
+				// #endregion
 				log("warn", "Blocked request with no origin/referer in production", { origin, referer });
 				return NextResponse.json({ error: "Origin required" }, { status: 403, headers: corsHeaders });
 			}
 		} else {
-			// Cross-origin request - validate origin exactly
-			if (origin !== allowedOrigin) {
-				log("warn", "Blocked request from invalid origin", { origin, allowedOrigin });
+			if (!isOriginAllowed(origin)) {
+				// #region agent log
+				fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/api/chatbot/route.ts:403',message:'403: Invalid origin (origin mismatch)',data:{origin,allowedOrigins},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'H1'})}).catch(()=>{});
+				// #endregion
+				log("warn", "Blocked request from invalid origin", { origin, allowedOrigins });
 				return NextResponse.json({ error: "Invalid origin" }, { status: 403, headers: corsHeaders });
 			}
 		}
 	} else {
 		// Development: Allow localhost and no-origin for testing
-		if (origin && origin !== allowedOrigin && !origin.startsWith("http://localhost")) {
-			log("warn", "Blocked request from invalid origin in development", { origin, allowedOrigin });
+		if (origin && !isOriginAllowed(origin) && !origin.startsWith("http://localhost")) {
+			// #region agent log
+			fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/api/chatbot/route.ts:403',message:'403: Invalid origin (dev)',data:{origin,allowedOrigins},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'H5'})}).catch(()=>{});
+			// #endregion
+			log("warn", "Blocked request from invalid origin in development", { origin, allowedOrigins });
 			return NextResponse.json({ error: "Invalid origin" }, { status: 403, headers: corsHeaders });
 		}
 	}
