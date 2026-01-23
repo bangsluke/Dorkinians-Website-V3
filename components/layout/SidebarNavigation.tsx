@@ -86,21 +86,26 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 		if (locationCounted) count++;
 		filterChecks.location = { counted: locationCounted, value: playerFilters.location, reason: locationCounted ? `location array has ${playerFilters.location?.length} items (need 2)` : `location array has ${playerFilters.location?.length || 0} items (both selected)` };
 		
-		// Count opposition if allOpposition is explicitly false or searchTerm has value
-		const oppositionAllOpp = playerFilters.opposition?.allOpposition;
+		// Count opposition if mode is not "all" or searchTerm has value
+		const oppositionMode = playerFilters.opposition?.mode ?? "all";
 		const oppositionSearchTerm = playerFilters.opposition?.searchTerm;
 		const oppositionSearchTermTrimmed = oppositionSearchTerm?.trim() || "";
-		const oppositionCounted = !!(playerFilters.opposition && (oppositionAllOpp === false || (oppositionSearchTerm && oppositionSearchTermTrimmed !== "")));
+		const oppositionCounted = !!(playerFilters.opposition && (oppositionMode !== "all" || (oppositionSearchTerm && oppositionSearchTermTrimmed !== "")));
 		if (oppositionCounted) count++;
-		filterChecks.opposition = { counted: oppositionCounted, value: { allOpposition: oppositionAllOpp, searchTerm: oppositionSearchTerm, searchTermTrimmed: oppositionSearchTermTrimmed }, reason: oppositionCounted ? (oppositionAllOpp === false ? 'allOpposition is false' : `searchTerm has value: "${oppositionSearchTermTrimmed}"`) : 'allOpposition is true and searchTerm is empty' };
+		filterChecks.opposition = { counted: oppositionCounted, value: { mode: oppositionMode, searchTerm: oppositionSearchTerm, searchTermTrimmed: oppositionSearchTermTrimmed }, reason: oppositionCounted ? (oppositionMode !== "all" ? `mode is "${oppositionMode}"` : `searchTerm has value: "${oppositionSearchTermTrimmed}"`) : 'mode is "all" and searchTerm is empty' };
 		
-		// Count competition if types array has fewer than all 3 types (default is all 3) or searchTerm has value
+		// Count competition if mode is "individual" or types array has fewer than all 3 types
+		const competitionMode = playerFilters.competition?.mode ?? "types";
 		const defaultCompetitionTypes: ("League" | "Cup" | "Friendly")[] = ["League", "Cup", "Friendly"];
 		const competitionTypes = playerFilters.competition?.types || [];
 		const hasAllCompetitionTypes = defaultCompetitionTypes.every(type => competitionTypes.includes(type as any)) && competitionTypes.length === defaultCompetitionTypes.length;
-		const competitionCounted = !!(playerFilters.competition && ((!hasAllCompetitionTypes && competitionTypes.length > 0) || (playerFilters.competition.searchTerm && playerFilters.competition.searchTerm.trim() !== "")));
+		const competitionCounted = !!(playerFilters.competition && (
+			competitionMode === "individual" || 
+			(!hasAllCompetitionTypes && competitionTypes.length > 0) || 
+			(competitionMode === "individual" && playerFilters.competition.searchTerm && playerFilters.competition.searchTerm.trim() !== "")
+		));
 		if (competitionCounted) count++;
-		filterChecks.competition = { counted: competitionCounted, value: { types: competitionTypes, hasAll: hasAllCompetitionTypes, searchTerm: playerFilters.competition?.searchTerm }, reason: competitionCounted ? (!hasAllCompetitionTypes ? `missing types (has ${competitionTypes.length}/3)` : `searchTerm has value: "${playerFilters.competition?.searchTerm}"`) : 'all 3 types selected and searchTerm empty' };
+		filterChecks.competition = { counted: competitionCounted, value: { mode: competitionMode, types: competitionTypes, hasAll: hasAllCompetitionTypes, searchTerm: playerFilters.competition?.searchTerm }, reason: competitionCounted ? (competitionMode === "individual" ? `mode is "individual"` : !hasAllCompetitionTypes ? `missing types (has ${competitionTypes.length}/3)` : `searchTerm has value: "${playerFilters.competition?.searchTerm}"`) : 'mode is "types" with all 3 types selected and searchTerm empty' };
 		
 		// Count result if array has fewer than all 3 results (default is all 3)
 		const defaultResults: ("Win" | "Draw" | "Loss")[] = ["Win", "Draw", "Loss"];

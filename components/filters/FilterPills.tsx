@@ -120,25 +120,31 @@ export default function FilterPills({ playerFilters, filterData, currentStatsSub
 
 		// Competition filter
 		if (availableFilters.includes("competition") && playerFilters.competition) {
-			// Only show competition type pills if they differ from default (League + Cup + Friendly)
-			const isDefaultCompetitionTypes = 
-				playerFilters.competition.types?.length === 3 &&
-				playerFilters.competition.types.includes("League") &&
-				playerFilters.competition.types.includes("Cup") &&
-				playerFilters.competition.types.includes("Friendly");
+			const competitionMode = playerFilters.competition.mode ?? "types";
 			
-			if (playerFilters.competition.types?.length > 0 && playerFilters.competition.types.length < 3 && !isDefaultCompetitionTypes) {
-				playerFilters.competition.types.forEach((type) => {
-					expandedPills.push({
-						key: `competition-type-${type}`,
-						label: "Competition",
-						value: type,
-						removeKey: "competition",
-						onRemove: () => removeCompetitionTypeFilter(type),
+			// Only show competition type pills if mode is "types" and they differ from default
+			if (competitionMode === "types") {
+				const isDefaultCompetitionTypes = 
+					playerFilters.competition.types?.length === 3 &&
+					playerFilters.competition.types.includes("League") &&
+					playerFilters.competition.types.includes("Cup") &&
+					playerFilters.competition.types.includes("Friendly");
+				
+				if (playerFilters.competition.types?.length > 0 && playerFilters.competition.types.length < 3 && !isDefaultCompetitionTypes) {
+					playerFilters.competition.types.forEach((type) => {
+						expandedPills.push({
+							key: `competition-type-${type}`,
+							label: "Competition",
+							value: type,
+							removeKey: "competition",
+							onRemove: () => removeCompetitionTypeFilter(type),
+						});
 					});
-				});
+				}
 			}
-			if (playerFilters.competition.searchTerm !== "") {
+			
+			// Only show competition search pill if mode is "individual" and searchTerm exists
+			if (competitionMode === "individual" && playerFilters.competition.searchTerm !== "") {
 				expandedPills.push({
 					key: "competition-search",
 					label: "Competition",

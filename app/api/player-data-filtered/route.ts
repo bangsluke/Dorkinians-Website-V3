@@ -378,7 +378,7 @@ function validateFilters(filters: any): string | null {
 	if (filters.opposition) {
 		if (
 			typeof filters.opposition !== "object" ||
-			typeof filters.opposition.allOpposition !== "boolean" ||
+			!["all", "club", "team"].includes(filters.opposition.mode ?? "all") ||
 			(typeof filters.opposition.searchTerm !== "string" && filters.opposition.searchTerm !== undefined)
 		) {
 			return "Invalid opposition filter structure";
@@ -389,6 +389,10 @@ function validateFilters(filters: any): string | null {
 	if (filters.competition) {
 		if (typeof filters.competition !== "object") {
 			return "Competition filter must be an object";
+		}
+
+		if (!["types", "individual"].includes(filters.competition.mode ?? "types")) {
+			return "Competition mode must be 'types' or 'individual'";
 		}
 
 		if (

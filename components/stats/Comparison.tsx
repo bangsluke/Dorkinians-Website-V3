@@ -480,7 +480,7 @@ function ComparisonStatRow({
 }
 
 export default function Comparison() {
-	const { selectedPlayer, enterEditMode, setMainPage, playerFilters, filterData, currentStatsSubPage, cachedPlayerData, getCachedPageData, setCachedPageData } = useNavigationStore();
+	const { selectedPlayer, enterEditMode, setMainPage, playerFilters, filterData, currentStatsSubPage, cachedPlayerData, getCachedPageData, setCachedPageData, hasUnsavedFilters, isFilterSidebarOpen } = useNavigationStore();
 	
 	const [secondPlayer, setSecondPlayer] = useState<string | null>(() => {
 		if (typeof window !== "undefined") {
@@ -757,6 +757,7 @@ export default function Comparison() {
 				}
 				return;
 			}
+			if (hasUnsavedFilters || isFilterSidebarOpen) return; // Skip API calls while editing filters or sidebar is open
 
 			setIsLoadingSecondPlayer(true);
 			try {
@@ -789,7 +790,7 @@ export default function Comparison() {
 		};
 
 		fetchSecondPlayerData();
-	}, [secondPlayer, playerFilters, getCachedPageData, setCachedPageData]);
+	}, [secondPlayer, playerFilters, hasUnsavedFilters, isFilterSidebarOpen, getCachedPageData, setCachedPageData]);
 
 	const handleClearSecondPlayer = () => {
 		setSecondPlayer(null);

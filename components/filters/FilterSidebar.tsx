@@ -41,6 +41,12 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 	// State for autocomplete dropdowns
 	const [showOppositionDropdown, setShowOppositionDropdown] = useState(false);
 	const [showCompetitionDropdown, setShowCompetitionDropdown] = useState(false);
+	// State for keyboard navigation
+	const [oppositionHighlightedIndex, setOppositionHighlightedIndex] = useState(-1);
+	const [competitionHighlightedIndex, setCompetitionHighlightedIndex] = useState(-1);
+	// Refs for dropdown containers (for scrolling)
+	const oppositionDropdownRef = useRef<HTMLDivElement>(null);
+	const competitionDropdownRef = useRef<HTMLDivElement>(null);
 	// State for clear all confirmation modal
 	const [showClearAllConfirm, setShowClearAllConfirm] = useState(false);
 	// State for unsaved changes confirmation modal
@@ -202,7 +208,8 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 			// Initialize competition types to all if empty
 			if ((playerFilters.competition?.types?.length || 0) === 0) {
 				updates.competition = {
-					...(playerFilters.competition || { types: [], searchTerm: "" }),
+					...(playerFilters.competition || { mode: "types", types: [], searchTerm: "" }),
+					mode: "types",
 					types: ["League", "Cup", "Friendly"],
 				};
 				needsUpdate = true;
@@ -229,6 +236,19 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 			}
 		}
 	}, [isOpen, isFilterDataLoaded, filterData, playerFilters, updatePlayerFilters]);
+
+	// Reset highlighted indices when dropdowns close or search terms change
+	useEffect(() => {
+		if (!showOppositionDropdown) {
+			setOppositionHighlightedIndex(-1);
+		}
+	}, [showOppositionDropdown]);
+
+	useEffect(() => {
+		if (!showCompetitionDropdown) {
+			setCompetitionHighlightedIndex(-1);
+		}
+	}, [showCompetitionDropdown]);
 
 	// Capture snapshot after initialization completes
 	useEffect(() => {
@@ -257,11 +277,12 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 				},
 				teams: [...teamsForSnapshot],
 				location: [...locationForSnapshot],
-				opposition: {
-					allOpposition: playerFilters.opposition?.allOpposition ?? true,
-					searchTerm: playerFilters.opposition?.searchTerm || "",
-				},
+			opposition: {
+				mode: playerFilters.opposition?.mode ?? "all",
+				searchTerm: playerFilters.opposition?.searchTerm || "",
+			},
 				competition: {
+					mode: playerFilters.competition?.mode ?? "types",
 					types: [...competitionTypesForSnapshot],
 					searchTerm: playerFilters.competition?.searchTerm || "",
 				},
@@ -498,55 +519,154 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 		if (!playerFilters) return;
 		updatePlayerFilters({
 			opposition: {
-				...(playerFilters.opposition || { allOpposition: true, searchTerm: "" }),
+				...(playerFilters.opposition || { mode: "all", searchTerm: "" }),
 				searchTerm,
 			},
 		});
 		setShowOppositionDropdown(true);
+		setOppositionHighlightedIndex(-1); // Reset highlight when search changes
 	};
 
-	// Filter opposition based on search term
+	// Filter opposition teams based on search term (deduplicated by name)
 	const filteredOpposition = useMemo(() => {
 		if (!filterData?.opposition) return [];
 		const searchTerm = (playerFilters?.opposition?.searchTerm || "").toLowerCase();
+		
+		// Deduplicate by name
+		const seen = new Set<string>();
+		const unique = filterData.opposition.filter(opp => {
+			if (seen.has(opp.name)) return false;
+			seen.add(opp.name);
+			return true;
+		});
+		
 		if (!searchTerm) {
-			return filterData.opposition.slice(0, 50); // Show all options (limited to 50) when searchTerm is empty
+			return unique.slice(0, 50); // Show all options (limited to 50) when searchTerm is empty
 		}
-		return filterData.opposition
+		return unique
 			.filter(opp => opp.name.toLowerCase().includes(searchTerm))
 			.slice(0, 50); // Limit to 50 results
 	}, [filterData?.opposition, playerFilters?.opposition?.searchTerm]);
+
+	// Filter opposition clubs based on search term (deduplicated by shortTeamName)
+	const filteredOppositionClubs = useMemo(() => {
+		if (!filterData?.oppositionClubs) return [];
+		const searchTerm = (playerFilters?.opposition?.searchTerm || "").toLowerCase();
+		
+		// Deduplicate by shortTeamName
+		const seen = new Set<string>();
+		const unique = filterData.oppositionClubs.filter(club => {
+			if (seen.has(club.shortTeamName)) return false;
+			seen.add(club.shortTeamName);
+			return true;
+		});
+		
+		if (!searchTerm) {
+			return unique.slice(0, 50); // Show all options (limited to 50) when searchTerm is empty
+		}
+		return unique
+			.filter(club => club.shortTeamName.toLowerCase().includes(searchTerm))
+			.slice(0, 50); // Limit to 50 results
+	}, [filterData?.oppositionClubs, playerFilters?.opposition?.searchTerm]);
 
 	const handleOppositionSelect = (oppositionName: string) => {
 		if (!playerFilters) return;
 		updatePlayerFilters({
 			opposition: {
-				...(playerFilters.opposition || { allOpposition: true, searchTerm: "" }),
+				...(playerFilters.opposition || { mode: "all", searchTerm: "" }),
 				searchTerm: oppositionName,
 			},
 		});
 		setShowOppositionDropdown(false);
+		setOppositionHighlightedIndex(-1);
+	};
+
+	// Keyboard navigation for opposition dropdown
+	const handleOppositionKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+		if ((playerFilters?.opposition?.mode ?? "all") === "all") return;
+		
+		const currentList = (playerFilters?.opposition?.mode ?? "all") === "club" 
+			? filteredOppositionClubs 
+			: filteredOpposition;
+		const maxIndex = currentList.length - 1;
+		
+		if (maxIndex < 0) return; // No items to navigate
+		
+		if (e.key === "ArrowDown") {
+			e.preventDefault();
+			const newIndex = oppositionHighlightedIndex < 0 ? 0 : (oppositionHighlightedIndex >= maxIndex ? 0 : oppositionHighlightedIndex + 1);
+			setOppositionHighlightedIndex(newIndex);
+			// Scroll into view
+			setTimeout(() => {
+				const dropdown = oppositionDropdownRef.current;
+				if (dropdown) {
+					const buttons = dropdown.querySelectorAll('button');
+					if (buttons[newIndex]) {
+						buttons[newIndex].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+					}
+				}
+			}, 0);
+		} else if (e.key === "ArrowUp") {
+			e.preventDefault();
+			const newIndex = oppositionHighlightedIndex <= 0 ? maxIndex : oppositionHighlightedIndex - 1;
+			setOppositionHighlightedIndex(newIndex);
+			// Scroll into view
+			setTimeout(() => {
+				const dropdown = oppositionDropdownRef.current;
+				if (dropdown) {
+					const buttons = dropdown.querySelectorAll('button');
+					if (buttons[newIndex]) {
+						buttons[newIndex].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+					}
+				}
+			}, 0);
+		} else if (e.key === "Enter") {
+			e.preventDefault();
+			if (oppositionHighlightedIndex >= 0 && oppositionHighlightedIndex < currentList.length) {
+				const selected = (playerFilters?.opposition?.mode ?? "all") === "club"
+					? filteredOppositionClubs[oppositionHighlightedIndex].shortTeamName
+					: filteredOpposition[oppositionHighlightedIndex].name;
+				handleOppositionSelect(selected);
+			}
+		} else if (e.key === "Escape") {
+			e.preventDefault();
+			setShowOppositionDropdown(false);
+			setOppositionHighlightedIndex(-1);
+		}
 	};
 
 	const handleCompetitionSearch = (searchTerm: string) => {
 		if (!playerFilters) return;
+		const currentMode = playerFilters.competition?.mode ?? "types";
+		if (currentMode !== "individual") return; // Only allow searching when in individual mode
+		
 		updatePlayerFilters({
 			competition: {
-				...(playerFilters.competition || { types: ["League", "Cup", "Friendly"], searchTerm: "" }),
+				...(playerFilters.competition || { mode: "types", types: ["League", "Cup", "Friendly"], searchTerm: "" }),
 				searchTerm,
 			},
 		});
 		setShowCompetitionDropdown(true);
+		setCompetitionHighlightedIndex(-1); // Reset highlight when search changes
 	};
 
-	// Filter competitions based on search term
+	// Filter competitions based on search term (deduplicated by name)
 	const filteredCompetitions = useMemo(() => {
 		if (!filterData?.competitions) return [];
 		const searchTerm = (playerFilters?.competition?.searchTerm || "").toLowerCase();
+		
+		// Deduplicate by name (same competition name can appear with different types)
+		const seen = new Set<string>();
+		const unique = filterData.competitions.filter(comp => {
+			if (seen.has(comp.name)) return false;
+			seen.add(comp.name);
+			return true;
+		});
+		
 		if (!searchTerm) {
-			return filterData.competitions.slice(0, 50); // Show all options (limited to 50) when searchTerm is empty
+			return unique.slice(0, 50); // Show all options (limited to 50) when searchTerm is empty
 		}
-		return filterData.competitions
+		return unique
 			.filter(comp => comp.name.toLowerCase().includes(searchTerm))
 			.slice(0, 50); // Limit to 50 results
 	}, [filterData?.competitions, playerFilters?.competition?.searchTerm]);
@@ -555,21 +675,73 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 		if (!playerFilters) return;
 		updatePlayerFilters({
 			competition: {
-				...(playerFilters.competition || { types: ["League", "Cup", "Friendly"], searchTerm: "" }),
+				...(playerFilters.competition || { mode: "types", types: ["League", "Cup", "Friendly"], searchTerm: "" }),
 				searchTerm: competitionName,
 			},
 		});
 		setShowCompetitionDropdown(false);
+		setCompetitionHighlightedIndex(-1);
+	};
+
+	// Keyboard navigation for competition dropdown
+	const handleCompetitionKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+		if ((playerFilters?.competition?.mode ?? "types") === "types") return;
+		
+		const maxIndex = filteredCompetitions.length - 1;
+		
+		if (maxIndex < 0) return; // No items to navigate
+		
+		if (e.key === "ArrowDown") {
+			e.preventDefault();
+			const newIndex = competitionHighlightedIndex < 0 ? 0 : (competitionHighlightedIndex >= maxIndex ? 0 : competitionHighlightedIndex + 1);
+			setCompetitionHighlightedIndex(newIndex);
+			// Scroll into view
+			setTimeout(() => {
+				const dropdown = competitionDropdownRef.current;
+				if (dropdown) {
+					const buttons = dropdown.querySelectorAll('button');
+					if (buttons[newIndex]) {
+						buttons[newIndex].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+					}
+				}
+			}, 0);
+		} else if (e.key === "ArrowUp") {
+			e.preventDefault();
+			const newIndex = competitionHighlightedIndex <= 0 ? maxIndex : competitionHighlightedIndex - 1;
+			setCompetitionHighlightedIndex(newIndex);
+			// Scroll into view
+			setTimeout(() => {
+				const dropdown = competitionDropdownRef.current;
+				if (dropdown) {
+					const buttons = dropdown.querySelectorAll('button');
+					if (buttons[newIndex]) {
+						buttons[newIndex].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+					}
+				}
+			}, 0);
+		} else if (e.key === "Enter") {
+			e.preventDefault();
+			if (competitionHighlightedIndex >= 0 && competitionHighlightedIndex < filteredCompetitions.length) {
+				handleCompetitionSelect(filteredCompetitions[competitionHighlightedIndex].name);
+			}
+		} else if (e.key === "Escape") {
+			e.preventDefault();
+			setShowCompetitionDropdown(false);
+			setCompetitionHighlightedIndex(-1);
+		}
 	};
 
 	const handleCompetitionTypeToggle = (type: "League" | "Cup" | "Friendly") => {
 		if (!playerFilters) return;
+		const currentMode = playerFilters.competition?.mode ?? "types";
+		if (currentMode !== "types") return; // Only allow toggling when in types mode
+		
 		const currentTypes = playerFilters.competition?.types || [];
 		const newTypes = currentTypes.includes(type) ? currentTypes.filter((t) => t !== type) : [...currentTypes, type];
 
 		updatePlayerFilters({
 			competition: {
-				...(playerFilters.competition || { types: ["League", "Cup", "Friendly"], searchTerm: "" }),
+				...(playerFilters.competition || { mode: "types", types: ["League", "Cup", "Friendly"], searchTerm: "" }),
 				types: newTypes,
 			},
 		});
@@ -783,11 +955,12 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 	};
 
 	const handleClearAllConfirm = async () => {
-		// Reset filters: Set Time range to "All Time" and select all Teams
+		// Reset filters: Set all filters to defaults
 		if (!playerFilters || !filterData) return;
 		
 		const allTeams = filterData.teams.map(team => team.name);
 		userClearedRef.current.teams = false;
+		userClearedRef.current.position = false;
 		
 		updatePlayerFilters({
 			timeRange: {
@@ -799,6 +972,18 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 				endDate: "",
 			},
 			teams: allTeams,
+			location: ["Home", "Away"],
+			opposition: {
+				mode: "all",
+				searchTerm: "",
+			},
+			competition: {
+				mode: "types",
+				types: ["League", "Cup", "Friendly"],
+				searchTerm: "",
+			},
+			result: ["Win", "Draw", "Loss"],
+			position: ["GK", "DEF", "MID", "FWD"],
 		});
 		
 		await applyPlayerFilters();
@@ -832,8 +1017,9 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 			(timeRange?.endDate || "") !== "" ||
 			(teams?.length || 0) > 0 ||
 			(location?.length || 2) < 2 ||
-			!opposition?.allOpposition ||
+			(opposition?.mode ?? "all") !== "all" ||
 			(opposition?.searchTerm || "") !== "" ||
+			(competition?.mode ?? "types") !== "types" ||
 			(competition?.types?.length || 3) !== 3 ||
 			(competition?.searchTerm || "") !== "" ||
 			(result?.length || 3) < 3 ||
@@ -869,7 +1055,7 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 
 		// Compare opposition
 		if (
-			(playerFilters.opposition?.allOpposition ?? true) !== (initialFilterSnapshot.opposition?.allOpposition ?? true) ||
+			(playerFilters.opposition?.mode ?? "all") !== (initialFilterSnapshot.opposition?.mode ?? "all") ||
 			(playerFilters.opposition?.searchTerm || "") !== (initialFilterSnapshot.opposition?.searchTerm || "")
 		) {
 			return true;
@@ -877,6 +1063,7 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 
 		// Compare competition
 		if (
+			(playerFilters.competition?.mode ?? "types") !== (initialFilterSnapshot.competition?.mode ?? "types") ||
 			JSON.stringify((playerFilters.competition?.types || []).sort()) !== JSON.stringify((initialFilterSnapshot.competition?.types || []).sort()) ||
 			(playerFilters.competition?.searchTerm || "") !== (initialFilterSnapshot.competition?.searchTerm || "")
 		) {
@@ -1330,13 +1517,15 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 										<div className='px-4 pb-4 space-y-1.5'>
 											<label className='flex items-center min-h-[36px]'>
 												<input
-													type='checkbox'
-													checked={playerFilters?.opposition?.allOpposition ?? true}
-													onChange={(e) =>
+													type='radio'
+													name='oppositionMode'
+													checked={(playerFilters?.opposition?.mode ?? "all") === "all"}
+													onChange={() =>
 														updatePlayerFilters({
 															opposition: { 
-																...(playerFilters?.opposition || { allOpposition: true, searchTerm: "" }), 
-																allOpposition: e.target.checked 
+																...(playerFilters?.opposition || { mode: "all", searchTerm: "" }), 
+																mode: "all",
+																searchTerm: ""
 															},
 														})
 													}
@@ -1345,35 +1534,111 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 												<span className='text-base md:text-sm text-[var(--color-text-primary)]/80'>All Opposition</span>
 											</label>
 
+											<label className='flex items-center min-h-[36px]'>
+												<input
+													type='radio'
+													name='oppositionMode'
+													checked={(playerFilters?.opposition?.mode ?? "all") === "club"}
+													onChange={() =>
+														updatePlayerFilters({
+															opposition: { 
+																...(playerFilters?.opposition || { mode: "all", searchTerm: "" }), 
+																mode: "club"
+															},
+														})
+													}
+													className='mr-2 accent-dorkinians-yellow w-5 h-5 md:w-4 md:h-4'
+												/>
+												<span className='text-base md:text-sm text-[var(--color-text-primary)]/80'>Individual Club</span>
+											</label>
+
+											<label className='flex items-center min-h-[36px]'>
+												<input
+													type='radio'
+													name='oppositionMode'
+													checked={(playerFilters?.opposition?.mode ?? "all") === "team"}
+													onChange={() =>
+														updatePlayerFilters({
+															opposition: { 
+																...(playerFilters?.opposition || { mode: "all", searchTerm: "" }), 
+																mode: "team"
+															},
+														})
+													}
+													className='mr-2 accent-dorkinians-yellow w-5 h-5 md:w-4 md:h-4'
+												/>
+												<span className='text-base md:text-sm text-[var(--color-text-primary)]/80'>Individual Team</span>
+											</label>
+
 											<div className='relative'>
 												<Input
 													type='text'
 													label='Search Opposition'
-													placeholder='Search opposition teams...'
+													placeholder={(playerFilters?.opposition?.mode ?? "all") === "club" ? 'Search clubs...' : 'Search opposition teams...'}
 													value={playerFilters?.opposition?.searchTerm || ""}
 													onChange={(e) => handleOppositionSearch(e.target.value)}
-													onFocus={() => setShowOppositionDropdown(true)}
-													onBlur={() => setTimeout(() => setShowOppositionDropdown(false), 200)}
+													onKeyDown={handleOppositionKeyDown}
+													onFocus={() => {
+														setShowOppositionDropdown(true);
+														setOppositionHighlightedIndex(-1);
+													}}
+													onBlur={() => {
+														setTimeout(() => {
+															setShowOppositionDropdown(false);
+															setOppositionHighlightedIndex(-1);
+														}, 200);
+													}}
+													disabled={(playerFilters?.opposition?.mode ?? "all") === "all"}
+													aria-disabled={(playerFilters?.opposition?.mode ?? "all") === "all"}
 													size="md"
 													className='w-full'
 												/>
-												{showOppositionDropdown && (
-													<div className='absolute z-50 w-full mt-1 bg-[var(--color-surface)] backdrop-blur-sm border border-[var(--color-border)] rounded-md max-h-48 overflow-y-auto'>
-														{filteredOpposition.length > 0 ? (
-															filteredOpposition.map((opp) => (
-																<button
-																	key={opp.name}
-																	type='button'
-																	onClick={() => handleOppositionSelect(opp.name)}
-																	className='w-full text-left px-3 py-2 text-base md:text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'
-																>
-																	{opp.name}
-																</button>
-															))
+												{showOppositionDropdown && (playerFilters?.opposition?.mode ?? "all") !== "all" && (
+													<div ref={oppositionDropdownRef} className='absolute z-50 w-full mt-1 bg-[var(--color-surface)] backdrop-blur-sm border border-[var(--color-border)] rounded-md max-h-48 overflow-y-auto'>
+														{(playerFilters?.opposition?.mode ?? "all") === "club" ? (
+															filteredOppositionClubs.length > 0 ? (
+																filteredOppositionClubs.map((club, index) => (
+																	<button
+																		key={club.shortTeamName}
+																		type='button'
+																		onClick={() => handleOppositionSelect(club.shortTeamName)}
+																		onMouseEnter={() => setOppositionHighlightedIndex(index)}
+																		className={`w-full text-left px-3 py-2 text-base md:text-sm text-[var(--color-text-primary)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${
+																			index === oppositionHighlightedIndex 
+																				? 'bg-[var(--color-surface-elevated)]' 
+																				: 'hover:bg-[var(--color-surface-elevated)]'
+																		}`}
+																	>
+																		{club.shortTeamName}
+																	</button>
+																))
+															) : (
+																<div className='px-3 py-2 text-base md:text-sm text-[var(--color-text-primary)]/60 text-center'>
+																	No results found
+																</div>
+															)
 														) : (
-															<div className='px-3 py-2 text-base md:text-sm text-[var(--color-text-primary)]/60 text-center'>
-																No results found
-															</div>
+															filteredOpposition.length > 0 ? (
+																filteredOpposition.map((opp, index) => (
+																	<button
+																		key={opp.name}
+																		type='button'
+																		onClick={() => handleOppositionSelect(opp.name)}
+																		onMouseEnter={() => setOppositionHighlightedIndex(index)}
+																		className={`w-full text-left px-3 py-2 text-base md:text-sm text-[var(--color-text-primary)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${
+																			index === oppositionHighlightedIndex 
+																				? 'bg-[var(--color-surface-elevated)]' 
+																				: 'hover:bg-[var(--color-surface-elevated)]'
+																		}`}
+																	>
+																		{opp.name}
+																	</button>
+																))
+															) : (
+																<div className='px-3 py-2 text-base md:text-sm text-[var(--color-text-primary)]/60 text-center'>
+																	No results found
+																</div>
+															)
 														)}
 													</div>
 												)}
@@ -1413,12 +1678,36 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 																type='checkbox'
 																checked={(playerFilters?.competition?.types || []).includes(type as any)}
 																onChange={() => handleCompetitionTypeToggle(type as any)}
-																className='mr-2 accent-dorkinians-yellow w-5 h-5 md:w-4 md:h-4 focus:outline-none focus:ring-2 focus:ring-[var(--color-field-focus)] focus:ring-offset-2 focus:ring-offset-transparent'
+																disabled={(playerFilters?.competition?.mode ?? "types") === "individual"}
+																aria-disabled={(playerFilters?.competition?.mode ?? "types") === "individual"}
+																className='mr-2 accent-dorkinians-yellow w-5 h-5 md:w-4 md:h-4 focus:outline-none focus:ring-2 focus:ring-[var(--color-field-focus)] focus:ring-offset-2 focus:ring-offset-transparent disabled:opacity-50 disabled:cursor-not-allowed'
 															/>
 															<span className='text-base md:text-sm text-[var(--color-text-primary)]/80'>{type}</span>
 														</label>
 													))}
 												</div>
+											</div>
+
+											<div>
+												<label className='block text-base md:text-sm font-medium text-[var(--color-text-primary)]/90 mb-0.5 mt-2'>Competition Name</label>
+												<label className='flex items-center min-h-[36px]'>
+													<input
+														type='checkbox'
+														checked={(playerFilters?.competition?.mode ?? "types") === "individual"}
+														onChange={(e) => {
+															const newMode = e.target.checked ? "individual" : "types";
+															updatePlayerFilters({
+																competition: {
+																	...(playerFilters?.competition || { mode: "types", types: ["League", "Cup", "Friendly"], searchTerm: "" }),
+																	mode: newMode,
+																	searchTerm: newMode === "types" ? "" : (playerFilters?.competition?.searchTerm || ""),
+																},
+															});
+														}}
+														className='mr-2 accent-dorkinians-yellow w-5 h-5 md:w-4 md:h-4'
+													/>
+													<span className='text-base md:text-sm text-[var(--color-text-primary)]/80'>Individual Competition</span>
+												</label>
 											</div>
 
 											<div className='relative'>
@@ -1428,20 +1717,36 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 													placeholder='Search competitions...'
 													value={playerFilters?.competition?.searchTerm || ""}
 													onChange={(e) => handleCompetitionSearch(e.target.value)}
-													onFocus={() => setShowCompetitionDropdown(true)}
-													onBlur={() => setTimeout(() => setShowCompetitionDropdown(false), 200)}
+													onKeyDown={handleCompetitionKeyDown}
+													onFocus={() => {
+														setShowCompetitionDropdown(true);
+														setCompetitionHighlightedIndex(-1);
+													}}
+													onBlur={() => {
+														setTimeout(() => {
+															setShowCompetitionDropdown(false);
+															setCompetitionHighlightedIndex(-1);
+														}, 200);
+													}}
+													disabled={(playerFilters?.competition?.mode ?? "types") === "types"}
+													aria-disabled={(playerFilters?.competition?.mode ?? "types") === "types"}
 													size="md"
 													className='w-full'
 												/>
-												{showCompetitionDropdown && (
-													<div className='absolute z-50 w-full mt-1 bg-[var(--color-surface)] backdrop-blur-sm border border-[var(--color-border)] rounded-md max-h-48 overflow-y-auto'>
+												{showCompetitionDropdown && (playerFilters?.competition?.mode ?? "types") === "individual" && (
+													<div ref={competitionDropdownRef} className='absolute z-50 w-full mt-1 bg-[var(--color-surface)] backdrop-blur-sm border border-[var(--color-border)] rounded-md max-h-48 overflow-y-auto'>
 														{filteredCompetitions.length > 0 ? (
 															filteredCompetitions.map((comp, index) => (
 																<button
 																	key={`${comp.name}-${comp.type}-${index}`}
 																	type='button'
 																	onClick={() => handleCompetitionSelect(comp.name)}
-																	className='w-full text-left px-3 py-2 text-base md:text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'
+																	onMouseEnter={() => setCompetitionHighlightedIndex(index)}
+																	className={`w-full text-left px-3 py-2 text-base md:text-sm text-[var(--color-text-primary)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${
+																		index === competitionHighlightedIndex 
+																			? 'bg-[var(--color-surface-elevated)]' 
+																			: 'hover:bg-[var(--color-surface-elevated)]'
+																	}`}
 																>
 																	{comp.name}
 																</button>
