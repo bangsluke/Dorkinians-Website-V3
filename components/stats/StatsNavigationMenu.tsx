@@ -135,141 +135,161 @@ export default function StatsNavigationMenu({ isOpen, onClose }: StatsNavigation
 		}
 		
 		setDataTableMode(false);
-		const pageChanged = currentStatsSubPage !== pageId;
 		setStatsSubPage(pageId);
 		onClose();
 		
-		// Scroll to section if provided
+		// Scroll to section if provided - the scrollToSection function will handle waiting
 		if (sectionId) {
-			// Wait longer if page changed to allow for transition
-			const delay = pageChanged ? 600 : 100;
-			
-			setTimeout(() => {
-				scrollToSection(sectionId);
-			}, delay);
+			scrollToSection(sectionId);
 		}
 	};
 
-	const scrollToSection = (sectionId: string) => {
-		const element = document.getElementById(sectionId);
-		if (!element) {
-			// Retry after a short delay if element not found yet (max 3 retries)
-			const retryCount = (scrollToSection as any).retryCount || 0;
-			if (retryCount < 3) {
-				(scrollToSection as any).retryCount = retryCount + 1;
-				setTimeout(() => {
-					scrollToSection(sectionId);
-				}, 200);
-			} else {
-				(scrollToSection as any).retryCount = 0;
-			}
-			return;
-		}
-		
-		// Reset retry count on success
-		(scrollToSection as any).retryCount = 0;
-
-		// Find the scrollable container that contains the element
-		const findScrollableContainer = (el: HTMLElement): HTMLElement | null => {
-			let current: HTMLElement | null = el;
-			while (current && current !== document.body) {
-				const style = window.getComputedStyle(current);
-				const overflowY = style.overflowY;
-				const overflowX = style.overflowX;
+	// Helper function to wait for element to appear in DOM with exponential backoff
+	const waitForElement = (sectionId: string, timeout: number = 10000): Promise<HTMLElement> => {
+		return new Promise((resolve, reject) => {
+			const startTime = Date.now();
+			let attempt = 0;
+			const delays = [100, 150, 200, 300, 500]; // Exponential backoff delays
+			
+			const checkElement = () => {
+				const element = document.getElementById(sectionId);
 				
-				// Check if this element is scrollable
-				if ((overflowY === 'auto' || overflowY === 'scroll') && 
-					current.scrollHeight > current.clientHeight) {
-					return current;
+				if (element) {
+					resolve(element);
+					return;
 				}
 				
-				current = current.parentElement;
-			}
-			return null;
-		};
-
-		const scrollableContainer = findScrollableContainer(element) as HTMLElement | null;
-
-		// iOS detection for smooth scroll compatibility
-		const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
-			(navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-
-		// Calculate offset for fixed headers and navigation
-		const offset = 10;
-
-		if (scrollableContainer) {
-			// Scroll within the container
-			const containerRect = scrollableContainer.getBoundingClientRect();
-			const elementRect = element.getBoundingClientRect();
-			
-			// Calculate position relative to container
-			const scrollTop = scrollableContainer.scrollTop;
-			const elementTop = elementRect.top - containerRect.top + scrollTop;
-			const targetPosition = Math.max(0, elementTop - offset);
-
-			if (isIOS) {
-				// Manual smooth scroll for iOS
-				const start = scrollableContainer.scrollTop;
-				const distance = targetPosition - start;
-				const duration = 600;
-				let startTime: number | null = null;
+				// Check if timeout exceeded
+				if (Date.now() - startTime >= timeout) {
+					reject(new Error(`Element with id "${sectionId}" not found within ${timeout}ms`));
+					return;
+				}
 				
-				const animateScroll = (currentTime: number) => {
-					if (startTime === null) startTime = currentTime;
-					const timeElapsed = currentTime - startTime;
-					const progress = Math.min(timeElapsed / duration, 1);
-					// Easing function (ease-in-out)
-					const ease = progress < 0.5 
-						? 2 * progress * progress 
-						: 1 - Math.pow(-2 * progress + 2, 2) / 2;
-					
-					scrollableContainer.scrollTop = start + distance * ease;
-					
-					if (timeElapsed < duration) {
-						requestAnimationFrame(animateScroll);
-					}
-				};
-				requestAnimationFrame(animateScroll);
-			} else {
-				// Use native smooth scroll for non-iOS
-				scrollableContainer.scrollTo({
-					top: targetPosition,
-					behavior: 'smooth'
-				});
-			}
-		} else {
-			// Fallback to window scroll if no container found
-			const elementPosition = element.getBoundingClientRect().top + window.scrollY;
-			const offsetPosition = Math.max(0, elementPosition - offset);
-			
-			if (isIOS) {
-				// Manual smooth scroll for iOS window
-				const start = window.scrollY;
-				const distance = offsetPosition - start;
-				const duration = 600;
-				let startTime: number | null = null;
+				// Calculate next delay (use max delay after exhausting delays array)
+				const delay = delays[Math.min(attempt, delays.length - 1)];
+				attempt++;
 				
-				const animateScroll = (currentTime: number) => {
-					if (startTime === null) startTime = currentTime;
-					const timeElapsed = currentTime - startTime;
-					const progress = Math.min(timeElapsed / duration, 1);
-					const ease = progress < 0.5 
-						? 2 * progress * progress 
-						: 1 - Math.pow(-2 * progress + 2, 2) / 2;
+				// Schedule next check
+				setTimeout(() => {
+					requestAnimationFrame(checkElement);
+				}, delay);
+			};
+			
+			// Start checking
+			requestAnimationFrame(checkElement);
+		});
+	};
+
+	const scrollToSection = async (sectionId: string) => {
+		try {
+			// Wait for element to appear in DOM
+			const element = await waitForElement(sectionId);
+
+			// Find the scrollable container that contains the element
+			const findScrollableContainer = (el: HTMLElement): HTMLElement | null => {
+				let current: HTMLElement | null = el;
+				while (current && current !== document.body) {
+					const style = window.getComputedStyle(current);
+					const overflowY = style.overflowY;
+					const overflowX = style.overflowX;
 					
-					window.scrollTo(0, start + distance * ease);
-					
-					if (timeElapsed < duration) {
-						requestAnimationFrame(animateScroll);
+					// Check if this element is scrollable
+					if ((overflowY === 'auto' || overflowY === 'scroll') && 
+						current.scrollHeight > current.clientHeight) {
+						return current;
 					}
-				};
-				requestAnimationFrame(animateScroll);
+					
+					current = current.parentElement;
+				}
+				return null;
+			};
+
+			const scrollableContainer = findScrollableContainer(element) as HTMLElement | null;
+
+			// iOS detection for smooth scroll compatibility
+			const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+				(navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+			// Calculate offset for fixed headers and navigation
+			const offset = 10;
+
+			if (scrollableContainer) {
+				// Scroll within the container
+				const containerRect = scrollableContainer.getBoundingClientRect();
+				const elementRect = element.getBoundingClientRect();
+				
+				// Calculate position relative to container
+				const scrollTop = scrollableContainer.scrollTop;
+				const elementTop = elementRect.top - containerRect.top + scrollTop;
+				const targetPosition = Math.max(0, elementTop - offset);
+
+				if (isIOS) {
+					// Manual smooth scroll for iOS
+					const start = scrollableContainer.scrollTop;
+					const distance = targetPosition - start;
+					const duration = 600;
+					let startTime: number | null = null;
+					
+					const animateScroll = (currentTime: number) => {
+						if (startTime === null) startTime = currentTime;
+						const timeElapsed = currentTime - startTime;
+						const progress = Math.min(timeElapsed / duration, 1);
+						// Easing function (ease-in-out)
+						const ease = progress < 0.5 
+							? 2 * progress * progress 
+							: 1 - Math.pow(-2 * progress + 2, 2) / 2;
+						
+						scrollableContainer.scrollTop = start + distance * ease;
+						
+						if (timeElapsed < duration) {
+							requestAnimationFrame(animateScroll);
+						}
+					};
+					requestAnimationFrame(animateScroll);
+				} else {
+					// Use native smooth scroll for non-iOS
+					scrollableContainer.scrollTo({
+						top: targetPosition,
+						behavior: 'smooth'
+					});
+				}
 			} else {
-				window.scrollTo({
-					top: offsetPosition,
-					behavior: 'smooth'
-				});
+				// Fallback to window scroll if no container found
+				const elementPosition = element.getBoundingClientRect().top + window.scrollY;
+				const offsetPosition = Math.max(0, elementPosition - offset);
+				
+				if (isIOS) {
+					// Manual smooth scroll for iOS window
+					const start = window.scrollY;
+					const distance = offsetPosition - start;
+					const duration = 600;
+					let startTime: number | null = null;
+					
+					const animateScroll = (currentTime: number) => {
+						if (startTime === null) startTime = currentTime;
+						const timeElapsed = currentTime - startTime;
+						const progress = Math.min(timeElapsed / duration, 1);
+						const ease = progress < 0.5 
+							? 2 * progress * progress 
+							: 1 - Math.pow(-2 * progress + 2, 2) / 2;
+						
+						window.scrollTo(0, start + distance * ease);
+						
+						if (timeElapsed < duration) {
+							requestAnimationFrame(animateScroll);
+						}
+					};
+					requestAnimationFrame(animateScroll);
+				} else {
+					window.scrollTo({
+						top: offsetPosition,
+						behavior: 'smooth'
+					});
+				}
 			}
+		} catch (error) {
+			// Element not found - log warning but don't crash
+			console.warn(`[StatsNavigationMenu] Could not scroll to section "${sectionId}":`, error);
 		}
 	};
 
