@@ -23,11 +23,11 @@ class SimpleEmailService {
 		if (emailConfig.host && emailConfig.auth.user && emailConfig.auth.pass && emailConfig.from && emailConfig.to) {
 			try {
 				const nodemailer = require("nodemailer");
-				const createTransporter = nodemailer.default?.createTransporter ?? nodemailer.createTransporter;
-				if (typeof createTransporter !== "function") {
-					console.warn("⚠️ nodemailer.createTransporter not available:", typeof nodemailer, typeof nodemailer?.default);
+				const createTransport = nodemailer.default?.createTransport ?? nodemailer.createTransport;
+				if (typeof createTransport !== "function") {
+					console.warn("⚠️ nodemailer.createTransport not available:", typeof nodemailer, typeof nodemailer?.default);
 				} else {
-					this.transporter = createTransporter({
+					this.transporter = createTransport({
 						host: emailConfig.host,
 						port: emailConfig.port,
 						secure: emailConfig.secure,
