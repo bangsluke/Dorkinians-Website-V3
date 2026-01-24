@@ -60,6 +60,7 @@
   - [Response Generation](#response-generation)
 - [Quick Start](#quick-start)
   - [Development Start](#development-start)
+  - [Development Logging Modes](#development-logging-modes)
   - [Production Start](#production-start)
   - [Database Seeding](#database-seeding)
   - [Database Verification](#database-verification)
@@ -606,9 +607,6 @@ PROD_NEO4J_URI=neo4j+s://your-aura-instance.databases.neo4j.io
 PROD_NEO4J_USER=neo4j
 PROD_NEO4J_PASSWORD=your-aura-password
 
-# CORS Configuration (optional - defaults to production URL)
-ALLOWED_ORIGIN=https://your-website-url.com
-
 # Heroku Database
 HEROKU_SEEDER_URL=https://your-heroku-app.herokuapp.com/
 
@@ -641,9 +639,6 @@ AUTH_SECRET=your-random-generated-secret
 AUTH_GOOGLE_ID=your-client-id
 AUTH_GOOGLE_SECRET=your-client-secret
 AUTH_URL=https://your-website-url.com
-
-# CORS Configuration (optional - defaults to production URL)
-ALLOWED_ORIGIN=https://your-website-url.com
 ```
 
 **Environment Variable Validation:**
