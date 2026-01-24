@@ -23,18 +23,23 @@ class SimpleEmailService {
 		if (emailConfig.host && emailConfig.auth.user && emailConfig.auth.pass && emailConfig.from && emailConfig.to) {
 			try {
 				const nodemailer = require("nodemailer");
-				this.transporter = nodemailer.createTransporter({
-					host: emailConfig.host,
-					port: emailConfig.port,
-					secure: emailConfig.secure,
-					auth: emailConfig.auth,
-					tls: {
-						rejectUnauthorized: false,
-						checkServerIdentity: () => undefined,
-					},
-				});
-				this.config = emailConfig;
-				console.log("📧 Email service configured successfully");
+				const createTransporter = nodemailer.default?.createTransporter ?? nodemailer.createTransporter;
+				if (typeof createTransporter !== "function") {
+					console.warn("⚠️ nodemailer.createTransporter not available:", typeof nodemailer, typeof nodemailer?.default);
+				} else {
+					this.transporter = createTransporter({
+						host: emailConfig.host,
+						port: emailConfig.port,
+						secure: emailConfig.secure,
+						auth: emailConfig.auth,
+						tls: {
+							rejectUnauthorized: false,
+							checkServerIdentity: () => undefined,
+						},
+					});
+					this.config = emailConfig;
+					console.log("📧 Email service configured successfully");
+				}
 			} catch (error) {
 				console.warn("⚠️ Failed to configure email service:", error.message);
 			}
@@ -591,13 +596,13 @@ exports.handler = async (event, context) => {
 					const responseBody = await response.text();
 					console.log("✅ HEROKU: Heroku seeding service started successfully");
 					console.log("✅ HEROKU: Response body:", responseBody);
-					return true;
+					return { ok: true };
 				} else {
 					const responseBody = await response.text();
 					console.warn("⚠️ HEROKU: Heroku seeding service may have failed to start");
 					console.warn("⚠️ HEROKU: Response status:", response.status);
 					console.warn("⚠️ HEROKU: Response body:", responseBody);
-					return false;
+					return { ok: false, status: response.status, body: responseBody };
 				}
 			} catch (error) {
 				console.error(`❌ HEROKU: Attempt ${retryCount + 1} failed:`, error.message);
@@ -615,13 +620,26 @@ exports.handler = async (event, context) => {
 		};
 
 		// Call Heroku and wait for response
-		const herokuStarted = await callHeroku();
-		
-		if (!herokuStarted) {
+		const herokuResult = await callHeroku();
+
+		if (!herokuResult.ok) {
+			const r = herokuResult;
+			const status = r.status ?? 0;
+			const body = r.body ?? "";
+			let parsed = null;
+			try { parsed = body ? JSON.parse(body) : null; } catch (_) {}
+			const reason = "Heroku responded with " + status + (body ? ": " + (parsed?.error || body.slice(0, 120)) : "");
+			const herokuBody = (parsed && typeof parsed === "object") ? parsed : (body.length > 500 ? body.slice(0, 500) + "…" : body);
+			const origin = process.env.ALLOWED_ORIGIN || "https://dorkinians-website-v3.netlify.app";
+			const hint = (status === 403 && body && (body.includes("CORS") || body.includes("Origin")))
+				? `Check Heroku: NODE_ENV=production and CORS allows Origin: ${origin}`
+				: (status === 401 || status === 403)
+					? "Check Heroku: SEED_API_KEY (X-API-Key) and CORS/Origin."
+					: "Check Heroku logs and /seed endpoint.";
+
 			console.error("❌ CRITICAL: Heroku seeding service failed to start after all retry attempts");
 			console.error("❌ CRITICAL: This is a critical failure - no job was created on Heroku");
-			
-			// Send critical failure notification immediately
+
 			try {
 				await emailService.sendSeedingSummaryEmail({
 					success: false,
@@ -630,7 +648,7 @@ exports.handler = async (event, context) => {
 					nodesCreated: 0,
 					relationshipsCreated: 0,
 					errorCount: 1,
-					errors: ["CRITICAL: Failed to start Heroku seeding service after all retry attempts"],
+					errors: ["CRITICAL: Failed to start Heroku seeding service after all retry attempts. " + reason],
 					duration: 0,
 					startTime: new Date().toISOString(),
 					endTime: new Date().toISOString()
@@ -639,8 +657,7 @@ exports.handler = async (event, context) => {
 			} catch (emailError) {
 				console.error("❌ CRITICAL: Failed to send critical failure notification:", emailError.message);
 			}
-			
-			// Return error response to user
+
 			return {
 				statusCode: 500,
 				headers: { ...headers, "Content-Type": "application/json" },
@@ -648,6 +665,10 @@ exports.handler = async (event, context) => {
 					success: false,
 					error: "CRITICAL: Failed to start Heroku seeding service after all retry attempts",
 					message: "The seeding service could not be started. This is a critical failure.",
+					reason,
+					herokuStatus: status,
+					herokuBody,
+					hint,
 					environment,
 					jobId,
 					timestamp: new Date().toISOString(),
@@ -769,6 +790,8 @@ exports.handler = async (event, context) => {
 			body: JSON.stringify({
 				error: "Failed to start database seeding",
 				message: error.message,
+				reason: "Unhandled error in trigger-seed",
+				errorType: error.name || "Error",
 				timestamp: new Date().toISOString(),
 			}),
 		};
