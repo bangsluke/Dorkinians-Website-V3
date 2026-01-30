@@ -96,7 +96,7 @@ const nextConfig = {
 			exclude: ['error'],
 		} : false,
 	},
-	// Empty turbopack config to allow build with webpack config (Next.js 16+)
+	// Empty turbopack config to acknowledge webpack config exists (Next.js 16 requirement)
 	turbopack: {},
 	webpack: (config, { isServer }) => {
 		// Ignore optional dependencies that don't work in Next.js
