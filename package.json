@@ -1,6 +1,6 @@
 {
 	"name": "dorkinians-website-v3",
-	"version": "3.0.2",
+	"version": "3.0.3",
 	"description": "Dorkinians FC Statistics Website",
 	"private": true,
 	"scripts": {
