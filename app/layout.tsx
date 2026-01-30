@@ -76,12 +76,12 @@ export const viewport = {
 	themeColor: "#F9ED32",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
 	const umamiScriptUrl = process.env.NEXT_PUBLIC_UMAMI_SCRIPT_URL;
 	const umamiWebsiteId = process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID;
 	
-	// Read nonce from request headers set by middleware
-	const headersList = headers();
+	// Read nonce from request headers set by middleware (async in Next.js 15+)
+	const headersList = await headers();
 	const nonce = headersList.get('x-csp-nonce') || '';
 
 	return (
