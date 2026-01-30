@@ -5,15 +5,28 @@ import { chatbotRateLimiter } from "@/lib/middleware/rateLimiter";
 import { sanitizeError } from "@/lib/utils/errorSanitizer";
 import { log, logError, logRequest } from "@/lib/utils/logger";
 
-// CORS headers with security headers
-const corsHeaders = {
-	...getCorsHeadersWithSecurity(),
-	"Access-Control-Allow-Methods": "POST, OPTIONS",
-	"Access-Control-Allow-Headers": "Content-Type",
-};
+// CORS headers with security headers - dynamically set origin based on request
+function getCorsHeaders(requestOrigin?: string | null) {
+	const allowedOrigins = (process.env.ALLOWED_ORIGIN || "https://dorkinians-website-v3.netlify.app")
+		.split(",")
+		.map((s) => s.trim())
+		.filter(Boolean);
+	
+	// Echo back the request origin if it's allowed, otherwise use first allowed origin
+	const corsOrigin = requestOrigin && allowedOrigins.includes(requestOrigin) 
+		? requestOrigin 
+		: allowedOrigins[0];
+	
+	return {
+		...getCorsHeadersWithSecurity(corsOrigin),
+		"Access-Control-Allow-Methods": "POST, OPTIONS",
+		"Access-Control-Allow-Headers": "Content-Type",
+	};
+}
 
-export async function OPTIONS() {
-	return new NextResponse(null, { status: 200, headers: corsHeaders });
+export async function OPTIONS(request: NextRequest) {
+	const origin = request.headers.get("origin");
+	return new NextResponse(null, { status: 200, headers: getCorsHeaders(origin) });
 }
 
 export async function POST(request: NextRequest) {
@@ -42,25 +55,25 @@ export async function POST(request: NextRequest) {
 		if (!origin) {
 			if (referer && !isRefererAllowed(referer) && !isLocalhost(referer)) {
 				log("warn", "Blocked request with no origin from invalid referer", { referer, allowedOrigins });
-				return NextResponse.json({ error: "Invalid origin" }, { status: 403, headers: corsHeaders });
+				return NextResponse.json({ error: "Invalid origin" }, { status: 403, headers: getCorsHeaders(origin) });
 			}
 			if (!referer || isRefererAllowed(referer) || isLocalhost(referer)) {
 				// Same-origin or localhost, allow
 			} else {
 				log("warn", "Blocked request with no origin/referer in production", { origin, referer });
-				return NextResponse.json({ error: "Origin required" }, { status: 403, headers: corsHeaders });
+				return NextResponse.json({ error: "Origin required" }, { status: 403, headers: getCorsHeaders(origin) });
 			}
 		} else {
 			if (!isOriginAllowed(origin) && !isLocalhost(origin)) {
 				log("warn", "Blocked request from invalid origin", { origin, allowedOrigins });
-				return NextResponse.json({ error: "Invalid origin" }, { status: 403, headers: corsHeaders });
+				return NextResponse.json({ error: "Invalid origin" }, { status: 403, headers: getCorsHeaders(origin) });
 			}
 		}
 	} else {
 		// Development: Allow localhost and no-origin for testing
 		if (origin && !isOriginAllowed(origin) && !origin.startsWith("http://localhost")) {
 			log("warn", "Blocked request from invalid origin in development", { origin, allowedOrigins });
-			return NextResponse.json({ error: "Invalid origin" }, { status: 403, headers: corsHeaders });
+			return NextResponse.json({ error: "Invalid origin" }, { status: 403, headers: getCorsHeaders(origin) });
 		}
 	}
 
@@ -73,14 +86,14 @@ export async function POST(request: NextRequest) {
 		const { question } = body;
 
 		if (!question || typeof question !== "string") {
-			return NextResponse.json({ error: "Question is required and must be a string" }, { status: 400, headers: corsHeaders });
+			return NextResponse.json({ error: "Question is required and must be a string" }, { status: 400, headers: getCorsHeaders(origin) });
 		}
 
 		// Validate question length
 		if (question.length > MAX_QUESTION_LENGTH) {
 			return NextResponse.json(
 				{ error: `Question too long. Maximum ${MAX_QUESTION_LENGTH} characters allowed.` },
-				{ status: 400, headers: corsHeaders }
+				{ status: 400, headers: getCorsHeaders(origin) }
 			);
 		}
 
@@ -88,7 +101,7 @@ export async function POST(request: NextRequest) {
 		if (body.userContext && typeof body.userContext === "string" && body.userContext.length > MAX_USER_CONTEXT_LENGTH) {
 			return NextResponse.json(
 				{ error: `User context too long. Maximum ${MAX_USER_CONTEXT_LENGTH} characters allowed.` },
-				{ status: 400, headers: corsHeaders }
+				{ status: 400, headers: getCorsHeaders(origin) }
 			);
 		}
 
@@ -124,13 +137,13 @@ export async function POST(request: NextRequest) {
 				},
 			};
 
-			return NextResponse.json(debugResponse, { headers: corsHeaders });
+			return NextResponse.json(debugResponse, { headers: getCorsHeaders(origin) });
 		}
 
 		// Production: return response without debug information
 		// Add Cache-Control header for BFCache compatibility (no-cache for dynamic content)
 		const responseHeaders = {
-			...corsHeaders,
+			...getCorsHeaders(origin),
 			"Cache-Control": "no-cache, no-store, must-revalidate",
 		};
 		return NextResponse.json(response, { headers: responseHeaders });
@@ -149,7 +162,7 @@ export async function POST(request: NextRequest) {
 		};
 
 		const errorHeaders = {
-			...corsHeaders,
+			...getCorsHeaders(origin),
 			"Cache-Control": "no-cache, no-store, must-revalidate",
 		};
 		return NextResponse.json(errorResponse, { status: 500, headers: errorHeaders });
