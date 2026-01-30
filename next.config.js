@@ -69,10 +69,6 @@ const nextConfig = {
 		// Skip type checking during build (types are checked in CI/local dev)
 		ignoreBuildErrors: true,
 	},
-	eslint: {
-		// Skip ESLint during build (linting is done in CI/local dev)
-		ignoreDuringBuilds: true,
-	},
 	images: {
 		remotePatterns: [
 			{
@@ -100,8 +96,8 @@ const nextConfig = {
 			exclude: ['error'],
 		} : false,
 	},
-	// SWC minification is already default in Next.js 14
-	swcMinify: true,
+	// Empty turbopack config to allow build with webpack config (Next.js 16+)
+	turbopack: {},
 	webpack: (config, { isServer }) => {
 		// Ignore optional dependencies that don't work in Next.js
 		config.plugins.push(
