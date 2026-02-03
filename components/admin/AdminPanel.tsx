@@ -948,7 +948,8 @@ export default function AdminPanel() {
 		if (result?.status === "pending" || result?.status === "running") {
 			return { display: "⏳", label: `${label} (Pending)` };
 		}
-		return { display: value.toString(), label };
+		const display = value != null && typeof value === "object" ? String((value as { toString?: () => string }).toString?.() ?? JSON.stringify(value)) : String(value ?? "—");
+		return { display, label };
 	};
 
 	const triggerChatbotTest = async () => {
@@ -1566,15 +1567,15 @@ export default function AdminPanel() {
 									<p className='text-sm text-blue-600'>
 										{result.status === "pending"
 											? "Initializing seeding process..."
-											: result.currentStep || "Processing data sources from Google Sheets..."}
+											: (result.currentStep != null && typeof result.currentStep === "string" ? result.currentStep : String(result.currentStep ?? "Processing data sources from Google Sheets..."))}
 									</p>
 									
 									{/* Detailed Progress Information */}
 									{result.progressDetails && (
 										<div className='mt-2 space-y-1'>
-											{result.progressDetails.tableName && (
+											{result.progressDetails.tableName != null && String(result.progressDetails.tableName) !== "" && (
 												<p className='text-xs text-blue-700 font-medium'>
-													📊 Table: {result.progressDetails.tableName}
+													📊 Table: {String(result.progressDetails.tableName)}
 													{result.progressDetails.recordsProcessed != null && result.progressDetails.totalRecords != null && (
 														<> - {Number(result.progressDetails.recordsProcessed).toLocaleString()}/{Number(result.progressDetails.totalRecords).toLocaleString()} records ({Math.round((Number(result.progressDetails.recordsProcessed) / Number(result.progressDetails.totalRecords)) * 100)}%)</>
 													)}
@@ -1583,9 +1584,9 @@ export default function AdminPanel() {
 													)}
 												</p>
 											)}
-											{result.progressDetails.relationshipType && (
+											{result.progressDetails.relationshipType != null && String(result.progressDetails.relationshipType) !== "" && (
 												<p className='text-xs text-blue-700 font-medium'>
-													🔗 Relationship: {result.progressDetails.relationshipType}
+													🔗 Relationship: {String(result.progressDetails.relationshipType)}
 													{result.progressDetails.current != null && result.progressDetails.total != null && (
 														<> - {Number(result.progressDetails.current).toLocaleString()}/{Number(result.progressDetails.total).toLocaleString()} ({Math.round((Number(result.progressDetails.current) / Number(result.progressDetails.total)) * 100)}%)</>
 													)}
@@ -1739,7 +1740,7 @@ export default function AdminPanel() {
 											<span className='text-red-600 font-bold text-sm'>#{index + 1}</span>
 											<span className='text-red-800 font-semibold text-sm'>Error:</span>
 										</div>
-										<p className='text-red-700 text-sm ml-6 break-words'>{error}</p>
+										<p className='text-red-700 text-sm ml-6 break-words'>{typeof error === "string" ? error : (error && typeof error === "object" && "message" in error ? String((error as { message?: unknown }).message) : JSON.stringify(error))}</p>
 									</div>
 								))}
 							</div>
@@ -2049,11 +2050,11 @@ export default function AdminPanel() {
 																						? "text-orange-600"
 																						: "text-gray-600"
 																	}`}>
-																	{jobData.status}
+																	{typeof jobData.status === "string" ? jobData.status : String(jobData.status ?? "—")}
 																</span>
 															</p>
-															{jobData.currentStep && <p className='text-sm text-gray-600'>Current Step: {jobData.currentStep}</p>}
-															{jobData.progress !== undefined && <p className='text-sm text-gray-600'>Progress: {jobData.progress}%</p>}
+															{jobData.currentStep != null && String(jobData.currentStep) !== "" && <p className='text-sm text-gray-600'>Current Step: {String(jobData.currentStep)}</p>}
+															{jobData.progress !== undefined && jobData.progress !== null && <p className='text-sm text-gray-600'>Progress: {Number(jobData.progress)}%</p>}
 															{jobData.startTime && <p className='text-sm text-gray-600'>Started: {new Date(jobData.startTime).toLocaleString()}</p>}
 															<div className='flex gap-2 mt-2'>
 																<button
