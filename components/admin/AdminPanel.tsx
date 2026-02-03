@@ -486,11 +486,12 @@ export default function AdminPanel() {
 						timestamp: data.timestamp || new Date().toISOString(),
 					});
 					
-					// Automatic status checking after initial delay
+					// Automatic status checking after initial delay (pass jobId to avoid stale closure)
+					const triggeredJobId = data.jobId;
 					addDebugLog("🔄 Scheduling automatic status check in 15 seconds...", 'info');
 					setTimeout(() => {
 						addDebugLog("🔍 Auto-checking status after seeding trigger...", 'info');
-						checkStatus();
+						checkStatus(triggeredJobId);
 						
 						// Trigger JobMonitoringDashboard refresh
 						addDebugLog("🔄 Triggering JobMonitoringDashboard refresh...", 'info');
@@ -517,8 +518,9 @@ export default function AdminPanel() {
 		}
 	};
 
-	const checkStatus = async () => {
-		if (!jobId) {
+	const checkStatus = async (overrideJobId?: string) => {
+		const jobIdToCheck = overrideJobId ?? jobId;
+		if (!jobIdToCheck) {
 			setError("No job ID available. Please trigger seeding first.");
 			return;
 		}
@@ -537,7 +539,7 @@ export default function AdminPanel() {
 				}
 			}, 10000); // 10 second timeout
 
-			const response = await fetch(buildHerokuUrl(`/status/${jobId}`), {
+			const response = await fetch(buildHerokuUrl(`/status/${jobIdToCheck}`), {
 				method: "GET",
 				headers: {
 					"Content-Type": "application/json",
@@ -550,7 +552,12 @@ export default function AdminPanel() {
 				const statusData = await response.json();
 				console.log("Status check response:", statusData);
 
-				// Update result with current status
+				// Keep state in sync when check was triggered with override (e.g. delayed auto-check after trigger)
+				if (overrideJobId) {
+					setJobId(overrideJobId);
+				}
+
+				// Update result with current status (use jobIdToCheck for callbacks that may need to set jobId)
 				if (statusData.status === "completed" && statusData.result && result) {
 					setResult({
 						success: true,
@@ -579,7 +586,7 @@ export default function AdminPanel() {
 					// Update seeding status service for successful completion
 					if (statusData.result.success) {
 						seedingStatusService.updateSeedingSuccess({
-							jobId: jobId || "unknown",
+							jobId: jobIdToCheck || "unknown",
 							timestamp: new Date().toISOString(),
 							duration: statusData.result.duration || 0,
 							nodesCreated: statusData.result.nodesCreated || 0,
@@ -621,7 +628,7 @@ export default function AdminPanel() {
 
 					// Update seeding status service for failure
 					seedingStatusService.updateSeedingFailure({
-						jobId: jobId || "unknown",
+						jobId: jobIdToCheck || "unknown",
 						timestamp: new Date().toISOString(),
 						duration: 0,
 					});
@@ -629,9 +636,9 @@ export default function AdminPanel() {
 				} else if (statusData.status === "not_found") {
 					// Don't clear result, keep it for debugging
 					const hint = (statusData as { hint?: string }).hint;
-					const baseError = `Job ID not found: ${jobId}${hint ? `. ${hint}` : ". This could mean the job failed early or there's a communication issue."}`;
+					const baseError = `Job ID not found: ${jobIdToCheck}${hint ? `. ${hint}` : ". This could mean the job failed early or there's a communication issue."}`;
 					setError(baseError);
-					setLastStatusCheck(`❌ Job ID not found: ${jobId} at ${new Date().toLocaleString()}`);
+					setLastStatusCheck(`❌ Job ID not found: ${jobIdToCheck} at ${new Date().toLocaleString()}`);
 
 					// Try to get more information about what jobs exist
 					try {
@@ -645,7 +652,7 @@ export default function AdminPanel() {
 							const jobsData = await jobsResponse.json();
 							console.log("Available jobs:", jobsData);
 							const jobCount = Object.keys(jobsData.jobs || {}).length;
-							setError(jobCount === 0 && hint ? baseError : `Job ID not found: ${jobId}. Available jobs: ${jobCount}. ${hint || "Check console for details."}`);
+							setError(jobCount === 0 && hint ? baseError : `Job ID not found: ${jobIdToCheck}. Available jobs: ${jobCount}. ${hint || "Check console for details."}`);
 						}
 					} catch (jobsError) {
 						console.error("Failed to fetch jobs list:", jobsError);
