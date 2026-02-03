@@ -628,7 +628,9 @@ export default function AdminPanel() {
 					setLastCompletedJobDuration(0); // Reset duration for failed jobs
 				} else if (statusData.status === "not_found") {
 					// Don't clear result, keep it for debugging
-					setError(`Job ID not found: ${jobId}. This could mean the job failed early or there's a communication issue.`);
+					const hint = (statusData as { hint?: string }).hint;
+					const baseError = `Job ID not found: ${jobId}${hint ? `. ${hint}` : ". This could mean the job failed early or there's a communication issue."}`;
+					setError(baseError);
 					setLastStatusCheck(`❌ Job ID not found: ${jobId} at ${new Date().toLocaleString()}`);
 
 					// Try to get more information about what jobs exist
@@ -642,8 +644,8 @@ export default function AdminPanel() {
 						if (jobsResponse.ok) {
 							const jobsData = await jobsResponse.json();
 							console.log("Available jobs:", jobsData);
-							// Update error with more context
-							setError(`Job ID not found: ${jobId}. Available jobs: ${Object.keys(jobsData.jobs || {}).length}. Check console for details.`);
+							const jobCount = Object.keys(jobsData.jobs || {}).length;
+							setError(jobCount === 0 && hint ? baseError : `Job ID not found: ${jobId}. Available jobs: ${jobCount}. ${hint || "Check console for details."}`);
 						}
 					} catch (jobsError) {
 						console.error("Failed to fetch jobs list:", jobsError);
