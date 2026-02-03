@@ -474,8 +474,8 @@ export default function AdminPanel() {
 				};
 
 				setResult(transformedResult);
-				// Extract job ID for status checking
-				if (data.jobId) {
+				// Extract job ID for status checking (ensure string to avoid React #31)
+				if (data.jobId != null && typeof data.jobId === "string") {
 					setJobId(data.jobId);
 					// Update seeding status service for start
 					seedingStatusService.updateSeedingStart({
@@ -484,7 +484,7 @@ export default function AdminPanel() {
 					});
 					
 					// Automatic status checking after initial delay (pass jobId to avoid stale closure)
-					const triggeredJobId = data.jobId;
+					const triggeredJobId = typeof data.jobId === "string" ? data.jobId : "";
 					addDebugLog("🔄 Scheduling automatic status check in 15 seconds...", 'info');
 					setTimeout(() => {
 						addDebugLog("🔍 Auto-checking status after seeding trigger...", 'info');
@@ -516,7 +516,9 @@ export default function AdminPanel() {
 	};
 
 	const checkStatus = async (overrideJobId?: string) => {
-		const jobIdToCheck = overrideJobId ?? jobId;
+		// Ignore React synthetic event when button is clicked (onClick passes event as first arg)
+		const safeOverride = typeof overrideJobId === "string" ? overrideJobId : undefined;
+		const jobIdToCheck = safeOverride ?? jobId;
 		if (!jobIdToCheck) {
 			setError("No job ID available. Please trigger seeding first.");
 			return;
@@ -550,8 +552,8 @@ export default function AdminPanel() {
 				console.log("Status check response:", statusData);
 
 				// Keep state in sync when check was triggered with override (e.g. delayed auto-check after trigger)
-				if (overrideJobId) {
-					setJobId(overrideJobId);
+				if (safeOverride) {
+					setJobId(safeOverride);
 				}
 
 				// Update result with current status (use jobIdToCheck for callbacks that may need to set jobId)
@@ -1304,7 +1306,7 @@ export default function AdminPanel() {
 					{isLoading ? "🔄 Triggering..." : "🚀 Trigger Production Seeding"}
 				</button>
 				<button
-					onClick={checkStatus}
+					onClick={() => checkStatus()}
 					disabled={statusCheckLoading || !jobId}
 					className={`w-full sm:w-64 px-6 py-3 rounded-lg text-xs sm:text-sm font-semibold text-white transition-colors ${
 						statusCheckLoading || !jobId ? "bg-gray-400 cursor-not-allowed" : "bg-purple-600 hover:bg-purple-700"
@@ -1488,18 +1490,18 @@ export default function AdminPanel() {
 
 			{/* Status Information */}
 			<div className='mb-6 text-center'>
-				{lastStatusCheck && <p className='text-sm text-gray-600'>{lastStatusCheck}</p>}
-				{jobId && <p className='text-xs text-gray-500 mt-1'>Current Job ID: {jobId}</p>}
+				{lastStatusCheck && typeof lastStatusCheck === "string" && <p className='text-sm text-gray-600'>{lastStatusCheck}</p>}
+				{jobId != null && typeof jobId === "string" && <p className='text-xs text-gray-500 mt-1'>Current Job ID: {jobId}</p>}
 			</div>
 
 			{/* Error Display */}
-			{error && (
+			{error != null && (
 				<div className='mb-6 p-4 bg-red-50 border border-red-200 rounded-lg'>
 					<h3 className='text-lg font-semibold text-red-800 mb-2'>❌ Error</h3>
-					<p className='text-red-700 mb-2'>{error}</p>
+					<p className='text-red-700 mb-2'>{typeof error === "string" ? error : String(error)}</p>
 
 					{/* Additional Context for Job Not Found Errors */}
-					{error.includes("Job ID not found") && (
+					{typeof error === "string" && error.includes("Job ID not found") && (
 						<div className='mt-3 p-3 bg-yellow-100 border border-yellow-300 rounded'>
 							<h4 className='text-sm font-semibold text-yellow-800 mb-2'>🔍 Job Not Found Analysis:</h4>
 							<ul className='text-sm text-yellow-700 space-y-1'>
@@ -1674,8 +1676,8 @@ export default function AdminPanel() {
 						{showDebugInfo && (
 							<div className='grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-gray-700'>
 								<div>
-									<p><strong>Current Job ID:</strong> {jobId || "None"}</p>
-									<p><strong>Last Status Check:</strong> {lastStatusCheck || "Never"}</p>
+									<p><strong>Current Job ID:</strong> {typeof jobId === "string" ? jobId : (jobId != null ? "[invalid]" : "None")}</p>
+									<p><strong>Last Status Check:</strong> {typeof lastStatusCheck === "string" ? lastStatusCheck : "Never"}</p>
 									<p><strong>Elapsed Time:</strong> {elapsedTime > 0 ? formatElapsedTime(elapsedTime) : "0s"}</p>
 								</div>
 								<div>
@@ -2059,10 +2061,9 @@ export default function AdminPanel() {
 															<div className='flex gap-2 mt-2'>
 																<button
 																	onClick={() => {
-																		// Close modal and set up status checking for this job
+																		if (typeof jobId !== "string") return;
 																		setShowJobsModal(false);
 																		setJobId(jobId);
-																		// Trigger status check for this specific job
 																		checkStatusForJob(jobId);
 																	}}
 																	className='px-3 py-1 text-xs bg-blue-500 hover:bg-blue-600 text-white rounded'>
