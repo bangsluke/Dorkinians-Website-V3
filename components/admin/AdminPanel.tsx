@@ -280,19 +280,16 @@ export default function AdminPanel() {
 		};
 	}, []);
 
-	// Format elapsed time
+	// Format elapsed time (handles NaN/undefined so render never throws)
 	const formatElapsedTime = (seconds: number) => {
-		const hours = Math.floor(seconds / 3600);
-		const minutes = Math.floor((seconds % 3600) / 60);
-		const secs = Math.round(seconds % 60);
-
-		if (hours > 0) {
-			return `${hours}h ${minutes}m ${secs}s`;
-		} else if (minutes > 0) {
-			return `${minutes}m ${secs}s`;
-		} else {
-			return `${secs}s`;
-		}
+		const s = Number(seconds);
+		if (Number.isNaN(s) || s < 0) return "0s";
+		const hours = Math.floor(s / 3600);
+		const minutes = Math.floor((s % 3600) / 60);
+		const secs = Math.round(s % 60);
+		if (hours > 0) return `${hours}h ${minutes}m ${secs}s`;
+		if (minutes > 0) return `${minutes}m ${secs}s`;
+		return `${secs}s`;
 	};
 
 	// Calculate elapsed time from job start time
@@ -930,8 +927,8 @@ export default function AdminPanel() {
 
 	const getStatusDisplay = () => {
 		if (!result) return null;
-
-		switch (result.status) {
+		const status = String(result.status ?? "");
+		switch (status) {
 			case "pending":
 				return { text: "Pending", color: "text-yellow-600", bg: "border-yellow-200 bg-yellow-50" };
 			case "running":
@@ -1543,7 +1540,7 @@ export default function AdminPanel() {
 					<div className='grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4'>
 						<div>
 							<p className='text-sm text-gray-800 font-medium'>Environment</p>
-							<p className='font-semibold text-gray-900'>{result.environment.charAt(0).toUpperCase() + result.environment.slice(1)}</p>
+							<p className='font-semibold text-gray-900'>{result.environment && typeof result.environment === "string" ? result.environment.charAt(0).toUpperCase() + result.environment.slice(1) : "Production"}</p>
 						</div>
 						<div>
 							<p className='text-sm text-gray-800 font-medium'>Status</p>
@@ -1551,7 +1548,7 @@ export default function AdminPanel() {
 						</div>
 						<div>
 							<p className='text-sm text-gray-800 font-medium'>Timestamp</p>
-							<p className='font-semibold text-gray-900'>{new Date(result.timestamp).toLocaleString()}</p>
+							<p className='font-semibold text-gray-900'>{result.timestamp ? new Date(result.timestamp).toLocaleString() : "—"}</p>
 						</div>
 						<div>
 							<p className='text-sm text-gray-800 font-medium'>Elapsed Time</p>
@@ -1579,10 +1576,10 @@ export default function AdminPanel() {
 												<p className='text-xs text-blue-700 font-medium'>
 													📊 Table: {result.progressDetails.tableName}
 													{result.progressDetails.recordsProcessed != null && result.progressDetails.totalRecords != null && (
-														<> - {result.progressDetails.recordsProcessed.toLocaleString()}/{result.progressDetails.totalRecords.toLocaleString()} records ({Math.round((result.progressDetails.recordsProcessed / result.progressDetails.totalRecords) * 100)}%)</>
+														<> - {Number(result.progressDetails.recordsProcessed).toLocaleString()}/{Number(result.progressDetails.totalRecords).toLocaleString()} records ({Math.round((Number(result.progressDetails.recordsProcessed) / Number(result.progressDetails.totalRecords)) * 100)}%)</>
 													)}
 													{result.progressDetails.batchNumber != null && result.progressDetails.totalBatches != null && (
-														<> - Batch {result.progressDetails.batchNumber}/{result.progressDetails.totalBatches} ({Math.round((result.progressDetails.batchNumber / result.progressDetails.totalBatches) * 100)}%)</>
+														<> - Batch {Number(result.progressDetails.batchNumber)}/{Number(result.progressDetails.totalBatches)} ({Math.round((Number(result.progressDetails.batchNumber) / Number(result.progressDetails.totalBatches)) * 100)}%)</>
 													)}
 												</p>
 											)}
@@ -1590,31 +1587,31 @@ export default function AdminPanel() {
 												<p className='text-xs text-blue-700 font-medium'>
 													🔗 Relationship: {result.progressDetails.relationshipType}
 													{result.progressDetails.current != null && result.progressDetails.total != null && (
-														<> - {result.progressDetails.current.toLocaleString()}/{result.progressDetails.total.toLocaleString()} ({Math.round((result.progressDetails.current / result.progressDetails.total) * 100)}%)</>
+														<> - {Number(result.progressDetails.current).toLocaleString()}/{Number(result.progressDetails.total).toLocaleString()} ({Math.round((Number(result.progressDetails.current) / Number(result.progressDetails.total)) * 100)}%)</>
 													)}
 												</p>
 											)}
-											{result.progressDetails.estimatedTimeRemaining != null && result.progressDetails.estimatedTimeRemaining > 0 && (
-												<p className='text-xs text-blue-700 font-medium'>
-													⏱️ Estimated time remaining (overall process): {formatElapsedTime(result.progressDetails.estimatedTimeRemaining / 1000)}
-												</p>
-											)}
+									{result.progressDetails.estimatedTimeRemaining != null && Number(result.progressDetails.estimatedTimeRemaining) > 0 && (
+													<p className='text-xs text-blue-700 font-medium'>
+														⏱️ Estimated time remaining (overall process): {formatElapsedTime(Number(result.progressDetails.estimatedTimeRemaining) / 1000)}
+													</p>
+												)}
 										</div>
 									)}
 									
-									{result.progress !== undefined && (
+									{result.progress !== undefined && result.progress !== null && (
 										<div className='mt-2'>
 											<div className='flex justify-between text-xs text-blue-600 mb-1'>
 												<span>Overall Progress</span>
-												<span>{result.progress}%</span>
+												<span>{Number(result.progress)}%</span>
 											</div>
 											<div className='w-full bg-blue-200 rounded-full h-2'>
-												<div className='bg-blue-600 h-2 rounded-full transition-all duration-300' style={{ width: `${result.progress}%` }}></div>
+												<div className='bg-blue-600 h-2 rounded-full transition-all duration-300' style={{ width: `${Math.min(100, Math.max(0, Number(result.progress)))}%` }}></div>
 											</div>
 										</div>
 									)}
 									{/* Live Node Count Display */}
-									{result.progressDetails?.currentNodeCount && result.progressDetails.currentNodeCount > 0 && (
+									{result.progressDetails?.currentNodeCount != null && Number(result.progressDetails.currentNodeCount) > 0 && (
 										<div className='mt-3 p-3 bg-white border border-blue-200 rounded-lg'>
 											<div className='flex items-center justify-between'>
 												<div className='flex items-center gap-2'>
@@ -1623,19 +1620,19 @@ export default function AdminPanel() {
 												</div>
 												<div className='text-right'>
 													<p className='text-2xl font-bold text-green-600'>
-														{result.progressDetails.currentNodeCount.toLocaleString()}
+														{Number(result.progressDetails.currentNodeCount).toLocaleString()}
 													</p>
 													<p className='text-xs text-gray-500'>nodes created</p>
 												</div>
 											</div>
-											{result.progressDetails.currentNodeCount >= 15000 && (
+											{Number(result.progressDetails.currentNodeCount) >= 15000 && (
 												<p className='text-xs text-green-600 mt-1 font-medium'>
-													✅ Target reached! ({result.progressDetails.currentNodeCount.toLocaleString()} ≥ 15,000)
+													✅ Target reached! ({Number(result.progressDetails.currentNodeCount).toLocaleString()} ≥ 15,000)
 												</p>
 											)}
-											{result.progressDetails.currentNodeCount >= 12000 && result.progressDetails.currentNodeCount < 15000 && (
+											{Number(result.progressDetails.currentNodeCount) >= 12000 && Number(result.progressDetails.currentNodeCount) < 15000 && (
 												<p className='text-xs text-yellow-600 mt-1 font-medium'>
-													⚠️ Close to target ({result.progressDetails.currentNodeCount.toLocaleString()}/15,000)
+													⚠️ Close to target ({Number(result.progressDetails.currentNodeCount).toLocaleString()}/15,000)
 												</p>
 											)}
 										</div>
@@ -1647,10 +1644,12 @@ export default function AdminPanel() {
 										{result.timestamp && (
 											<> | Expected end: {(() => {
 												const startTime = new Date(result.timestamp);
+												const startMs = startTime.getTime();
+												if (Number.isNaN(startMs)) return "—";
 												const expectedDurationMinutes = lastCompletedJobDuration !== null ? 
 													Math.floor(lastCompletedJobDuration / 60) : 20;
-												const expectedEndTime = new Date(startTime.getTime() + (expectedDurationMinutes * 60 * 1000));
-												return expectedEndTime.toLocaleTimeString();
+												const expectedEndTime = new Date(startMs + (expectedDurationMinutes * 60 * 1000));
+												return Number.isNaN(expectedEndTime.getTime()) ? "—" : expectedEndTime.toLocaleTimeString();
 											})()}</>
 										)}
 									</p>
