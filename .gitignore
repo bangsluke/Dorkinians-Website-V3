@@ -20,7 +20,7 @@ out/
 dist/
 build/
 .next
-.next\
+.next/
 
 # Production builds
 *.tgz
