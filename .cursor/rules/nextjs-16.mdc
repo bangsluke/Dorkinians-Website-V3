@@ -1,0 +1,178 @@
+---
+description: Next.js 16 App Router patterns and best practices
+globs: ["app/**/*", "**/*.tsx"]
+alwaysApply: false
+---
+
+# Next.js 16 App Router
+
+## Server Components (Default)
+
+Components in `app/` are Server Components by default. They:
+- Run only on the server
+- Can directly access databases, file systems, environment variables
+- Cannot use hooks, browser APIs, or event handlers
+- Should handle data fetching directly
+
+```tsx
+// app/page.tsx - Server Component (default)
+export default async function Page() {
+  const data = await fetchData(); // Direct async/await
+  return <div>{data.title}</div>;
+}
+```
+
+## Client Components
+
+Add `"use client"` directive for interactive components:
+
+```tsx
+"use client";
+
+import { useState } from "react";
+
+export function Counter() {
+  const [count, setCount] = useState(0);
+  return <button onClick={() => setCount(count + 1)}>{count}</button>;
+}
+```
+
+**Use Client Components when you need:**
+- React hooks (`useState`, `useEffect`, `useContext`)
+- Event handlers (`onClick`, `onChange`)
+- Browser APIs (`window`, `document`, `localStorage`)
+- Third-party libraries that use these features
+
+## Route Handlers (API Routes)
+
+API routes use `route.ts` files with HTTP method exports:
+
+```tsx
+// app/api/players/route.ts
+import { NextRequest, NextResponse } from "next/server";
+
+export async function GET(request: NextRequest): Promise<NextResponse> {
+  const searchParams = request.nextUrl.searchParams;
+  const id = searchParams.get("id");
+  
+  // Fetch data...
+  return NextResponse.json({ data });
+}
+
+export async function POST(request: NextRequest): Promise<NextResponse> {
+  const body = await request.json();
+  // Process data...
+  return NextResponse.json({ success: true });
+}
+```
+
+## Layouts and Templates
+
+```tsx
+// app/layout.tsx - Root layout (required)
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}): React.ReactElement {
+  return (
+    <html lang="en">
+      <body>{children}</body>
+    </html>
+  );
+}
+```
+
+## Error Handling
+
+```tsx
+// app/error.tsx - Error boundary (must be Client Component)
+"use client";
+
+export default function Error({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}): React.ReactElement {
+  return (
+    <div>
+      <h2>Something went wrong!</h2>
+      <button onClick={() => reset()}>Try again</button>
+    </div>
+  );
+}
+```
+
+## Loading States
+
+```tsx
+// app/loading.tsx - Automatic loading UI
+export default function Loading(): React.ReactElement {
+  return <LoadingState variant="skeleton" />;
+}
+```
+
+## Metadata
+
+```tsx
+// Static metadata
+export const metadata = {
+  title: "Dorkinians FC",
+  description: "Football statistics",
+};
+
+// Dynamic metadata
+export async function generateMetadata({ params }): Promise<Metadata> {
+  return { title: `Player: ${params.id}` };
+}
+```
+
+## Critical Patterns for This Project
+
+### Hooks Ordering Safety
+
+Never place conditional returns after hooks in components rendered during transitions:
+
+```tsx
+// BAD - Causes hooks ordering violations
+function StatsContainer() {
+  const { currentPage } = useNavigationStore();
+  const [data, setData] = useState(null);
+  
+  if (currentPage !== "stats") return null; // Conditional after hooks
+  // ...
+}
+
+// GOOD - Parent-level conditional rendering
+{currentPage === "stats" && <StatsContainer />}
+```
+
+### State Management with Zustand
+
+```tsx
+// lib/stores/navigationStore.ts
+import { create } from "zustand";
+
+interface NavigationState {
+  currentPage: string;
+  setCurrentPage: (page: string) => void;
+}
+
+export const useNavigationStore = create<NavigationState>((set) => ({
+  currentPage: "home",
+  setCurrentPage: (page) => set({ currentPage: page }),
+}));
+```
+
+### Async Data Loading Pattern
+
+```tsx
+// Check data availability, not loading flags
+{filterData.seasons.length === 0 ? (
+  <LoadingState variant="skeleton" />
+) : (
+  <SeasonSelector seasons={filterData.seasons} />
+)}
+```

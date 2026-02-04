@@ -1,0 +1,264 @@
+---
+description: Jest and Testing Library patterns for unit and integration tests
+globs: ["**/*.test.ts", "**/*.test.tsx", "__tests__/unit/**/*", "__tests__/integration/**/*"]
+alwaysApply: false
+---
+
+# Jest Testing Patterns
+
+## Test File Structure
+
+```typescript
+// Component.test.tsx
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { Component } from "./Component";
+
+describe("Component", () => {
+  // Setup/teardown
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe("rendering", () => {
+    it("renders with default props", () => {
+      render(<Component />);
+      expect(screen.getByRole("button")).toBeInTheDocument();
+    });
+
+    it("renders with custom title", () => {
+      render(<Component title="Custom" />);
+      expect(screen.getByText("Custom")).toBeInTheDocument();
+    });
+  });
+
+  describe("interactions", () => {
+    it("calls onClick when button is clicked", () => {
+      const onClick = jest.fn();
+      render(<Component onClick={onClick} />);
+      
+      fireEvent.click(screen.getByRole("button"));
+      
+      expect(onClick).toHaveBeenCalledTimes(1);
+    });
+  });
+});
+```
+
+## Testing Library Best Practices
+
+### Query Priority
+
+Use queries in this order (most to least preferred):
+
+1. `getByRole` - Accessible roles (button, heading, textbox)
+2. `getByLabelText` - Form inputs with labels
+3. `getByPlaceholderText` - Inputs with placeholders
+4. `getByText` - Text content
+5. `getByTestId` - Last resort
+
+```typescript
+// GOOD - Query by role
+const button = screen.getByRole("button", { name: /submit/i });
+const heading = screen.getByRole("heading", { level: 1 });
+const input = screen.getByRole("textbox", { name: /email/i });
+
+// GOOD - Query by label
+const emailInput = screen.getByLabelText(/email address/i);
+
+// AVOID - Test IDs (only when necessary)
+const element = screen.getByTestId("custom-element");
+```
+
+### Async Testing
+
+```typescript
+// Wait for element to appear
+it("loads data and displays it", async () => {
+  render(<DataComponent />);
+  
+  // Wait for loading to complete
+  await waitFor(() => {
+    expect(screen.queryByText(/loading/i)).not.toBeInTheDocument();
+  });
+  
+  // Assert data is displayed
+  expect(screen.getByText("Player Name")).toBeInTheDocument();
+});
+
+// Find async elements
+it("shows error message on failure", async () => {
+  mockFetch.mockRejectedValue(new Error("Network error"));
+  
+  render(<DataComponent />);
+  
+  const errorMessage = await screen.findByRole("alert");
+  expect(errorMessage).toHaveTextContent(/failed to load/i);
+});
+```
+
+## Mocking
+
+### Mock Functions
+
+```typescript
+// Simple mock
+const mockCallback = jest.fn();
+mockCallback.mockReturnValue("result");
+mockCallback.mockResolvedValue("async result");
+
+// Verify calls
+expect(mockCallback).toHaveBeenCalled();
+expect(mockCallback).toHaveBeenCalledWith("arg1", "arg2");
+expect(mockCallback).toHaveBeenCalledTimes(1);
+```
+
+### Mock Modules
+
+```typescript
+// Mock entire module
+jest.mock("@/lib/api", () => ({
+  fetchPlayers: jest.fn(),
+  fetchStats: jest.fn(),
+}));
+
+import { fetchPlayers } from "@/lib/api";
+
+beforeEach(() => {
+  (fetchPlayers as jest.Mock).mockResolvedValue([
+    { id: "1", name: "Player 1" },
+  ]);
+});
+```
+
+### Mock Zustand Store
+
+```typescript
+// Mock store state
+jest.mock("@/lib/stores/navigationStore", () => ({
+  useNavigationStore: () => ({
+    currentPage: "home",
+    setCurrentPage: jest.fn(),
+  }),
+}));
+
+// Or with custom implementation per test
+import { useNavigationStore } from "@/lib/stores/navigationStore";
+
+jest.mock("@/lib/stores/navigationStore");
+
+it("renders stats page", () => {
+  (useNavigationStore as unknown as jest.Mock).mockReturnValue({
+    currentPage: "stats",
+    setCurrentPage: jest.fn(),
+  });
+  
+  render(<Navigation />);
+  expect(screen.getByText("Statistics")).toHaveClass("active");
+});
+```
+
+## Test Data Patterns
+
+### Factory Functions
+
+```typescript
+// testUtils.ts
+export function createPlayer(overrides: Partial<Player> = {}): Player {
+  return {
+    id: "player-1",
+    name: "Test Player",
+    position: "MID",
+    appearances: 10,
+    goals: 5,
+    assists: 3,
+    ...overrides,
+  };
+}
+
+export function createPlayers(count: number): Player[] {
+  return Array.from({ length: count }, (_, i) =>
+    createPlayer({ id: `player-${i}`, name: `Player ${i}` })
+  );
+}
+
+// Usage in tests
+it("displays player stats", () => {
+  const player = createPlayer({ goals: 10 });
+  render(<PlayerCard player={player} />);
+  expect(screen.getByText("10")).toBeInTheDocument();
+});
+```
+
+## Test Failure Logic
+
+**Tests with missing/null/undefined values must FAIL, not pass.**
+
+```typescript
+// GOOD - Explicit failure for missing data
+it("fails when player data is missing", async () => {
+  const result = await fetchPlayerStats(null);
+  expect(result.success).toBe(false);
+  expect(result.error).toContain("missing");
+});
+
+// GOOD - Validate actual values, not just presence
+it("validates player stats are correct", () => {
+  const player = getPlayerById("1");
+  
+  expect(player).not.toBeNull();
+  expect(player!.appearances).toBeGreaterThan(0);
+  expect(player!.name).not.toBe("N/A");
+});
+```
+
+## Snapshot Testing
+
+Use sparingly, only for stable UI:
+
+```typescript
+it("matches snapshot", () => {
+  const { container } = render(<StaticComponent />);
+  expect(container).toMatchSnapshot();
+});
+```
+
+## Coverage Configuration
+
+```javascript
+// jest.config.js
+module.exports = {
+  collectCoverageFrom: [
+    "**/*.{ts,tsx}",
+    "!**/*.d.ts",
+    "!**/node_modules/**",
+    "!**/.next/**",
+  ],
+  coverageThreshold: {
+    global: {
+      branches: 70,
+      functions: 70,
+      lines: 70,
+      statements: 70,
+    },
+  },
+};
+```
+
+## Running Tests
+
+```bash
+# All unit tests
+npm run test:unit
+
+# With coverage
+npm run test:coverage
+
+# Watch mode
+npm run test:watch
+
+# Specific file
+npm test -- PlayerCard.test.tsx
+
+# Debug mode
+npm run test:debug
+```

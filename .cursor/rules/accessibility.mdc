@@ -1,0 +1,359 @@
+---
+description: WCAG AA accessibility compliance, ARIA patterns, and inclusive design
+globs: ["**/*.tsx", "components/**/*"]
+alwaysApply: false
+---
+
+# Accessibility (WCAG AA)
+
+## Core Principles
+
+1. **Perceivable** - Information must be presentable in ways users can perceive
+2. **Operable** - UI must be operable via keyboard and assistive tech
+3. **Understandable** - Content and operation must be understandable
+4. **Robust** - Content must be robust enough for assistive technologies
+
+## Semantic HTML First
+
+Use semantic elements before reaching for ARIA:
+
+```tsx
+// GOOD - Semantic HTML
+<nav aria-label="Main navigation">
+  <ul>
+    <li><a href="/home">Home</a></li>
+    <li><a href="/stats">Statistics</a></li>
+  </ul>
+</nav>
+
+<main>
+  <article>
+    <header>
+      <h1>Player Statistics</h1>
+    </header>
+    <section aria-labelledby="season-heading">
+      <h2 id="season-heading">2024-25 Season</h2>
+    </section>
+  </article>
+</main>
+
+<footer>
+  <p>© 2026 Dorkinians FC</p>
+</footer>
+
+// BAD - Generic containers
+<div class="nav">
+  <div class="nav-item">Home</div>
+</div>
+```
+
+## Keyboard Navigation
+
+### Focus Management
+
+```tsx
+// Visible focus styles (never remove outline without replacement)
+<button className="
+  focus:outline-none 
+  focus-visible:ring-2 
+  focus-visible:ring-primary 
+  focus-visible:ring-offset-2
+">
+  Click me
+</button>
+
+// Skip link for keyboard users
+<a 
+  href="#main-content" 
+  className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-white focus:text-black"
+>
+  Skip to main content
+</a>
+
+<main id="main-content" tabIndex={-1}>
+  {/* Main content */}
+</main>
+```
+
+### Tab Order
+
+```tsx
+// GOOD - Natural tab order
+<form>
+  <label htmlFor="name">Name</label>
+  <input id="name" type="text" />
+  
+  <label htmlFor="email">Email</label>
+  <input id="email" type="email" />
+  
+  <button type="submit">Submit</button>
+</form>
+
+// BAD - Positive tabindex breaks natural order
+<input tabIndex={2} />
+<input tabIndex={1} />
+```
+
+## Form Accessibility
+
+### Labels and Inputs
+
+```tsx
+// GOOD - Associated label
+<div>
+  <label htmlFor="player-search">Search Players</label>
+  <input 
+    id="player-search"
+    type="text"
+    aria-describedby="search-hint"
+  />
+  <p id="search-hint" className="text-sm text-gray-500">
+    Enter player name or position
+  </p>
+</div>
+
+// GOOD - Grouped controls
+<fieldset>
+  <legend>Select Season</legend>
+  <label>
+    <input type="radio" name="season" value="2024-25" />
+    2024-25
+  </label>
+  <label>
+    <input type="radio" name="season" value="2023-24" />
+    2023-24
+  </label>
+</fieldset>
+```
+
+### Error Announcements
+
+```tsx
+// Announce errors to screen readers
+<div role="alert" aria-live="assertive">
+  {error && <p className="text-red-600">{error}</p>}
+</div>
+
+// Form field with error
+<div>
+  <label htmlFor="email">Email</label>
+  <input
+    id="email"
+    type="email"
+    aria-invalid={!!errors.email}
+    aria-describedby={errors.email ? "email-error" : undefined}
+  />
+  {errors.email && (
+    <p id="email-error" className="text-red-600" role="alert">
+      {errors.email}
+    </p>
+  )}
+</div>
+```
+
+## ARIA Patterns
+
+### Interactive Components
+
+```tsx
+// Button (when not using <button>)
+<div
+  role="button"
+  tabIndex={0}
+  onClick={handleClick}
+  onKeyDown={(e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      handleClick();
+    }
+  }}
+  aria-pressed={isPressed}
+>
+  Toggle Option
+</div>
+
+// Better: Just use a button
+<button onClick={handleClick} aria-pressed={isPressed}>
+  Toggle Option
+</button>
+```
+
+### Modal Dialogs
+
+```tsx
+function Modal({ isOpen, onClose, title, children }) {
+  const modalRef = useRef<HTMLDivElement>(null);
+  
+  // Trap focus in modal
+  useEffect(() => {
+    if (isOpen) {
+      const focusableElements = modalRef.current?.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      const firstElement = focusableElements?.[0] as HTMLElement;
+      const lastElement = focusableElements?.[focusableElements.length - 1] as HTMLElement;
+      
+      firstElement?.focus();
+      
+      const handleTab = (e: KeyboardEvent) => {
+        if (e.key === "Tab") {
+          if (e.shiftKey && document.activeElement === firstElement) {
+            e.preventDefault();
+            lastElement?.focus();
+          } else if (!e.shiftKey && document.activeElement === lastElement) {
+            e.preventDefault();
+            firstElement?.focus();
+          }
+        }
+        if (e.key === "Escape") {
+          onClose();
+        }
+      };
+      
+      document.addEventListener("keydown", handleTab);
+      return () => document.removeEventListener("keydown", handleTab);
+    }
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-title"
+      ref={modalRef}
+    >
+      <h2 id="modal-title">{title}</h2>
+      {children}
+      <button onClick={onClose}>Close</button>
+    </div>
+  );
+}
+```
+
+### Live Regions
+
+```tsx
+// Polite announcements (non-urgent)
+<div aria-live="polite" aria-atomic="true">
+  {statusMessage}
+</div>
+
+// Assertive announcements (urgent)
+<div aria-live="assertive" role="alert">
+  {errorMessage}
+</div>
+
+// Status updates
+<div role="status" aria-live="polite">
+  Loading... {progress}%
+</div>
+```
+
+## Color and Contrast
+
+### WCAG AA Requirements
+
+- **Normal text**: 4.5:1 contrast ratio minimum
+- **Large text** (18pt+ or 14pt+ bold): 3:1 contrast ratio minimum
+- **UI components**: 3:1 contrast ratio minimum
+
+```tsx
+// GOOD - Sufficient contrast
+<p className="text-gray-700 bg-white">  {/* ~10:1 ratio */}
+  Readable text
+</p>
+
+// BAD - Insufficient contrast
+<p className="text-gray-400 bg-white">  {/* ~2.5:1 ratio */}
+  Hard to read
+</p>
+```
+
+### Don't Rely on Color Alone
+
+```tsx
+// GOOD - Color + icon + text
+<div className="flex items-center gap-2 text-red-600">
+  <ErrorIcon aria-hidden="true" />
+  <span>Error: Invalid input</span>
+</div>
+
+// BAD - Color only
+<span className="text-red-600">Invalid</span>
+```
+
+## Images and Media
+
+### Alt Text
+
+```tsx
+// Informative image
+<img 
+  src="/player-photo.jpg" 
+  alt="John Smith celebrating after scoring the winning goal"
+/>
+
+// Decorative image
+<img src="/decorative-pattern.svg" alt="" role="presentation" />
+
+// Complex image with description
+<figure>
+  <img 
+    src="/stats-chart.png" 
+    alt="Goals per season chart"
+    aria-describedby="chart-desc"
+  />
+  <figcaption id="chart-desc">
+    Bar chart showing goals scored each season from 2020 to 2025, 
+    with peak of 45 goals in 2023-24 season.
+  </figcaption>
+</figure>
+```
+
+## Reduced Motion
+
+```tsx
+// CSS
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+// Tailwind
+<div className="motion-safe:animate-bounce motion-reduce:animate-none">
+  Bouncing element (unless user prefers reduced motion)
+</div>
+
+// React hook
+const prefersReducedMotion = window.matchMedia(
+  "(prefers-reduced-motion: reduce)"
+).matches;
+
+<motion.div
+  animate={{ opacity: 1 }}
+  transition={{ duration: prefersReducedMotion ? 0 : 0.3 }}
+>
+  Animated content
+</motion.div>
+```
+
+## Testing Checklist
+
+- [ ] All interactive elements are keyboard accessible
+- [ ] Focus is visible on all focusable elements
+- [ ] Tab order is logical
+- [ ] All images have appropriate alt text
+- [ ] Color contrast meets WCAG AA (4.5:1 for text)
+- [ ] Form fields have associated labels
+- [ ] Error messages are announced to screen readers
+- [ ] Modals trap focus and can be closed with Escape
+- [ ] Reduced motion is respected
+- [ ] Page has proper heading hierarchy (h1 → h2 → h3)
+- [ ] Landmark regions are used (main, nav, header, footer)

@@ -1,0 +1,395 @@
+---
+description: Clean code principles - naming, functions, DRY, SOLID, and maintainability
+globs: ["**/*.ts", "**/*.tsx"]
+alwaysApply: false
+---
+
+# Clean Code Principles
+
+## Naming Conventions
+
+### Be Descriptive and Consistent
+
+```typescript
+// GOOD - Clear, descriptive names
+const playerAppearances = calculateAppearances(playerId);
+const isEligibleForAward = checkAwardEligibility(player);
+const fetchPlayerStats = async (id: string) => { ... };
+
+// BAD - Vague or abbreviated
+const pa = calc(pid);
+const flag = check(p);
+const getData = async (x: string) => { ... };
+```
+
+### Naming Patterns
+
+| Type | Convention | Example |
+|------|------------|---------|
+| Variables | camelCase, noun | `playerStats`, `currentSeason` |
+| Functions | camelCase, verb | `fetchPlayers`, `calculateTotal` |
+| Booleans | is/has/can prefix | `isLoading`, `hasPermission`, `canEdit` |
+| Constants | SCREAMING_SNAKE | `MAX_PLAYERS`, `API_TIMEOUT` |
+| Types/Interfaces | PascalCase | `PlayerStats`, `ApiResponse` |
+| Components | PascalCase | `PlayerCard`, `StatsTable` |
+| Files | Component: PascalCase, Utils: camelCase | `PlayerCard.tsx`, `dateUtils.ts` |
+
+### Avoid Mental Mapping
+
+```typescript
+// GOOD - Self-documenting
+players.filter((player) => player.goals > 10);
+const seasonStartDate = new Date(season.startDate);
+
+// BAD - Requires mental translation
+players.filter((p) => p.g > 10);
+const d = new Date(s.sd);
+```
+
+## Functions
+
+### Single Responsibility
+
+```typescript
+// GOOD - Each function does one thing
+function validatePlayerData(data: unknown): data is Player {
+  return isObject(data) && hasRequiredFields(data);
+}
+
+function formatPlayerName(player: Player): string {
+  return `${player.firstName} ${player.lastName}`;
+}
+
+function calculatePlayerRating(stats: PlayerStats): number {
+  return (stats.goals * 3 + stats.assists * 2) / stats.appearances;
+}
+
+// BAD - Function doing multiple things
+function processPlayer(data: unknown) {
+  // Validates...
+  // Formats...
+  // Calculates...
+  // Saves to database...
+  // Sends email...
+}
+```
+
+### Keep Functions Small
+
+```typescript
+// GOOD - Small, focused functions
+async function getTopScorers(season: string, limit = 10): Promise<Player[]> {
+  const players = await fetchPlayersBySeason(season);
+  const sorted = sortByGoals(players);
+  return sorted.slice(0, limit);
+}
+
+function sortByGoals(players: Player[]): Player[] {
+  return [...players].sort((a, b) => b.goals - a.goals);
+}
+```
+
+### Limit Parameters
+
+```typescript
+// GOOD - Use options object for many parameters
+interface FetchPlayersOptions {
+  season?: string;
+  team?: string;
+  position?: Position;
+  limit?: number;
+  sortBy?: "goals" | "assists" | "appearances";
+}
+
+async function fetchPlayers(options: FetchPlayersOptions = {}): Promise<Player[]> {
+  const { season, team, position, limit = 100, sortBy = "appearances" } = options;
+  // ...
+}
+
+// BAD - Too many parameters
+async function fetchPlayers(
+  season?: string,
+  team?: string, 
+  position?: Position,
+  limit?: number,
+  sortBy?: string,
+  includeInactive?: boolean
+) { ... }
+```
+
+### Avoid Side Effects
+
+```typescript
+// GOOD - Pure function, no side effects
+function calculateTotalGoals(players: Player[]): number {
+  return players.reduce((sum, player) => sum + player.goals, 0);
+}
+
+// BAD - Modifies external state
+let totalGoals = 0;
+function addPlayerGoals(player: Player): void {
+  totalGoals += player.goals; // Side effect!
+}
+```
+
+## DRY (Don't Repeat Yourself)
+
+### Extract Common Logic
+
+```typescript
+// GOOD - Reusable utility
+function formatDate(date: Date | string, format: "short" | "long" = "short"): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  return format === "short"
+    ? d.toLocaleDateString("en-GB")
+    : d.toLocaleDateString("en-GB", { dateStyle: "long" });
+}
+
+// Use everywhere
+formatDate(player.joinDate);
+formatDate(match.date, "long");
+
+// BAD - Repeated logic
+const date1 = new Date(player.joinDate).toLocaleDateString("en-GB");
+const date2 = new Date(match.date).toLocaleDateString("en-GB");
+```
+
+### Create Shared Components
+
+```tsx
+// GOOD - Reusable component
+function StatCard({ label, value, icon }: StatCardProps) {
+  return (
+    <div className="p-4 bg-white rounded-lg shadow">
+      {icon && <span className="text-primary">{icon}</span>}
+      <p className="text-sm text-gray-500">{label}</p>
+      <p className="text-2xl font-bold">{value}</p>
+    </div>
+  );
+}
+
+// Use everywhere
+<StatCard label="Goals" value={player.goals} icon={<GoalIcon />} />
+<StatCard label="Assists" value={player.assists} icon={<AssistIcon />} />
+```
+
+## SOLID Principles
+
+### Single Responsibility
+
+```typescript
+// Each class/module has one reason to change
+class PlayerRepository {
+  async findById(id: string): Promise<Player | null> { ... }
+  async findBySeason(season: string): Promise<Player[]> { ... }
+  async save(player: Player): Promise<void> { ... }
+}
+
+class PlayerStatsCalculator {
+  calculateRating(player: Player): number { ... }
+  calculateForm(recentGames: Game[]): number { ... }
+}
+```
+
+### Open/Closed
+
+```typescript
+// Open for extension, closed for modification
+interface StatCalculator {
+  calculate(player: Player): number;
+}
+
+class GoalsCalculator implements StatCalculator {
+  calculate(player: Player): number {
+    return player.goals;
+  }
+}
+
+class RatingCalculator implements StatCalculator {
+  calculate(player: Player): number {
+    return (player.goals * 3 + player.assists * 2) / player.appearances;
+  }
+}
+
+// Add new calculators without modifying existing code
+```
+
+### Dependency Inversion
+
+```typescript
+// Depend on abstractions, not concretions
+interface DataStore {
+  get(key: string): Promise<unknown>;
+  set(key: string, value: unknown): Promise<void>;
+}
+
+class PlayerService {
+  constructor(private store: DataStore) {}
+  
+  async getPlayer(id: string): Promise<Player> {
+    return this.store.get(`player:${id}`) as Promise<Player>;
+  }
+}
+
+// Can inject different implementations
+const redisStore = new RedisStore();
+const memoryStore = new MemoryStore();
+
+const service = new PlayerService(redisStore);
+```
+
+## Error Handling
+
+### Use Structured Errors
+
+```typescript
+// Define error types
+class AppError extends Error {
+  constructor(
+    message: string,
+    public code: string,
+    public statusCode: number = 500
+  ) {
+    super(message);
+    this.name = "AppError";
+  }
+}
+
+class NotFoundError extends AppError {
+  constructor(resource: string, id: string) {
+    super(`${resource} not found: ${id}`, "NOT_FOUND", 404);
+  }
+}
+
+class ValidationError extends AppError {
+  constructor(message: string, public fields?: Record<string, string>) {
+    super(message, "VALIDATION_ERROR", 400);
+  }
+}
+
+// Use consistently
+async function getPlayer(id: string): Promise<Player> {
+  const player = await repository.findById(id);
+  if (!player) {
+    throw new NotFoundError("Player", id);
+  }
+  return player;
+}
+```
+
+### Handle Errors at Boundaries
+
+```typescript
+// API route handles all errors
+export async function GET(request: NextRequest): Promise<NextResponse> {
+  try {
+    const id = request.nextUrl.searchParams.get("id");
+    if (!id) {
+      throw new ValidationError("Missing required parameter: id");
+    }
+    
+    const player = await getPlayer(id);
+    return NextResponse.json({ player });
+  } catch (error) {
+    if (error instanceof AppError) {
+      return NextResponse.json(
+        { error: error.message, code: error.code },
+        { status: error.statusCode }
+      );
+    }
+    
+    console.error("Unexpected error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+```
+
+## Comments
+
+### Code Should Be Self-Documenting
+
+```typescript
+// BAD - Comment explains what code does
+// Loop through players and add up goals
+let total = 0;
+for (let i = 0; i < players.length; i++) {
+  total += players[i].goals;
+}
+
+// GOOD - Self-documenting code
+const totalGoals = players.reduce((sum, player) => sum + player.goals, 0);
+```
+
+### Comments Explain Why, Not What
+
+```typescript
+// GOOD - Explains business logic reason
+// Players need 5+ appearances to qualify for season awards
+const eligiblePlayers = players.filter((p) => p.appearances >= 5);
+
+// GOOD - Explains non-obvious decision
+// Using 200ms delay between batches to prevent Neo4j connection exhaustion
+await delay(200);
+```
+
+### Use JSDoc for Public APIs
+
+```typescript
+/**
+ * Calculates a player's performance rating based on stats.
+ * Rating uses weighted formula: (goals * 3 + assists * 2) / appearances.
+ * 
+ * @param stats - Player statistics for the calculation period
+ * @returns Rating between 0-10, or 0 if no appearances
+ */
+export function calculateRating(stats: PlayerStats): number {
+  if (stats.appearances === 0) return 0;
+  return (stats.goals * 3 + stats.assists * 2) / stats.appearances;
+}
+```
+
+## Code Organization
+
+### Single Line Comments Only
+
+Keep comments to a single line above code blocks. Avoid multi-line comment blocks.
+
+```typescript
+// Calculate weighted rating based on recent form
+const rating = calculateWeightedRating(player, recentGames);
+```
+
+### Consistent File Structure
+
+```typescript
+// 1. Imports (external, then internal)
+import { useState, useEffect } from "react";
+import { Player } from "@/types";
+import { fetchPlayer } from "@/lib/api";
+
+// 2. Types/Interfaces
+interface Props {
+  playerId: string;
+}
+
+// 3. Constants
+const REFRESH_INTERVAL = 30000;
+
+// 4. Component/Function
+export function PlayerCard({ playerId }: Props): React.ReactElement {
+  // 4a. Hooks
+  const [player, setPlayer] = useState<Player | null>(null);
+  
+  // 4b. Effects
+  useEffect(() => { ... }, [playerId]);
+  
+  // 4c. Handlers
+  const handleRefresh = () => { ... };
+  
+  // 4d. Render
+  return <div>...</div>;
+}
+```

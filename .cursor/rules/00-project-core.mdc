@@ -1,0 +1,119 @@
+---
+description: Core project configuration and conventions for Dorkinians FC Statistics Website
+globs: []
+alwaysApply: true
+---
+
+# Dorkinians FC Statistics Website - Project Core
+
+## Critical Rules
+
+1. **Neo4j Graph Safety**: All nodes must have `graphLabel: "dorkiniansWebsite"` property. Never delete nodes without verifying this label.
+2. **TypeScript Strict Mode**: No `any` types. Use `unknown` with type guards. Explicit return types on exports.
+3. **Evidence-Based Debugging**: Use console logs and actual data inspection before making fixes.
+
+**Current Date**: February 2026
+
+---
+
+## Tech Stack
+
+| Layer | Technology | Version |
+|-------|------------|---------|
+| Framework | Next.js | 16.1.6 |
+| Language | TypeScript | 5.9.3 |
+| Styling | Tailwind CSS | 3.4.19 |
+| Database | Neo4j | 5.28.2 |
+| Auth | NextAuth | 5.0.0-beta.30 |
+| State | Zustand | 4.4.7 |
+| Validation | Zod | 4.3.5 |
+| Caching | Upstash Redis | 1.36.1 |
+| Deployment | Netlify | - |
+| Unit Testing | Jest + Testing Library | 30.1.1 |
+| E2E Testing | Playwright | 1.57.0 |
+
+---
+
+## Project Structure
+
+```
+app/                    # Next.js App Router pages and API routes
+  api/                  # API route handlers
+  admin/                # Admin pages
+  settings/             # Settings pages
+components/             # React components
+  chatbot/              # Chatbot UI components
+  club-info/            # Club information components
+  totw/                 # Team of the Week components
+  ui/                   # Shared UI components (Button, Input, Toast, etc.)
+lib/                    # Utility libraries and hooks
+  utils/                # Utility functions
+config/                 # Configuration files
+netlify/                # Netlify Functions (serverless)
+  functions/            # Function handlers
+__tests__/              # Test files
+  unit/                 # Unit tests
+  integration/          # Integration tests
+  e2e/                  # Playwright E2E tests
+docs/                   # Documentation
+data/                   # Static data files (league tables)
+```
+
+---
+
+## Import Aliases
+
+| Alias | Path |
+|-------|------|
+| `@/*` | `./*` (root) |
+| `@/components/*` | `./components/*` |
+| `@/lib/*` | `./lib/*` |
+| `@/types/*` | `./types/*` |
+| `@/utils/*` | `./utils/*` |
+
+---
+
+## Conventions
+
+### File Naming
+
+- Components: `PascalCase.tsx` (e.g., `TeamOfTheWeek.tsx`)
+- Utilities: `camelCase.ts` (e.g., `shareUtils.ts`)
+- API Routes: `route.ts` in feature folders
+- Tests: `*.test.ts`, `*.test.tsx`, `*.spec.ts`
+
+### Component Patterns
+
+- Use functional components with hooks
+- State components from `@/components/ui/StateComponents` for loading/error/empty states
+- Zustand for global state management
+- Design tokens via CSS variables (no hardcoded colors/spacing)
+
+### API Patterns
+
+- All API routes in `app/api/` use Next.js Route Handlers
+- Netlify Functions in `netlify/functions/` for serverless operations
+- Neo4j queries use parameterized Cypher (never string interpolation)
+
+---
+
+## Environment Variables
+
+Required variables (set in `.env`):
+- `NEO4J_URI` - Neo4j connection URI
+- `NEO4J_USERNAME` - Neo4j username
+- `NEO4J_PASSWORD` - Neo4j password
+- `NEXTAUTH_SECRET` - NextAuth session secret
+- `NEXTAUTH_URL` - Application URL
+- `UPSTASH_REDIS_REST_URL` - Redis cache URL
+- `UPSTASH_REDIS_REST_TOKEN` - Redis auth token
+
+---
+
+## Related Rules
+
+- `engineering-doctrine.mdc` - Detailed engineering protocols (always loaded)
+- `nextjs-16.mdc` - Next.js App Router patterns
+- `typescript-strict.mdc` - TypeScript strict+ rules
+- `neo4j.mdc` - Database query patterns
+- `accessibility.mdc` - WCAG compliance

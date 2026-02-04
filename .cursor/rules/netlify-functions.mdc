@@ -1,0 +1,293 @@
+---
+description: Netlify Functions serverless patterns and best practices
+globs: ["netlify/functions/**/*"]
+alwaysApply: false
+---
+
+# Netlify Functions Patterns
+
+## Function Structure
+
+```javascript
+// netlify/functions/example.js
+const { getDriver } = require("./lib/neo4j");
+
+exports.handler = async (event, context) => {
+  // Parse request
+  const { httpMethod, queryStringParameters, body } = event;
+  
+  // Handle CORS preflight
+  if (httpMethod === "OPTIONS") {
+    return {
+      statusCode: 204,
+      headers: getCorsHeaders(),
+      body: "",
+    };
+  }
+  
+  try {
+    // Your logic here
+    const result = await processRequest(queryStringParameters, body);
+    
+    return {
+      statusCode: 200,
+      headers: {
+        ...getCorsHeaders(),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(result),
+    };
+  } catch (error) {
+    console.error("Function error:", error);
+    
+    return {
+      statusCode: 500,
+      headers: getCorsHeaders(),
+      body: JSON.stringify({ error: error.message }),
+    };
+  }
+};
+
+function getCorsHeaders() {
+  return {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  };
+}
+```
+
+## Request Handling
+
+### GET Requests
+
+```javascript
+exports.handler = async (event) => {
+  const { queryStringParameters } = event;
+  const playerId = queryStringParameters?.id;
+  
+  if (!playerId) {
+    return {
+      statusCode: 400,
+      body: JSON.stringify({ error: "Missing required parameter: id" }),
+    };
+  }
+  
+  // Process request...
+};
+```
+
+### POST Requests
+
+```javascript
+exports.handler = async (event) => {
+  let body;
+  
+  try {
+    body = JSON.parse(event.body || "{}");
+  } catch {
+    return {
+      statusCode: 400,
+      body: JSON.stringify({ error: "Invalid JSON body" }),
+    };
+  }
+  
+  const { playerName, season } = body;
+  
+  if (!playerName) {
+    return {
+      statusCode: 400,
+      body: JSON.stringify({ error: "Missing required field: playerName" }),
+    };
+  }
+  
+  // Process request...
+};
+```
+
+## Database Connection
+
+```javascript
+// netlify/functions/lib/neo4j.js
+const neo4j = require("neo4j-driver");
+
+let driver = null;
+
+async function getDriver() {
+  if (!driver) {
+    driver = neo4j.driver(
+      process.env.NEO4J_URI,
+      neo4j.auth.basic(
+        process.env.NEO4J_USERNAME,
+        process.env.NEO4J_PASSWORD
+      )
+    );
+  }
+  return driver;
+}
+
+async function runQuery(cypher, params = {}) {
+  const driver = await getDriver();
+  const session = driver.session();
+  
+  try {
+    const result = await session.run(cypher, params);
+    return result.records.map((record) => record.toObject());
+  } finally {
+    await session.close();
+  }
+}
+
+module.exports = { getDriver, runQuery };
+```
+
+## Error Handling
+
+```javascript
+// Structured error responses
+function errorResponse(statusCode, message, details = null) {
+  const body = { error: message };
+  if (details) body.details = details;
+  
+  return {
+    statusCode,
+    headers: {
+      ...getCorsHeaders(),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  };
+}
+
+// Usage
+exports.handler = async (event) => {
+  try {
+    // Validation
+    if (!event.queryStringParameters?.id) {
+      return errorResponse(400, "Missing required parameter: id");
+    }
+    
+    // Database operation
+    const result = await fetchData();
+    
+    if (!result) {
+      return errorResponse(404, "Resource not found");
+    }
+    
+    return successResponse(result);
+  } catch (error) {
+    console.error("Handler error:", error);
+    return errorResponse(500, "Internal server error", error.message);
+  }
+};
+```
+
+## Environment Variables
+
+Access via `process.env`:
+
+```javascript
+const config = {
+  neo4jUri: process.env.NEO4J_URI,
+  neo4jUsername: process.env.NEO4J_USERNAME,
+  neo4jPassword: process.env.NEO4J_PASSWORD,
+  apiKey: process.env.API_KEY,
+};
+
+// Validate required vars
+function validateEnv() {
+  const required = ["NEO4J_URI", "NEO4J_USERNAME", "NEO4J_PASSWORD"];
+  const missing = required.filter((key) => !process.env[key]);
+  
+  if (missing.length > 0) {
+    throw new Error(`Missing environment variables: ${missing.join(", ")}`);
+  }
+}
+```
+
+## Timeout Handling
+
+Netlify Functions have a 10-second timeout (26 seconds on paid plans). Handle long operations:
+
+```javascript
+// Set operation timeout
+const OPERATION_TIMEOUT = 8000; // 8 seconds
+
+async function withTimeout(promise, ms) {
+  const timeout = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error("Operation timed out")), ms)
+  );
+  return Promise.race([promise, timeout]);
+}
+
+exports.handler = async (event) => {
+  try {
+    const result = await withTimeout(
+      longRunningOperation(),
+      OPERATION_TIMEOUT
+    );
+    return successResponse(result);
+  } catch (error) {
+    if (error.message === "Operation timed out") {
+      return errorResponse(504, "Operation timed out");
+    }
+    throw error;
+  }
+};
+```
+
+## Email Service Integration
+
+```javascript
+// netlify/functions/lib/services/emailService.js
+const nodemailer = require("nodemailer");
+
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: parseInt(process.env.SMTP_PORT || "587"),
+  secure: false,
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
+
+async function sendEmail({ to, subject, html }) {
+  try {
+    await transporter.sendMail({
+      from: process.env.EMAIL_FROM,
+      to,
+      subject,
+      html,
+    });
+    return { success: true };
+  } catch (error) {
+    console.error("Email send failed:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+module.exports = { sendEmail };
+```
+
+## netlify.toml Configuration
+
+```toml
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[functions]
+  directory = "netlify/functions"
+
+# API redirects for Next.js + Netlify Functions
+[[redirects]]
+  from = "/api/players"
+  to = "/.netlify/functions/players"
+  status = 200
+
+[[redirects]]
+  from = "/api/chatbot"
+  to = "/.netlify/functions/chatbot"
+  status = 200
+```

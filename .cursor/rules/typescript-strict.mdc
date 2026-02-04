@@ -1,0 +1,227 @@
+---
+description: TypeScript strict+ mode rules - no any, explicit types, proper patterns
+globs: ["**/*.ts", "**/*.tsx"]
+alwaysApply: false
+---
+
+# TypeScript Strict+ Rules
+
+## Core Principles
+
+1. **No `any`** - Use `unknown` with type guards or specific types
+2. **Explicit return types** on exported functions and public methods
+3. **Prefer `interface`** over `type` for object shapes
+4. **Use discriminated unions** for complex state
+
+## Forbidden Patterns
+
+```tsx
+// BAD - any type
+function processData(data: any) { ... }
+const result: any = fetchData();
+
+// BAD - implicit any in callbacks
+items.map(item => item.name);
+
+// BAD - type assertions without validation
+const user = data as User;
+```
+
+## Required Patterns
+
+### Use `unknown` with Type Guards
+
+```tsx
+// GOOD - unknown with type guard
+function processData(data: unknown): ProcessedData {
+  if (!isValidData(data)) {
+    throw new Error("Invalid data format");
+  }
+  return transform(data);
+}
+
+function isValidData(data: unknown): data is ValidData {
+  return (
+    typeof data === "object" &&
+    data !== null &&
+    "id" in data &&
+    typeof (data as { id: unknown }).id === "string"
+  );
+}
+```
+
+### Explicit Return Types
+
+```tsx
+// GOOD - explicit return types on exports
+export function calculateStats(games: Game[]): PlayerStats {
+  // ...
+}
+
+export async function fetchPlayer(id: string): Promise<Player | null> {
+  // ...
+}
+
+// Internal functions can use inference
+const helper = (x: number) => x * 2; // OK for private helpers
+```
+
+### Interface for Object Shapes
+
+```tsx
+// GOOD - interface for objects
+interface Player {
+  id: string;
+  name: string;
+  position: Position;
+  stats: PlayerStats;
+}
+
+interface PlayerStats {
+  appearances: number;
+  goals: number;
+  assists: number;
+}
+
+// Use type for unions, intersections, primitives
+type Position = "GK" | "DEF" | "MID" | "FWD";
+type ID = string | number;
+type PlayerWithTeam = Player & { team: Team };
+```
+
+### Discriminated Unions
+
+```tsx
+// GOOD - discriminated union for state
+interface LoadingState {
+  status: "loading";
+}
+
+interface SuccessState<T> {
+  status: "success";
+  data: T;
+}
+
+interface ErrorState {
+  status: "error";
+  error: string;
+}
+
+type AsyncState<T> = LoadingState | SuccessState<T> | ErrorState;
+
+// Usage with exhaustive checking
+function renderState<T>(state: AsyncState<T>): React.ReactElement {
+  switch (state.status) {
+    case "loading":
+      return <LoadingState />;
+    case "success":
+      return <DataDisplay data={state.data} />;
+    case "error":
+      return <ErrorState message={state.error} />;
+  }
+}
+```
+
+### Strict Null Checks
+
+```tsx
+// GOOD - handle null/undefined explicitly
+function getPlayerName(player: Player | null): string {
+  if (!player) {
+    return "Unknown Player";
+  }
+  return player.name;
+}
+
+// GOOD - optional chaining with nullish coalescing
+const name = player?.name ?? "Unknown";
+const stats = player?.stats?.goals ?? 0;
+```
+
+### Generic Constraints
+
+```tsx
+// GOOD - constrained generics
+interface HasId {
+  id: string;
+}
+
+function findById<T extends HasId>(items: T[], id: string): T | undefined {
+  return items.find((item) => item.id === id);
+}
+
+// GOOD - generic component props
+interface ListProps<T> {
+  items: T[];
+  renderItem: (item: T) => React.ReactNode;
+  keyExtractor: (item: T) => string;
+}
+
+function List<T>({ items, renderItem, keyExtractor }: ListProps<T>): React.ReactElement {
+  return (
+    <ul>
+      {items.map((item) => (
+        <li key={keyExtractor(item)}>{renderItem(item)}</li>
+      ))}
+    </ul>
+  );
+}
+```
+
+### API Response Types
+
+```tsx
+// GOOD - typed API responses
+interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+  error?: string;
+}
+
+interface PlayerResponse {
+  player: Player;
+  recentGames: Game[];
+}
+
+async function fetchPlayerData(id: string): Promise<ApiResponse<PlayerResponse>> {
+  const response = await fetch(`/api/players?id=${id}`);
+  return response.json() as Promise<ApiResponse<PlayerResponse>>;
+}
+```
+
+### Zod Validation
+
+```tsx
+import { z } from "zod";
+
+// Define schema
+const PlayerSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1),
+  position: z.enum(["GK", "DEF", "MID", "FWD"]),
+  appearances: z.number().int().nonnegative(),
+});
+
+// Infer type from schema
+type Player = z.infer<typeof PlayerSchema>;
+
+// Validate unknown data
+function parsePlayer(data: unknown): Player {
+  return PlayerSchema.parse(data);
+}
+```
+
+## tsconfig.json Requirements
+
+```json
+{
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true
+  }
+}
+```

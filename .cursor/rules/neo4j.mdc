@@ -1,0 +1,224 @@
+---
+description: Neo4j graph database patterns and Cypher query best practices
+globs: ["lib/neo4j/**/*", "app/api/**/*", "netlify/functions/**/*"]
+alwaysApply: false
+---
+
+# Neo4j Database Patterns
+
+## Critical Safety Rules
+
+### Graph Label Requirement
+
+**ALL nodes MUST have `graphLabel: "dorkiniansWebsite"`** to prevent accidental cross-project data deletion.
+
+```cypher
+// GOOD - Always include graphLabel
+CREATE (p:Player {
+  name: $name,
+  graphLabel: "dorkiniansWebsite",
+  createdAt: datetime()
+})
+
+// BAD - Missing graphLabel
+CREATE (p:Player {name: $name})
+```
+
+### Safe Deletion
+
+```cypher
+// GOOD - Only delete our project's data
+MATCH (n {graphLabel: "dorkiniansWebsite"})
+DETACH DELETE n
+
+// BAD - Dangerous: deletes ALL data
+MATCH (n) DETACH DELETE n
+```
+
+## Connection Management
+
+```typescript
+import neo4j, { Driver, Session } from "neo4j-driver";
+
+let driver: Driver | null = null;
+
+export async function getDriver(): Promise<Driver> {
+  if (!driver) {
+    driver = neo4j.driver(
+      process.env.NEO4J_URI!,
+      neo4j.auth.basic(
+        process.env.NEO4J_USERNAME!,
+        process.env.NEO4J_PASSWORD!
+      )
+    );
+    // Verify connectivity
+    await driver.verifyConnectivity();
+  }
+  return driver;
+}
+
+export async function runQuery<T>(
+  cypher: string,
+  params: Record<string, unknown> = {}
+): Promise<T[]> {
+  const driver = await getDriver();
+  const session = driver.session();
+  
+  try {
+    const result = await session.run(cypher, params);
+    return result.records.map((record) => record.toObject() as T);
+  } finally {
+    await session.close();
+  }
+}
+```
+
+## Parameterized Queries
+
+**NEVER use string interpolation in Cypher queries.**
+
+```typescript
+// GOOD - Parameterized query (safe)
+const query = `
+  MATCH (p:Player {graphLabel: "dorkiniansWebsite"})
+  WHERE p.name = $playerName
+  RETURN p
+`;
+await runQuery(query, { playerName: "John Smith" });
+
+// BAD - String interpolation (SQL injection risk)
+const query = `
+  MATCH (p:Player)
+  WHERE p.name = "${playerName}"
+  RETURN p
+`;
+```
+
+## Common Query Patterns
+
+### Find Players with Stats
+
+```cypher
+MATCH (p:Player {graphLabel: "dorkiniansWebsite"})
+OPTIONAL MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
+WITH p, count(DISTINCT md) as appearances
+RETURN p.name as name, appearances
+ORDER BY appearances DESC
+```
+
+### Aggregate Stats by Season
+
+```cypher
+MATCH (p:Player {graphLabel: "dorkiniansWebsite", name: $playerName})
+MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)-[:IN_FIXTURE]->(f:Fixture)
+MATCH (f)-[:IN_SEASON]->(s:Season)
+RETURN s.name as season,
+       count(DISTINCT md) as appearances,
+       sum(md.goals) as goals,
+       sum(md.assists) as assists
+ORDER BY s.startDate DESC
+```
+
+### Relationship Counting (Avoid Duplicates)
+
+```cypher
+// GOOD - Use DISTINCT to prevent duplicate counting
+MATCH (p:Player)-[:PLAYED_IN]->(md:MatchDetail)
+RETURN p.name, count(DISTINCT md) as appearances
+
+// BAD - May count duplicates if multiple relationship paths exist
+MATCH (p:Player)-[]->(md:MatchDetail)
+RETURN p.name, count(md) as appearances
+```
+
+## Helper Functions
+
+```typescript
+// Create node with required properties
+export async function createNode(
+  label: string,
+  properties: Record<string, unknown>
+): Promise<void> {
+  const query = `
+    CREATE (n:${label} $props)
+  `;
+  await runQuery(query, {
+    props: {
+      ...properties,
+      graphLabel: "dorkiniansWebsite",
+      createdAt: new Date().toISOString(),
+    },
+  });
+}
+
+// Create relationship safely
+export async function createRelationship(
+  fromLabel: string,
+  fromMatch: Record<string, unknown>,
+  toLabel: string,
+  toMatch: Record<string, unknown>,
+  relType: string,
+  relProps: Record<string, unknown> = {}
+): Promise<void> {
+  const query = `
+    MATCH (a:${fromLabel} {graphLabel: "dorkiniansWebsite"})
+    WHERE ${Object.keys(fromMatch).map(k => `a.${k} = $from_${k}`).join(" AND ")}
+    MATCH (b:${toLabel} {graphLabel: "dorkiniansWebsite"})
+    WHERE ${Object.keys(toMatch).map(k => `b.${k} = $to_${k}`).join(" AND ")}
+    CREATE (a)-[r:${relType} $relProps]->(b)
+    RETURN r
+  `;
+  
+  const params: Record<string, unknown> = { relProps };
+  Object.entries(fromMatch).forEach(([k, v]) => params[`from_${k}`] = v);
+  Object.entries(toMatch).forEach(([k, v]) => params[`to_${k}`] = v);
+  
+  await runQuery(query, params);
+}
+```
+
+## Batch Operations
+
+```typescript
+// Use smaller batches for complex operations
+const BATCH_SIZE = 50;
+const BATCH_DELAY_MS = 200;
+
+export async function batchCreate(
+  items: unknown[],
+  createFn: (item: unknown) => Promise<void>
+): Promise<void> {
+  for (let i = 0; i < items.length; i += BATCH_SIZE) {
+    const batch = items.slice(i, i + BATCH_SIZE);
+    await Promise.all(batch.map(createFn));
+    
+    if (i + BATCH_SIZE < items.length) {
+      await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS));
+    }
+  }
+}
+```
+
+## Error Handling
+
+```typescript
+interface QueryResult<T> {
+  success: boolean;
+  data?: T;
+  error?: string;
+}
+
+export async function safeQuery<T>(
+  cypher: string,
+  params: Record<string, unknown> = {}
+): Promise<QueryResult<T[]>> {
+  try {
+    const data = await runQuery<T>(cypher, params);
+    return { success: true, data };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    console.error("Neo4j query failed:", message);
+    return { success: false, error: message };
+  }
+}
+```
