@@ -5,6 +5,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import React from "react";
 import { Cog6ToothIcon, XMarkIcon, FunnelIcon, Bars3Icon } from "@heroicons/react/24/outline";
 import { useNavigationStore } from "@/lib/stores/navigation";
+import { getActiveFilterCount } from "@/lib/utils/filterUtils";
 import Image from "next/image";
 import Button from "@/components/ui/Button";
 
@@ -45,71 +46,10 @@ export default function Header({ onSettingsClick, isSettingsPage = false, onFilt
 		localStorage.setItem("stats-nav-filter-tooltip-seen", "true");
 	};
 
-	// Calculate active filter count
-	const activeFilterCount = useMemo(() => {
-		if (!playerFilters) return 0;
-		let count = 0;
-		const filterChecks: Record<string, { counted: boolean; reason?: string; value?: any }> = {};
-		
-		// Count timeRange if not "allTime"
-		const timeRangeCounted = playerFilters.timeRange?.type && playerFilters.timeRange.type !== "allTime";
-		if (timeRangeCounted) count++;
-		filterChecks.timeRange = { counted: timeRangeCounted, value: playerFilters.timeRange?.type, reason: timeRangeCounted ? `type is ${playerFilters.timeRange?.type}` : 'type is allTime or missing' };
-		
-		// Count teams if selection deviates from "all teams" (similar to position/result/competition)
-		// Empty array = all teams (no filter), so don't count
-		// Non-empty array = check if it's all teams or a subset
-		const allTeams = filterData?.teams?.map(team => team.name) || [];
-		const teams = playerFilters.teams || [];
-		const hasAllTeams = teams.length === 0 || (allTeams.length > 0 && teams.length === allTeams.length && allTeams.every(team => teams.includes(team)));
-		const teamsCounted = !hasAllTeams && teams.length > 0;
-		if (teamsCounted) count++;
-		filterChecks.teams = { counted: !!teamsCounted, value: playerFilters.teams, reason: teamsCounted ? `teams selection is subset (${teams.length}/${allTeams.length})` : hasAllTeams ? 'all teams selected (no filter)' : 'teams array is empty or missing' };
-		
-		// Count location if not both Home and Away selected (length < 2 means filter is active)
-		const locationCounted = !!(playerFilters.location?.length && playerFilters.location.length < 2);
-		if (locationCounted) count++;
-		filterChecks.location = { counted: !!locationCounted, value: playerFilters.location, reason: locationCounted ? `location array has ${playerFilters.location?.length} items (need 2)` : `location array has ${playerFilters.location?.length || 0} items (both selected)` };
-		
-		// Count opposition if mode is not "all" or searchTerm has value
-		const oppositionMode = playerFilters.opposition?.mode ?? "all";
-		const oppositionSearchTerm = playerFilters.opposition?.searchTerm;
-		const oppositionSearchTermTrimmed = oppositionSearchTerm?.trim() || "";
-		const oppositionCounted = !!(playerFilters.opposition && (oppositionMode !== "all" || (oppositionSearchTerm && oppositionSearchTermTrimmed !== "")));
-		if (oppositionCounted) count++;
-		filterChecks.opposition = { counted: !!oppositionCounted, value: { mode: oppositionMode, searchTerm: oppositionSearchTerm, searchTermTrimmed: oppositionSearchTermTrimmed }, reason: oppositionCounted ? (oppositionMode !== "all" ? `mode is "${oppositionMode}"` : `searchTerm has value: "${oppositionSearchTermTrimmed}"`) : 'mode is "all" and searchTerm is empty' };
-		
-		// Count competition if mode is "individual" or types array has fewer than all 3 types
-		const competitionMode = playerFilters.competition?.mode ?? "types";
-		const defaultCompetitionTypes: ("League" | "Cup" | "Friendly")[] = ["League", "Cup", "Friendly"];
-		const competitionTypes = playerFilters.competition?.types || [];
-		const hasAllCompetitionTypes = defaultCompetitionTypes.every(type => competitionTypes.includes(type as any)) && competitionTypes.length === defaultCompetitionTypes.length;
-		const competitionCounted = !!(playerFilters.competition && (
-			competitionMode === "individual" || 
-			(!hasAllCompetitionTypes && competitionTypes.length > 0) || 
-			(competitionMode === "individual" && playerFilters.competition.searchTerm && playerFilters.competition.searchTerm.trim() !== "")
-		));
-		if (competitionCounted) count++;
-		filterChecks.competition = { counted: !!competitionCounted, value: { mode: competitionMode, types: competitionTypes, hasAll: hasAllCompetitionTypes, searchTerm: playerFilters.competition?.searchTerm }, reason: competitionCounted ? (competitionMode === "individual" ? `mode is "individual"` : !hasAllCompetitionTypes ? `missing types (has ${competitionTypes.length}/3)` : `searchTerm has value: "${playerFilters.competition?.searchTerm}"`) : 'mode is "types" with all 3 types selected and searchTerm empty' };
-		
-		// Count result if array has fewer than all 3 results (default is all 3)
-		const defaultResults: ("Win" | "Draw" | "Loss")[] = ["Win", "Draw", "Loss"];
-		const results = playerFilters.result || [];
-		const hasAllResults = defaultResults.every(result => results.includes(result as any)) && results.length === defaultResults.length;
-		const resultCounted = !hasAllResults && results.length > 0;
-		if (resultCounted) count++;
-		filterChecks.result = { counted: resultCounted, value: results, reason: resultCounted ? `missing results (has ${results.length}/3)` : `all 3 results selected (${results.length}/3)` };
-		
-		// Count position if array has fewer than all 4 positions (default is all 4)
-		const defaultPositions: ("GK" | "DEF" | "MID" | "FWD")[] = ["GK", "DEF", "MID", "FWD"];
-		const positions = playerFilters.position || [];
-		const hasAllPositions = defaultPositions.every(pos => positions.includes(pos as any)) && positions.length === defaultPositions.length;
-		const positionCounted = !hasAllPositions && positions.length > 0;
-		if (positionCounted) count++;
-		filterChecks.position = { counted: positionCounted, value: positions, reason: positionCounted ? `missing positions (has ${positions.length}/4)` : `all 4 positions selected (${positions.length}/4)` };
-		
-		return count;
-	}, [playerFilters, filterData]);
+	const activeFilterCount = useMemo(
+		() => getActiveFilterCount(playerFilters, filterData),
+		[playerFilters, filterData]
+	);
 
 	// Detect mobile on mount and resize
 	useEffect(() => {
@@ -228,7 +168,7 @@ export default function Header({ onSettingsClick, isSettingsPage = false, onFilt
 					aria-label='Return to homepage'
 					className="flex-shrink-0 min-w-fit inline-flex items-center space-x-2 p-0 bg-transparent border-none h-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent">
 					<div className='w-8 h-8 flex items-center justify-center flex-shrink-0'>
-						<Image src='/icons/icon-96x96.png' alt='Dorkinians FC Logo' width={32} height={32} className='rounded-full' />
+						<Image src='/icons/icon-96x96.png' alt='Dorkinians FC Logo' width={32} height={32} loading="eager" className='rounded-full' />
 					</div>
 					<span className='font-bold text-xl text-[var(--color-text-primary)] whitespace-nowrap flex-shrink-0'>Dorkinians FC</span>
 				</motion.button>

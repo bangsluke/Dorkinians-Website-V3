@@ -2,10 +2,13 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { XMarkIcon, ChevronDownIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
+import { XMarkIcon, ChevronDownIcon, ChevronRightIcon, FunnelIcon } from "@heroicons/react/24/outline";
+import { useMemo } from "react";
 import { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import ModalWrapper from "@/components/modals/ModalWrapper";
+import { useNavigationStore } from "@/lib/stores/navigation";
+import { getActiveFilterCount } from "@/lib/utils/filterUtils";
 
 interface AllGamesModalProps {
 	isOpen: boolean;
@@ -31,6 +34,7 @@ interface GameSummary {
 	competition: string;
 	homeScore: number;
 	awayScore: number;
+	team?: string;
 }
 
 interface LineupPlayer {
@@ -125,6 +129,8 @@ export default function AllGamesModal({
 	playerName,
 	playerDisplayName,
 }: AllGamesModalProps) {
+	const { playerFilters, filterData, openFilterSidebar } = useNavigationStore();
+
 	const [seasons, setSeasons] = useState<SeasonSummary[]>([]);
 	const [seasonsLoading, setSeasonsLoading] = useState(false);
 	const [seasonsError, setSeasonsError] = useState<string | null>(null);
@@ -137,13 +143,43 @@ export default function AllGamesModal({
 	const [lineupByFixtureId, setLineupByFixtureId] = useState<Record<string, LineupPlayer[]>>({});
 	const [lineupLoadingByFixtureId, setLineupLoadingByFixtureId] = useState<Record<string, boolean>>({});
 
-	// Fetch seasons when modal opens
+	const activeFilterCount = useMemo(
+		() => getActiveFilterCount(playerFilters, filterData),
+		[playerFilters, filterData]
+	);
+
+	/** Seasons to display: filter by time range when a specific season set is selected */
+	const displayedSeasons = useMemo(() => {
+		if (!seasons.length) return seasons;
+		const tr = playerFilters?.timeRange;
+		if (tr?.type === "season" && tr.seasons?.length) {
+			const set = new Set(tr.seasons);
+			return seasons.filter((s) => set.has(s.season));
+		}
+		return seasons;
+	}, [seasons, playerFilters?.timeRange?.type, playerFilters?.timeRange?.seasons]);
+
+	// Invalidate cached games when filters change so next expand refetches with new filters
+	const filtersKey = useMemo(() => {
+		if (!playerFilters) return "";
+		try {
+			return JSON.stringify(playerFilters);
+		} catch {
+			return "";
+		}
+	}, [playerFilters]);
+
+	// Fetch seasons when modal opens or filters change (so app counts reflect current filters)
 	useEffect(() => {
 		if (!isOpen || !playerName) return;
 		setSeasonsLoading(true);
 		setSeasonsError(null);
+		const filtersQuery =
+			playerFilters != null && filtersKey !== ""
+				? `&filters=${encodeURIComponent(filtersKey)}`
+				: "";
 		fetch(
-			`/api/player-seasons-games?playerName=${encodeURIComponent(playerName)}`
+			`/api/player-seasons-games?playerName=${encodeURIComponent(playerName)}${filtersQuery}`
 		)
 			.then((res) => {
 				if (!res.ok) return res.json().then((d) => Promise.reject(d?.error || "Failed to load"));
@@ -156,7 +192,13 @@ export default function AllGamesModal({
 				setSeasonsError(typeof err === "string" ? err : "Error loading seasons");
 			})
 			.finally(() => setSeasonsLoading(false));
-	}, [isOpen, playerName]);
+	}, [isOpen, playerName, filtersKey]);
+
+	useEffect(() => {
+		if (!isOpen) return;
+		setGamesBySeason({});
+		setExpandedSeasons(new Set());
+	}, [isOpen, filtersKey]);
 
 	// When a season is expanded, fetch its games
 	const toggleSeason = useCallback(
@@ -173,8 +215,12 @@ export default function AllGamesModal({
 			if (!gamesBySeason[season] && !gamesLoadingBySeason[season]) {
 				setGamesLoadingBySeason((prev) => ({ ...prev, [season]: true }));
 				const seasonParam = season.replace("/", "-");
+				const filtersQuery =
+					playerFilters != null
+						? `&filters=${encodeURIComponent(JSON.stringify(playerFilters))}`
+						: "";
 				fetch(
-					`/api/player-season-games?playerName=${encodeURIComponent(playerName)}&season=${encodeURIComponent(seasonParam)}`
+					`/api/player-season-games?playerName=${encodeURIComponent(playerName)}&season=${encodeURIComponent(seasonParam)}${filtersQuery}`
 				)
 					.then((res) => {
 						if (!res.ok) return res.json().then((d) => Promise.reject(d?.error || "Failed to load"));
@@ -191,7 +237,7 @@ export default function AllGamesModal({
 					});
 			}
 		},
-		[playerName, gamesBySeason, gamesLoadingBySeason]
+		[playerName, playerFilters, gamesBySeason, gamesLoadingBySeason]
 	);
 
 	// When a game is expanded, fetch its lineup
@@ -241,13 +287,29 @@ export default function AllGamesModal({
 				{/* Header */}
 				<div className="flex items-center justify-between p-4 border-b border-white/20">
 					<h2 className="text-lg font-semibold text-white">All Games - {playerDisplayName}</h2>
-					<button
-						onClick={onClose}
-						className="min-w-[44px] min-h-[44px] p-2 rounded-full hover:bg-white/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
-						aria-label="Close All Games modal"
-					>
-						<XMarkIcon className="w-6 h-6 text-white" />
-					</button>
+					<div className="flex items-center gap-1">
+						<button
+							type="button"
+							onClick={openFilterSidebar}
+							className="relative min-w-[44px] min-h-[44px] p-2 rounded-full hover:bg-white/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
+							aria-label="Open filters"
+							title="Open filters"
+						>
+							<FunnelIcon className="w-6 h-6 text-white" />
+							{activeFilterCount > 0 && (
+								<span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 flex items-center justify-center bg-dorkinians-yellow text-black text-xs font-bold rounded-full">
+									{activeFilterCount > 99 ? "99+" : activeFilterCount}
+								</span>
+							)}
+						</button>
+						<button
+							onClick={onClose}
+							className="min-w-[44px] min-h-[44px] p-2 rounded-full hover:bg-white/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
+							aria-label="Close All Games modal"
+						>
+							<XMarkIcon className="w-6 h-6 text-white" />
+						</button>
+					</div>
 				</div>
 
 				{/* Scrollable content */}
@@ -275,9 +337,13 @@ export default function AllGamesModal({
 						<div className="text-center text-gray-400 py-8">No seasons found</div>
 					)}
 
-					{!seasonsLoading && !seasonsError && seasons.length > 0 && (
+					{!seasonsLoading && !seasonsError && seasons.length > 0 && displayedSeasons.length === 0 && (
+						<div className="text-center text-gray-400 py-8">No seasons match the current filters</div>
+					)}
+
+					{!seasonsLoading && !seasonsError && seasons.length > 0 && displayedSeasons.length > 0 && (
 						<div className="space-y-2">
-							{seasons.map((s) => {
+							{displayedSeasons.map((s) => {
 								const isSeasonExpanded = expandedSeasons.has(s.season);
 								const games = gamesBySeason[s.season] ?? [];
 								const gamesLoading = gamesLoadingBySeason[s.season];
@@ -300,7 +366,7 @@ export default function AllGamesModal({
 										</button>
 
 										{isSeasonExpanded && (
-											<div className="px-4 pb-4 space-y-3">
+											<div className="px-4 pt-3 pb-4 space-y-3">
 												{gamesLoading && (
 													<div className="space-y-2">
 														{[1, 2, 3].map((i) => (
@@ -358,9 +424,13 @@ export default function AllGamesModal({
 																			vs <span className="font-medium">{game.opposition || "Unknown"}</span>
 																		</span>
 																	</div>
-																	{game.competition && (
-																		<div className="text-sm text-gray-400">{game.competition}</div>
-																	)}
+									{(game.team || game.competition) && (
+										<div className="text-sm text-gray-400">
+											{game.team && game.competition
+												? `${game.team} - ${game.competition}`
+												: game.team || game.competition}
+										</div>
+									)}
 																	<div className="absolute bottom-4 right-4">
 																		<ChevronDownIcon
 																			className={`w-5 h-5 text-white transition-transform ${isGameExpanded ? "rotate-180" : ""}`}

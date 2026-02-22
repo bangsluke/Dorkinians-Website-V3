@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neo4jService } from "@/lib/neo4j";
+import { buildFilterConditions } from "@/app/api/player-data/route";
 
 const corsHeaders = {
 	"Access-Control-Allow-Origin": "*",
@@ -16,12 +17,22 @@ export async function GET(request: NextRequest) {
 		const { searchParams } = new URL(request.url);
 		const playerName = searchParams.get("playerName");
 		const season = searchParams.get("season");
+		const filtersParam = searchParams.get("filters");
 
 		if (!playerName || typeof playerName !== "string" || playerName.trim() === "") {
 			return NextResponse.json({ error: "Valid player name is required" }, { status: 400, headers: corsHeaders });
 		}
 		if (!season || typeof season !== "string" || season.trim() === "") {
 			return NextResponse.json({ error: "Season is required" }, { status: 400, headers: corsHeaders });
+		}
+
+		let filters: Record<string, unknown> | null = null;
+		if (filtersParam && filtersParam.trim() !== "") {
+			try {
+				filters = JSON.parse(decodeURIComponent(filtersParam)) as Record<string, unknown>;
+			} catch {
+				// ignore invalid JSON
+			}
 		}
 
 		const connected = await neo4jService.connect();
@@ -33,29 +44,45 @@ export async function GET(request: NextRequest) {
 		const seasonNorm = season.trim().replace("-", "/");
 		const seasonHyphen = season.trim().replace("/", "-");
 
+		const params: Record<string, unknown> = {
+			graphLabel,
+			playerName: playerName.trim(),
+			seasonNorm,
+			seasonHyphen,
+		};
+
+		// Apply filters (exclude timeRange since we are already scoped to one season)
+		const filtersForConditions =
+			filters && typeof filters === "object"
+				? { ...filters, timeRange: undefined }
+				: null;
+		const filterConditions = buildFilterConditions(filtersForConditions, params);
+
+		const whereClause =
+			filterConditions.length > 0
+				? `WHERE (f.season = $seasonNorm OR f.season = $seasonHyphen) AND ${filterConditions.join(" AND ")}`
+				: "WHERE f.season = $seasonNorm OR f.season = $seasonHyphen";
+
 		const query = `
 			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
 			MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
 			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
-			WHERE f.season = $seasonNorm OR f.season = $seasonHyphen
+			${whereClause}
 			WITH DISTINCT f
 			ORDER BY f.date ASC
 			RETURN f.id AS fixtureId, f.date AS date, f.opposition AS opposition,
 			       f.homeOrAway AS homeOrAway, f.result AS result,
 			       f.dorkiniansGoals AS dorkiniansGoals, f.conceded AS conceded,
 			       f.compType AS compType, f.competition AS competition,
-			       f.homeScore AS homeScore, f.awayScore AS awayScore
+			       f.homeScore AS homeScore, f.awayScore AS awayScore,
+			       f.team AS team
 		`;
 
-		const result = await neo4jService.runQuery(query, {
-			graphLabel,
-			playerName: playerName.trim(),
-			seasonNorm,
-			seasonHyphen,
-		});
+		const result = await neo4jService.runQuery(query, params);
 
 		const games = result.records.map((r) => {
 			const dateVal = r.get("date");
+			const teamVal = r.get("team");
 			return {
 				fixtureId: r.get("fixtureId") != null ? String(r.get("fixtureId")) : "",
 				date: dateVal != null ? (typeof dateVal === "string" ? dateVal : String(dateVal)) : "",
@@ -68,6 +95,7 @@ export async function GET(request: NextRequest) {
 				competition: r.get("competition") != null ? String(r.get("competition")) : "",
 				homeScore: toNum(r.get("homeScore")),
 				awayScore: toNum(r.get("awayScore")),
+				team: teamVal != null ? String(teamVal) : "",
 			};
 		});
 

@@ -71,6 +71,7 @@ export default function HomePage() {
 		openFilterSidebar,
 		closeFilterSidebar,
 		isFilterSidebarOpen,
+		isAllGamesModalOpen,
 		loadFilterData,
 	} = useNavigationStore();
 
@@ -394,7 +395,7 @@ export default function HomePage() {
 				<FooterNavigation />
 
 				{/* Filter Sidebar */}
-				<FilterSidebar isOpen={isFilterSidebarOpen} onClose={closeFilterSidebar} onSuccess={showSuccess} />
+				<FilterSidebar isOpen={isFilterSidebarOpen} onClose={closeFilterSidebar} onSuccess={showSuccess} renderAboveAllGamesModal={isAllGamesModalOpen} />
 				
 				{/* Stats Navigation Menu */}
 				<StatsNavigationMenu isOpen={showStatsMenu} onClose={() => setShowStatsMenu(false)} />

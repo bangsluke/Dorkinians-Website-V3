@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neo4jService } from "@/lib/neo4j";
+import { buildFilterConditions } from "@/app/api/player-data/route";
 
 const corsHeaders = {
 	"Access-Control-Allow-Origin": "*",
@@ -36,9 +37,19 @@ export async function GET(request: NextRequest) {
 	try {
 		const { searchParams } = new URL(request.url);
 		const playerName = searchParams.get("playerName");
+		const filtersParam = searchParams.get("filters");
 
 		if (!playerName || typeof playerName !== "string" || playerName.trim() === "") {
 			return NextResponse.json({ error: "Valid player name is required" }, { status: 400, headers: corsHeaders });
+		}
+
+		let filters: Record<string, unknown> | null = null;
+		if (filtersParam && filtersParam.trim() !== "") {
+			try {
+				filters = JSON.parse(decodeURIComponent(filtersParam)) as Record<string, unknown>;
+			} catch {
+				// ignore invalid JSON
+			}
 		}
 
 		const connected = await neo4jService.connect();
@@ -47,17 +58,29 @@ export async function GET(request: NextRequest) {
 		}
 
 		const graphLabel = neo4jService.getGraphLabel();
+		const params: Record<string, unknown> = {
+			graphLabel,
+			playerName: playerName.trim(),
+		};
+
+		const filterConditions = buildFilterConditions(filters, params);
+		const whereConditions =
+			filterConditions.length > 0
+				? `WHERE f.season IS NOT NULL AND ${filterConditions.join(" AND ")}`
+				: "WHERE f.season IS NOT NULL";
+
 		const query = `
 			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
 			MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
 			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+			${whereConditions}
 			WITH f.season AS rawSeason, count(DISTINCT f) AS apps
 			WHERE rawSeason IS NOT NULL
 			RETURN rawSeason, apps
 			ORDER BY rawSeason ASC
 		`;
 
-		const result = await neo4jService.runQuery(query, { graphLabel, playerName: playerName.trim() });
+		const result = await neo4jService.runQuery(query, params);
 
 		const seasons = result.records.map((r) => {
 			const rawSeason = r.get("rawSeason");
