@@ -1641,7 +1641,7 @@ function PositionalStatsVisualization({ gk, def, mid, fwd, appearances, gkMinute
 }
 
 export default function PlayerStats() {
-	const { selectedPlayer, cachedPlayerData, isLoadingPlayerData, enterEditMode, setMainPage, currentStatsSubPage, playerFilters, filterData, getCachedPageData, setCachedPageData, hasUnsavedFilters, isFilterSidebarOpen } = useNavigationStore();
+	const { selectedPlayer, cachedPlayerData, isLoadingPlayerData, enterEditMode, setMainPage, currentStatsSubPage, playerFilters, filterData, getCachedPageData, setCachedPageData, hasUnsavedFilters, isFilterSidebarOpen, openAllGamesModal, closeAllGamesModal, isAllGamesModalOpen } = useNavigationStore();
 	const { showError } = useToast();
 	const [error, setError] = useState<string | null>(null);
 	
@@ -1688,7 +1688,6 @@ export default function PlayerStats() {
 	const [awardHistory, setAwardHistory] = useState<Array<{ season: string; awardName: string }>>([]);
 	const [totalAwards, setTotalAwards] = useState<number>(0);
 	const [isLoadingAwardHistory, setIsLoadingAwardHistory] = useState(false);
-	const [allGamesModalOpen, setAllGamesModalOpen] = useState(false);
 
 	// State for icon loading tracking in Key Performance Stats
 	const [loadedIcons, setLoadedIcons] = useState<Set<string>>(new Set());
@@ -2859,10 +2858,10 @@ export default function PlayerStats() {
 				<div className='flex justify-center pb-4'>
 					<button
 						type='button'
-						onClick={() => setAllGamesModalOpen(true)}
+						onClick={openAllGamesModal}
 						className='text-white hover:text-dorkinians-yellow underline text-sm md:text-base transition-colors bg-transparent border-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)]'
 					>
-						Click to show all games
+						Click to show all games and details
 					</button>
 				</div>
 			</div>
@@ -3816,8 +3815,8 @@ export default function PlayerStats() {
 			{/* All Games full-screen modal */}
 			{selectedPlayer && (
 				<AllGamesModal
-					isOpen={allGamesModalOpen}
-					onClose={() => setAllGamesModalOpen(false)}
+					isOpen={isAllGamesModalOpen}
+					onClose={closeAllGamesModal}
 					playerName={selectedPlayer}
 					playerDisplayName={playerData?.playerName ?? selectedPlayer}
 				/>

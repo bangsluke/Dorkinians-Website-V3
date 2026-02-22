@@ -15,6 +15,8 @@ interface FilterSidebarProps {
 	isOpen: boolean;
 	onClose: () => void;
 	onSuccess?: (message: string) => void;
+	/** When true, use higher z-index so sidebar appears above the All Games modal */
+	renderAboveAllGamesModal?: boolean;
 }
 
 interface AccordionSection {
@@ -23,7 +25,7 @@ interface AccordionSection {
 	isOpen: boolean;
 }
 
-export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSidebarProps) {
+export default function FilterSidebar({ isOpen, onClose, onSuccess, renderAboveAllGamesModal = false }: FilterSidebarProps) {
 	const {
 		playerFilters,
 		updatePlayerFilters,
@@ -1091,7 +1093,7 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 
 					{/* Backdrop */}
 					<motion.div
-						className='fixed inset-0 bg-black/50 z-40'
+						className={`fixed inset-0 bg-black/50 ${renderAboveAllGamesModal ? "z-[10001]" : "z-40"}`}
 						initial={{ opacity: 0 }}
 						animate={{ opacity: 1 }}
 						exit={{ opacity: 0 }}
@@ -1101,7 +1103,7 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 					{/* Sidebar */}
 					<motion.div
 						data-testid="filter-sidebar"
-						className='fixed right-0 top-0 h-full w-full max-w-md z-50 shadow-xl overflow-x-hidden'
+						className={`fixed right-0 top-0 h-full w-full max-w-md shadow-xl overflow-x-hidden ${renderAboveAllGamesModal ? "z-[10002]" : "z-50"}`}
 						style={{ backgroundColor: '#0f0f0f' }}
 						initial={{ x: "100%" }}
 						animate={{ x: 0 }}

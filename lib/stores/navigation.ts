@@ -253,6 +253,7 @@ interface NavigationState {
 	playerFilters: PlayerFilters; // Current page filters (synced from playerFiltersByPage)
 	isFilterSidebarOpen: boolean;
 	hasUnsavedFilters: boolean;
+	isAllGamesModalOpen: boolean;
 		// Filter data cache
 		filterData: {
 			seasons: Array<{ season: string; startDate: string; endDate: string }>;
@@ -296,6 +297,8 @@ interface NavigationState {
 	// Filter actions
 	openFilterSidebar: () => void;
 	closeFilterSidebar: () => void;
+	openAllGamesModal: () => void;
+	closeAllGamesModal: () => void;
 	updatePlayerFilters: (filters: Partial<PlayerFilters>) => void;
 	applyPlayerFilters: () => Promise<void>;
 	resetPlayerFilters: () => void;
@@ -479,6 +482,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 	},
 	isFilterSidebarOpen: false,
 	hasUnsavedFilters: false,
+	isAllGamesModalOpen: false,
 	// Filter data cache
 	filterData: {
 		seasons: [],
@@ -980,6 +984,9 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 		// using hasFilterChanges() to compare with snapshot
 		set({ isFilterSidebarOpen: false, hasUnsavedFilters: false });
 	},
+
+	openAllGamesModal: () => set({ isAllGamesModalOpen: true }),
+	closeAllGamesModal: () => set({ isAllGamesModalOpen: false }),
 
 	updatePlayerFilters: (filters: Partial<PlayerFilters>) => {
 		const currentPage = get().currentStatsSubPage;

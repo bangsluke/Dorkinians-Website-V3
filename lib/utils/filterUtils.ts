@@ -140,6 +140,88 @@ export function getActiveFilters(
 	return activeFilters;
 }
 
+/** FilterData shape for active count (teams only need .name). */
+interface FilterDataForCount {
+	teams?: Array<{ name: string }>;
+}
+
+/**
+ * Returns the number of "active" filters for badge display.
+ * Matches the logic used in Header so badge count is consistent.
+ */
+export function getActiveFilterCount(
+	playerFilters: PlayerFilters | null | undefined,
+	filterData?: FilterDataForCount | null
+): number {
+	if (!playerFilters) return 0;
+	let count = 0;
+
+	const timeRangeCounted = !!(
+		playerFilters.timeRange?.type &&
+		playerFilters.timeRange.type !== "allTime"
+	);
+	if (timeRangeCounted) count++;
+
+	const allTeams = filterData?.teams?.map((t) => t.name) || [];
+	const teams = playerFilters.teams || [];
+	const hasAllTeams =
+		teams.length === 0 ||
+		(allTeams.length > 0 &&
+			teams.length === allTeams.length &&
+			allTeams.every((t) => teams.includes(t)));
+	if (!hasAllTeams && teams.length > 0) count++;
+
+	if (playerFilters.location?.length && playerFilters.location.length < 2) count++;
+
+	const oppositionMode = playerFilters.opposition?.mode ?? "all";
+	const oppositionSearch = (playerFilters.opposition?.searchTerm ?? "").trim();
+	if (
+		playerFilters.opposition &&
+		(oppositionMode !== "all" || oppositionSearch !== "")
+	)
+		count++;
+
+	const competitionMode = playerFilters.competition?.mode ?? "types";
+	const defaultTypes: ("League" | "Cup" | "Friendly")[] = [
+		"League",
+		"Cup",
+		"Friendly",
+	];
+	const compTypes = playerFilters.competition?.types || [];
+	const hasAllCompTypes =
+		defaultTypes.every((t) => compTypes.includes(t)) &&
+		compTypes.length === defaultTypes.length;
+	if (
+		playerFilters.competition &&
+		(competitionMode === "individual" ||
+			(!hasAllCompTypes && compTypes.length > 0) ||
+			(competitionMode === "individual" &&
+				!!playerFilters.competition?.searchTerm?.trim()))
+	)
+		count++;
+
+	const defaultResults: ("Win" | "Draw" | "Loss")[] = ["Win", "Draw", "Loss"];
+	const results = playerFilters.result || [];
+	const hasAllResults =
+		defaultResults.every((r) => results.includes(r)) &&
+		results.length === defaultResults.length;
+	if (!hasAllResults && results.length > 0) count++;
+
+	const defaultPositions: ("GK" | "DEF" | "MID" | "FWD")[] = [
+		"GK",
+		"DEF",
+		"MID",
+		"FWD",
+	];
+	const positions = playerFilters.position || [];
+	const hasAllPositions =
+		defaultPositions.every((p) => positions.includes(p)) &&
+		positions.length === defaultPositions.length;
+	if (!hasAllPositions && positions.length > 0) count++;
+
+	return count;
+}
+
 function formatDate(dateString: string): string {
 	if (!dateString) return "";
 	try {
