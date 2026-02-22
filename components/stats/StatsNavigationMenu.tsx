@@ -17,6 +17,7 @@ const statsNavigationItems = [
 		label: "Player Stats",
 		sections: [
 			{ id: "key-performance-stats", label: "Key Performance Stats" },
+			{ id: "all-games", label: "All Games" },
 			{ id: "seasonal-performance", label: "Seasonal Performance" },
 			{ id: "team-performance", label: "Team Performance" },
 			{ id: "positional-stats", label: "Positional Stats" },

@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
 			WITH f, 
 			     [g IN goalscorersRaw WHERE g IS NOT NULL AND g.playerName IS NOT NULL | g] as goalscorers,
 			     [m IN momPlayersRaw WHERE m IS NOT NULL] as momPlayers
-			RETURN f.date as date, f.opposition as opposition, f.homeOrAway as homeOrAway,
+			RETURN f.id as fixtureId, f.date as date, f.opposition as opposition, f.homeOrAway as homeOrAway,
 			       f.result as result, f.homeScore as homeScore, f.awayScore as awayScore,
 			       f.dorkiniansGoals as dorkiniansGoals, f.conceded as conceded,
 			       f.compType as compType, f.oppoOwnGoals as oppoOwnGoals, goalscorers, momPlayers
@@ -87,6 +87,7 @@ export async function GET(request: NextRequest) {
 
 		// Process results
 		const fixtures = result.records.map((record: Record) => {
+			const fixtureId = record.get("fixtureId");
 			const date = record.get("date");
 			const opposition = record.get("opposition");
 			const homeOrAway = record.get("homeOrAway");
@@ -120,6 +121,7 @@ export async function GET(request: NextRequest) {
 			const momPlayerName = momPlayersRaw.length > 0 ? String(momPlayersRaw[0]) : null;
 
 			return {
+				fixtureId: fixtureId != null ? String(fixtureId) : "",
 				date: date ? String(date) : "",
 				opposition: opposition ? String(opposition) : "",
 				homeOrAway: homeOrAway ? String(homeOrAway) : "",

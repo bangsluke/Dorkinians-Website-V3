@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { XMarkIcon } from "@heroicons/react/24/outline";
+import { XMarkIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
 import { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { FixturesListSkeleton } from "@/components/skeletons";
@@ -22,6 +22,7 @@ interface Goalscorer {
 }
 
 interface Fixture {
+	fixtureId: string;
 	date: string;
 	opposition: string;
 	homeOrAway: string;
@@ -36,6 +37,67 @@ interface Fixture {
 	momPlayerName: string | null;
 }
 
+interface LineupPlayer {
+	playerName: string;
+	position: string;
+	minutes: number;
+	goals: number;
+	assists: number;
+	mom: number;
+	yellowCards: number;
+	redCards: number;
+	saves: number;
+	cleanSheets: number;
+	conceded: number;
+	ownGoals: number;
+	penaltiesScored: number;
+	penaltiesMissed: number;
+	penaltiesConceded: number;
+	penaltiesSaved: number;
+}
+
+function positionSortOrder(position: string): number {
+	const p = (position || "").toLowerCase();
+	if (p.includes("goalkeeper") || p === "gk") return 0;
+	if (p.includes("defender") || p === "def") return 1;
+	if (p.includes("midfielder") || p === "mid") return 2;
+	if (p.includes("forward") || p === "fwd") return 3;
+	return 4;
+}
+
+function sortLineupByPositionAndMinutes(lineup: LineupPlayer[]): LineupPlayer[] {
+	return [...lineup].sort((a, b) => {
+		const orderA = positionSortOrder(a.position);
+		const orderB = positionSortOrder(b.position);
+		if (orderA !== orderB) return orderA - orderB;
+		return b.minutes - a.minutes;
+	});
+}
+
+const OPTIONAL_LINEUP_COLUMNS: { key: keyof LineupPlayer; label: string }[] = [
+	{ key: "saves", label: "SAVES" },
+	{ key: "ownGoals", label: "OG" },
+	{ key: "penaltiesScored", label: "PSC" },
+	{ key: "penaltiesMissed", label: "PM" },
+	{ key: "penaltiesConceded", label: "PCO" },
+	{ key: "penaltiesSaved", label: "PSV" },
+];
+
+function getVisibleOptionalColumns(lineup: LineupPlayer[]): (keyof LineupPlayer)[] {
+	return OPTIONAL_LINEUP_COLUMNS.filter(({ key }) =>
+		lineup.some((row) => (row[key] as number) > 0)
+	).map(({ key }) => key);
+}
+
+function getPositionBadge(position: string): { label: string; className: string } {
+	const p = (position || "").trim().toUpperCase();
+	if (p.includes("GOAL") || p === "GK") return { label: "GK", className: "px-2 py-1 rounded text-xs font-medium bg-purple-600/30 text-purple-300" };
+	if (p.includes("DEF") || p.includes("DEFENDER")) return { label: "DEF", className: "px-2 py-1 rounded text-xs font-medium bg-amber-700/30 text-amber-200" };
+	if (p.includes("MID") || p.includes("MIDFIELDER")) return { label: "MID", className: "px-2 py-1 rounded text-xs font-medium bg-green-600/30 text-green-300" };
+	if (p.includes("FWD") || p.includes("FORWARD")) return { label: "FWD", className: "px-2 py-1 rounded text-xs font-medium bg-teal-600/30 text-teal-300" };
+	return { label: position || "—", className: "px-2 py-1 rounded text-xs font-medium bg-gray-700 text-gray-300" };
+}
+
 export default function LeagueResultsModal({
 	isOpen,
 	onClose,
@@ -46,6 +108,26 @@ export default function LeagueResultsModal({
 	const [fixtures, setFixtures] = useState<Fixture[]>([]);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [expandedFixtureId, setExpandedFixtureId] = useState<string | null>(null);
+	const [lineupByFixtureId, setLineupByFixtureId] = useState<Record<string, LineupPlayer[]>>({});
+	const [lineupLoadingByFixtureId, setLineupLoadingByFixtureId] = useState<Record<string, boolean>>({});
+
+	const toggleFixture = useCallback((fixtureId: string) => {
+		setExpandedFixtureId((prev) => (prev === fixtureId ? null : fixtureId));
+		if (!lineupByFixtureId[fixtureId] && !lineupLoadingByFixtureId[fixtureId]) {
+			setLineupLoadingByFixtureId((prev) => ({ ...prev, [fixtureId]: true }));
+			fetch(`/api/fixture-lineup?fixtureId=${encodeURIComponent(fixtureId)}`)
+				.then((res) => {
+					if (!res.ok) return res.json().then((d) => Promise.reject(d?.error || "Failed to load"));
+					return res.json();
+				})
+				.then((data) => {
+					setLineupByFixtureId((prev) => ({ ...prev, [fixtureId]: data.lineup || [] }));
+				})
+				.catch(() => setLineupByFixtureId((prev) => ({ ...prev, [fixtureId]: [] })))
+				.finally(() => setLineupLoadingByFixtureId((prev) => ({ ...prev, [fixtureId]: false })));
+		}
+	}, [lineupByFixtureId, lineupLoadingByFixtureId]);
 
 	// Fetch fixtures when modal opens
 	useEffect(() => {
@@ -194,61 +276,133 @@ export default function LeagueResultsModal({
 
 								{!loading && !error && fixtures.length > 0 && (
 									<div className='space-y-4'>
-										{fixtures.map((fixture, index) => (
-											<div
-												key={index}
-												className='bg-gray-800/50 rounded-lg p-4 border border-white/10 relative'>
-												{/* Labels in top right */}
-												<div className='absolute top-4 right-4 flex gap-2 items-center'>
-													{fixture.compType && (
-														<span
-															className={`px-2 py-1 rounded text-xs font-medium ${
-																fixture.compType?.toLowerCase() === "league"
-																	? "bg-blue-600/30 text-blue-300"
-																	: fixture.compType?.toLowerCase() === "cup"
-																	? "bg-purple-600/30 text-purple-300"
-																	: "bg-green-600/30 text-green-300"
-															}`}>
-															{fixture.compType}
-														</span>
+										{fixtures.map((fixture, index) => {
+											const fixtureId = fixture.fixtureId ?? "";
+											const isExpanded = expandedFixtureId === fixtureId;
+											const lineup = fixtureId ? lineupByFixtureId[fixtureId] : undefined;
+											const lineupLoading = fixtureId ? lineupLoadingByFixtureId[fixtureId] : false;
+											return (
+												<div
+													key={fixtureId || index}
+													className='bg-gray-800/50 rounded-lg border border-white/10 overflow-hidden'>
+													<button
+														type='button'
+														onClick={() => fixtureId && toggleFixture(fixtureId)}
+														disabled={!fixtureId}
+														className='w-full text-left p-4 relative hover:bg-gray-800/70 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-inset disabled:cursor-default'>
+														{/* Labels in top right */}
+														<div className='absolute top-4 right-4 flex gap-2 items-center'>
+															{fixture.compType && (
+																<span
+																	className={`px-2 py-1 rounded text-xs font-medium ${
+																		fixture.compType?.toLowerCase() === "league"
+																			? "bg-blue-600/30 text-blue-300"
+																			: fixture.compType?.toLowerCase() === "cup"
+																			? "bg-purple-600/30 text-purple-300"
+																			: "bg-green-600/30 text-green-300"
+																	}`}>
+																	{fixture.compType}
+																</span>
+															)}
+															<span
+																className={`px-2 py-1 rounded text-xs font-medium ${
+																	fixture.homeOrAway?.toLowerCase() === "home"
+																		? "bg-dorkinians-yellow/20 text-dorkinians-yellow"
+																		: "bg-gray-700 text-gray-300"
+																}`}>
+																{fixture.homeOrAway || "N/A"}
+															</span>
+														</div>
+														{/* Date */}
+														<div className='mb-2'>
+															<span className='text-sm text-gray-400'>{formatDate(fixture.date)}</span>
+														</div>
+														{/* Result and opponent */}
+														<div className='text-lg font-semibold text-white mb-2 pr-8'>
+															{formatResult(fixture)} <span className='text-base font-normal'>vs <span className='font-medium'>{fixture.opposition || "Unknown"}</span></span>
+														</div>
+														{/* Goalscorers */}
+														{((fixture.goalscorers && Array.isArray(fixture.goalscorers) && fixture.goalscorers.length > 0) || (fixture.oppoOwnGoals && fixture.oppoOwnGoals > 0)) && (
+															<div className='text-sm text-gray-300 mt-2'>
+																<span className='text-gray-400'>Goalscorers: </span>
+																{formatGoalscorers(fixture.goalscorers, fixture.oppoOwnGoals || 0)}
+															</div>
+														)}
+														{/* MoM */}
+														{fixture.momPlayerName && (
+															<div className='text-sm text-gray-300 mt-2'>
+																<span className='text-gray-400'>MoM: </span>
+																{fixture.momPlayerName}
+															</div>
+														)}
+														{fixtureId && (
+															<div className='absolute bottom-4 right-4'>
+																<ChevronDownIcon className={`w-5 h-5 text-white transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+															</div>
+														)}
+													</button>
+													{isExpanded && fixtureId && (
+														<div className='border-t border-white/10 bg-gray-800/40'>
+															{lineupLoading && (
+																<div className='p-4 text-gray-400 text-sm'>Loading lineup…</div>
+															)}
+															{!lineupLoading && lineup && lineup.length === 0 && (
+																<div className='p-4 text-gray-400 text-sm'>No lineup data</div>
+															)}
+															{!lineupLoading && lineup && lineup.length > 0 && (() => {
+																const sorted = sortLineupByPositionAndMinutes(lineup);
+																const optionalCols = getVisibleOptionalColumns(lineup);
+																return (
+																	<div className='overflow-x-auto'>
+																		<table className='w-full text-white text-[0.7rem]'>
+																			<thead>
+																				<tr className='border-b border-white/20 bg-white/5'>
+																					<th className='sticky left-0 z-10 bg-gray-800 text-left py-2 px-2 shadow-[2px_0_4px_rgba(0,0,0,0.15)]'>Player</th>
+																					<th className='text-left py-2 px-2'>POS</th>
+																					<th className='text-right py-2 px-2'>Mins</th>
+																					<th className='text-right py-2 px-2'>MoM</th>
+																					<th className='text-right py-2 px-2'>G</th>
+																					<th className='text-right py-2 px-2'>A</th>
+																					<th className='text-right py-2 px-2'>Y</th>
+																					<th className='text-right py-2 px-2'>R</th>
+																					{optionalCols.map((key) => (
+																						<th key={key} className='text-right py-2 px-2'>
+																							{OPTIONAL_LINEUP_COLUMNS.find((c) => c.key === key)?.label ?? key}
+																						</th>
+																					))}
+																				</tr>
+																			</thead>
+																			<tbody>
+																				{sorted.map((row, idx) => {
+																					const badge = getPositionBadge(row.position);
+																					return (
+																						<tr key={idx} className='border-b border-white/10'>
+																							<td className='sticky left-0 z-[1] py-2 px-2 shadow-[2px_0_4px_rgba(0,0,0,0.15)] bg-gray-800'>{row.playerName}</td>
+																							<td className='py-2 px-2'><span className={badge.className}>{badge.label}</span></td>
+																							<td className='py-2 px-2 text-right'>{row.minutes}</td>
+																							<td className='py-2 px-2 text-right'>{row.mom ? "✓" : ""}</td>
+																							<td className='py-2 px-2 text-right'>{row.goals > 0 ? row.goals : ""}</td>
+																							<td className='py-2 px-2 text-right'>{row.assists > 0 ? row.assists : ""}</td>
+																							<td className='py-2 px-2 text-right'>{row.yellowCards || ""}</td>
+																							<td className='py-2 px-2 text-right'>{row.redCards || ""}</td>
+																							{optionalCols.map((key) => (
+																								<td key={key} className='py-2 px-2 text-right'>
+																									{(row[key] as number) > 0 ? (row[key] as number) : ""}
+																								</td>
+																							))}
+																						</tr>
+																					);
+																				})}
+																			</tbody>
+																		</table>
+																	</div>
+																);
+															})()}
+														</div>
 													)}
-													<span
-														className={`px-2 py-1 rounded text-xs font-medium ${
-															fixture.homeOrAway?.toLowerCase() === "home"
-																? "bg-dorkinians-yellow/20 text-dorkinians-yellow"
-																: "bg-gray-700 text-gray-300"
-														}`}>
-														{fixture.homeOrAway || "N/A"}
-													</span>
 												</div>
-												
-												{/* Date */}
-												<div className='mb-2'>
-													<span className='text-sm text-gray-400'>{formatDate(fixture.date)}</span>
-												</div>
-												
-												{/* Result and opponent on same line */}
-												<div className='text-lg font-semibold text-white mb-2'>
-													{formatResult(fixture)} <span className='text-base font-normal'>vs <span className='font-medium'>{fixture.opposition || "Unknown"}</span></span>
-												</div>
-												
-												{/* Goalscorers */}
-												{(fixture.goalscorers && Array.isArray(fixture.goalscorers) && fixture.goalscorers.length > 0) || (fixture.oppoOwnGoals && fixture.oppoOwnGoals > 0) ? (
-													<div className='text-sm text-gray-300 mt-2'>
-														<span className='text-gray-400'>Goalscorers: </span>
-														{formatGoalscorers(fixture.goalscorers, fixture.oppoOwnGoals || 0)}
-													</div>
-												) : null}
-												
-												{/* MoM */}
-												{fixture.momPlayerName && (
-													<div className='text-sm text-gray-300 mt-2'>
-														<span className='text-gray-400'>MoM: </span>
-														{fixture.momPlayerName}
-													</div>
-												)}
-											</div>
-										))}
+											);
+										})}
 									</div>
 								)}
 							</div>
