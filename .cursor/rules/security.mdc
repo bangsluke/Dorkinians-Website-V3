@@ -1,0 +1,379 @@
+---
+description: Security best practices - authentication, validation, headers, and data protection
+globs: ["**/*"]
+alwaysApply: true
+---
+
+# Security Best Practices
+
+## Authentication (NextAuth)
+
+### Session Handling
+
+```typescript
+// app/api/auth/[...nextauth]/route.ts
+import NextAuth from "next-auth";
+import { authOptions } from "@/lib/auth";
+
+const handler = NextAuth(authOptions);
+export { handler as GET, handler as POST };
+
+// lib/auth.ts
+import { NextAuthOptions } from "next-auth";
+import CredentialsProvider from "next-auth/providers/credentials";
+
+export const authOptions: NextAuthOptions = {
+  providers: [
+    CredentialsProvider({
+      name: "credentials",
+      credentials: {
+        username: { label: "Username", type: "text" },
+        password: { label: "Password", type: "password" },
+      },
+      async authorize(credentials) {
+        // Validate credentials securely
+        // Never log passwords or sensitive data
+        if (!credentials?.username || !credentials?.password) {
+          return null;
+        }
+        // Verify against secure storage
+        return verifyUser(credentials.username, credentials.password);
+      },
+    }),
+  ],
+  session: {
+    strategy: "jwt",
+    maxAge: 24 * 60 * 60, // 24 hours
+  },
+  pages: {
+    signIn: "/login",
+    error: "/auth/error",
+  },
+};
+```
+
+### Protected Routes
+
+```typescript
+// Middleware for protected routes
+import { withAuth } from "next-auth/middleware";
+
+export default withAuth({
+  pages: {
+    signIn: "/login",
+  },
+});
+
+export const config = {
+  matcher: ["/admin/:path*", "/settings/:path*"],
+};
+
+// Server Component protection
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { redirect } from "next/navigation";
+
+export default async function AdminPage() {
+  const session = await getServerSession(authOptions);
+  
+  if (!session) {
+    redirect("/login");
+  }
+  
+  // Admin content...
+}
+```
+
+## Input Validation (Zod)
+
+### API Route Validation
+
+```typescript
+import { z } from "zod";
+import { NextRequest, NextResponse } from "next/server";
+
+const PlayerQuerySchema = z.object({
+  id: z.string().min(1).max(100),
+  season: z.string().regex(/^\d{4}-\d{2}$/).optional(),
+});
+
+const CreatePlayerSchema = z.object({
+  name: z.string().min(1).max(100).trim(),
+  position: z.enum(["GK", "DEF", "MID", "FWD"]),
+  email: z.string().email().optional(),
+});
+
+export async function GET(request: NextRequest): Promise<NextResponse> {
+  const params = Object.fromEntries(request.nextUrl.searchParams);
+  
+  const result = PlayerQuerySchema.safeParse(params);
+  
+  if (!result.success) {
+    return NextResponse.json(
+      { error: "Invalid parameters", details: result.error.flatten() },
+      { status: 400 }
+    );
+  }
+  
+  const { id, season } = result.data;
+  // Safe to use validated data...
+}
+
+export async function POST(request: NextRequest): Promise<NextResponse> {
+  let body: unknown;
+  
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json(
+      { error: "Invalid JSON body" },
+      { status: 400 }
+    );
+  }
+  
+  const result = CreatePlayerSchema.safeParse(body);
+  
+  if (!result.success) {
+    return NextResponse.json(
+      { error: "Validation failed", details: result.error.flatten() },
+      { status: 400 }
+    );
+  }
+  
+  // Safe to use result.data...
+}
+```
+
+### Client-Side Validation
+
+```typescript
+// Validate before submission
+function handleSubmit(formData: FormData) {
+  const data = Object.fromEntries(formData);
+  
+  const result = CreatePlayerSchema.safeParse(data);
+  
+  if (!result.success) {
+    setErrors(result.error.flatten().fieldErrors);
+    return;
+  }
+  
+  // Submit validated data
+  submitToApi(result.data);
+}
+```
+
+## Database Security
+
+### Parameterized Queries
+
+```typescript
+// GOOD - Parameterized (safe)
+const query = `
+  MATCH (p:Player {graphLabel: "dorkiniansWebsite"})
+  WHERE p.name = $playerName
+  RETURN p
+`;
+await runQuery(query, { playerName: userInput });
+
+// BAD - String interpolation (SQL injection risk)
+const query = `
+  MATCH (p:Player)
+  WHERE p.name = "${userInput}"
+  RETURN p
+`;
+```
+
+### Data Isolation
+
+```typescript
+// Always filter by graphLabel to prevent cross-project access
+const query = `
+  MATCH (n {graphLabel: "dorkiniansWebsite"})
+  WHERE n.id = $id
+  RETURN n
+`;
+```
+
+## Security Headers
+
+### next.config.js
+
+```javascript
+const securityHeaders = [
+  {
+    key: "X-DNS-Prefetch-Control",
+    value: "on",
+  },
+  {
+    key: "Strict-Transport-Security",
+    value: "max-age=63072000; includeSubDomains; preload",
+  },
+  {
+    key: "X-Frame-Options",
+    value: "SAMEORIGIN",
+  },
+  {
+    key: "X-Content-Type-Options",
+    value: "nosniff",
+  },
+  {
+    key: "Referrer-Policy",
+    value: "strict-origin-when-cross-origin",
+  },
+  {
+    key: "Permissions-Policy",
+    value: "camera=(), microphone=(), geolocation=()",
+  },
+];
+
+module.exports = {
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: securityHeaders,
+      },
+    ];
+  },
+};
+```
+
+### Content Security Policy
+
+```javascript
+// For stricter CSP (adjust based on your needs)
+{
+  key: "Content-Security-Policy",
+  value: `
+    default-src 'self';
+    script-src 'self' 'unsafe-eval' 'unsafe-inline';
+    style-src 'self' 'unsafe-inline';
+    img-src 'self' data: https:;
+    font-src 'self';
+    connect-src 'self' https://api.example.com;
+    frame-ancestors 'none';
+  `.replace(/\s{2,}/g, " ").trim(),
+}
+```
+
+## Rate Limiting (Upstash)
+
+```typescript
+import { Ratelimit } from "@upstash/ratelimit";
+import { Redis } from "@upstash/redis";
+
+const ratelimit = new Ratelimit({
+  redis: Redis.fromEnv(),
+  limiter: Ratelimit.slidingWindow(10, "10 s"), // 10 requests per 10 seconds
+  analytics: true,
+});
+
+export async function POST(request: NextRequest): Promise<NextResponse> {
+  // Get identifier (IP or user ID)
+  const ip = request.ip ?? request.headers.get("x-forwarded-for") ?? "anonymous";
+  
+  const { success, limit, reset, remaining } = await ratelimit.limit(ip);
+  
+  if (!success) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      {
+        status: 429,
+        headers: {
+          "X-RateLimit-Limit": limit.toString(),
+          "X-RateLimit-Remaining": remaining.toString(),
+          "X-RateLimit-Reset": reset.toString(),
+        },
+      }
+    );
+  }
+  
+  // Process request...
+}
+```
+
+## Environment Variables
+
+### Safe Handling
+
+```typescript
+// NEVER expose server secrets to client
+// Only NEXT_PUBLIC_* variables are exposed to browser
+
+// Server-only secrets (in .env, not .env.local for this project)
+NEO4J_PASSWORD=secret
+NEXTAUTH_SECRET=secret
+API_KEY=secret
+
+// Client-safe (prefixed)
+NEXT_PUBLIC_API_URL=https://api.example.com
+```
+
+### Validation
+
+```typescript
+// Validate required env vars at startup
+function validateEnv(): void {
+  const required = [
+    "NEO4J_URI",
+    "NEO4J_USERNAME", 
+    "NEO4J_PASSWORD",
+    "NEXTAUTH_SECRET",
+  ];
+  
+  const missing = required.filter((key) => !process.env[key]);
+  
+  if (missing.length > 0) {
+    throw new Error(`Missing required environment variables: ${missing.join(", ")}`);
+  }
+}
+```
+
+## Sensitive Data
+
+### Never Log Secrets
+
+```typescript
+// BAD
+console.log("User login:", { username, password });
+console.log("API Key:", process.env.API_KEY);
+
+// GOOD
+console.log("User login attempt:", { username });
+console.log("API Key present:", !!process.env.API_KEY);
+```
+
+### Sanitize User Input in Logs
+
+```typescript
+function sanitizeForLogging(data: Record<string, unknown>): Record<string, unknown> {
+  const sensitiveKeys = ["password", "token", "secret", "key", "authorization"];
+  
+  return Object.fromEntries(
+    Object.entries(data).map(([key, value]) => [
+      key,
+      sensitiveKeys.some((k) => key.toLowerCase().includes(k))
+        ? "[REDACTED]"
+        : value,
+    ])
+  );
+}
+
+console.log("Request data:", sanitizeForLogging(requestBody));
+```
+
+## XSS Prevention
+
+```tsx
+// React auto-escapes by default - this is safe
+<p>{userInput}</p>
+
+// DANGEROUS - only use with trusted content
+<div dangerouslySetInnerHTML={{ __html: trustedHtml }} />
+
+// If you must render HTML, sanitize it
+import DOMPurify from "dompurify";
+
+<div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(userHtml) }} />
+```

@@ -1,0 +1,212 @@
+---
+description: Tailwind CSS patterns and class organization
+globs: ["**/*.tsx", "**/*.css", "tailwind.config.js"]
+alwaysApply: false
+---
+
+# Tailwind CSS Patterns
+
+## Class Organization
+
+Order classes consistently for readability:
+
+1. Layout (display, position, flex/grid)
+2. Sizing (width, height, padding, margin)
+3. Typography (font, text)
+4. Visual (background, border, shadow)
+5. Interactive (hover, focus, transition)
+
+```tsx
+// GOOD - organized classes
+<button className="
+  flex items-center justify-center
+  px-4 py-2 w-full
+  text-sm font-medium text-white
+  bg-primary rounded-lg shadow-sm
+  hover:bg-primary-dark focus:outline-none focus:ring-2
+  transition-colors duration-200
+">
+  Click Me
+</button>
+```
+
+## Design Tokens via CSS Variables
+
+Use CSS variables for theming instead of hardcoded values:
+
+```css
+/* globals.css */
+:root {
+  --color-primary: #1C8841;
+  --color-primary-dark: #166b34;
+  --color-background: #ffffff;
+  --color-text: #1f2937;
+  
+  --spacing-1: 0.25rem;
+  --spacing-2: 0.5rem;
+  --spacing-4: 1rem;
+  
+  --duration-fast: 150ms;
+  --duration-normal: 200ms;
+  --duration-slow: 300ms;
+}
+
+.dark {
+  --color-background: #111827;
+  --color-text: #f9fafb;
+}
+```
+
+```tsx
+// Use in components
+<div className="bg-[var(--color-primary)] text-[var(--color-text)]">
+  Content
+</div>
+
+// Or extend Tailwind config
+// tailwind.config.js
+module.exports = {
+  theme: {
+    extend: {
+      colors: {
+        primary: 'var(--color-primary)',
+        'primary-dark': 'var(--color-primary-dark)',
+      },
+    },
+  },
+};
+```
+
+## Responsive Design
+
+Mobile-first approach with breakpoint prefixes:
+
+```tsx
+<div className="
+  grid grid-cols-1
+  sm:grid-cols-2
+  lg:grid-cols-3
+  xl:grid-cols-4
+  gap-4
+">
+  {items.map(item => <Card key={item.id} {...item} />)}
+</div>
+```
+
+## Component Patterns
+
+### Buttons
+
+```tsx
+// Base button classes
+const buttonBase = "inline-flex items-center justify-center rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2";
+
+// Variants
+const buttonVariants = {
+  primary: "bg-primary text-white hover:bg-primary-dark focus:ring-primary",
+  secondary: "bg-gray-200 text-gray-900 hover:bg-gray-300 focus:ring-gray-500",
+  danger: "bg-red-600 text-white hover:bg-red-700 focus:ring-red-500",
+};
+
+// Sizes
+const buttonSizes = {
+  sm: "px-3 py-1.5 text-sm",
+  md: "px-4 py-2 text-base",
+  lg: "px-6 py-3 text-lg",
+};
+```
+
+### Cards
+
+```tsx
+<div className="
+  bg-white dark:bg-gray-800
+  rounded-lg shadow-md
+  p-4 sm:p-6
+  border border-gray-200 dark:border-gray-700
+">
+  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+    {title}
+  </h3>
+  <p className="mt-2 text-gray-600 dark:text-gray-300">
+    {description}
+  </p>
+</div>
+```
+
+### Form Inputs
+
+```tsx
+<input
+  type="text"
+  className="
+    w-full px-3 py-2
+    text-gray-900 dark:text-white
+    bg-white dark:bg-gray-700
+    border border-gray-300 dark:border-gray-600
+    rounded-lg
+    focus:ring-2 focus:ring-primary focus:border-transparent
+    placeholder-gray-400
+    transition-colors
+  "
+  placeholder="Enter value..."
+/>
+```
+
+## Animation Classes
+
+Use consistent animation timing:
+
+```tsx
+// Transitions
+<div className="transition-all duration-200 ease-out">
+  Animated content
+</div>
+
+// Hover effects
+<button className="hover:scale-105 hover:shadow-lg transition-transform duration-200">
+  Hover me
+</button>
+
+// Loading states
+<div className="animate-pulse bg-gray-200 rounded h-4 w-full" />
+```
+
+## Accessibility with Tailwind
+
+```tsx
+// Focus visible for keyboard users
+<button className="focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+  Keyboard accessible
+</button>
+
+// Screen reader only text
+<span className="sr-only">Close menu</span>
+
+// Reduced motion support
+<div className="motion-safe:animate-bounce motion-reduce:animate-none">
+  Respects prefers-reduced-motion
+</div>
+```
+
+## Avoiding Common Mistakes
+
+```tsx
+// BAD - hardcoded colors
+<div className="bg-[#1C8841]">
+
+// GOOD - use design tokens
+<div className="bg-primary">
+
+// BAD - inconsistent spacing
+<div className="p-3 mt-5 mb-7">
+
+// GOOD - consistent spacing scale
+<div className="p-4 mt-4 mb-8">
+
+// BAD - !important overrides
+<div className="!text-red-500">
+
+// GOOD - proper specificity handling
+<div className="text-red-500"> // or use CSS variables
+```

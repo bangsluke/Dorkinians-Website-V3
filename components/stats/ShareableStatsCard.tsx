@@ -73,6 +73,7 @@ function formatStatValue(value: any, statFormat: string, decimalPlaces: number, 
 
 function getVisualizationTitle(type: string): string {
 	const titles: Record<string, string> = {
+		"all-games": "All Games",
 		"seasonal-performance": "Seasonal Performance",
 		"team-performance": "Team Performance",
 		"match-results": "Match Results",

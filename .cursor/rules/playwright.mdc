@@ -1,0 +1,246 @@
+---
+description: Playwright E2E testing patterns and best practices
+globs: ["__tests__/e2e/**/*", "**/*.spec.ts", "playwright.config.ts"]
+alwaysApply: false
+---
+
+# Playwright E2E Testing
+
+## Test Structure
+
+```typescript
+// __tests__/e2e/navigation/navigation.spec.ts
+import { test, expect } from "@playwright/test";
+
+test.describe("Navigation", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/");
+  });
+
+  test("navigates to stats page", async ({ page }) => {
+    await page.click('[data-testid="nav-stats"]');
+    await expect(page).toHaveURL(/.*stats/);
+    await expect(page.getByRole("heading", { name: /statistics/i })).toBeVisible();
+  });
+
+  test("displays home page content", async ({ page }) => {
+    await expect(page.getByRole("heading", { level: 1 })).toContainText("Dorkinians");
+  });
+});
+```
+
+## Locator Strategies
+
+### Preferred: Role-based
+
+```typescript
+// GOOD - Accessible selectors
+await page.getByRole("button", { name: "Submit" }).click();
+await page.getByRole("link", { name: "View Stats" }).click();
+await page.getByRole("textbox", { name: "Search" }).fill("player name");
+await page.getByRole("heading", { level: 2, name: "Results" });
+```
+
+### Alternative: Text and Label
+
+```typescript
+// Text content
+await page.getByText("Welcome").click();
+await page.getByLabel("Email address").fill("test@example.com");
+await page.getByPlaceholder("Search players...").fill("John");
+```
+
+### Fallback: Test IDs
+
+```typescript
+// Only when semantic selectors aren't possible
+await page.getByTestId("player-card-123").click();
+await page.locator('[data-testid="stats-table"]').isVisible();
+```
+
+## Assertions
+
+```typescript
+// Visibility
+await expect(page.getByRole("button")).toBeVisible();
+await expect(page.getByRole("alert")).toBeHidden();
+
+// Text content
+await expect(page.getByRole("heading")).toHaveText("Statistics");
+await expect(page.locator(".stats")).toContainText("10 goals");
+
+// Attributes
+await expect(page.getByRole("link")).toHaveAttribute("href", "/stats");
+await expect(page.getByRole("button")).toBeEnabled();
+await expect(page.getByRole("checkbox")).toBeChecked();
+
+// URL and title
+await expect(page).toHaveURL(/.*stats/);
+await expect(page).toHaveTitle(/Dorkinians/);
+
+// Count
+await expect(page.getByRole("listitem")).toHaveCount(10);
+```
+
+## Waiting Strategies
+
+```typescript
+// Wait for element
+await page.getByRole("table").waitFor();
+await page.getByText("Loading...").waitFor({ state: "hidden" });
+
+// Wait for network
+await page.waitForResponse("/api/players");
+await page.waitForLoadState("networkidle");
+
+// Wait for condition
+await expect(page.getByRole("table")).toBeVisible({ timeout: 10000 });
+```
+
+## Page Object Pattern
+
+```typescript
+// __tests__/e2e/pages/StatsPage.ts
+import { Page, Locator } from "@playwright/test";
+
+export class StatsPage {
+  readonly page: Page;
+  readonly searchInput: Locator;
+  readonly playerTable: Locator;
+  readonly seasonFilter: Locator;
+
+  constructor(page: Page) {
+    this.page = page;
+    this.searchInput = page.getByRole("textbox", { name: /search/i });
+    this.playerTable = page.getByRole("table");
+    this.seasonFilter = page.getByRole("combobox", { name: /season/i });
+  }
+
+  async goto(): Promise<void> {
+    await this.page.goto("/stats");
+    await this.playerTable.waitFor();
+  }
+
+  async searchPlayer(name: string): Promise<void> {
+    await this.searchInput.fill(name);
+    await this.page.keyboard.press("Enter");
+    await this.page.waitForLoadState("networkidle");
+  }
+
+  async selectSeason(season: string): Promise<void> {
+    await this.seasonFilter.selectOption(season);
+  }
+
+  async getPlayerCount(): Promise<number> {
+    return await this.page.getByRole("row").count() - 1; // Minus header
+  }
+}
+
+// Usage in test
+test("search filters players", async ({ page }) => {
+  const statsPage = new StatsPage(page);
+  await statsPage.goto();
+  await statsPage.searchPlayer("John");
+  
+  const count = await statsPage.getPlayerCount();
+  expect(count).toBeGreaterThan(0);
+});
+```
+
+## API Testing
+
+```typescript
+test("API returns player data", async ({ request }) => {
+  const response = await request.get("/api/players?id=123");
+  
+  expect(response.ok()).toBeTruthy();
+  
+  const data = await response.json();
+  expect(data.player).toBeDefined();
+  expect(data.player.name).toBeTruthy();
+});
+
+test("API handles errors gracefully", async ({ request }) => {
+  const response = await request.get("/api/players?id=nonexistent");
+  
+  expect(response.status()).toBe(404);
+  
+  const data = await response.json();
+  expect(data.error).toBeDefined();
+});
+```
+
+## Visual Testing
+
+```typescript
+test("stats page visual regression", async ({ page }) => {
+  await page.goto("/stats");
+  await page.waitForLoadState("networkidle");
+  
+  await expect(page).toHaveScreenshot("stats-page.png", {
+    maxDiffPixels: 100,
+  });
+});
+```
+
+## Configuration
+
+```typescript
+// playwright.config.ts
+import { defineConfig, devices } from "@playwright/test";
+
+export default defineConfig({
+  testDir: "./__tests__/e2e",
+  fullyParallel: true,
+  forbidOnly: !!process.env.CI,
+  retries: process.env.CI ? 2 : 0,
+  workers: process.env.CI ? 1 : undefined,
+  reporter: "html",
+  
+  use: {
+    baseURL: "http://localhost:3000",
+    trace: "on-first-retry",
+    screenshot: "only-on-failure",
+  },
+
+  projects: [
+    {
+      name: "chromium",
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      name: "firefox",
+      use: { ...devices["Desktop Firefox"] },
+    },
+    {
+      name: "mobile",
+      use: { ...devices["iPhone 13"] },
+    },
+  ],
+
+  webServer: {
+    command: "npm run dev",
+    url: "http://localhost:3000",
+    reuseExistingServer: !process.env.CI,
+  },
+});
+```
+
+## Running Tests
+
+```bash
+# All E2E tests
+npm run test:e2e
+
+# With UI mode
+npm run test:e2e:ui
+
+# Specific test file
+npm run test:e2e:navigation
+
+# Debug mode
+npm run test:e2e:debug
+
+# Show last report
+npm run test:e2e:show-last-report
+```

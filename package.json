@@ -1,6 +1,6 @@
 {
 	"name": "dorkinians-website-v3",
-	"version": "3.0.4",
+	"version": "3.1.0",
 	"description": "Dorkinians FC Statistics Website",
 	"private": true,
 	"scripts": {
@@ -53,7 +53,7 @@
 		"@netlify/plugin-nextjs": "^5.15.7",
 		"@nivo/sankey": "^0.99.0",
 		"@types/node": "^20.19.15",
-		"@types/nodemailer": "^7.0.4",
+		"@types/nodemailer": "^7.0.5",
 		"@types/papaparse": "^5.5.2",
 		"@types/react": "^18.3.27",
 		"@types/react-dom": "^18.2.18",
