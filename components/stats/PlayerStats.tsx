@@ -36,6 +36,7 @@ import Button from "@/components/ui/Button";
 import { calculateFTPBreakdown } from "@/lib/utils/fantasyPoints";
 import { ErrorState, EmptyState } from "@/components/ui/StateComponents";
 import { useToast } from "@/lib/hooks/useToast";
+import AllGamesModal from "@/components/stats/AllGamesModal";
 
 // Page-specific skeleton components (Player Stats only)
 function PositionalStatsSkeleton() {
@@ -1602,8 +1603,7 @@ function PositionalStatsVisualization({ gk, def, mid, fwd, appearances, gkMinute
 					<tbody>
 						<tr className='border-b border-white/10'>
 							<td className='py-2 px-2'>
-								<span className='inline-block w-3 h-3 rounded-full bg-purple-500 mr-2'></span>
-								GK
+								<span className='px-2 py-1 rounded text-xs font-medium bg-purple-600/30 text-purple-300'>GK</span>
 							</td>
 							<td className='text-right py-2 px-2 font-mono'>{gk}</td>
 							<td className='text-right py-2 px-2 font-mono'>{gkPercentOfTotal.toFixed(1)}%</td>
@@ -1611,8 +1611,7 @@ function PositionalStatsVisualization({ gk, def, mid, fwd, appearances, gkMinute
 						</tr>
 						<tr className='border-b border-white/10'>
 							<td className='py-2 px-2'>
-								<span className='inline-block w-3 h-3 rounded-full bg-amber-700 mr-2'></span>
-								DEF
+								<span className='px-2 py-1 rounded text-xs font-medium bg-amber-700/30 text-amber-200'>DEF</span>
 							</td>
 							<td className='text-right py-2 px-2 font-mono'>{def}</td>
 							<td className='text-right py-2 px-2 font-mono'>{defPercentOfTotal.toFixed(1)}%</td>
@@ -1620,8 +1619,7 @@ function PositionalStatsVisualization({ gk, def, mid, fwd, appearances, gkMinute
 						</tr>
 						<tr className='border-b border-white/10'>
 							<td className='py-2 px-2'>
-								<span className='inline-block w-3 h-3 rounded-full bg-green-400 mr-2'></span>
-								MID
+								<span className='px-2 py-1 rounded text-xs font-medium bg-green-600/30 text-green-300'>MID</span>
 							</td>
 							<td className='text-right py-2 px-2 font-mono'>{mid}</td>
 							<td className='text-right py-2 px-2 font-mono'>{midPercentOfTotal.toFixed(1)}%</td>
@@ -1629,8 +1627,7 @@ function PositionalStatsVisualization({ gk, def, mid, fwd, appearances, gkMinute
 						</tr>
 						<tr>
 							<td className='py-2 px-2'>
-								<span className='inline-block w-3 h-3 rounded-full bg-teal-400 mr-2'></span>
-								FWD
+								<span className='px-2 py-1 rounded text-xs font-medium bg-teal-600/30 text-teal-300'>FWD</span>
 							</td>
 							<td className='text-right py-2 px-2 font-mono'>{fwd}</td>
 							<td className='text-right py-2 px-2 font-mono'>{fwdPercentOfTotal.toFixed(1)}%</td>
@@ -1691,6 +1688,7 @@ export default function PlayerStats() {
 	const [awardHistory, setAwardHistory] = useState<Array<{ season: string; awardName: string }>>([]);
 	const [totalAwards, setTotalAwards] = useState<number>(0);
 	const [isLoadingAwardHistory, setIsLoadingAwardHistory] = useState(false);
+	const [allGamesModalOpen, setAllGamesModalOpen] = useState(false);
 
 	// State for icon loading tracking in Key Performance Stats
 	const [loadedIcons, setLoadedIcons] = useState<Set<string>>(new Set());
@@ -2855,6 +2853,20 @@ export default function PlayerStats() {
 				</div>
 			) : null}
 
+			{/* All Games Section */}
+			<div id='all-games' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
+				<h3 className='text-white font-semibold text-sm md:text-base mb-3'>All Games</h3>
+				<div className='flex justify-center pb-4'>
+					<button
+						type='button'
+						onClick={() => setAllGamesModalOpen(true)}
+						className='text-white hover:text-dorkinians-yellow underline text-sm md:text-base transition-colors bg-transparent border-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)]'
+					>
+						Click to show all games
+					</button>
+				</div>
+			</div>
+
 			{/* Seasonal Performance Section */}
 			<div id='seasonal-performance' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 				{allSeasonsSelected && (
@@ -3800,6 +3812,16 @@ export default function PlayerStats() {
 					/>
 				</div>
 			)} */}
+
+			{/* All Games full-screen modal */}
+			{selectedPlayer && (
+				<AllGamesModal
+					isOpen={allGamesModalOpen}
+					onClose={() => setAllGamesModalOpen(false)}
+					playerName={selectedPlayer}
+					playerDisplayName={playerData?.playerName ?? selectedPlayer}
+				/>
+			)}
 		</div>
 	);
 }
