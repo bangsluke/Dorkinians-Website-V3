@@ -4,7 +4,7 @@ slug: /projects/dorkinians-website
 
 # Dorkinians Website
 
-![Dorkinians Website Screenshot](https://i.postimg.cc/Yq7Xvd7n/Dorkinians-Website.png)
+![Dorkinians Website Screenshot](https://bangsluke-assets.netlify.app/images/dorkinians/Dorkinians-Website.png)
 
 :::danger[HOT TIP]
 This app works best when installed as a native app on your phone or tablet and is highly recommended to do so.
@@ -73,11 +73,11 @@ Example questions are provided to get you started.
 
 <div className="sideBySide">
   <img
-    src="https://i.postimg.cc/660MVKSh/Homepage_Mobile.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Homepage-Mobile.png"
     alt="Homepage Mobile Screenshot"
   />
   <img
-    src="https://i.postimg.cc/qMvjjYHR/Homepage_Desktop.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Homepage-Desktop.png"
     alt="Homepage Desktop Screenshot"
   />
 </div>
@@ -100,11 +100,11 @@ The Stats section provides comprehensive statistics for players, teams, and the 
 
 <div className="sideBySide">
   <img
-    src="https://i.postimg.cc/593s5JGk/Player_Stats_Mobile.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Player-Stats-Mobile.png"
     alt="Player Stats Mobile Screenshot"
   />
   <img
-    src="https://i.postimg.cc/zXG00MYX/Player_Stats_Desktop.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Player-Stats-Desktop.png"
     alt="Player Stats Desktop Screenshot"
   />
 </div>
@@ -125,11 +125,11 @@ The TOTW (Team of the Week) section displays the best performing players each we
 
 <div className="sideBySide">
   <img
-    src="https://i.postimg.cc/9XpLP2Sg/TOTW_Mobile.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/TOTW-Mobile.png"
     alt="TOTW Mobile Screenshot"
   />
   <img
-    src="https://i.postimg.cc/8kHZdG9C/Players_of_the_Month_Desktop.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Players-of-the-Month-Desktop.png"
     alt="Players of the Month Desktop Screenshot"
   />
 </div>
@@ -153,11 +153,11 @@ The Club Info section contains information about the club, leagues, captains, aw
 
 <div className="sideBySide">
   <img
-    src="https://i.postimg.cc/Wpn5mVKH/Club_Information_Mobile.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Club-Information-Mobile.png"
     alt="Club Information Mobile Screenshot"
   />
   <img
-    src="https://i.postimg.cc/gk2NN5bb/League_Information_Desktop.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/League-Information-Desktop.png"
     alt="League Information Desktop Screenshot"
   />
 </div>
@@ -174,11 +174,11 @@ The Settings page provides PWA installation options, links to help documentation
 
 <div className="sideBySide">
   <img
-    src="https://i.postimg.cc/qBL1crYP/Settings_Mobile.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Settings-Mobile.png"
     alt="Settings Mobile Screenshot"
   />
   <img
-    src="https://i.postimg.cc/v8z07yks/Settings_Desktop.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Settings-Desktop.png"
     alt="Settings Desktop Screenshot"
   />
 </div>

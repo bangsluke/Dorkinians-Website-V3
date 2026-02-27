@@ -6,7 +6,7 @@ slug: /projects/dorkinians-stats/maintenance
 
 > [Back to Documentation Intro Contents](../../DocumentationIntro.md)
 
-<img src="https://i.postimg.cc/rm1f3Kth/Dorkinians.png" width="200"></img>
+<img src="https://bangsluke-assets.netlify.app/images/company-logos/Dorkinians.png" width="200"></img>
 
 ## Table of Contents
 

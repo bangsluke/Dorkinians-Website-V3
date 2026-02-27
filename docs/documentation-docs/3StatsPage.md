@@ -39,11 +39,11 @@ To do this, tap the filter icon in the header to open the [filter sidebar](#filt
 
 <div className="sideBySide">
   <img
-    src="https://i.postimg.cc/593s5JGk/Player_Stats_Mobile.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Player-Stats-Mobile.png"
     alt="Player Stats Mobile Screenshot"
   />
   <img
-    src="https://i.postimg.cc/zXG00MYX/Player_Stats_Desktop.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Player-Stats-Desktop.png"
     alt="Player Stats Desktop Screenshot"
   />
 </div>
@@ -77,7 +77,7 @@ The Stats Navigation Menu provides quick access to all sections within the Stats
 
 <div className="sideBySide">
   <img
-    src="https://i.postimg.cc/W1XXkqpq/Stats-Navigation-Mobile.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Stats-Navigation-Mobile.png"
     alt="Stats Navigation Mobile Screenshot"
   />
 </div>
@@ -101,11 +101,11 @@ Filters allow you to narrow down statistics to specific criteria. Available filt
 
 <div className="sideBySide">
   <img
-    src="https://i.postimg.cc/W3MZ0x6L/Stats_Filter_Mobile.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Stats-Filter-Mobile.png"
     alt="Stats Filter Mobile Screenshot"
   />
   <img
-    src="https://i.postimg.cc/RZ6Ncj4t/Stats-Filter-Desktop.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Stats-Filter-Desktop.png"
     alt="Stats Filter Desktop Screenshot"
   />
 </div>
@@ -139,11 +139,11 @@ The Player Stats section provides comprehensive statistics for individual player
 
 <div className="sideBySide">
   <img
-    src="https://i.postimg.cc/593s5JGk/Player_Stats_Mobile.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Player-Stats-Mobile.png"
     alt="Player Stats Mobile Screenshot"
   />
   <img
-    src="https://i.postimg.cc/zXG00MYX/Player_Stats_Desktop.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Player-Stats-Desktop.png"
     alt="Player Stats Desktop Screenshot"
   />
 </div>
@@ -191,7 +191,7 @@ The Data Table section provides a comprehensive table of all player statistics. 
 
 <div className="sideBySide">
   <img
-    src="https://i.postimg.cc/76xYbL9x/Player-Stats-Table-Mobile.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Player-Stats-Table-Mobile.png"
     alt="Player Stats Data Table Mobile Screenshot"
   />
 </div>
@@ -264,11 +264,11 @@ The Team Stats section provides statistics and analysis for individual teams wit
 
 <div className="sideBySide">
   <img
-    src="https://i.postimg.cc/jqXM6T9c/Team_Stats_Mobile.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Team-Stats-Mobile.png"
     alt="Team Stats Mobile Screenshot"
   />
   <img
-    src="https://i.postimg.cc/CLxmmtpM/Team_Stats_Desktop.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Team-Stats-Desktop.png"
     alt="Team Stats Desktop Screenshot"
   />
 </div>
@@ -299,7 +299,7 @@ The Data Table section provides a comprehensive table of all player statistics. 
 
 <div className="sideBySide">
   <img
-    src="https://i.postimg.cc/26zhmrBF/Team-Stats-Table-Mobile.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Team-Stats-Table-Mobile.png"
     alt="Team Stats Data Table Mobile Screenshot"
   />
 </div>
@@ -316,11 +316,11 @@ The Club Stats section provides club-wide statistics and comparisons across all 
 
 <div className="sideBySide">
   <img
-    src="https://i.postimg.cc/bYTm0PMT/Club_Stats_Mobile.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Club-Stats-Mobile.png"
     alt="Club Stats Mobile Screenshot"
   />
   <img
-    src="https://i.postimg.cc/yY8vv5C7/Club_Stats_Desktop.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Club-Stats-Desktop.png"
     alt="Club Stats Desktop Screenshot"
   />
 </div>
@@ -350,7 +350,7 @@ The Data Table section provides a comprehensive table of all club statistics. To
 
 <div className="sideBySide">
   <img
-    src="https://i.postimg.cc/bNszMWdD/Club-Stats-Table-Mobile.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Club-Stats-Table-Mobile.png"
     alt="Club Stats Data Table Mobile Screenshot"
   />
 </div>
@@ -363,11 +363,11 @@ The Comparison section allows you to compare multiple players side-by-side using
 
 <div className="sideBySide">
   <img
-    src="https://i.postimg.cc/J7qp38gP/Player_Comparison_Mobile.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Player-Comparison-Mobile.png"
     alt="Player Comparison Mobile Screenshot"
   />
   <img
-    src="https://i.postimg.cc/NfjppVvY/Player_Comparison_Desktop.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Player-Comparison-Desktop.png"
     alt="Player Comparison Desktop Screenshot"
   />
 </div>

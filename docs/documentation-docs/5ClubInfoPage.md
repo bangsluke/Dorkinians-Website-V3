@@ -28,11 +28,11 @@ The Club Info section provides comprehensive information about Dorkinians FC, in
 
 <div className="sideBySide">
   <img
-    src="https://i.postimg.cc/Wpn5mVKH/Club_Information_Mobile.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Club-Information-Mobile.png"
     alt="Club Information Mobile Screenshot"
   />
   <img
-    src="https://i.postimg.cc/gk2NN5bb/League_Information_Desktop.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/League-Information-Desktop.png"
     alt="League Information Desktop Screenshot"
   />
 </div>
@@ -61,11 +61,11 @@ The Club Information sub-page provides details about Dorkinians FC, including lo
 
 <div className="sideBySide">
   <img
-    src="https://i.postimg.cc/Wpn5mVKH/Club_Information_Mobile.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Club-Information-Mobile.png"
     alt="Club Information Mobile Screenshot"
   />
   <img
-    src="https://i.postimg.cc/Wpn5mVC1/Club_Information_Desktop.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Club-Information-Desktop.png"
     alt="Club Information Desktop Screenshot"
   />
 </div>
@@ -96,11 +96,11 @@ The League Information sub-page provides details about the leagues in which Dork
 
 <div className="sideBySide">
   <img
-    src="https://i.postimg.cc/Pf4SbHc7/League_Information_Mobile.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/League-Information-Mobile.png"
     alt="League Information Mobile Screenshot"
   />
   <img
-    src="https://i.postimg.cc/gk2NN5bb/League_Information_Desktop.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/League-Information-Desktop.png"
     alt="League Information Desktop Screenshot"
   />
 </div>
@@ -132,7 +132,7 @@ The season progress section is an attempt to show the progress of all of the clu
 
 <div className="sideBySide">
   <img
-    src="https://i.postimg.cc/tTL4S3WH/Season_Progress_Mobile.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Season-Progress-Mobile.png"
     alt="Season Progress Mobile Screenshot"
   />
 </div>
@@ -147,7 +147,7 @@ The my seasons section is a list of all of the finishing positions of the select
 
 <div className="sideBySide">
   <img
-    src="https://i.postimg.cc/rmvwn1x2/My_Seasons_Mobile.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/My-Seasons-Mobile.png"
     alt="My Seasons Mobile Screenshot"
   />
 </div>
@@ -162,11 +162,11 @@ The Club Captains sub-page displays information about current and historical tea
 
 <div className="sideBySide">
   <img
-    src="https://i.postimg.cc/sfcTPz8b/Club_Captains_Mobile.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Club-Captains-Mobile.png"
     alt="Club Captains Mobile Screenshot"
   />
   <img
-    src="https://i.postimg.cc/pVZsQv42/Club_Captains_Desktop.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Club-Captains-Desktop.png"
     alt="Club Captains Desktop Screenshot"
   />
 </div>
@@ -183,11 +183,11 @@ The Club Awards sub-page provides information about the club's individual awards
 
 <div className="sideBySide">
   <img
-    src="https://i.postimg.cc/h4r28nww/Club_Awards_Mobile.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Club-Awards-Mobile.png"
     alt="Club Awards Mobile Screenshot"
   />
   <img
-    src="https://i.postimg.cc/05fVGvFx/Club_Awards_Desktop.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Club-Awards-Desktop.png"
     alt="Club Awards Desktop Screenshot"
   />
 </div>
@@ -208,11 +208,11 @@ The Useful Links sub-page provides quick access to external resources and import
 
 <div className="sideBySide">
   <img
-    src="https://i.postimg.cc/MZD90w4N/Useful_Links_Mobile.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Useful-Links-Mobile.png"
     alt="Useful Links Mobile Screenshot"
   />
   <img
-    src="https://i.postimg.cc/nVk3Kxgf/Useful_Links_Desktop.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Useful-Links-Desktop.png"
     alt="Useful Links Desktop Screenshot"
   />
 </div>

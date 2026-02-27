@@ -37,11 +37,11 @@ E.g. "How many goals has Oli Goddard scored?"
 
 <div className="sideBySide">
   <img
-    src="https://i.postimg.cc/660MVKSh/Homepage_Mobile.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Homepage-Mobile.png"
     alt="Homepage Mobile Screenshot"
   />
   <img
-    src="https://i.postimg.cc/qMvjjYHR/Homepage_Desktop.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Homepage-Desktop.png"
     alt="Homepage Desktop Screenshot"
   />
 </div>
