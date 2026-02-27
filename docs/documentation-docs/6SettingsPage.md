@@ -32,11 +32,11 @@ The Settings page is accessible from the header settings icon (the cog) on any p
 
 <div className="sideBySide">
   <img
-    src="https://i.postimg.cc/qBL1crYP/Settings_Mobile.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Settings-Mobile.png"
     alt="Settings Mobile Screenshot"
   />
   <img
-    src="https://i.postimg.cc/v8z07yks/Settings_Desktop.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Settings-Desktop.png"
     alt="Settings Desktop Screenshot"
   />
 </div>
@@ -126,7 +126,7 @@ A report bug / request feature button is provided to allow you to report bugs or
 
 <div className="sideBySide">
   <img
-    src="https://i.postimg.cc/VLTdZbQ4/Report_a_Bug_Mobile.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Report-a-Bug-Mobile.png"
     alt="Report a Bug Mobile Screenshot"
   />
 </div>
@@ -148,7 +148,7 @@ The Settings page provides the ability to request data removal. To remove your n
 
 <div className="sideBySide">
   <img
-    src="https://i.postimg.cc/DyD8pbkB/Data_Removal_Mobile.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Data-Removal-Mobile.png"
     alt="Data Removal Mobile Screenshot"
   />
 </div>

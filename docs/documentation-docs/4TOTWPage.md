@@ -25,11 +25,11 @@ The TOTW (Team of the Week) section displays the best performing players each we
 
 <div className="sideBySide">
   <img
-    src="https://i.postimg.cc/9XpLP2Sg/TOTW_Mobile.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/TOTW-Mobile.png"
     alt="TOTW Mobile Screenshot"
   />
   <img
-    src="https://i.postimg.cc/8kHZdG9C/Players_of_the_Month_Desktop.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Players-of-the-Month-Desktop.png"
     alt="Players of the Month Desktop Screenshot"
   />
 </div>
@@ -59,11 +59,11 @@ The Team of the Week displays the best performing players from each week, arrang
 
 <div className="sideBySide">
   <img
-    src="https://i.postimg.cc/9XpLP2Sg/TOTW_Mobile.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/TOTW-Mobile.png"
     alt="TOTW Mobile Screenshot"
   />
   <img
-    src="https://i.postimg.cc/v8z07ykB/TOTW_Desktop.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/TOTW-Desktop.png"
     alt="TOTW Desktop Screenshot"
   />
 </div>
@@ -137,11 +137,11 @@ The Players of the Month section displays monthly award winners who have achieve
 
 <div className="sideBySide">
   <img
-    src="https://i.postimg.cc/9XpLP2S8/Players_of_the_Month_Mobile.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Players-of-the-Month-Mobile.png"
     alt="Players of the Month Mobile Screenshot"
   />
   <img
-    src="https://i.postimg.cc/8kHZdG9C/Players_of_the_Month_Desktop.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Players-of-the-Month-Desktop.png"
     alt="Players of the Month Desktop Screenshot"
   />
 </div>
@@ -164,7 +164,7 @@ This section shows the current selected player's FTP ranking for the month and s
 
 <div className="sideBySide">
   <img
-    src="https://i.postimg.cc/j5VzN72q/This-Month-FTP-Ranking-Mobile.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/This-Month-FTP-Ranking-Mobile.png"
     alt="This Month FTP Ranking Mobile Screenshot"
   />
 </div>

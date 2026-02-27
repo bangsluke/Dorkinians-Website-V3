@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://i.postimg.cc/rm1f3Kth/Dorkinians.png" alt="Dorkinians FC Logo" height="100"/>
+  <img src="https://bangsluke-assets.netlify.app/images/company-logos/Dorkinians.png" alt="Dorkinians FC Logo" height="100"/>
 </p>
 
 <h1 align="center">Dorkinians FC Statistics Website</h1>
