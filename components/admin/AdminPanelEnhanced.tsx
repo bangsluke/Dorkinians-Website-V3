@@ -71,6 +71,7 @@ export default function AdminPanelEnhanced() {
 	const [emailAddress, setEmailAddress] = useState("bangsluke@gmail.com");
 	const [sendEmailAtStart, setSendEmailAtStart] = useState(false);
 	const [sendEmailAtCompletion, setSendEmailAtCompletion] = useState(true);
+	const [saveLogs, setSaveLogs] = useState(false);
 
 	// Chatbot test state
 	const [chatbotTestLoading, setChatbotTestLoading] = useState(false);
@@ -248,6 +249,14 @@ export default function AdminPanelEnhanced() {
 								emailAddress: emailAddress,
 								sendEmailAtStart: sendEmailAtStart,
 								sendEmailAtCompletion: sendEmailAtCompletion,
+							},
+							seasonConfig: {
+								currentSeason: null,
+								useSeasonOverride: false,
+								fullRebuild: false,
+								loggingConfig: {
+									saveLogs: saveLogs,
+								},
 							},
 						}),
 					});
@@ -661,6 +670,18 @@ export default function AdminPanelEnhanced() {
 						/>
 						<label htmlFor='sendEmailAtCompletion' className='text-sm text-gray-700'>
 							Send email when seeding completes
+						</label>
+					</div>
+					<div className='flex items-center'>
+						<input
+							type='checkbox'
+							id='saveLogs'
+							checked={saveLogs}
+							onChange={(e) => setSaveLogs(e.target.checked)}
+							className='mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded'
+						/>
+						<label htmlFor='saveLogs' className='text-sm text-gray-700'>
+							Save the logs for this run
 						</label>
 					</div>
 				</div>
