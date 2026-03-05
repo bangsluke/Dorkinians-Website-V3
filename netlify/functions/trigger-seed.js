@@ -585,6 +585,7 @@ exports.handler = async (event, context) => {
 								sendEmailAtCompletion: Boolean(emailConfig.sendEmailAtCompletion ?? true),
 							},
 							seasonConfig: seasonConfig,
+							triggerSource: isCronJob ? "cron" : "admin",
 						}),
 					},
 					30000,
