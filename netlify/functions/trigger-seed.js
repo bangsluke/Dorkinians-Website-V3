@@ -679,68 +679,10 @@ exports.handler = async (event, context) => {
 			};
 		}
 
-		// Start monitoring the job (this runs in background)
-		console.log("🔍 MONITORING: Starting background job monitoring...");
-		monitorHerokuJob(jobId, cleanHerokuUrl, 25 * 60 * 1000) // Monitor for up to 25 minutes
-			.then(async (monitoringResult) => {
-				console.log("🔍 MONITORING: Job monitoring completed:", monitoringResult);
-				
-				// Send completion notification based on monitoring result
-				if (emailConfig.sendEmailAtCompletion && emailConfig.emailAddress) {
-					console.log("📧 COMPLETION: Sending completion notification based on monitoring...");
-					try {
-						// Temporarily override the email service recipient
-						const originalTo = emailService.config?.to;
-						if (emailService.config) {
-							emailService.config.to = emailConfig.emailAddress;
-						}
-
-						await emailService.sendSeedingSummaryEmail({
-							success: monitoringResult.success,
-							environment: environment,
-							jobId: jobId,
-							nodesCreated: monitoringResult.details?.result?.nodesCreated || 0,
-							relationshipsCreated: monitoringResult.details?.result?.relationshipsCreated || 0,
-							errorCount: monitoringResult.details?.result?.errorCount || 0,
-							errors: monitoringResult.details?.result?.errors || [],
-							duration: monitoringResult.details?.result?.duration || 0,
-							startTime: monitoringResult.details?.startTime || new Date().toISOString(),
-							endTime: monitoringResult.details?.endTime || new Date().toISOString(),
-							nodeTypeBreakdown: monitoringResult.details?.result?.nodeTypeBreakdown || [],
-							relationshipTypeBreakdown: monitoringResult.details?.result?.relationshipTypeBreakdown || [],
-							logFilePath: monitoringResult.details?.logFilePath || null,
-							errorLogFilePath: monitoringResult.details?.result?.errorLogFilePath || null
-						});
-
-						console.log("✅ COMPLETION: Completion notification sent successfully");
-
-						// Restore original recipient
-						if (emailService.config && originalTo) {
-							emailService.config.to = originalTo;
-						}
-					} catch (emailError) {
-						console.error("❌ COMPLETION: Failed to send completion notification:", emailError.message);
-					}
-				} else {
-					console.log("📧 COMPLETION: Completion notification not requested or no email address provided");
-				}
-			})
-			.catch(async (monitoringError) => {
-				console.error("❌ MONITORING: Job monitoring failed:", monitoringError.message);
-				
-				// Send critical error notification for monitoring failure
-				try {
-					await emailService.sendCriticalErrorNotification({
-						errorType: 'Job Monitoring Failure',
-						errorMessage: `Failed to monitor job ${jobId}: ${monitoringError.message}`,
-						errorStack: monitoringError.stack || 'No stack trace available',
-						timestamp: new Date().toISOString()
-					});
-					console.log("✅ MONITORING: Critical error notification sent for monitoring failure");
-				} catch (emailError) {
-					console.error("❌ MONITORING: Failed to send critical error notification:", emailError.message);
-				}
-			});
+		// Netlify now delegates all normal completion/failure emails to the Heroku
+		// seeding service. We intentionally skip additional monitoring here to avoid
+		// duplicate or conflicting completion notifications.
+		console.log("🔍 MONITORING: Skipping Netlify-side monitoring – Heroku service will handle completion emails.");
 
 		// Return immediate response
 		console.log("✅ SUCCESS: Returning immediate response");
@@ -749,17 +691,15 @@ exports.handler = async (event, context) => {
 			headers: { ...headers, "Content-Type": "application/json" },
 			body: JSON.stringify({
 				success: true,
-				message: "Database seeding started on Heroku with monitoring",
+				message: "Database seeding started on Heroku",
 				environment,
 				jobId,
 				timestamp: new Date().toISOString(),
 				status: "started",
-				note: "Seeding is running on Heroku with background monitoring. Check email for completion notification.",
+				note: "Seeding is running on Heroku. The database service will send a completion email when finished, according to its configuration.",
 				herokuUrl: cleanHerokuUrl,
 				monitoring: {
-					enabled: true,
-					maxWaitTime: "25 minutes",
-					checkInterval: "30 seconds"
+					enabled: false
 				}
 			}),
 		};
