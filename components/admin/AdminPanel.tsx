@@ -93,7 +93,7 @@ export default function AdminPanel() {
 	const [currentSeason, setCurrentSeason] = useState<string>("");
 	const [seasonOverride, setSeasonOverride] = useState<string>("");
 	const [useSeasonOverride, setUseSeasonOverride] = useState<boolean>(false);
-	const [fullRebuild, setFullRebuild] = useState<boolean>(false);
+	const [fullRebuild, setFullRebuild] = useState<boolean>(true);
 	const [seasonOverrideError, setSeasonOverrideError] = useState<string>("");
 	
 	// Debug logs state
@@ -1236,18 +1236,6 @@ export default function AdminPanel() {
 						<div className='flex items-center'>
 							<input
 								type='checkbox'
-								id='useSeasonOverride'
-								checked={useSeasonOverride}
-								onChange={(e) => handleSeasonOverrideChange(e.target.checked)}
-								className='mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded'
-							/>
-							<label htmlFor='useSeasonOverride' className='text-sm text-gray-700'>
-								Override season (for historical data correction)
-							</label>
-						</div>
-						<div className='flex items-center'>
-							<input
-								type='checkbox'
 								id='fullRebuild'
 								checked={fullRebuild}
 								onChange={(e) => handleFullRebuildChange(e.target.checked)}
@@ -1255,6 +1243,18 @@ export default function AdminPanel() {
 							/>
 							<label htmlFor='fullRebuild' className='text-sm text-gray-700'>
 								Full rebuild (clear ALL data, not just current season)
+							</label>
+						</div>
+						<div className='flex items-center'>
+							<input
+								type='checkbox'
+								id='useSeasonOverride'
+								checked={useSeasonOverride}
+								onChange={(e) => handleSeasonOverrideChange(e.target.checked)}
+								className='mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded'
+							/>
+							<label htmlFor='useSeasonOverride' className='text-sm text-gray-700'>
+								Override season (for historical data correction)
 							</label>
 						</div>
 					</div>
@@ -1283,14 +1283,42 @@ export default function AdminPanel() {
 					
 					
 					<div className='p-3 bg-yellow-50 rounded-md border border-yellow-200'>
-						<p className='text-xs text-yellow-800 mb-2'>
-							<strong>Selective Clear (Default Mode):</strong>
-						</p>
-						<ul className='text-xs text-yellow-800 space-y-1 ml-4'>
-							<li>• <strong>Cleared & Rebuilt:</strong> SiteDetail, TestData</li>
-							<li>• <strong>Current Season Only:</strong> Fixture, MatchDetail (historical preserved)</li>
-							<li>• <strong>Preserved (New Items Added):</strong> Player, WeeklyTOTW, SeasonTOTW, PlayersOfTheMonth, CaptainsAndAwards, OppositionDetails, UnansweredQuestions</li>
-						</ul>
+						{fullRebuild && !useSeasonOverride && (
+							<>
+								<p className='text-xs text-yellow-800 mb-2'>
+									<strong>Full Rebuild (Default Mode):</strong>
+								</p>
+								<ul className='text-xs text-yellow-800 space-y-1 ml-4'>
+									<li>• <strong>Replaced:</strong> All Dorkinians website nodes and relationships for the seeding graph (including fixtures, match details, LeagueTable aggregates, and related season summary/stat nodes).</li>
+									<li>• <strong>Behavior:</strong> Existing graph content is cleared and fully rebuilt from the upstream data sources for every season.</li>
+									<li>• <strong>Use when:</strong> You want a clean, canonical rebuild of all data and are comfortable replacing any manual adjustments in the graph.</li>
+								</ul>
+							</>
+						)}
+						{!fullRebuild && useSeasonOverride && (
+							<>
+								<p className='text-xs text-yellow-800 mb-2'>
+									<strong>Override Season Mode:</strong>
+								</p>
+								<ul className='text-xs text-yellow-800 space-y-1 ml-4'>
+									<li>• <strong>Cleared & Rebuilt (override season only):</strong> Fixtures, MatchDetails, LeagueTable nodes, and other season-scoped summary/aggregate nodes for the specified season.</li>
+									<li>• <strong>Preserved:</strong> Other seasons remain untouched; long-lived nodes such as Player, WeeklyTOTW, SeasonTOTW, PlayersOfTheMonth, CaptainsAndAwards, OppositionDetails, and UnansweredQuestions stay in place outside the override season.</li>
+									<li>• <strong>Use when:</strong> You need to correct or replay a single season without disturbing historical seasons or future seasons.</li>
+								</ul>
+							</>
+						)}
+						{!fullRebuild && !useSeasonOverride && (
+							<>
+								<p className='text-xs text-yellow-800 mb-2'>
+									<strong>Selective Clear Mode:</strong>
+								</p>
+								<ul className='text-xs text-yellow-800 space-y-1 ml-4'>
+									<li>• <strong>Cleared & Rebuilt:</strong> SiteDetail, TestData</li>
+									<li>• <strong>Current Season Only:</strong> Fixture, MatchDetail (historical preserved)</li>
+									<li>• <strong>Preserved (New Items Added):</strong> Player, WeeklyTOTW, SeasonTOTW, PlayersOfTheMonth, CaptainsAndAwards, OppositionDetails, UnansweredQuestions</li>
+								</ul>
+							</>
+						)}
 					</div>
 				</div>
 			</div>
