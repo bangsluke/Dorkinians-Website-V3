@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
 		const seasonConfig = requestBody.seasonConfig || {
 			currentSeason: null,
 			useSeasonOverride: false,
-			fullRebuild: false,
+			fullRebuild: true,
 		};
 
 		logRequest("Seed request received", {

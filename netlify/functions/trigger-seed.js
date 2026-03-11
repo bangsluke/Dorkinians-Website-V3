@@ -493,7 +493,7 @@ exports.handler = async (event, context) => {
 		const seasonConfig = requestBody.seasonConfig || {
 			currentSeason: null,
 			useSeasonOverride: false,
-			fullRebuild: false,
+			fullRebuild: true,
 		};
 		
 		console.log(`🗓️ TRIGGER: Season configuration received:`, JSON.stringify(seasonConfig, null, 2));
