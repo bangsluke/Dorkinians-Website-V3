@@ -271,6 +271,11 @@ exports.handler = async (event, context) => {
 		}
 
 		const emailConfig = requestBody.emailConfig || {};
+		const seasonConfig = requestBody.seasonConfig || {
+			currentSeason: null,
+			useSeasonOverride: false,
+			fullRebuild: true,
+		};
 
 		// Detect if this is a cron job call (no email config) and set defaults
 		const isCronJob = !requestBody.emailConfig || Object.keys(requestBody.emailConfig).length === 0;
@@ -278,10 +283,11 @@ exports.handler = async (event, context) => {
 			console.log("🕐 TRIGGER: Detected cron job call - setting default email configuration");
 			emailConfig.emailAddress = "bangsluke@gmail.com";
 			emailConfig.sendEmailAtStart = false;
-			emailConfig.sendEmailAtCompletion = true;
+			emailConfig.sendEmailAtCompletion = false;
 		}
 
 		console.log("📧 TRIGGER: Final email configuration:", emailConfig);
+		console.log(`🗓️ TRIGGER: Season configuration:`, JSON.stringify(seasonConfig, null, 2));
 
 		// Generate unique job ID
 		const jobId = `seed_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -412,9 +418,13 @@ exports.handler = async (event, context) => {
 							jobId,
 							emailConfig: {
 								emailAddress: emailConfig.emailAddress || "bangsluke@gmail.com",
-								sendEmailAtStart: emailConfig.sendEmailAtStart || false,
-								sendEmailAtCompletion: emailConfig.sendEmailAtCompletion || true,
+								sendEmailAtStart: Boolean(emailConfig.sendEmailAtStart ?? false),
+								sendEmailAtCompletion: Boolean(
+									emailConfig.sendEmailAtCompletion ?? (!isCronJob ? true : false)
+								),
 							},
+							seasonConfig,
+							triggerSource: isCronJob ? "cron" : "admin",
 						}),
 					},
 					30000,
