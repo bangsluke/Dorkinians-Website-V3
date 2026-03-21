@@ -504,7 +504,8 @@ exports.handler = async (event, context) => {
 			console.log("🕐 TRIGGER: Detected cron job call - setting default email configuration");
 			emailConfig.emailAddress = "bangsluke@gmail.com";
 			emailConfig.sendEmailAtStart = false;
-			emailConfig.sendEmailAtCompletion = true;
+			// Cron: do not send success/completion emails; Heroku still sends on verification failure or seeding failure
+			emailConfig.sendEmailAtCompletion = false;
 		}
 
 		console.log("📧 TRIGGER: Final email configuration:", emailConfig);
@@ -582,7 +583,9 @@ exports.handler = async (event, context) => {
 							emailConfig: {
 								emailAddress: emailConfig.emailAddress || "bangsluke@gmail.com",
 								sendEmailAtStart: Boolean(emailConfig.sendEmailAtStart ?? false),
-								sendEmailAtCompletion: Boolean(emailConfig.sendEmailAtCompletion ?? true),
+								sendEmailAtCompletion: Boolean(
+									emailConfig.sendEmailAtCompletion ?? (!isCronJob ? true : false)
+								),
 							},
 							seasonConfig: seasonConfig,
 							triggerSource: isCronJob ? "cron" : "admin",
