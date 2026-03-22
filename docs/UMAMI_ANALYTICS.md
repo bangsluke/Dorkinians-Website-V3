@@ -16,6 +16,8 @@ Central reference for **custom events**, **client helper usage**, and the **Netl
 - **`playerName`** — sent on **`Player Selected`** (home player picker / recent) for internal weekly rankings; appears in Umami and the email. For stricter minimization later, switch to an opaque id at the data layer.
 - **`statsLeaderKey`** — single string for dashboards and the weekly email: `statsSubPage/blockId/statKey` with `/` in `statKey` replaced by `_` (see `statsTracking.ts`). Example: `player-stats/seasonal-performance/Apps`.
 - **`questionId`** — stable id for **`Example Question Selected`** (`homepage-{id}` or `modal-{index}`).
+- **`submissionSource`** — on **`Chatbot Question Submitted`**: `custom` (typed question + Search / Enter / suggestions) vs `example` (example question or modal pick). Used by the weekly report to split headline metrics.
+- **`totwSubPage`** — on TOTW / POM events: `totw` vs `players-of-month` so the weekly report can attribute engagement to the correct subsection.
 - Use **`result` / `status`** for outcomes (`success`, `cancelled`, `error`).
 
 ### Event inventory (stable names)
@@ -42,13 +44,20 @@ The job queries **`event-data/values`** for current and prior windows on propert
 | Stats | `Stats Shared` | `method` |
 | Stats | `Stats Stat Selected` | `statsLeaderKey` (grouped by prefix in email) |
 | Stats | `Team Stats Team Selected` | `teamLabel` |
-| Home | `Chatbot Question Submitted` | `questionLengthBucket` |
-| Home | `Example Question Selected` | `questionId` |
+| Stats | `All Games Modal Opened` | `statsSubPage` |
+| Stats | `Data Table Toggled` | `statsSubPage` |
+| Stats | `Stats Section Navigated` | `statsSubPage`, `sectionId` |
+| Stats | `Filters Reset` | `statsSubPage` |
+| Stats | `Filter Preset Applied` | `statsSubPage` |
+| Home | `Chatbot Question Submitted` | `questionLengthBucket`, **`submissionSource`** (`custom` / `example`) |
+| Home | `Example Question Selected` | `questionId`, `source` |
 | Home | `Player Selected` | `playerName` (top 10 table) |
-| TOTW | `TOTW Player Opened` | `mode` |
+| TOTW | `TOTW Player Opened` | `mode`, **`totwSubPage`** |
+| TOTW | `TOTW Week Changed`, `TOTW Player Modal Closed` | **`totwSubPage`** |
+| POM | `PlayersOfMonth Row Expanded`, `PlayersOfMonth Month Changed` | **`totwSubPage`** |
 | Club | `Useful Link Clicked` | `linkCategory` |
 | Club / league | `League Team Focused` + `League Results Opened` | `teamKey` (merged in email) |
-| Global | `Web Vital` | `name` |
+| Global | `Web Vital` | `name` (email shows acronym + full name, e.g. LCP (Largest Contentful Paint)) |
 
 ## Weekly report (`umami-weekly-report`)
 
@@ -59,16 +68,16 @@ The job queries **`event-data/values`** for current and prior windows on propert
 ### What the email contains
 
 - **Time windows:** **Completed UTC weeks** — Sunday **00:00** → next Sunday **00:00** (7 days). If the current week is incomplete, the report uses the **previous** full week. The **prior week** column uses the 7 days before that. Subject and body use **en-GB**-style date strings (weekday + day + month + year, UTC).
-- **Headline metrics:** site pageviews, visits, visitors, plus `Chatbot Question Submitted` and `Filters Applied` week-over-week.
+- **Headline metrics:** site pageviews, visits, visitors; **custom** vs **example** chatbot submissions (from `submissionSource` on `Chatbot Question Submitted`); **example questions clicked** (`Example Question Selected` total); `Filters Applied` week-over-week.
 - **Top path (raw):** from Umami `metrics?type=path`.
 - **Recommendations:**
-  - **Invest further:** top 3 product sections by score.
-  - **Improve / retire:** bottom 3 sections **disjoint** from the top 3 (ties cannot duplicate a section). Tie-break for bottom pool: lowest score first, then stable `home → stats → totw → club-info → settings` order (see `disjointBottomThree` + `scoreHelp` in the function).
-- **Detail & breakdowns:** secondary tables for stat leaderboards (`statsLeaderKey` prefixes), top 10 `playerName`, team XI `teamLabel`, merged league `teamKey`, filters, share methods, chatbot buckets, TOTW modes, useful link categories, web vitals, example `questionId`.
-- **Branding / layout:** Dorkinians colours, logo (`bangsluke-assets`), nav links built from **`UMAMI_APP_BASE_URL`** (Overview, Events, Goals).
-- **Section score (default weights 0.5 / 0.5):**
-  - **Page side:** normalized totals from **`Page Viewed`** by **`section`**.
-  - **Engagement side:** normalized **`Subpage Viewed`** by `section` **plus** `metrics?type=event` rows mapped via `EVENT_TO_SECTION` (includes new stats events).
+  - **Invest further:** top 3 **subsections** by score (e.g. Player Stats, League Information), not main tabs only.
+  - **Improve / retire:** bottom 3 subsections **disjoint** from the top 3. Tie-break: lowest score first, then stable `REPORT_SUBSECTION_ORDER` in `umami-weekly-report.mjs` (see `disjointBottomThreeSubsections` + `scoreHelp`).
+- **Detail & breakdowns:** subpage view table (all subsections + home/settings); stat leaderboards; top 10 `playerName`; team `teamLabel`; merged league `teamKey`; **stats interaction** tables (`All Games Modal`, `Data Table Toggled`, `Stats Section Navigated` × `statsSubPage` / `sectionId`, `Filters Reset`, `Filter Preset Applied`); filters/share/chat/TOTW/useful links; **club captain & award** event totals; web vitals (expanded names); example `questionId`; example clicks by `source`.
+- **Branding / layout:** Outer email background **white**; Dorkinians header colours; logo uses **CSS filter** to render white on dark green (Outlook may vary — optional dedicated white PNG on CDN). Nav links from **`UMAMI_APP_BASE_URL`** (Overview, Events, Goals).
+- **Subsection score (default weights 0.5 / 0.5):**
+  - **Views:** `Subpage Viewed` · `subSection` per slug; **home** / **settings** use **`Page Viewed`** · `section`.
+  - **Engagement:** property breakdowns and event totals **rolled up** to each subsection (see `buildSubsectionEngagement` in the function), including stats filters/leaders/modals, league/useful links, chatbot home events, TOTW/POM via `totwSubPage`, etc.
 
 ### Required Netlify environment variables
 
@@ -100,7 +109,7 @@ The job queries **`event-data/values`** for current and prior windows on propert
 
 - [ ] `Page Viewed` / `section` updates when switching main tabs.
 - [ ] `Subpage Viewed` when changing stats / TOTW / club subpages.
-- [ ] Chatbot: submit question → `Chatbot Question Submitted` + response / error events.
+- [ ] Chatbot: submit question → `Chatbot Question Submitted` includes `submissionSource` (`custom` / `example`) + response / error events.
 - [ ] Example question from homepage or modal → `Example Question Selected` includes `questionId`.
 - [ ] Player picker → `Player Selected` includes `playerName` where intended.
 - [ ] Stats: Listbox changes → `Stats Stat Selected` with `statsLeaderKey`; team dropdown → `Team Stats Team Selected`.

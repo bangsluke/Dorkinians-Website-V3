@@ -41,6 +41,8 @@ interface SavedConversation {
 	playerContext?: string;
 }
 
+type ChatbotSubmissionSource = "custom" | "example";
+
 // LRU cache for chatbot responses (max 50 entries, 10 minute TTL)
 interface CachedResponse {
 	response: ChatbotResponse;
@@ -172,8 +174,13 @@ export default function ChatbotInterface() {
 	}, [isLoading, showProgressIndicator]);
 
 	// Submit question to chatbot (extracted logic)
-	const submitQuestion = async (questionToSubmit: string) => {
+	const submitQuestion = async (
+		questionToSubmit: string,
+		opts?: { submissionSource?: ChatbotSubmissionSource },
+	) => {
 		if (!questionToSubmit.trim() || isLoading) return; // If the question is empty or the chatbot is loading, return
+
+		const submissionSource: ChatbotSubmissionSource = opts?.submissionSource ?? "custom";
 
 		// Client-side logging for debugging
 		log("info", `🤖 Frontend: Sending question: ${questionToSubmit.trim()}. Player context: ${selectedPlayer || "None"}`);
@@ -188,6 +195,7 @@ export default function ChatbotInterface() {
 				hasSelectedPlayer: Boolean(selectedPlayer),
 				questionLengthBucket: questionLengthBucket(questionToSubmit),
 				cacheHit: true,
+				submissionSource,
 			});
 			trackEvent(UmamiEvents.ChatbotResponseRendered, {
 				hasVisualization: Boolean(cached.response.visualization),
@@ -217,6 +225,7 @@ export default function ChatbotInterface() {
 			hasSelectedPlayer: Boolean(selectedPlayer),
 			questionLengthBucket: questionLengthBucket(questionToSubmit),
 			cacheHit: false,
+			submissionSource,
 		});
 
 		// Try to send the question to the chatbot
@@ -570,10 +579,10 @@ export default function ChatbotInterface() {
 						onShowToast={showError}
 						showToast={true}
 						suggestions={response?.suggestions}
-						onSuggestionClick={(suggestion) => {
+									onSuggestionClick={(suggestion) => {
 							setError(null);
 							setQuestion(suggestion);
-							submitQuestion(suggestion);
+							void submitQuestion(suggestion, { submissionSource: "custom" });
 						}}
 					/>
 				)}
@@ -667,7 +676,7 @@ export default function ChatbotInterface() {
 												onClick={() => {
 													setResponse(null);
 													setQuestion(suggestion);
-													submitQuestion(suggestion);
+													void submitQuestion(suggestion, { submissionSource: "custom" });
 												}}
 												className='w-full text-left px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-white text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'>
 												{suggestion}
@@ -700,7 +709,7 @@ export default function ChatbotInterface() {
 									onClick={() => {
 										scrollToTop();
 										trackEvent(UmamiEvents.ExampleQuestionSelected, { source: "homepage", questionId: q.id });
-										submitQuestion(q.question);
+										void submitQuestion(q.question, { submissionSource: "example" });
 									}}>
 									<div className='mb-2'>
 										<p className='font-medium text-white text-xs md:text-sm'>{q.question}</p>
@@ -786,7 +795,7 @@ export default function ChatbotInterface() {
 										onClick={() => {
 											scrollToTop();
 											trackEvent(UmamiEvents.ExampleQuestionSelected, { source: "homepage", questionId: q.id });
-											submitQuestion(q.question);
+											void submitQuestion(q.question, { submissionSource: "example" });
 										}}>
 										<div className='mb-2'>
 											<p className='font-medium text-white text-xs md:text-sm'>{q.question}</p>
@@ -822,7 +831,7 @@ export default function ChatbotInterface() {
 					trackEvent(UmamiEvents.ExampleQuestionSelected, { source: "modal", questionId });
 					scrollToTop();
 					setShowExampleQuestionsModal(false);
-					void submitQuestion(question);
+					void submitQuestion(question, { submissionSource: "example" });
 				}}
 			/>
 		</div>
