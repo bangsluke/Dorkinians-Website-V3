@@ -6,6 +6,7 @@
  *   UMAMI_WEBSITE_ID, UMAMI_API_KEY
  *   UMAMI_BASE_URL (optional, default https://api.umami.is/v1)
  *   UMAMI_APP_BASE_URL (optional) — Umami web UI base for this site (email nav links), e.g. https://cloud.umami.is/analytics/eu/websites/<id>
+ *   UMAMI_EMAIL_LOGO_URL (optional) — Absolute URL to a white/light logo for the header (many clients ignore CSS filters on images).
  *   SMTP_SERVER, SMTP_PORT, SMTP_EMAIL_SECURE, SMTP_USERNAME, SMTP_PASSWORD,
  *   SMTP_FROM_EMAIL, SMTP_TO_EMAIL
  */
@@ -24,7 +25,6 @@ const STATS_SUBSECTIONS = new Set(["player-stats", "team-stats", "club-stats", "
 /** Ordered subsection ids for invest/improve scoring (stable tie-break). */
 const REPORT_SUBSECTION_ORDER = [
 	"home",
-	"settings",
 	"player-stats",
 	"team-stats",
 	"club-stats",
@@ -36,11 +36,12 @@ const REPORT_SUBSECTION_ORDER = [
 	"club-captains",
 	"club-awards",
 	"useful-links",
+	"settings",
 ];
 
 const SUBSECTION_LABELS = {
 	home: "Home",
-	settings: "Settings & trust",
+	settings: "Settings",
 	"player-stats": "Player Stats",
 	"team-stats": "Team Stats",
 	"club-stats": "Club Stats",
@@ -66,7 +67,7 @@ const WEB_VITAL_DISPLAY_NAMES = {
 	SI: "SI (Speed Index)",
 };
 
-/** Header logo: white mark on dark green (filter works in many clients; Outlook may vary). */
+/** Default logos — prefer white asset for email; set UMAMI_EMAIL_LOGO_URL if needed. */
 const EMAIL_HEADER_LOGO_SRC =
 	"https://bangsluke-assets.netlify.app/images/company-logos/Dorkinians.png";
 
@@ -99,8 +100,9 @@ function getOpts(apiKey) {
 }
 
 function getEventCount(events, name) {
-	const row = events.find((e) => e.x === name);
-	return row ? Number(row.y) || 0 : 0;
+	const row = events.find((e) => e.x === name || e.name === name);
+	if (!row) return 0;
+	return Number(row.y ?? row.count ?? row.total ?? 0) || 0;
 }
 
 /** Sum property buckets case-insensitively (e.g. submissionSource). */
@@ -113,17 +115,49 @@ function sumPropertyMatches(map, wantedLower) {
 	return t;
 }
 
+/** Umami Cloud / v2 often wraps arrays in `{ data: [...] }`. */
+function normalizeApiArray(json) {
+	if (Array.isArray(json)) return json;
+	if (json && Array.isArray(json.data)) return json.data;
+	if (json && Array.isArray(json.results)) return json.results;
+	return [];
+}
+
+/** Path metrics rows: ensure `{ x, y }` for top-path display. */
+function normalizePathMetrics(json) {
+	const arr = normalizeApiArray(json);
+	if (arr.length === 0) return [];
+	if (arr[0].x != null && arr[0].y != null) return arr;
+	return arr.map((row) => ({
+		x: row.path ?? row.url ?? row.value ?? row.name ?? "",
+		y: row.count ?? row.y ?? row.total ?? row.pageviews ?? 0,
+	}));
+}
+
 /** Build map value -> total from event-data/values response */
 function valuesByKey(rows) {
 	const m = {};
 	if (!Array.isArray(rows)) return m;
 	for (const r of rows) {
-		const key = r.value;
+		const key = r.value ?? r.name ?? r.label;
 		if (key == null || key === "") continue;
 		const k = String(key);
-		m[k] = (m[k] || 0) + (Number(r.total) || 0);
+		const add = Number(r.total ?? r.y ?? r.count ?? 0) || 0;
+		m[k] = (m[k] || 0) + add;
 	}
 	return m;
+}
+
+/** Prefer `section` breakdown; fall back to `page` when Umami stores the main tab under `page` only. */
+function coalescePageViewMaps(sectionMap, pageMap) {
+	const keys = new Set([...Object.keys(sectionMap), ...Object.keys(pageMap)]);
+	const out = {};
+	for (const k of keys) {
+		const s = Number(sectionMap[k]) || 0;
+		const p = Number(pageMap[k]) || 0;
+		out[k] = s > 0 ? s : p;
+	}
+	return out;
 }
 
 function stripeBg(i) {
@@ -384,7 +418,9 @@ function eventValuesUrl(base, websiteId, eventName, propertyName, q) {
 async function fetchEventValues(base, websiteId, apiKey, eventName, propertyName, q) {
 	const url = eventValuesUrl(base, websiteId, eventName, propertyName, q);
 	const res = await fetch(url, getOpts(apiKey));
-	return res.ok ? await res.json() : [];
+	if (!res.ok) return [];
+	const json = await res.json();
+	return normalizeApiArray(json);
 }
 
 /** Top N rows where value starts with prefix; stat label = remainder after prefix */
@@ -448,12 +484,16 @@ function getCompletedUtcWeekWindows(nowMs) {
 	return { startAt: weekStart, endAt: weekEnd, prevStartAt, prevEndAt };
 }
 
-function buildSecondaryTable(title, rowsHtml) {
+function buildSecondaryTable(title, rowsHtml, explanationText = "") {
 	const wrap =
 		"width:100%;border:1px solid #bbf7d0;border-radius:8px;overflow:hidden;border-collapse:collapse;";
+	const explainBlock =
+		explanationText &&
+		`<p style="margin:10px 0 0;font-size:11px;line-height:1.5;color:#6b7280;font-family:system-ui,Arial,sans-serif;">${escapeHtml(explanationText)}</p>`;
 	return `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;">
 		<tr><td style="padding:12px 0 8px;">
 			<div style="font-family:system-ui,Arial,sans-serif;font-size:12px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:#047857;border-bottom:2px solid #bbf7d0;padding-bottom:6px;">${title}</div>
+			${explainBlock || ""}
 		</td></tr>
 		<tr><td style="padding:0 0 16px;">
 			<table width="100%" cellpadding="0" cellspacing="0" border="0" style="${wrap}">
@@ -521,6 +561,8 @@ export default async () => {
 			pathPrevRes,
 			pvCurr,
 			pvPrev,
+			pvPageCurr,
+			pvPagePrev,
 			spSubCurr,
 			spSubPrev,
 			filtersSpCurr,
@@ -584,6 +626,8 @@ export default async () => {
 			fetch(`${base}/websites/${websiteId}/metrics?type=path&${qPrev}`, getOpts(apiKey)),
 			f(eventPageViewed, "section", q),
 			f(eventPageViewed, "section", qPrev),
+			f(eventPageViewed, "page", q),
+			f(eventPageViewed, "page", qPrev),
 			f(eventSubpage, "subSection", q),
 			f(eventSubpage, "subSection", qPrev),
 			f("Filters Applied", "statsSubPage", q),
@@ -640,15 +684,18 @@ export default async () => {
 			f("PlayersOfMonth Month Changed", "totwSubPage", qPrev),
 		]);
 
-		const stats = statsRes.ok ? await statsRes.json() : { pageviews: 0, visitors: 0, visits: 0 };
-		const statsPrev = statsPrevRes.ok ? await statsPrevRes.json() : { pageviews: 0, visitors: 0, visits: 0 };
-		const events = eventsRes.ok ? await eventsRes.json() : [];
-		const eventsPrev = eventsPrevRes.ok ? await eventsPrevRes.json() : [];
-		const paths = pathRes.ok ? await pathRes.json() : [];
-		const pathsPrev = pathPrevRes.ok ? await pathPrevRes.json() : [];
+		const statsJson = statsRes.ok ? await statsRes.json() : {};
+		const stats = statsJson.pageviews != null ? statsJson : normalizeApiArray(statsJson)[0] || { pageviews: 0, visitors: 0, visits: 0 };
+		const statsPrevJson = statsPrevRes.ok ? await statsPrevRes.json() : {};
+		const statsPrev =
+			statsPrevJson.pageviews != null ? statsPrevJson : normalizeApiArray(statsPrevJson)[0] || { pageviews: 0, visitors: 0, visits: 0 };
+		const events = eventsRes.ok ? normalizeApiArray(await eventsRes.json()) : [];
+		const eventsPrev = eventsPrevRes.ok ? normalizeApiArray(await eventsPrevRes.json()) : [];
+		const paths = pathRes.ok ? normalizePathMetrics(await pathRes.json()) : [];
+		const pathsPrev = pathPrevRes.ok ? normalizePathMetrics(await pathPrevRes.json()) : [];
 
-		const pageBySection = valuesByKey(pvCurr);
-		const pageBySectionPrev = valuesByKey(pvPrev);
+		const pageBySection = coalescePageViewMaps(valuesByKey(pvCurr), valuesByKey(pvPageCurr));
+		const pageBySectionPrev = coalescePageViewMaps(valuesByKey(pvPrev), valuesByKey(pvPagePrev));
 		const subSectionTotals = valuesByKey(spSubCurr);
 		const filtersSpMap = valuesByKey(filtersSpCurr);
 		const filtersSpMapPrev = valuesByKey(filtersSpPrev);
@@ -763,8 +810,6 @@ export default async () => {
 		const chatCustomPrev = sumPropertyMatches(chatSubSrcMapPrev, "custom");
 		const chatExampleRun = sumPropertyMatches(chatSubSrcMap, "example");
 		const chatExampleRunPrev = sumPropertyMatches(chatSubSrcMapPrev, "example");
-		const exampleClicks = getEventCount(events, "Example Question Selected");
-		const exampleClicksPrev = getEventCount(eventsPrev, "Example Question Selected");
 		const filtersApplied = getEventCount(events, "Filters Applied");
 		const filtersAppliedPrev = getEventCount(eventsPrev, "Filters Applied");
 
@@ -779,14 +824,11 @@ export default async () => {
 		rowsHtml += metricRow("Visitors", stats.visitors ?? 0, statsPrev.visitors ?? 0, i++, {
 			trendHtml: trendArrows(stats.visitors ?? 0, statsPrev.visitors ?? 0),
 		});
-		rowsHtml += metricRow("Custom chatbot questions (submitted)", chatCustom, chatCustomPrev, i++, {
+		rowsHtml += metricRow("Custom chatbot questions", chatCustom, chatCustomPrev, i++, {
 			trendHtml: trendArrows(chatCustom, chatCustomPrev),
 		});
-		rowsHtml += metricRow("Example questions run (submitted)", chatExampleRun, chatExampleRunPrev, i++, {
+		rowsHtml += metricRow("Example questions run", chatExampleRun, chatExampleRunPrev, i++, {
 			trendHtml: trendArrows(chatExampleRun, chatExampleRunPrev),
-		});
-		rowsHtml += metricRow("Example questions clicked", exampleClicks, exampleClicksPrev, i++, {
-			trendHtml: trendArrows(exampleClicks, exampleClicksPrev),
 		});
 		rowsHtml += metricRow("Filters applied", filtersApplied, filtersAppliedPrev, i++, {
 			last: true,
@@ -837,7 +879,11 @@ export default async () => {
 			id,
 			curr: currViews[id] || 0,
 			prev: prevViews[id] || 0,
-		})).sort((a, b) => b.curr - a.curr);
+		})).sort((a, b) => {
+			if (a.id === "settings") return 1;
+			if (b.id === "settings") return -1;
+			return b.curr - a.curr;
+		});
 		let subpageViewsRows = "";
 		subpageViewEntries.forEach((row, idx) => {
 			subpageViewsRows += simpleRow(
@@ -852,8 +898,8 @@ export default async () => {
 			);
 		});
 		const subpageViewsBlock = buildSecondaryTable(
-			"Subpage views — by subsection (Subpage Viewed · subSection; home/settings from Page Viewed · section)",
-			`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Subsection</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Δ</th></tr>${subpageViewsRows}`,
+			"Subpage views by subsection",
+			`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Subsection</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${subpageViewsRows}`,
 		);
 
 		let statBlockHtml = "";
@@ -876,7 +922,7 @@ export default async () => {
 			});
 			statBlockHtml += buildSecondaryTable(
 				escapeHtml(label),
-				`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Stat</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Δ</th></tr>${inner}`,
+				`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Stat</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${inner}`,
 			);
 		}
 
@@ -896,7 +942,7 @@ export default async () => {
 			topPlayers.length > 0
 				? buildSecondaryTable(
 						"Top 10 — Player Selected (playerName)",
-						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Player</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Δ</th></tr>${playersRows}`,
+						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Player</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${playersRows}`,
 					)
 				: "";
 
@@ -918,7 +964,7 @@ export default async () => {
 			teamXiTop.length > 0
 				? buildSecondaryTable(
 						"Team Stats — XI / team dropdown (teamLabel)",
-						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Team</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Δ</th></tr>${teamRows}`,
+						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Team</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${teamRows}`,
 					)
 				: "";
 
@@ -939,7 +985,7 @@ export default async () => {
 			leagueTop.length > 0
 				? buildSecondaryTable(
 						"League — team focus + results (merged teamKey)",
-						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Team</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Δ</th></tr>${leagueRows}`,
+						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Team</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${leagueRows}`,
 					)
 				: "";
 
@@ -965,7 +1011,7 @@ export default async () => {
 			filtersSp.entries.length > 0
 				? buildSecondaryTable(
 						"Filters Applied — statsSubPage",
-						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Page</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Δ</th></tr>${filtersSp.html}`,
+						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Page</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${filtersSp.html}`,
 					)
 				: "";
 
@@ -974,7 +1020,7 @@ export default async () => {
 			filtersTr.entries.length > 0
 				? buildSecondaryTable(
 						"Filters Applied — timeRangeType",
-						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Range</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Δ</th></tr>${filtersTr.html}`,
+						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Range</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${filtersTr.html}`,
 					)
 				: "";
 
@@ -983,7 +1029,7 @@ export default async () => {
 			shareM.entries.length > 0
 				? buildSecondaryTable(
 						"Stats Shared — method",
-						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Method</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Δ</th></tr>${shareM.html}`,
+						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Method</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${shareM.html}`,
 					)
 				: "";
 
@@ -992,7 +1038,7 @@ export default async () => {
 			chatM.entries.length > 0
 				? buildSecondaryTable(
 						"Chatbot questions — questionLengthBucket",
-						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Bucket</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Δ</th></tr>${chatM.html}`,
+						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Bucket</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${chatM.html}`,
 					)
 				: "";
 
@@ -1001,7 +1047,7 @@ export default async () => {
 			totwM.entries.length > 0
 				? buildSecondaryTable(
 						"TOTW Player Opened — mode",
-						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Mode</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Δ</th></tr>${totwM.html}`,
+						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Mode</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${totwM.html}`,
 					)
 				: "";
 
@@ -1010,16 +1056,19 @@ export default async () => {
 			usefulM.entries.length > 0
 				? buildSecondaryTable(
 						"Useful links — linkCategory",
-						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Category</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Δ</th></tr>${usefulM.html}`,
+						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Category</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${usefulM.html}`,
 					)
 				: "";
 
 		const webM = mapToRows(webVitalNameMap, valuesByKey(webVitalNamePrev), 8, webVitalDisplayName);
+		const webVitalsExplanation =
+			"The numbers are how many times each Web Vital was reported in this period (event counts), not the metric duration in seconds. For actual timings, open the Web Vital events in Umami and inspect the value field on individual events.";
 		const webBlock =
 			webM.entries.length > 0
 				? buildSecondaryTable(
-						"Web Vitals — sample counts (full metric name)",
-						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Metric</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Δ</th></tr>${webM.html}`,
+						"Web Vitals — samples per metric (not seconds)",
+						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Metric</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Samples</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${webM.html}`,
+						webVitalsExplanation,
 					)
 				: "";
 
@@ -1028,7 +1077,7 @@ export default async () => {
 			exM.entries.length > 0
 				? buildSecondaryTable(
 						"Example questions — questionId",
-						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">questionId</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Δ</th></tr>${exM.html}`,
+						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">questionId</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${exM.html}`,
 					)
 				: "";
 
@@ -1039,7 +1088,7 @@ export default async () => {
 			exSourceM.entries.length > 0
 				? buildSecondaryTable(
 						"Example Question Selected — source (homepage / modal / conversation)",
-						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Source</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Δ</th></tr>${exSourceM.html}`,
+						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Source</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${exSourceM.html}`,
 					)
 				: "";
 
@@ -1048,7 +1097,7 @@ export default async () => {
 			allGamesM.entries.length > 0
 				? buildSecondaryTable(
 						"Stats — All Games Modal Opened · statsSubPage",
-						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">statsSubPage</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Δ</th></tr>${allGamesM.html}`,
+						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">statsSubPage</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${allGamesM.html}`,
 					)
 				: "";
 
@@ -1057,7 +1106,7 @@ export default async () => {
 			dataTableM.entries.length > 0
 				? buildSecondaryTable(
 						"Stats — Data Table Toggled · statsSubPage",
-						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">statsSubPage</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Δ</th></tr>${dataTableM.html}`,
+						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">statsSubPage</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${dataTableM.html}`,
 					)
 				: "";
 
@@ -1066,7 +1115,7 @@ export default async () => {
 			statsNavSpM.entries.length > 0
 				? buildSecondaryTable(
 						"Stats — Section Navigated · statsSubPage",
-						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">statsSubPage</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Δ</th></tr>${statsNavSpM.html}`,
+						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">statsSubPage</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${statsNavSpM.html}`,
 					)
 				: "";
 
@@ -1075,7 +1124,7 @@ export default async () => {
 			statsNavSecM.entries.length > 0
 				? buildSecondaryTable(
 						"Stats — Section Navigated · sectionId",
-						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">sectionId</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Δ</th></tr>${statsNavSecM.html}`,
+						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">sectionId</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${statsNavSecM.html}`,
 					)
 				: "";
 
@@ -1084,7 +1133,7 @@ export default async () => {
 			filtersResetM.entries.length > 0
 				? buildSecondaryTable(
 						"Stats — Filters Reset · statsSubPage",
-						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">statsSubPage</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Δ</th></tr>${filtersResetM.html}`,
+						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">statsSubPage</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${filtersResetM.html}`,
 					)
 				: "";
 
@@ -1093,25 +1142,9 @@ export default async () => {
 			filterPresetM.entries.length > 0
 				? buildSecondaryTable(
 						"Stats — Filter Preset Applied · statsSubPage",
-						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">statsSubPage</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Δ</th></tr>${filterPresetM.html}`,
+						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">statsSubPage</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${filterPresetM.html}`,
 					)
 				: "";
-
-		const capCurr = getEventCount(events, "Captain History Opened");
-		const capPrev = getEventCount(eventsPrev, "Captain History Opened");
-		const awCurr = getEventCount(events, "Award History Opened");
-		const awPrev = getEventCount(eventsPrev, "Award History Opened");
-		const clubInteractRows =
-			simpleRow(
-				["Captain History Opened", String(capCurr), String(capPrev), trendArrows(capCurr, capPrev)],
-				0,
-				false,
-			) +
-			simpleRow(["Award History Opened", String(awCurr), String(awPrev), trendArrows(awCurr, awPrev)], 1, true);
-		const clubInteractBlock = buildSecondaryTable(
-			"Club info — captain & award opens (event totals)",
-			`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Event</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Δ</th></tr>${clubInteractRows}`,
-		);
 
 		const tableWrapStyle =
 			"width:100%;border:1px solid #bbf7d0;border-radius:8px;overflow:hidden;border-collapse:collapse;";
@@ -1140,23 +1173,30 @@ export default async () => {
 
 		const topPathY = topPath ? Number(topPath.y) || 0 : 0;
 		const topPathPrevY = topPathPrev ? Number(topPathPrev.y) || 0 : 0;
-		const scoreHelp = `Score = ${PAGEWEIGHT}x normalized subpage/main views (per subsection) + ${EVENTWEIGHT}x normalized engagement (events rolled up to that subsection). Bottom 3 excludes any subsection already in top 3 (no duplicate on ties).`;
+		const scoreHelp = `Score = ${PAGEWEIGHT}x normalized subpage/main views (per subsection) + ${EVENTWEIGHT}x normalized engagement (events rolled up to that subsection). Bottom 3 excludes any subsection already in top 3 (no duplicate on ties). If you still see 0.00 everywhere, Umami had no matching custom events in this window or property breakdowns failed to load—check the dashboard for the same dates.`;
+		const customLogo = process.env.UMAMI_EMAIL_LOGO_URL?.trim();
+		const logoSrcForEmail = customLogo || EMAIL_HEADER_LOGO_SRC;
+		const logoImgStyle = customLogo
+			? "display:block;width:52px;height:52px;"
+			: "display:block;width:52px;height:52px;filter:brightness(0) invert(1);-webkit-filter:brightness(0) invert(1);";
 		const html =
 			"<!DOCTYPE html>\n" +
 			'<html lang="en">\n' +
 			"<head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"><title>Dorkinians Umami Weekly Report</title></head>\n" +
 			'<body style="margin:0;padding:0;background-color:#ffffff;font-family:system-ui,Arial,sans-serif;color:#14532d;">\n' +
-			'  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#ffffff;padding:24px 0;">\n' +
-			'    <tr><td align="center" style="padding:0 12px;">\n' +
-			'      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:720px;width:100%;background-color:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #bbf7d0;box-shadow:0 8px 24px rgba(6,78,59,0.12);">\n' +
+			'  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#ffffff;padding:16px 0;">\n' +
+			'    <tr><td align="center" style="padding:0 6px;">\n' +
+			'      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:980px;width:100%;background-color:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #bbf7d0;box-shadow:0 8px 24px rgba(6,78,59,0.12);">\n' +
 			'        <tr><td style="padding:0;">\n' +
 			'          <table width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;background:linear-gradient(135deg,#064e3b 0%,#047857 45%,#059669 100%);border-radius:12px 12px 0 0;">\n' +
 			'            <tr><td style="padding:24px 28px;">\n' +
 			'              <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>\n' +
 			'                <td style="vertical-align:middle;padding-right:16px;width:64px;">\n' +
 			'                  <img src="' +
-			escapeHtml(EMAIL_HEADER_LOGO_SRC) +
-			'" alt="Dorkinians" width="48" height="48" style="display:block;width:48px;height:48px;-ms-filter:brightness(0) invert(1);filter:brightness(0) invert(1);" />\n' +
+			escapeHtml(logoSrcForEmail) +
+			'" alt="Dorkinians" width="52" height="52" style="' +
+			logoImgStyle +
+			'" />\n' +
 			"                </td>\n" +
 			'                <td style="vertical-align:middle;">\n' +
 			'                  <div style="font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:#d9f99d;margin-bottom:4px;">Dorkinians Website</div>\n' +
@@ -1242,7 +1282,6 @@ export default async () => {
 			chatBlock +
 			totwBlock +
 			usefulBlock +
-			clubInteractBlock +
 			webBlock +
 			exBlock +
 			exSourceBlock +
@@ -1250,7 +1289,7 @@ export default async () => {
 			"          </table>\n" +
 			"        </td></tr>\n" +
 			"      </table>\n" +
-			'      <p style="max-width:720px;margin:16px auto 0;font-size:11px;color:#6b7280;text-align:center;">Netlify <code>umami-weekly-report</code> · API ' +
+			'      <p style="max-width:980px;margin:16px auto 0;font-size:11px;color:#6b7280;text-align:center;">Netlify <code>umami-weekly-report</code> · API ' +
 			escapeHtml(base) +
 			"</p>\n" +
 			"    </td></tr>\n" +
