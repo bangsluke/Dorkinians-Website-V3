@@ -10,14 +10,14 @@ import ModalWrapper from "./ModalWrapper";
 interface ExampleQuestionsModalProps {
 	isOpen: boolean;
 	onClose: () => void;
-	onSelectQuestion: (question: string) => void;
+	onSelectQuestion: (question: string, questionId: string) => void;
 }
 
 export default function ExampleQuestionsModal({ isOpen, onClose, onSelectQuestion }: ExampleQuestionsModalProps) {
 	const firstQuestionRef = useRef<HTMLDivElement>(null);
 
-	const handleQuestionClick = (question: string) => {
-		onSelectQuestion(question);
+	const handleQuestionClick = (question: string, questionId: string) => {
+		onSelectQuestion(question, questionId);
 	};
 
 	if (!isOpen) return null;
@@ -68,7 +68,7 @@ export default function ExampleQuestionsModal({ isOpen, onClose, onSelectQuestio
 										animate={{ opacity: 1, x: 0 }}
 										transition={{ delay: index * 0.02 }}
 										className='rounded-lg p-3 md:p-4 cursor-pointer hover:bg-yellow-400/5 transition-colors bg-gradient-to-b from-white/[0.22] to-white/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'
-										onClick={() => handleQuestionClick(question)}
+										onClick={() => handleQuestionClick(question, `modal-${index}`)}
 										tabIndex={0}
 										role="button"
 										aria-label={`Select question: ${question}`}>

@@ -2,6 +2,8 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { XMarkIcon } from "@heroicons/react/24/outline";
+import { UmamiEvents } from "@/lib/analytics/events";
+import { trackEvent } from "@/lib/utils/trackEvent";
 import { useNavigationStore, type StatsSubPage } from "@/lib/stores/navigation";
 import { useState, useEffect } from "react";
 import Button from "@/components/ui/Button";
@@ -138,7 +140,11 @@ export default function StatsNavigationMenu({ isOpen, onClose }: StatsNavigation
 		setDataTableMode(false);
 		setStatsSubPage(pageId);
 		onClose();
-		
+
+		if (typeof window !== "undefined" && sectionId) {
+			trackEvent(UmamiEvents.StatsSectionNavigated, { statsSubPage: pageId, sectionId });
+		}
+
 		// Scroll to section if provided - the scrollToSection function will handle waiting
 		if (sectionId) {
 			scrollToSection(sectionId);

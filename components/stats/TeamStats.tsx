@@ -21,6 +21,7 @@ import { useToast } from "@/lib/hooks/useToast";
 import { log } from "@/lib/utils/logger";
 import Button from "@/components/ui/Button";
 import { UmamiEvents } from "@/lib/analytics/events";
+import { trackStatsStatSelected, trackTeamStatsTeamSelected } from "@/lib/analytics/statsTracking";
 import { trackEvent } from "@/lib/utils/trackEvent";
 
 
@@ -893,6 +894,12 @@ export default function TeamStats() {
 	// Handle stat type selection
 	const handleStatTypeSelect = (statType: StatType) => {
 		setSelectedStatType(statType);
+		trackStatsStatSelected("team-stats", "team-top-players", statType);
+	};
+
+	const handleTeamSelect = (team: string) => {
+		setSelectedTeam(team);
+		trackTeamStatsTeamSelected(team);
 	};
 
 	// Get stat value for a player based on stat type
@@ -1187,7 +1194,7 @@ export default function TeamStats() {
 				{/* Team Selection Dropdown */}
 				<div className='mb-2 md:mb-4 flex justify-center'>
 					<div className='w-full max-w-xs'>
-						<Listbox value={selectedTeam} onChange={setSelectedTeam}>
+						<Listbox value={selectedTeam} onChange={handleTeamSelect}>
 							<div className='relative'>
 								<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-xs md:text-sm'>
 									<span className='block truncate text-white'>
@@ -1511,7 +1518,12 @@ export default function TeamStats() {
 										<div className='flex items-center justify-between mb-2 gap-2'>
 											<h3 className='text-white font-semibold text-sm md:text-base flex-shrink-0'>Seasonal Performance</h3>
 											<div className='flex-1 max-w-[45%]'>
-												<Listbox value={seasonalSelectedStat} onChange={setSeasonalSelectedStat}>
+												<Listbox
+													value={seasonalSelectedStat}
+													onChange={(v) => {
+														setSeasonalSelectedStat(v);
+														trackStatsStatSelected("team-stats", "team-seasonal-performance", v);
+													}}>
 													<div className='relative'>
 														<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-xs md:text-sm'>
 															<span className='block truncate text-white'>

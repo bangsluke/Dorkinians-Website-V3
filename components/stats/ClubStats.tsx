@@ -15,6 +15,7 @@ import HomeAwayGauge from "./HomeAwayGauge";
 
 import { safeLocalStorageGet, safeLocalStorageSet } from "@/lib/utils/pwaDebug";
 import { UmamiEvents } from "@/lib/analytics/events";
+import { trackStatsStatSelected } from "@/lib/analytics/statsTracking";
 import { trackEvent } from "@/lib/utils/trackEvent";
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
@@ -928,6 +929,7 @@ export default function ClubStats() {
 	// Handle stat type selection
 	const handleStatTypeSelect = (statType: StatType) => {
 		setSelectedStatType(statType);
+		trackStatsStatSelected("club-stats", "club-top-players", statType);
 	};
 
 	// Get stat value for a player based on stat type
@@ -1891,7 +1893,12 @@ export default function ClubStats() {
 											<div className='flex items-center justify-between mb-2 gap-2'>
 												<h3 className='text-white font-semibold text-sm md:text-base flex-shrink-0'>Seasonal Performance</h3>
 												<div className='flex-1 max-w-[45%]'>
-													<Listbox value={seasonalSelectedStat} onChange={setSeasonalSelectedStat}>
+													<Listbox
+														value={seasonalSelectedStat}
+														onChange={(v) => {
+															setSeasonalSelectedStat(v);
+															trackStatsStatSelected("club-stats", "club-seasonal-performance", v);
+														}}>
 														<div className='relative'>
 															<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-xs md:text-sm'>
 																<span className='block truncate text-white'>
@@ -2150,7 +2157,12 @@ export default function ClubStats() {
 									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Stats Distribution</h3>
 										<div className='mb-2'>
-											<Listbox value={selectedPositionStat} onChange={setSelectedPositionStat}>
+											<Listbox
+												value={selectedPositionStat}
+												onChange={(v) => {
+													setSelectedPositionStat(v);
+													trackStatsStatSelected("club-stats", "club-stats-distribution", v);
+												}}>
 												<div className='relative'>
 													<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-xs md:text-sm'>
 														<span className='block truncate text-white'>
