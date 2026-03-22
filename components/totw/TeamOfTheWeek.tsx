@@ -509,6 +509,7 @@ export default function TeamOfTheWeek() {
 					trackEvent(UmamiEvents.TotwPlayerOpened, {
 						playerName,
 						mode: isSeasonTOTWSelected ? "season-totw" : "all-time",
+						totwSubPage: "totw",
 					});
 					setShowModal(true);
 				}
@@ -538,6 +539,7 @@ export default function TeamOfTheWeek() {
 						playerName,
 						mode: "weekly",
 						week: selectedWeek,
+						totwSubPage: "totw",
 					});
 					setShowModal(true);
 				}
@@ -1009,6 +1011,7 @@ export default function TeamOfTheWeek() {
 										fromWeek: selectedWeek,
 										toWeek: newWeek,
 										season: selectedSeason,
+										totwSubPage: "totw",
 									});
 								}
 								setSelectedWeek(newWeek);
@@ -1254,7 +1257,7 @@ export default function TeamOfTheWeek() {
 					aggregatedStats={aggregatedPlayerStats}
 					totwAppearances={totwAppearances}
 					onClose={() => {
-						trackEvent(UmamiEvents.TotwPlayerModalClosed, { playerName: selectedPlayer });
+						trackEvent(UmamiEvents.TotwPlayerModalClosed, { playerName: selectedPlayer, totwSubPage: "totw" });
 						setShowModal(false);
 						setSelectedPlayer(null);
 						setPlayerDetails(null);

@@ -652,6 +652,7 @@ export default function PlayersOfMonth() {
 			playerName,
 			season: selectedSeason,
 			month: selectedMonth,
+			totwSubPage: "players-of-month",
 		});
 		setExpandedPlayers((prev) => new Set(prev).add(playerName));
 		
@@ -1061,6 +1062,7 @@ export default function PlayersOfMonth() {
 									fromMonth: selectedMonth,
 									toMonth: newMonth,
 									season: selectedSeason,
+									totwSubPage: "players-of-month",
 								});
 							}
 							// Set loading state immediately when month changes

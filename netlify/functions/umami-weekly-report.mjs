@@ -19,16 +19,56 @@ export const config = {
 const PAGEWEIGHT = 0.5;
 const EVENTWEIGHT = 0.5;
 
-const PRODUCT_SECTIONS = ["home", "stats", "totw", "club-info", "settings"];
-
 const STATS_SUBSECTIONS = new Set(["player-stats", "team-stats", "club-stats", "comparison"]);
-const CLUB_INFO_SUBSECTIONS = new Set([
+
+/** Ordered subsection ids for invest/improve scoring (stable tie-break). */
+const REPORT_SUBSECTION_ORDER = [
+	"home",
+	"settings",
+	"player-stats",
+	"team-stats",
+	"club-stats",
+	"comparison",
+	"totw",
+	"players-of-month",
 	"club-information",
 	"league-information",
 	"club-captains",
 	"club-awards",
 	"useful-links",
-]);
+];
+
+const SUBSECTION_LABELS = {
+	home: "Home",
+	settings: "Settings & trust",
+	"player-stats": "Player Stats",
+	"team-stats": "Team Stats",
+	"club-stats": "Club Stats",
+	comparison: "Player Comparison",
+	totw: "Team of the Week",
+	"players-of-month": "Players of the Month",
+	"club-information": "Club Information",
+	"league-information": "League Information",
+	"club-captains": "Club Captains",
+	"club-awards": "Club Awards",
+	"useful-links": "Useful Links",
+};
+
+/** Web Vital `name` from Umami → display column (acronym + full name). */
+const WEB_VITAL_DISPLAY_NAMES = {
+	LCP: "LCP (Largest Contentful Paint)",
+	FID: "FID (First Input Delay)",
+	INP: "INP (Interaction to Next Paint)",
+	CLS: "CLS (Cumulative Layout Shift)",
+	TTFB: "TTFB (Time to First Byte)",
+	FCP: "FCP (First Contentful Paint)",
+	TBT: "TBT (Total Blocking Time)",
+	SI: "SI (Speed Index)",
+};
+
+/** Header logo: white mark on dark green (filter works in many clients; Outlook may vary). */
+const EMAIL_HEADER_LOGO_SRC =
+	"https://bangsluke-assets.netlify.app/images/company-logos/Dorkinians.png";
 
 /** Map raw league teamKey → readable label */
 const LEAGUE_TEAM_KEY_LABELS = {
@@ -54,52 +94,6 @@ const STAT_LEADER_PREFIXES = [
 	{ prefix: "club-stats/club-stats-distribution/", label: "Club — Stats Distribution" },
 ];
 
-/** Map custom event names (Umami `x`) to a product section for scoring. */
-const EVENT_TO_SECTION = {
-	"App Version": "global",
-	"Web Vital": "global",
-	"Page Viewed": null,
-	"Subpage Viewed": null,
-	"Settings Opened": "settings",
-	"Filter Opened": "stats",
-	"Stats Menu Opened": "stats",
-	"Player Selected": "home",
-	"Player Edit Started": "home",
-	"Recent Player Selected": "home",
-	"Chatbot Question Submitted": "home",
-	"Chatbot Response Rendered": "home",
-	"Chatbot Error": "home",
-	"Example Questions Opened": "home",
-	"Example Question Selected": "home",
-	"Chatbot CTA Clicked": "home",
-	"Stats Subpage Switched": "stats",
-	"Stats Stat Selected": "stats",
-	"Team Stats Team Selected": "stats",
-	"Stats Section Navigated": "stats",
-	"Filters Applied": "stats",
-	"Filters Reset": "stats",
-	"Filter Preset Applied": "stats",
-	"All Games Modal Opened": "stats",
-	"Data Table Toggled": "stats",
-	"Stats Shared": "stats",
-	"TOTW Week Changed": "totw",
-	"TOTW Player Opened": "totw",
-	"TOTW Player Modal Closed": "totw",
-	"PlayersOfMonth Month Changed": "totw",
-	"PlayersOfMonth Row Expanded": "totw",
-	"ClubInfo Subpage Viewed": "club-info",
-	"League Team Focused": "club-info",
-	"League Results Opened": "club-info",
-	"Captain History Opened": "club-info",
-	"Award History Opened": "club-info",
-	"Useful Link Clicked": "club-info",
-	"Share Site Triggered": "settings",
-	"Feedback Modal Opened": "settings",
-	"Feedback Submitted": "settings",
-	"Data Privacy Modal Opened": "settings",
-	"Data Removal Submitted": "settings",
-};
-
 function getOpts(apiKey) {
 	return { headers: { Accept: "application/json", "x-umami-api-key": apiKey } };
 }
@@ -107,6 +101,16 @@ function getOpts(apiKey) {
 function getEventCount(events, name) {
 	const row = events.find((e) => e.x === name);
 	return row ? Number(row.y) || 0 : 0;
+}
+
+/** Sum property buckets case-insensitively (e.g. submissionSource). */
+function sumPropertyMatches(map, wantedLower) {
+	let t = 0;
+	if (!map) return 0;
+	for (const [k, v] of Object.entries(map)) {
+		if (String(k).toLowerCase() === wantedLower) t += Number(v) || 0;
+	}
+	return t;
 }
 
 /** Build map value -> total from event-data/values response */
@@ -178,52 +182,178 @@ function escapeHtml(s) {
 		.replace(/"/g, "&quot;");
 }
 
+function subsectionLabel(id) {
+	return SUBSECTION_LABELS[id] || id;
+}
+
+function webVitalDisplayName(rawKey) {
+	const k = String(rawKey || "").trim();
+	if (!k) return "—";
+	const upper = k.toUpperCase();
+	return WEB_VITAL_DISPLAY_NAMES[upper] || k;
+}
+
 /**
- * Bottom sections: disjoint from top 3 so tied scores cannot list the same section twice.
- * Pick the 3 lowest-scoring sections among those not in top3 (stable: lower score first, then PRODUCT_SECTIONS order).
+ * Bottom subsections: disjoint from top 3 (stable tie-break on REPORT_SUBSECTION_ORDER).
  */
-function disjointBottomThree(sortedByScoreDesc, scores) {
+function disjointBottomThreeSubsections(sortedByScoreDesc, scores) {
 	const top3 = new Set(sortedByScoreDesc.slice(0, 3));
-	const candidates = [...PRODUCT_SECTIONS].filter((id) => !top3.has(id));
+	const candidates = REPORT_SUBSECTION_ORDER.filter((id) => !top3.has(id));
 	candidates.sort((a, b) => {
 		const diff = scores[a] - scores[b];
 		if (diff !== 0) return diff;
-		return PRODUCT_SECTIONS.indexOf(a) - PRODUCT_SECTIONS.indexOf(b);
+		return REPORT_SUBSECTION_ORDER.indexOf(a) - REPORT_SUBSECTION_ORDER.indexOf(b);
 	});
 	return candidates.slice(0, 3);
 }
 
-function topEntryInMap(m) {
-	let bestK = null;
-	let bestV = -1;
-	for (const [k, v] of Object.entries(m)) {
-		if (v > bestV) {
-			bestV = v;
-			bestK = k;
+function buildSubsectionViews(pageBySection, subSectionTotals) {
+	const views = {};
+	for (const id of REPORT_SUBSECTION_ORDER) views[id] = 0;
+	views.home = pageBySection.home || 0;
+	views.settings = pageBySection.settings || 0;
+	for (const id of REPORT_SUBSECTION_ORDER) {
+		if (id === "home" || id === "settings") continue;
+		views[id] = subSectionTotals[id] || 0;
+	}
+	return views;
+}
+
+function addMapToSubsection(eng, map, resolveKey) {
+	if (!map) return;
+	for (const [k, v] of Object.entries(map)) {
+		const sub = resolveKey(k);
+		if (sub && eng[sub] !== undefined) eng[sub] += Number(v) || 0;
+	}
+}
+
+function addStatsLeaderEngagement(eng, rows) {
+	if (!Array.isArray(rows)) return;
+	for (const r of rows) {
+		if (r.value == null || r.value === "") continue;
+		const seg = String(r.value).split("/")[0];
+		if (STATS_SUBSECTIONS.has(seg)) eng[seg] += Number(r.total) || 0;
+	}
+}
+
+function sumTotwSubPageMaps(...maps) {
+	let totw = 0;
+	let pom = 0;
+	for (const m of maps) {
+		if (!m) continue;
+		for (const [k, v] of Object.entries(m)) {
+			const n = Number(v) || 0;
+			if (k === "totw") totw += n;
+			else if (k === "players-of-month") pom += n;
 		}
 	}
-	return bestK != null && bestV > 0 ? { key: bestK, total: bestV } : null;
+	return { totw, pom };
 }
 
-function subsectionGranularLine(sectionId, subpageMap) {
-	if (sectionId === "stats") {
-		const filtered = Object.fromEntries(
-			Object.entries(subpageMap).filter(([k]) => STATS_SUBSECTIONS.has(k)),
-		);
-		const top = topEntryInMap(filtered);
-		return top ? ` Busiest stats tab by subpage views: <strong>${escapeHtml(top.key)}</strong> (${top.total}).` : "";
+function buildSubsectionEngagement(events, o) {
+	const eng = {};
+	for (const id of REPORT_SUBSECTION_ORDER) eng[id] = 0;
+
+	const homeEventNames = [
+		"Player Selected",
+		"Player Edit Started",
+		"Recent Player Selected",
+		"Chatbot Question Submitted",
+		"Chatbot Response Rendered",
+		"Chatbot Error",
+		"Example Questions Opened",
+		"Example Question Selected",
+		"Chatbot CTA Clicked",
+	];
+	for (const n of homeEventNames) eng.home += getEventCount(events, n);
+
+	const settingsEventNames = [
+		"Settings Opened",
+		"Share Site Triggered",
+		"Feedback Modal Opened",
+		"Feedback Submitted",
+		"Data Privacy Modal Opened",
+		"Data Removal Submitted",
+	];
+	for (const n of settingsEventNames) eng.settings += getEventCount(events, n);
+
+	const statsSubResolve = (k) =>
+		STATS_SUBSECTIONS.has(k) || k === "comparison" ? k : null;
+
+	addMapToSubsection(eng, o.filtersSpMap, statsSubResolve);
+	addStatsLeaderEngagement(eng, o.statsLeaderCurr);
+	addMapToSubsection(eng, o.teamLabelMap, () => "team-stats");
+	addMapToSubsection(eng, o.allGamesMap, statsSubResolve);
+	addMapToSubsection(eng, o.dataTableMap, statsSubResolve);
+	addMapToSubsection(eng, o.statsNavSpMap, statsSubResolve);
+	addMapToSubsection(eng, o.filtersResetMap, statsSubResolve);
+	addMapToSubsection(eng, o.filterPresetMap, statsSubResolve);
+
+	const statsMisc =
+		getEventCount(events, "Filter Opened") +
+		getEventCount(events, "Stats Menu Opened") +
+		getEventCount(events, "Stats Subpage Switched") +
+		getEventCount(events, "Stats Shared");
+	const statsSubs = ["player-stats", "team-stats", "club-stats", "comparison"];
+	const eachMisc = statsMisc / statsSubs.length;
+	for (const s of statsSubs) eng[s] += eachMisc;
+
+	let leagueSum = 0;
+	if (o.leagueMerged) {
+		for (const v of Object.values(o.leagueMerged)) leagueSum += Number(v) || 0;
 	}
-	if (sectionId === "club-info") {
-		const filtered = Object.fromEntries(
-			Object.entries(subpageMap).filter(([k]) => CLUB_INFO_SUBSECTIONS.has(k)),
-		);
-		const top = topEntryInMap(filtered);
-		return top ? ` Busiest club-info tab: <strong>${escapeHtml(top.key)}</strong> (${top.total}).` : "";
+	eng["league-information"] += leagueSum;
+
+	addMapToSubsection(eng, o.usefulCatMap, () => "useful-links");
+	eng["club-captains"] += getEventCount(events, "Captain History Opened");
+	eng["club-awards"] += getEventCount(events, "Award History Opened");
+	eng["club-information"] += getEventCount(events, "ClubInfo Subpage Viewed");
+
+	const { totw: tProp, pom: pProp } = sumTotwSubPageMaps(
+		o.totwOpenedSubMap,
+		o.totwWeekSubMap,
+		o.totwModalSubMap,
+		o.pomRowSubMap,
+		o.pomMonthSubMap,
+	);
+	const totwTrio =
+		getEventCount(events, "TOTW Player Opened") +
+		getEventCount(events, "TOTW Week Changed") +
+		getEventCount(events, "TOTW Player Modal Closed");
+	const pomPair =
+		getEventCount(events, "PlayersOfMonth Row Expanded") +
+		getEventCount(events, "PlayersOfMonth Month Changed");
+
+	if (tProp === 0 && pProp === 0) {
+		eng.totw += totwTrio;
+		eng["players-of-month"] += pomPair;
+	} else {
+		eng.totw += tProp;
+		eng["players-of-month"] += pProp;
+		eng.totw += Math.max(0, totwTrio - tProp);
+		eng["players-of-month"] += Math.max(0, pomPair - pProp);
 	}
-	return "";
+
+	return eng;
 }
 
-function recommendBullet(sectionId, rank, currScore, prevScore, pageviews, engagement, subpageMap) {
+function buildSubsectionScores(viewsMap, engagementMap) {
+	const maxPv = Math.max(1, ...REPORT_SUBSECTION_ORDER.map((id) => viewsMap[id] || 0));
+	const maxEv = Math.max(1, ...REPORT_SUBSECTION_ORDER.map((id) => engagementMap[id] || 0));
+	const scores = {};
+	for (const id of REPORT_SUBSECTION_ORDER) {
+		const nPv = (viewsMap[id] || 0) / maxPv;
+		const nEv = (engagementMap[id] || 0) / maxEv;
+		scores[id] = PAGEWEIGHT * nPv + EVENTWEIGHT * nEv;
+	}
+	return { views: viewsMap, engagement: engagementMap, scores };
+}
+
+function sortSubsectionsByScore(scores) {
+	return [...REPORT_SUBSECTION_ORDER].sort((a, b) => scores[b] - scores[a]);
+}
+
+function recommendSubsectionBullet(subId, rank, currScore, prevScore, pageviews, engagement) {
 	const wow =
 		prevScore === 0
 			? currScore > 0
@@ -239,45 +369,10 @@ function recommendBullet(sectionId, rank, currScore, prevScore, pageviews, engag
 		if (wow < -20) base = "Notable drop vs last week—investigate regressions, IA, or seasonal effects.";
 		else if (pageviews < 3 && engagement < 3)
 			base = "Low footprint—validate discovery (nav, SEO, deep links) before retiring features.";
-		else base = "Below peer sections—consider simplification, merge with higher-traffic flows, or targeted prompts.";
+		else base = "Below peer subsections—consider simplification, merge with higher-traffic flows, or targeted prompts.";
 	}
-	return base + subsectionGranularLine(sectionId, subpageMap || {});
-}
-
-function buildSectionScores(pageBySection, subpageBySection, eventsRows) {
-	const engagement = {};
-	for (const s of PRODUCT_SECTIONS) {
-		engagement[s] = subpageBySection[s] || 0;
-	}
-	for (const row of eventsRows) {
-		const name = row.x;
-		const count = Number(row.y) || 0;
-		const sec = EVENT_TO_SECTION[name];
-		if (sec && PRODUCT_SECTIONS.includes(sec)) {
-			engagement[sec] += count;
-		}
-	}
-
-	const pageviews = {};
-	for (const s of PRODUCT_SECTIONS) {
-		pageviews[s] = pageBySection[s] || 0;
-	}
-
-	const maxPv = Math.max(1, ...PRODUCT_SECTIONS.map((s) => pageviews[s]));
-	const maxEv = Math.max(1, ...PRODUCT_SECTIONS.map((s) => engagement[s]));
-
-	const scores = {};
-	for (const s of PRODUCT_SECTIONS) {
-		const nPv = pageviews[s] / maxPv;
-		const nEv = engagement[s] / maxEv;
-		scores[s] = PAGEWEIGHT * nPv + EVENTWEIGHT * nEv;
-	}
-
-	return { pageviews, engagement, scores };
-}
-
-function sortSectionsByScore(scores) {
-	return [...PRODUCT_SECTIONS].sort((a, b) => scores[b] - scores[a]);
+	const detail = ` Subpage views: ${Math.round(pageviews)} · engagement signals: ${Math.round(engagement)}.`;
+	return base + detail;
 }
 
 function eventValuesUrl(base, websiteId, eventName, propertyName, q) {
@@ -426,8 +521,6 @@ export default async () => {
 			pathPrevRes,
 			pvCurr,
 			pvPrev,
-			spCurr,
-			spPrev,
 			spSubCurr,
 			spSubPrev,
 			filtersSpCurr,
@@ -438,6 +531,8 @@ export default async () => {
 			statsSharedMethodPrev,
 			chatbotLenCurr,
 			chatbotLenPrev,
+			chatSubSrcCurr,
+			chatSubSrcPrev,
 			totwModeCurr,
 			totwModePrev,
 			usefulCatCurr,
@@ -446,6 +541,8 @@ export default async () => {
 			webVitalNamePrev,
 			exQCurr,
 			exQPrev,
+			exSourceCurr,
+			exSourcePrev,
 			playerNameCurr,
 			playerNamePrev,
 			statsLeaderCurr,
@@ -456,6 +553,28 @@ export default async () => {
 			leagueFocusPrev,
 			leagueResCurr,
 			leagueResPrev,
+			allGamesCurr,
+			allGamesPrev,
+			dataTableCurr,
+			dataTablePrev,
+			statsNavSpCurr,
+			statsNavSpPrev,
+			statsNavSecCurr,
+			statsNavSecPrev,
+			filtersResetCurr,
+			filtersResetPrev,
+			filterPresetCurr,
+			filterPresetPrev,
+			totwOpenedSubCurr,
+			totwOpenedSubPrev,
+			totwWeekSubCurr,
+			totwWeekSubPrev,
+			totwModalSubCurr,
+			totwModalSubPrev,
+			pomRowSubCurr,
+			pomRowSubPrev,
+			pomMonthSubCurr,
+			pomMonthSubPrev,
 		] = await Promise.all([
 			fetch(`${base}/websites/${websiteId}/stats?${q}`, getOpts(apiKey)),
 			fetch(`${base}/websites/${websiteId}/stats?${qPrev}`, getOpts(apiKey)),
@@ -465,8 +584,6 @@ export default async () => {
 			fetch(`${base}/websites/${websiteId}/metrics?type=path&${qPrev}`, getOpts(apiKey)),
 			f(eventPageViewed, "section", q),
 			f(eventPageViewed, "section", qPrev),
-			f(eventSubpage, "section", q),
-			f(eventSubpage, "section", qPrev),
 			f(eventSubpage, "subSection", q),
 			f(eventSubpage, "subSection", qPrev),
 			f("Filters Applied", "statsSubPage", q),
@@ -477,6 +594,8 @@ export default async () => {
 			f("Stats Shared", "method", qPrev),
 			f("Chatbot Question Submitted", "questionLengthBucket", q),
 			f("Chatbot Question Submitted", "questionLengthBucket", qPrev),
+			f("Chatbot Question Submitted", "submissionSource", q),
+			f("Chatbot Question Submitted", "submissionSource", qPrev),
 			f("TOTW Player Opened", "mode", q),
 			f("TOTW Player Opened", "mode", qPrev),
 			f("Useful Link Clicked", "linkCategory", q),
@@ -485,6 +604,8 @@ export default async () => {
 			f("Web Vital", "name", qPrev),
 			f("Example Question Selected", "questionId", q),
 			f("Example Question Selected", "questionId", qPrev),
+			f("Example Question Selected", "source", q),
+			f("Example Question Selected", "source", qPrev),
 			f("Player Selected", "playerName", q),
 			f("Player Selected", "playerName", qPrev),
 			f("Stats Stat Selected", "statsLeaderKey", q),
@@ -495,6 +616,28 @@ export default async () => {
 			f("League Team Focused", "teamKey", qPrev),
 			f("League Results Opened", "teamKey", q),
 			f("League Results Opened", "teamKey", qPrev),
+			f("All Games Modal Opened", "statsSubPage", q),
+			f("All Games Modal Opened", "statsSubPage", qPrev),
+			f("Data Table Toggled", "statsSubPage", q),
+			f("Data Table Toggled", "statsSubPage", qPrev),
+			f("Stats Section Navigated", "statsSubPage", q),
+			f("Stats Section Navigated", "statsSubPage", qPrev),
+			f("Stats Section Navigated", "sectionId", q),
+			f("Stats Section Navigated", "sectionId", qPrev),
+			f("Filters Reset", "statsSubPage", q),
+			f("Filters Reset", "statsSubPage", qPrev),
+			f("Filter Preset Applied", "statsSubPage", q),
+			f("Filter Preset Applied", "statsSubPage", qPrev),
+			f("TOTW Player Opened", "totwSubPage", q),
+			f("TOTW Player Opened", "totwSubPage", qPrev),
+			f("TOTW Week Changed", "totwSubPage", q),
+			f("TOTW Week Changed", "totwSubPage", qPrev),
+			f("TOTW Player Modal Closed", "totwSubPage", q),
+			f("TOTW Player Modal Closed", "totwSubPage", qPrev),
+			f("PlayersOfMonth Row Expanded", "totwSubPage", q),
+			f("PlayersOfMonth Row Expanded", "totwSubPage", qPrev),
+			f("PlayersOfMonth Month Changed", "totwSubPage", q),
+			f("PlayersOfMonth Month Changed", "totwSubPage", qPrev),
 		]);
 
 		const stats = statsRes.ok ? await statsRes.json() : { pageviews: 0, visitors: 0, visits: 0 };
@@ -506,8 +649,6 @@ export default async () => {
 
 		const pageBySection = valuesByKey(pvCurr);
 		const pageBySectionPrev = valuesByKey(pvPrev);
-		const subBySection = valuesByKey(spCurr);
-		const subBySectionPrev = valuesByKey(spPrev);
 		const subSectionTotals = valuesByKey(spSubCurr);
 		const filtersSpMap = valuesByKey(filtersSpCurr);
 		const filtersSpMapPrev = valuesByKey(filtersSpPrev);
@@ -525,18 +666,105 @@ export default async () => {
 		const leagueMerged = mergeLeagueTeamMaps(valuesByKey(leagueFocusCurr), valuesByKey(leagueResCurr));
 		const leagueMergedPrev = mergeLeagueTeamMaps(valuesByKey(leagueFocusPrev), valuesByKey(leagueResPrev));
 
-		const currModel = buildSectionScores(pageBySection, subBySection, events);
-		const prevModel = buildSectionScores(pageBySectionPrev, subBySectionPrev, eventsPrev);
+		const chatSubSrcMap = valuesByKey(chatSubSrcCurr);
+		const chatSubSrcMapPrev = valuesByKey(chatSubSrcPrev);
+		const allGamesMap = valuesByKey(allGamesCurr);
+		const allGamesMapPrev = valuesByKey(allGamesPrev);
+		const dataTableMap = valuesByKey(dataTableCurr);
+		const dataTableMapPrev = valuesByKey(dataTablePrev);
+		const statsNavSpMap = valuesByKey(statsNavSpCurr);
+		const statsNavSpMapPrev = valuesByKey(statsNavSpPrev);
+		const statsNavSecMap = valuesByKey(statsNavSecCurr);
+		const statsNavSecMapPrev = valuesByKey(statsNavSecPrev);
+		const filtersResetMap = valuesByKey(filtersResetCurr);
+		const filtersResetMapPrev = valuesByKey(filtersResetPrev);
+		const filterPresetMap = valuesByKey(filterPresetCurr);
+		const filterPresetMapPrev = valuesByKey(filterPresetPrev);
+		const totwOpenedSubMap = valuesByKey(totwOpenedSubCurr);
+		const totwOpenedSubMapPrev = valuesByKey(totwOpenedSubPrev);
+		const totwWeekSubMap = valuesByKey(totwWeekSubCurr);
+		const totwWeekSubMapPrev = valuesByKey(totwWeekSubPrev);
+		const totwModalSubMap = valuesByKey(totwModalSubCurr);
+		const totwModalSubMapPrev = valuesByKey(totwModalSubPrev);
+		const pomRowSubMap = valuesByKey(pomRowSubCurr);
+		const pomRowSubMapPrev = valuesByKey(pomRowSubPrev);
+		const pomMonthSubMap = valuesByKey(pomMonthSubCurr);
+		const pomMonthSubMapPrev = valuesByKey(pomMonthSubPrev);
 
-		const sorted = sortSectionsByScore(currModel.scores);
+		const engagementCtx = (leaderRows, merged, maps) => ({
+			filtersSpMap: maps.filtersSpMap,
+			statsLeaderCurr: leaderRows,
+			teamLabelMap: maps.teamLabelMap,
+			allGamesMap: maps.allGamesMap,
+			dataTableMap: maps.dataTableMap,
+			statsNavSpMap: maps.statsNavSpMap,
+			filtersResetMap: maps.filtersResetMap,
+			filterPresetMap: maps.filterPresetMap,
+			usefulCatMap: maps.usefulCatMap,
+			leagueMerged: merged,
+			totwOpenedSubMap: maps.totwOpenedSubMap,
+			totwWeekSubMap: maps.totwWeekSubMap,
+			totwModalSubMap: maps.totwModalSubMap,
+			pomRowSubMap: maps.pomRowSubMap,
+			pomMonthSubMap: maps.pomMonthSubMap,
+		});
+
+		const mapBundleCurr = {
+			filtersSpMap,
+			teamLabelMap: valuesByKey(teamLabelCurr),
+			allGamesMap,
+			dataTableMap,
+			statsNavSpMap,
+			filtersResetMap,
+			filterPresetMap,
+			usefulCatMap,
+			totwOpenedSubMap,
+			totwWeekSubMap,
+			totwModalSubMap,
+			pomRowSubMap,
+			pomMonthSubMap,
+		};
+		const mapBundlePrev = {
+			filtersSpMap: filtersSpMapPrev,
+			teamLabelMap: valuesByKey(teamLabelPrev),
+			allGamesMap: allGamesMapPrev,
+			dataTableMap: dataTableMapPrev,
+			statsNavSpMap: statsNavSpMapPrev,
+			filtersResetMap: filtersResetMapPrev,
+			filterPresetMap: filterPresetMapPrev,
+			usefulCatMap: valuesByKey(usefulCatPrev),
+			totwOpenedSubMap: totwOpenedSubMapPrev,
+			totwWeekSubMap: totwWeekSubMapPrev,
+			totwModalSubMap: totwModalSubMapPrev,
+			pomRowSubMap: pomRowSubMapPrev,
+			pomMonthSubMap: pomMonthSubMapPrev,
+		};
+
+		const currEng = buildSubsectionEngagement(events, engagementCtx(statsLeaderCurr, leagueMerged, mapBundleCurr));
+		const prevEng = buildSubsectionEngagement(
+			eventsPrev,
+			engagementCtx(statsLeaderPrev, leagueMergedPrev, mapBundlePrev),
+		);
+
+		const currViews = buildSubsectionViews(pageBySection, subSectionTotals);
+		const prevViews = buildSubsectionViews(pageBySectionPrev, valuesByKey(spSubPrev));
+
+		const currModel = buildSubsectionScores(currViews, currEng);
+		const prevModel = buildSubsectionScores(prevViews, prevEng);
+
+		const sorted = sortSubsectionsByScore(currModel.scores);
 		const top3 = sorted.slice(0, 3);
-		const bottom3 = disjointBottomThree(sorted, currModel.scores);
+		const bottom3 = disjointBottomThreeSubsections(sorted, currModel.scores);
 
 		const topPath = paths[0];
 		const topPathPrev = pathsPrev[0];
 
-		const chatbotQs = getEventCount(events, "Chatbot Question Submitted");
-		const chatbotQsPrev = getEventCount(eventsPrev, "Chatbot Question Submitted");
+		const chatCustom = sumPropertyMatches(chatSubSrcMap, "custom");
+		const chatCustomPrev = sumPropertyMatches(chatSubSrcMapPrev, "custom");
+		const chatExampleRun = sumPropertyMatches(chatSubSrcMap, "example");
+		const chatExampleRunPrev = sumPropertyMatches(chatSubSrcMapPrev, "example");
+		const exampleClicks = getEventCount(events, "Example Question Selected");
+		const exampleClicksPrev = getEventCount(eventsPrev, "Example Question Selected");
 		const filtersApplied = getEventCount(events, "Filters Applied");
 		const filtersAppliedPrev = getEventCount(eventsPrev, "Filters Applied");
 
@@ -551,8 +779,14 @@ export default async () => {
 		rowsHtml += metricRow("Visitors", stats.visitors ?? 0, statsPrev.visitors ?? 0, i++, {
 			trendHtml: trendArrows(stats.visitors ?? 0, statsPrev.visitors ?? 0),
 		});
-		rowsHtml += metricRow("Chatbot questions", chatbotQs, chatbotQsPrev, i++, {
-			trendHtml: trendArrows(chatbotQs, chatbotQsPrev),
+		rowsHtml += metricRow("Custom chatbot questions (submitted)", chatCustom, chatCustomPrev, i++, {
+			trendHtml: trendArrows(chatCustom, chatCustomPrev),
+		});
+		rowsHtml += metricRow("Example questions run (submitted)", chatExampleRun, chatExampleRunPrev, i++, {
+			trendHtml: trendArrows(chatExampleRun, chatExampleRunPrev),
+		});
+		rowsHtml += metricRow("Example questions clicked", exampleClicks, exampleClicksPrev, i++, {
+			trendHtml: trendArrows(exampleClicks, exampleClicksPrev),
 		});
 		rowsHtml += metricRow("Filters applied", filtersApplied, filtersAppliedPrev, i++, {
 			last: true,
@@ -566,16 +800,15 @@ export default async () => {
 			.map((sid) => {
 				const s = currModel.scores[sid];
 				const sp = prevModel.scores[sid];
-				const bullet = recommendBullet(
+				const bullet = recommendSubsectionBullet(
 					sid,
 					"top",
 					s,
 					sp,
-					currModel.pageviews[sid],
+					currModel.views[sid],
 					currModel.engagement[sid],
-					subSectionTotals,
 				);
-				return `<li style="margin:8px 0;"><strong>${sectionLabel(sid)}</strong> (score ${s.toFixed(2)}, was ${sp.toFixed(2)}) — ${bullet}</li>`;
+				return `<li style="margin:8px 0;"><strong>${escapeHtml(subsectionLabel(sid))}</strong> (score ${s.toFixed(2)}, was ${sp.toFixed(2)}) — ${bullet}</li>`;
 			})
 			.join("");
 
@@ -583,16 +816,15 @@ export default async () => {
 			.map((sid) => {
 				const s = currModel.scores[sid];
 				const sp = prevModel.scores[sid];
-				const bullet = recommendBullet(
+				const bullet = recommendSubsectionBullet(
 					sid,
 					"bottom",
 					s,
 					sp,
-					currModel.pageviews[sid],
+					currModel.views[sid],
 					currModel.engagement[sid],
-					subSectionTotals,
 				);
-				return `<li style="margin:8px 0;"><strong>${sectionLabel(sid)}</strong> (score ${s.toFixed(2)}, was ${sp.toFixed(2)}) — ${bullet}</li>`;
+				return `<li style="margin:8px 0;"><strong>${escapeHtml(subsectionLabel(sid))}</strong> (score ${s.toFixed(2)}, was ${sp.toFixed(2)}) — ${bullet}</li>`;
 			})
 			.join("");
 
@@ -601,6 +833,29 @@ export default async () => {
 		const subject = `Dorkinians Website - Umami Weekly Report (${periodStartLabel} to ${periodEndLabel})`;
 
 		/* —— Secondary blocks —— */
+		const subpageViewEntries = REPORT_SUBSECTION_ORDER.map((id) => ({
+			id,
+			curr: currViews[id] || 0,
+			prev: prevViews[id] || 0,
+		})).sort((a, b) => b.curr - a.curr);
+		let subpageViewsRows = "";
+		subpageViewEntries.forEach((row, idx) => {
+			subpageViewsRows += simpleRow(
+				[
+					escapeHtml(subsectionLabel(row.id)),
+					String(row.curr),
+					String(row.prev),
+					trendArrows(row.curr, row.prev),
+				],
+				idx,
+				idx === subpageViewEntries.length - 1,
+			);
+		});
+		const subpageViewsBlock = buildSecondaryTable(
+			"Subpage views — by subsection (Subpage Viewed · subSection; home/settings from Page Viewed · section)",
+			`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Subsection</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Δ</th></tr>${subpageViewsRows}`,
+		);
+
 		let statBlockHtml = "";
 		for (const { prefix, label } of STAT_LEADER_PREFIXES) {
 			const top = topStatsForPrefix(statsLeaderCurr, prefix, 5);
@@ -688,15 +943,16 @@ export default async () => {
 					)
 				: "";
 
-		function mapToRows(map, mapPrev, n) {
+		function mapToRows(map, mapPrev, n, labelFn) {
 			const entries = Object.entries(map)
 				.sort((a, b) => b[1] - a[1])
 				.slice(0, n);
 			let r = "";
 			entries.forEach(([k, total], idx) => {
 				const prevT = mapPrev[k] || 0;
+				const label = labelFn ? labelFn(k) : k;
 				r += simpleRow(
-					[escapeHtml(k), String(total), String(prevT), trendArrows(total, prevT)],
+					[escapeHtml(label), String(total), String(prevT), trendArrows(total, prevT)],
 					idx,
 					idx === entries.length - 1,
 				);
@@ -758,11 +1014,11 @@ export default async () => {
 					)
 				: "";
 
-		const webM = mapToRows(webVitalNameMap, valuesByKey(webVitalNamePrev), 8);
+		const webM = mapToRows(webVitalNameMap, valuesByKey(webVitalNamePrev), 8, webVitalDisplayName);
 		const webBlock =
 			webM.entries.length > 0
 				? buildSecondaryTable(
-						"Web Vitals — metric name (sample counts)",
+						"Web Vitals — sample counts (full metric name)",
 						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Metric</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Δ</th></tr>${webM.html}`,
 					)
 				: "";
@@ -775,6 +1031,87 @@ export default async () => {
 						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">questionId</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Δ</th></tr>${exM.html}`,
 					)
 				: "";
+
+		const exSourceMap = valuesByKey(exSourceCurr);
+		const exSourceMapPrev = valuesByKey(exSourcePrev);
+		const exSourceM = mapToRows(exSourceMap, exSourceMapPrev, 8);
+		const exSourceBlock =
+			exSourceM.entries.length > 0
+				? buildSecondaryTable(
+						"Example Question Selected — source (homepage / modal / conversation)",
+						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Source</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Δ</th></tr>${exSourceM.html}`,
+					)
+				: "";
+
+		const allGamesM = mapToRows(allGamesMap, allGamesMapPrev, 8);
+		const allGamesBlock =
+			allGamesM.entries.length > 0
+				? buildSecondaryTable(
+						"Stats — All Games Modal Opened · statsSubPage",
+						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">statsSubPage</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Δ</th></tr>${allGamesM.html}`,
+					)
+				: "";
+
+		const dataTableM = mapToRows(dataTableMap, dataTableMapPrev, 8);
+		const dataTableBlock =
+			dataTableM.entries.length > 0
+				? buildSecondaryTable(
+						"Stats — Data Table Toggled · statsSubPage",
+						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">statsSubPage</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Δ</th></tr>${dataTableM.html}`,
+					)
+				: "";
+
+		const statsNavSpM = mapToRows(statsNavSpMap, statsNavSpMapPrev, 10);
+		const statsNavSpBlock =
+			statsNavSpM.entries.length > 0
+				? buildSecondaryTable(
+						"Stats — Section Navigated · statsSubPage",
+						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">statsSubPage</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Δ</th></tr>${statsNavSpM.html}`,
+					)
+				: "";
+
+		const statsNavSecM = mapToRows(statsNavSecMap, statsNavSecMapPrev, 12);
+		const statsNavSecBlock =
+			statsNavSecM.entries.length > 0
+				? buildSecondaryTable(
+						"Stats — Section Navigated · sectionId",
+						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">sectionId</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Δ</th></tr>${statsNavSecM.html}`,
+					)
+				: "";
+
+		const filtersResetM = mapToRows(filtersResetMap, filtersResetMapPrev, 8);
+		const filtersResetBlock =
+			filtersResetM.entries.length > 0
+				? buildSecondaryTable(
+						"Stats — Filters Reset · statsSubPage",
+						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">statsSubPage</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Δ</th></tr>${filtersResetM.html}`,
+					)
+				: "";
+
+		const filterPresetM = mapToRows(filterPresetMap, filterPresetMapPrev, 8);
+		const filterPresetBlock =
+			filterPresetM.entries.length > 0
+				? buildSecondaryTable(
+						"Stats — Filter Preset Applied · statsSubPage",
+						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">statsSubPage</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Δ</th></tr>${filterPresetM.html}`,
+					)
+				: "";
+
+		const capCurr = getEventCount(events, "Captain History Opened");
+		const capPrev = getEventCount(eventsPrev, "Captain History Opened");
+		const awCurr = getEventCount(events, "Award History Opened");
+		const awPrev = getEventCount(eventsPrev, "Award History Opened");
+		const clubInteractRows =
+			simpleRow(
+				["Captain History Opened", String(capCurr), String(capPrev), trendArrows(capCurr, capPrev)],
+				0,
+				false,
+			) +
+			simpleRow(["Award History Opened", String(awCurr), String(awPrev), trendArrows(awCurr, awPrev)], 1, true);
+		const clubInteractBlock = buildSecondaryTable(
+			"Club info — captain & award opens (event totals)",
+			`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Event</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Δ</th></tr>${clubInteractRows}`,
+		);
 
 		const tableWrapStyle =
 			"width:100%;border:1px solid #bbf7d0;border-radius:8px;overflow:hidden;border-collapse:collapse;";
@@ -803,13 +1140,13 @@ export default async () => {
 
 		const topPathY = topPath ? Number(topPath.y) || 0 : 0;
 		const topPathPrevY = topPathPrev ? Number(topPathPrev.y) || 0 : 0;
-		const scoreHelp = `Score = ${PAGEWEIGHT}x normalized Page Viewed (by section) + ${EVENTWEIGHT}x normalized engagement. Bottom 3 excludes any section already in top 3 (no duplicate on ties).`;
+		const scoreHelp = `Score = ${PAGEWEIGHT}x normalized subpage/main views (per subsection) + ${EVENTWEIGHT}x normalized engagement (events rolled up to that subsection). Bottom 3 excludes any subsection already in top 3 (no duplicate on ties).`;
 		const html =
 			"<!DOCTYPE html>\n" +
 			'<html lang="en">\n' +
 			"<head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"><title>Dorkinians Umami Weekly Report</title></head>\n" +
-			'<body style="margin:0;padding:0;background-color:#ecfdf5;font-family:system-ui,Arial,sans-serif;color:#14532d;">\n' +
-			'  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#ecfdf5;padding:24px 0;">\n' +
+			'<body style="margin:0;padding:0;background-color:#ffffff;font-family:system-ui,Arial,sans-serif;color:#14532d;">\n' +
+			'  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#ffffff;padding:24px 0;">\n' +
 			'    <tr><td align="center" style="padding:0 12px;">\n' +
 			'      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:720px;width:100%;background-color:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #bbf7d0;box-shadow:0 8px 24px rgba(6,78,59,0.12);">\n' +
 			'        <tr><td style="padding:0;">\n' +
@@ -817,7 +1154,9 @@ export default async () => {
 			'            <tr><td style="padding:24px 28px;">\n' +
 			'              <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>\n' +
 			'                <td style="vertical-align:middle;padding-right:16px;width:64px;">\n' +
-			'                  <img src="https://bangsluke-assets.netlify.app/images/company-logos/Dorkinians.png" alt="Dorkinians" width="48" height="48" style="display:block;border-radius:8px;background:#fff;padding:2px;" />\n' +
+			'                  <img src="' +
+			escapeHtml(EMAIL_HEADER_LOGO_SRC) +
+			'" alt="Dorkinians" width="48" height="48" style="display:block;width:48px;height:48px;-ms-filter:brightness(0) invert(1);filter:brightness(0) invert(1);" />\n' +
 			"                </td>\n" +
 			'                <td style="vertical-align:middle;">\n' +
 			'                  <div style="font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:#d9f99d;margin-bottom:4px;">Dorkinians Website</div>\n' +
@@ -886,18 +1225,27 @@ export default async () => {
 			"          </td></tr>\n" +
 			'          <tr><td style="padding:0 28px 28px;">\n' +
 			'            <div style="font-size:12px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:#047857;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #bbf7d0;">Detail &amp; breakdowns</div>\n' +
+			subpageViewsBlock +
 			statBlockHtml +
 			topPlayersBlock +
 			teamXiBlock +
 			leagueBlock +
+			allGamesBlock +
+			dataTableBlock +
+			statsNavSpBlock +
+			statsNavSecBlock +
+			filtersResetBlock +
+			filterPresetBlock +
 			filtersSpBlock +
 			filtersTrBlock +
 			shareBlock +
 			chatBlock +
 			totwBlock +
 			usefulBlock +
+			clubInteractBlock +
 			webBlock +
 			exBlock +
+			exSourceBlock +
 			"          </td></tr>\n" +
 			"          </table>\n" +
 			"        </td></tr>\n" +
