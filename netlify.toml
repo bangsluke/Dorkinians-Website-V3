@@ -36,6 +36,9 @@
     X-Function-Timeout = "300"
     X-Request-Timeout = "300"
 
+[functions."umami-weekly-report"]
+  timeout = 60
+
 # Handle static assets
 [[redirects]]
   from = "/_next/*"

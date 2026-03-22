@@ -623,6 +623,11 @@ SMTP_TO_EMAIL=recipient@example.com
 NEXT_PUBLIC_UMAMI_SCRIPT_URL=https://your-umami-instance.com/script.js
 NEXT_PUBLIC_UMAMI_WEBSITE_ID=your-website-id-here
 
+# Umami API (Netlify `umami-weekly-report` scheduled function — keep server-side only)
+UMAMI_API_KEY=your-umami-api-key
+UMAMI_WEBSITE_ID=your-website-id-here
+# UMAMI_BASE_URL=https://api.umami.is/v1
+
 # App Version (auto-populated from package.json at build time)
 NEXT_PUBLIC_APP_VERSION=1.1.23
 
@@ -774,7 +779,7 @@ For detailed technical documentation including:
 
 See: [Additional_Details.md](./docs/Additional_Details.md)
 
-For Umami Analytics setup and configuration, see the [Umami Analytics Setup](#umami-analytics-setup) section in [Additional_Details.md](./docs/Additional_Details.md).
+For Umami Analytics setup, custom events, and the **weekly Netlify email report**, see [docs/UMAMI_ANALYTICS.md](./docs/UMAMI_ANALYTICS.md). For historical context, see [Umami Analytics Setup](#umami-analytics-setup) in [Additional_Details.md](./docs/Additional_Details.md).
 
 For development guidelines and best practices:
 

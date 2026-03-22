@@ -7,6 +7,8 @@ import { appConfig } from "@/config/config";
 import Input, { Textarea } from "@/components/ui/Input";
 import ModalWrapper from "./ModalWrapper";
 import { useNavigationStore } from "@/lib/stores/navigation";
+import { UmamiEvents } from "@/lib/analytics/events";
+import { trackEvent } from "@/lib/utils/trackEvent";
 
 interface FeedbackModalProps {
 	isOpen: boolean;
@@ -40,6 +42,7 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
 	// Pre-populate name with selectedPlayer when modal opens
 	useEffect(() => {
 		if (isOpen) {
+			trackEvent(UmamiEvents.FeedbackModalOpened, { section: "settings" });
 			const playerName = getSelectedPlayer();
 			if (playerName) {
 				setName(playerName);
@@ -82,6 +85,7 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
 			});
 
 			if (response.ok) {
+				trackEvent(UmamiEvents.FeedbackSubmitted, { type: feedbackType, status: "success" });
 				setSubmitStatus("success");
 				setTimeout(() => {
 					onClose();
@@ -92,10 +96,12 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
 					setSubmitStatus("idle");
 				}, 2000);
 			} else {
+				trackEvent(UmamiEvents.FeedbackSubmitted, { type: feedbackType, status: "error" });
 				setSubmitStatus("error");
 			}
 		} catch (error) {
 			console.error("Error submitting feedback:", error);
+			trackEvent(UmamiEvents.FeedbackSubmitted, { type: feedbackType, status: "error" });
 			setSubmitStatus("error");
 		} finally {
 			setIsSubmitting(false);

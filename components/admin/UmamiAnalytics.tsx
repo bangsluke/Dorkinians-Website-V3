@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
+import { UmamiEvents } from "@/lib/analytics/events";
+import { trackEvent } from "@/lib/utils/trackEvent";
 
 export default function UmamiAnalytics() {
 	useEffect(() => {
@@ -21,11 +23,9 @@ export default function UmamiAnalytics() {
 
 		// Wait for Umami script to load
 		const checkUmami = () => {
-			if (typeof window !== "undefined" && (window as any).umami) {
+			if (typeof window !== "undefined" && window.umami) {
 				try {
-					(window as any).umami.track("App Version", {
-						version: appVersion,
-					});
+					trackEvent(UmamiEvents.AppVersion, { version: appVersion });
 					sessionStorage.setItem(sessionKey, "true");
 				} catch (error) {
 					console.error("Failed to track app version:", error);

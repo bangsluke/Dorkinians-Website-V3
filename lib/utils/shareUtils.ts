@@ -1,5 +1,7 @@
 import { PlayerFilters, PlayerData } from "@/lib/stores/navigation";
 import { VisualizationOption } from "@/components/stats/ShareVisualizationModal";
+import { UmamiEvents } from "@/lib/analytics/events";
+import { trackEvent } from "@/lib/utils/trackEvent";
 
 interface FilterData {
 	seasons: Array<{ season: string; startDate: string; endDate: string }>;
@@ -441,7 +443,8 @@ function isIOS(): boolean {
 
 export async function shareImage(
 	imageDataUrl: string,
-	playerName: string
+	playerName: string,
+	visualizationId?: string,
 ): Promise<{ success: boolean; needsIOSPreview?: boolean; needsPreview?: boolean }> {
 	try {
 		// Convert data URL to blob (without fetch to avoid CSP violations)
@@ -465,16 +468,27 @@ export async function shareImage(
 		document.body.appendChild(link);
 		link.click();
 		document.body.removeChild(link);
+		trackEvent(UmamiEvents.StatsShared, {
+			method: "download",
+			visualizationId: visualizationId ?? "unknown",
+			status: "success",
+		});
 		return { success: true };
 	} catch (error) {
 		console.error("Error sharing image:", error);
+		trackEvent(UmamiEvents.StatsShared, {
+			method: "download",
+			visualizationId: visualizationId ?? "unknown",
+			status: "error",
+		});
 		return { success: false };
 	}
 }
 
 export async function performIOSShare(
 	imageDataUrl: string,
-	playerName: string
+	playerName: string,
+	visualizationId?: string,
 ): Promise<boolean> {
 	try {
 		// Convert data URL to blob (without fetch to avoid CSP violations)
@@ -487,42 +501,65 @@ export async function performIOSShare(
 				title: `${playerName} - Player Stats`,
 				text: `Check out ${playerName}'s stats!`,
 			});
+			trackEvent(UmamiEvents.StatsShared, {
+				method: "iosPreview",
+				visualizationId: visualizationId ?? "unknown",
+				status: "success",
+			});
 			return true;
 		}
 		return false;
 	} catch (error) {
 		console.error("Error performing iOS share:", error);
+		trackEvent(UmamiEvents.StatsShared, {
+			method: "iosPreview",
+			visualizationId: visualizationId ?? "unknown",
+			status: "error",
+		});
 		return false;
 	}
 }
 
 export async function performNonIOSShare(
 	imageDataUrl: string,
-	playerName: string
+	playerName: string,
+	visualizationId?: string,
 ): Promise<boolean> {
+	const viz = visualizationId ?? "unknown";
 	try {
-		// Convert data URL to blob (without fetch to avoid CSP violations)
 		const blob = dataURLtoBlob(imageDataUrl);
 		const file = new File([blob], `${playerName}-stats.png`, { type: "image/png" });
 
-		// Try Web Share API first
-		if (typeof navigator.share === 'function' && typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
-			await navigator.share({
-				files: [file],
-				title: `${playerName} - Player Stats`,
-				text: `Check out ${playerName}'s stats!`,
-			});
-			return true;
+		if (typeof navigator.share === "function" && typeof navigator.canShare === "function" && navigator.canShare({ files: [file] })) {
+			try {
+				await navigator.share({
+					files: [file],
+					title: `${playerName} - Player Stats`,
+					text: `Check out ${playerName}'s stats!`,
+				});
+				trackEvent(UmamiEvents.StatsShared, { method: "webShare", visualizationId: viz, status: "success" });
+				return true;
+			} catch (error) {
+				console.error("Error performing non-iOS share (Web Share):", error);
+				trackEvent(UmamiEvents.StatsShared, { method: "webShare", visualizationId: viz, status: "error" });
+				return false;
+			}
 		}
 
-		// Fallback: Download the image
-		const link = document.createElement("a");
-		link.href = imageDataUrl;
-		link.download = `${playerName.replace(/\s+/g, "-")}-stats.png`;
-		document.body.appendChild(link);
-		link.click();
-		document.body.removeChild(link);
-		return true;
+		try {
+			const link = document.createElement("a");
+			link.href = imageDataUrl;
+			link.download = `${playerName.replace(/\s+/g, "-")}-stats.png`;
+			document.body.appendChild(link);
+			link.click();
+			document.body.removeChild(link);
+			trackEvent(UmamiEvents.StatsShared, { method: "download", visualizationId: viz, status: "success" });
+			return true;
+		} catch (error) {
+			console.error("Error performing non-iOS share (download):", error);
+			trackEvent(UmamiEvents.StatsShared, { method: "download", visualizationId: viz, status: "error" });
+			return false;
+		}
 	} catch (error) {
 		console.error("Error performing non-iOS share:", error);
 		return false;

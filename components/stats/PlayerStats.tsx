@@ -32,6 +32,8 @@ import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { ChartSkeleton, TableSkeleton, StatCardSkeleton, AwardsListSkeleton, DataTableSkeleton } from "@/components/skeletons";
 import { log } from "@/lib/utils/logger";
+import { UmamiEvents } from "@/lib/analytics/events";
+import { trackEvent } from "@/lib/utils/trackEvent";
 import Button from "@/components/ui/Button";
 import { calculateFTPBreakdown } from "@/lib/utils/fantasyPoints";
 import { ErrorState, EmptyState } from "@/components/ui/StateComponents";
@@ -2333,7 +2335,11 @@ export default function PlayerStats() {
 						</div>
 						<div className='flex justify-center mb-2 md:mb-4'>
 							<button
-								onClick={() => setIsDataTableMode(!isDataTableMode)}
+								onClick={() => {
+									const next = !isDataTableMode;
+									trackEvent(UmamiEvents.DataTableToggled, { enabled: next, statsSubPage: "player-stats" });
+									setIsDataTableMode(next);
+								}}
 								className='text-white underline hover:text-white/80 text-sm md:text-base cursor-pointer'>
 								{isDataTableMode ? "Switch to data visualisation" : "Switch to data table"}
 							</button>
@@ -3695,7 +3701,11 @@ export default function PlayerStats() {
 					<Button
 						variant="ghost"
 						size="sm"
-						onClick={() => setIsDataTableMode(!isDataTableMode)}
+						onClick={() => {
+							const next = !isDataTableMode;
+							trackEvent(UmamiEvents.DataTableToggled, { enabled: next, statsSubPage: "player-stats" });
+							setIsDataTableMode(next);
+						}}
 						className='underline'>
 						{isDataTableMode ? "Switch to data visualisation" : "Switch to data table"}
 					</Button>

@@ -20,6 +20,8 @@ import { LoadingState, ErrorState, EmptyState } from "@/components/ui/StateCompo
 import { useToast } from "@/lib/hooks/useToast";
 import { log } from "@/lib/utils/logger";
 import Button from "@/components/ui/Button";
+import { UmamiEvents } from "@/lib/analytics/events";
+import { trackEvent } from "@/lib/utils/trackEvent";
 
 
 interface TopPlayer {
@@ -1223,7 +1225,11 @@ export default function TeamStats() {
 					<Button
 						variant="ghost"
 						size="sm"
-						onClick={() => setIsDataTableMode(!isDataTableMode)}
+						onClick={() => {
+							const next = !isDataTableMode;
+							trackEvent(UmamiEvents.DataTableToggled, { enabled: next, statsSubPage: "team-stats" });
+							setIsDataTableMode(next);
+						}}
 						className='underline'>
 						{isDataTableMode ? "Switch to data visualisation" : "Switch to data table"}
 					</Button>

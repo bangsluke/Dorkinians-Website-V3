@@ -1,6 +1,8 @@
 "use client";
 
 import { useReportWebVitals } from "next/web-vitals";
+import { UmamiEvents } from "@/lib/analytics/events";
+import { trackEvent } from "@/lib/utils/trackEvent";
 
 export default function WebVitals() {
 	useReportWebVitals((metric) => {
@@ -16,19 +18,12 @@ export default function WebVitals() {
 			return;
 		}
 
-		// Send metric to Umami
-		if (typeof window !== "undefined" && (window as any).umami) {
-			try {
-				(window as any).umami.track("Web Vital", {
-					name: metric.name,
-					value: Math.round(metric.value),
-					id: metric.id,
-					rating: metric.rating,
-				});
-			} catch (error) {
-				// Silently fail - analytics is not critical
-			}
-		}
+		trackEvent(UmamiEvents.WebVital, {
+			name: metric.name,
+			value: Math.round(metric.value),
+			id: metric.id,
+			rating: metric.rating ?? "",
+		});
 	});
 
 	return null;

@@ -16,6 +16,8 @@ import "react-loading-skeleton/dist/skeleton.css";
 import { LeagueTableSkeleton, ChartSkeleton } from "@/components/skeletons";
 import { appConfig } from "@/config/config";
 import { log } from "@/lib/utils/logger";
+import { UmamiEvents } from "@/lib/analytics/events";
+import { trackEvent } from "@/lib/utils/trackEvent";
 
 interface LeagueTableEntry {
 	position: number;
@@ -604,6 +606,7 @@ export default function LeagueInformation() {
 
 	// Scroll to team section function
 	const scrollToTeam = (teamKey: string) => {
+		trackEvent(UmamiEvents.LeagueTeamFocused, { teamKey, source: "nav_click" });
 		setActiveTeamLink(teamKey);
 		const element = document.getElementById(`team-${teamKey}`);
 		if (!element) return;
@@ -631,6 +634,7 @@ export default function LeagueInformation() {
 
 	// Handle show results button click
 	const handleShowResults = (teamKey: string) => {
+		trackEvent(UmamiEvents.LeagueResultsOpened, { teamKey });
 		setSelectedTeamKey(teamKey);
 		setSelectedTeamDisplayName(getTeamDisplayName(teamKey));
 		setIsModalOpen(true);

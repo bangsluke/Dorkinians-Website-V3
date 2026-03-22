@@ -7,6 +7,8 @@ import { appConfig } from "@/config/config";
 import Input from "@/components/ui/Input";
 import ModalWrapper from "./ModalWrapper";
 import { useNavigationStore } from "@/lib/stores/navigation";
+import { UmamiEvents } from "@/lib/analytics/events";
+import { trackEvent } from "@/lib/utils/trackEvent";
 
 interface DataPrivacyModalProps {
 	isOpen: boolean;
@@ -36,6 +38,7 @@ export default function DataPrivacyModal({ isOpen, onClose }: DataPrivacyModalPr
 	// Pre-populate name with selectedPlayer when modal opens
 	useEffect(() => {
 		if (isOpen) {
+			trackEvent(UmamiEvents.DataPrivacyModalOpened, { section: "settings" });
 			const playerName = getSelectedPlayer();
 			if (playerName) {
 				setName(playerName);
@@ -76,6 +79,7 @@ export default function DataPrivacyModal({ isOpen, onClose }: DataPrivacyModalPr
 			});
 
 			if (response.ok) {
+				trackEvent(UmamiEvents.DataRemovalSubmitted, { status: "success" });
 				setSubmitStatus("success");
 				setTimeout(() => {
 					onClose();
@@ -84,10 +88,12 @@ export default function DataPrivacyModal({ isOpen, onClose }: DataPrivacyModalPr
 					setSubmitStatus("idle");
 				}, 2000);
 			} else {
+				trackEvent(UmamiEvents.DataRemovalSubmitted, { status: "error" });
 				setSubmitStatus("error");
 			}
 		} catch (error) {
 			console.error("Error submitting removal request:", error);
+			trackEvent(UmamiEvents.DataRemovalSubmitted, { status: "error" });
 			setSubmitStatus("error");
 		} finally {
 			setIsSubmitting(false);
