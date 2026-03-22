@@ -24,6 +24,15 @@ import Input from "@/components/ui/Input";
 import { LoadingState, ErrorState } from "@/components/ui/StateComponents";
 import { useToast } from "@/lib/hooks/useToast";
 import ProgressIndicator from "@/components/ui/ProgressIndicator";
+import { UmamiEvents } from "@/lib/analytics/events";
+import { trackEvent } from "@/lib/utils/trackEvent";
+
+function questionLengthBucket(q: string): string {
+	const len = q.trim().length;
+	if (len < 40) return "short";
+	if (len < 120) return "medium";
+	return "long";
+}
 
 interface SavedConversation {
 	question: string;
@@ -175,6 +184,16 @@ export default function ChatbotInterface() {
 		
 		if (cached && (Date.now() - cached.timestamp) < CACHE_TTL_MS) {
 			log("info", "🤖 [Cache Hit] Using cached response");
+			trackEvent(UmamiEvents.ChatbotQuestionSubmitted, {
+				hasSelectedPlayer: Boolean(selectedPlayer),
+				questionLengthBucket: questionLengthBucket(questionToSubmit),
+				cacheHit: true,
+			});
+			trackEvent(UmamiEvents.ChatbotResponseRendered, {
+				hasVisualization: Boolean(cached.response.visualization),
+				responseType: cached.response.visualization?.type ?? "text",
+				cacheHit: true,
+			});
 			setResponse(cached.response);
 			setIsLoading(false);
 			setError(null);
@@ -193,6 +212,12 @@ export default function ChatbotInterface() {
 		setIsLoading(true);
 		setError(null);
 		setResponse(null);
+
+		trackEvent(UmamiEvents.ChatbotQuestionSubmitted, {
+			hasSelectedPlayer: Boolean(selectedPlayer),
+			questionLengthBucket: questionLengthBucket(questionToSubmit),
+			cacheHit: false,
+		});
 
 		// Try to send the question to the chatbot
 		try {
@@ -301,6 +326,12 @@ export default function ChatbotInterface() {
 
 			setResponse(data);
 
+			trackEvent(UmamiEvents.ChatbotResponseRendered, {
+				hasVisualization: Boolean(data.visualization),
+				responseType: data.visualization?.type ?? "text",
+				cacheHit: false,
+			});
+
 			// Cache the response
 			chatbotCache.set(cacheKey, {
 				response: data,
@@ -328,6 +359,9 @@ export default function ChatbotInterface() {
 			// Log error to console but show graceful response to user
 			const errorMessage = err instanceof Error ? err.message : String(err);
 			log("error", `🤖 Frontend: Error occurred:`, errorMessage);
+			trackEvent(UmamiEvents.ChatbotError, {
+				errorType: "request_failed",
+			});
 			
 			// Generate suggestions based on the question
 			const questionWords = questionToSubmit.toLowerCase().split(/\s+/).filter(word => word.length > 2);
@@ -568,6 +602,7 @@ export default function ChatbotInterface() {
 									variant="secondary"
 									size="md"
 									onClick={() => {
+										trackEvent(UmamiEvents.ChatbotCtaClicked, { cta: "view_player_stats" });
 										setMainPage("stats");
 										setStatsSubPage("player-stats");
 									}}
@@ -664,6 +699,7 @@ export default function ChatbotInterface() {
 									className={`rounded-lg p-3 md:p-4 cursor-pointer hover:bg-yellow-400/5 transition-colors bg-gradient-to-b from-white/[0.22] to-white/[0.05]`}
 									onClick={() => {
 										scrollToTop();
+										trackEvent(UmamiEvents.ExampleQuestionSelected, { source: "homepage" });
 										submitQuestion(q.question);
 									}}>
 									<div className='mb-2'>
@@ -677,7 +713,10 @@ export default function ChatbotInterface() {
 							<Button
 								variant="ghost"
 								size="sm"
-								onClick={() => setShowExampleQuestionsModal(true)}
+								onClick={() => {
+									trackEvent(UmamiEvents.ExampleQuestionsOpened, { source: "homepage" });
+									setShowExampleQuestionsModal(true);
+								}}
 								data-testid="chatbot-show-more-example-questions"
 								className="underline text-yellow-300 hover:text-yellow-200">
 								Show more example questions
@@ -746,6 +785,7 @@ export default function ChatbotInterface() {
 										className={`rounded-lg p-3 md:p-4 cursor-pointer hover:bg-yellow-400/5 transition-colors bg-gradient-to-b from-white/[0.22] to-white/[0.05]`}
 										onClick={() => {
 											scrollToTop();
+											trackEvent(UmamiEvents.ExampleQuestionSelected, { source: "homepage" });
 											submitQuestion(q.question);
 										}}>
 										<div className='mb-2'>
@@ -761,7 +801,10 @@ export default function ChatbotInterface() {
 								<Button
 									variant="ghost"
 									size="sm"
-									onClick={() => setShowExampleQuestionsModal(true)}
+									onClick={() => {
+										trackEvent(UmamiEvents.ExampleQuestionsOpened, { source: "conversation" });
+										setShowExampleQuestionsModal(true);
+									}}
 									className="underline text-yellow-300 hover:text-yellow-200">
 									Show more example questions
 								</Button>
@@ -776,17 +819,10 @@ export default function ChatbotInterface() {
 				isOpen={showExampleQuestionsModal}
 				onClose={() => setShowExampleQuestionsModal(false)}
 				onSelectQuestion={(question) => {
+					trackEvent(UmamiEvents.ExampleQuestionSelected, { source: "modal" });
 					scrollToTop();
-					setQuestion(question);
 					setShowExampleQuestionsModal(false);
-					// Focus the input after setting the question
-					setTimeout(() => {
-						const input = document.querySelector('input[type="text"]') as HTMLInputElement;
-						if (input) {
-							input.focus();
-							input.setSelectionRange(0, input.value.length);
-						}
-					}, 0);
+					void submitQuestion(question);
 				}}
 			/>
 		</div>

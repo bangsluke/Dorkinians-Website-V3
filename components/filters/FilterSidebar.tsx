@@ -10,6 +10,8 @@ import Input from "@/components/ui/Input";
 import { useToast } from "@/lib/hooks/useToast";
 import ProgressIndicator from "@/components/ui/ProgressIndicator";
 import ConfirmModal from "@/components/modals/ConfirmModal";
+import { UmamiEvents } from "@/lib/analytics/events";
+import { trackEvent } from "@/lib/utils/trackEvent";
 
 interface FilterSidebarProps {
 	isOpen: boolean;
@@ -425,6 +427,7 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess, renderAboveA
 				break;
 			}
 		}
+		trackEvent(UmamiEvents.FilterPresetApplied, { presetName, statsSubPage: currentStatsSubPage });
 	};
 
 	const handleTimeRangeTypeChange = (type: "allTime" | "season" | "beforeDate" | "afterDate" | "betweenDates") => {
@@ -988,6 +991,7 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess, renderAboveA
 			position: ["GK", "DEF", "MID", "FWD"],
 		});
 		
+		trackEvent(UmamiEvents.FiltersReset, { statsSubPage: currentStatsSubPage, source: "sidebar_clear_all" });
 		await applyPlayerFilters();
 		showSuccess("Filters reset");
 		setShowClearAllConfirm(false);

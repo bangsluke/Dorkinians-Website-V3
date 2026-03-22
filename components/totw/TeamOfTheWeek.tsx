@@ -15,6 +15,8 @@ import { TOTWPitchSkeleton, TOTWPlayerDetailsSkeleton } from "@/components/skele
 import { appConfig } from "@/config/config";
 import { log } from "@/lib/utils/logger";
 import { cachedFetch, generatePageCacheKey } from "@/lib/utils/pageCache";
+import { UmamiEvents } from "@/lib/analytics/events";
+import { trackEvent } from "@/lib/utils/trackEvent";
 
 interface MatchDetailWithSummary extends MatchDetail {
 	matchSummary?: string | null;
@@ -504,6 +506,10 @@ export default function TeamOfTheWeek() {
 					setAggregatedPlayerStats(data);
 					setPlayerDetails(null);
 					setTotwAppearances(data.totwAppearances);
+					trackEvent(UmamiEvents.TotwPlayerOpened, {
+						playerName,
+						mode: isSeasonTOTWSelected ? "season-totw" : "all-time",
+					});
 					setShowModal(true);
 				}
 			} else {
@@ -528,6 +534,11 @@ export default function TeamOfTheWeek() {
 					setPlayerDetails(data.matchDetails);
 					setAggregatedPlayerStats(null);
 					setTotwAppearances(data.totwAppearances);
+					trackEvent(UmamiEvents.TotwPlayerOpened, {
+						playerName,
+						mode: "weekly",
+						week: selectedWeek,
+					});
 					setShowModal(true);
 				}
 			}
@@ -990,7 +1001,19 @@ export default function TeamOfTheWeek() {
 						</Listbox>
 					</div>
 					<div className='flex-1 md:w-1/2'>
-						<Listbox value={selectedWeek || 0} onChange={setSelectedWeek} disabled={isAllTimeSelected}>
+						<Listbox
+							value={selectedWeek || 0}
+							onChange={(newWeek) => {
+								if (newWeek !== selectedWeek) {
+									trackEvent(UmamiEvents.TotwWeekChanged, {
+										fromWeek: selectedWeek,
+										toWeek: newWeek,
+										season: selectedSeason,
+									});
+								}
+								setSelectedWeek(newWeek);
+							}}
+							disabled={isAllTimeSelected}>
 							<div className='relative'>
 								<Listbox.Button 
 									data-testid="totw-week-selector" 
@@ -1231,6 +1254,7 @@ export default function TeamOfTheWeek() {
 					aggregatedStats={aggregatedPlayerStats}
 					totwAppearances={totwAppearances}
 					onClose={() => {
+						trackEvent(UmamiEvents.TotwPlayerModalClosed, { playerName: selectedPlayer });
 						setShowModal(false);
 						setSelectedPlayer(null);
 						setPlayerDetails(null);

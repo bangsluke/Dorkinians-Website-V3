@@ -1201,6 +1201,11 @@ NEXT_PUBLIC_UMAMI_WEBSITE_ID=your-website-id-here
 
 # App Version (auto-populated from package.json at build time)
 NEXT_PUBLIC_APP_VERSION=1.1.21
+
+# Server-only (Netlify Functions — weekly report). Never prefix with NEXT_PUBLIC_.
+# UMAMI_API_KEY=...
+# UMAMI_WEBSITE_ID=...  # usually same UUID as NEXT_PUBLIC_UMAMI_WEBSITE_ID
+# UMAMI_BASE_URL=https://api.umami.is/v1
 ```
 
 **For Production (Netlify):**
@@ -1210,6 +1215,7 @@ NEXT_PUBLIC_APP_VERSION=1.1.21
    - `NEXT_PUBLIC_UMAMI_SCRIPT_URL`
    - `NEXT_PUBLIC_UMAMI_WEBSITE_ID`
    - `NEXT_PUBLIC_APP_VERSION` (will be auto-populated from package.json)
+   - `UMAMI_API_KEY`, `UMAMI_WEBSITE_ID` (and optional `UMAMI_BASE_URL`) if using the scheduled `umami-weekly-report` function — see [UMAMI_ANALYTICS.md](./UMAMI_ANALYTICS.md)
 
 **Note:** The `NEXT_PUBLIC_APP_VERSION` is automatically set from your `package.json` during build, so you don't need to manually update it.
 
@@ -1219,6 +1225,8 @@ NEXT_PUBLIC_APP_VERSION=1.1.21
 - You can view version tracking data in your Umami Cloud dashboard under "Events"
 - This allows you to see which version of your app users are accessing
 - The event name is "App Version" with the version number as a property
+
+**Weekly analytics email (Netlify):** A scheduled function `umami-weekly-report` emails SMTP recipients with rolling 7-day vs prior 7-day metrics and section recommendations. Configure **`UMAMI_API_KEY`**, **`UMAMI_WEBSITE_ID`**, optional **`UMAMI_BASE_URL`**, and the existing **SMTP_*** variables on Netlify. Schedule: **Friday 00:00 UTC**. Full runbook: [UMAMI_ANALYTICS.md](./UMAMI_ANALYTICS.md).
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -1237,6 +1245,10 @@ NEXT_PUBLIC_UMAMI_WEBSITE_ID=your-website-id-here
 
 # App Version (auto-populated from package.json at build time)
 NEXT_PUBLIC_APP_VERSION=1.1.21
+
+# Server-only weekly report (Netlify Functions) — see UMAMI_ANALYTICS.md
+# UMAMI_API_KEY=...
+# UMAMI_WEBSITE_ID=...
 ```
 
 **Note:** If you're using a region-specific Umami Cloud instance (e.g., EU region), your script URL will be different:

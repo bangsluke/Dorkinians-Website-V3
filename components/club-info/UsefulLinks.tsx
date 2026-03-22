@@ -2,6 +2,8 @@
 
 import { usefulLinks } from "@/config/config";
 import { motion } from "framer-motion";
+import { UmamiEvents } from "@/lib/analytics/events";
+import { trackEvent } from "@/lib/utils/trackEvent";
 
 export default function UsefulLinks() {
 	const allLinks = usefulLinks;
@@ -55,6 +57,13 @@ export default function UsefulLinks() {
 										href={link.url}
 										target='_blank'
 										rel='noopener noreferrer'
+										onClick={() =>
+											trackEvent(UmamiEvents.UsefulLinkClicked, {
+												linkLabel: link.title,
+												linkCategory: category,
+												linkId: link.id,
+											})
+										}
 										initial={{ opacity: 0, x: -20 }}
 										animate={{ opacity: 1, x: 0 }}
 										transition={{ delay: categoryIndex * 0.1 + linkIndex * 0.05 }}

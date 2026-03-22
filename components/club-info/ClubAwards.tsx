@@ -11,6 +11,8 @@ import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { AwardsTableSkeleton } from "@/components/skeletons";
 import { appConfig } from "@/config/config";
+import { UmamiEvents } from "@/lib/analytics/events";
+import { trackEvent } from "@/lib/utils/trackEvent";
 
 interface AwardData {
 	awardName: string;
@@ -178,6 +180,7 @@ export default function ClubAwards() {
 
 	// Handle player name click/hover
 	const handlePlayerClick = (playerName: string) => {
+		trackEvent(UmamiEvents.AwardHistoryOpened, { playerName, source: "click" });
 		setSelectedPlayer(playerName);
 		setShowPopup(true);
 	};
@@ -185,6 +188,7 @@ export default function ClubAwards() {
 	const handlePlayerHover = (playerName: string) => {
 		// Only show on hover for desktop (screen width >= 768px)
 		if (typeof window !== "undefined" && window.innerWidth >= 768) {
+			trackEvent(UmamiEvents.AwardHistoryOpened, { playerName, source: "hover" });
 			setSelectedPlayer(playerName);
 			setShowPopup(true);
 		}

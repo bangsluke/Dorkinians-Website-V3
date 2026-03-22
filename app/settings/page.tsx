@@ -19,6 +19,8 @@ import { appConfig } from "@/config/config";
 import dynamic from "next/dynamic";
 import FeedbackModal from "@/components/modals/FeedbackModal";
 import DataPrivacyModal from "@/components/modals/DataPrivacyModal";
+import { UmamiEvents } from "@/lib/analytics/events";
+import { trackEvent } from "@/lib/utils/trackEvent";
 
 // Dynamically import PWA components to avoid SSR issues
 // [COMMENTED OUT: Check for Updates Section] - UpdateToast import disabled as it's only used for manual check on Settings page
@@ -175,8 +177,14 @@ export default function SettingsPage() {
 					text: 'Check out the Dorkinians FC Statistics Website',
 					url: url,
 				});
+				trackEvent(UmamiEvents.ShareSiteTriggered, { method: "webShare", status: "success" });
 			} catch (error) {
 				// User cancelled or error occurred
+				const aborted = error instanceof Error && error.name === "AbortError";
+				trackEvent(UmamiEvents.ShareSiteTriggered, {
+					method: "webShare",
+					status: aborted ? "cancelled" : "error",
+				});
 				console.log('Share cancelled');
 			}
 		} else {
@@ -184,12 +192,19 @@ export default function SettingsPage() {
 			try {
 				await navigator.clipboard.writeText(url);
 				setShareCopied(true);
+				trackEvent(UmamiEvents.ShareSiteTriggered, { method: "clipboard", status: "success" });
 				setTimeout(() => setShareCopied(false), 2000);
 			} catch (error) {
 				console.error('Failed to copy URL:', error);
+				trackEvent(UmamiEvents.ShareSiteTriggered, { method: "clipboard", status: "error" });
 			}
 		}
 	};
+
+	useEffect(() => {
+		trackEvent(UmamiEvents.PageViewed, { page: "settings", section: "settings" });
+		trackEvent(UmamiEvents.SettingsOpened, { source: "settings_page" });
+	}, []);
 
 	// Fetch site details and last update date on mount
 	useEffect(() => {

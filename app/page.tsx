@@ -55,6 +55,8 @@ import { useToast } from "@/lib/hooks/useToast";
 import { initializeCurrentSeason, getCurrentSeasonFromStorage } from "@/lib/services/currentSeasonService";
 import { preloadCaptainsData } from "@/lib/services/captainsPreloadService";
 import { log } from "@/lib/utils/logger";
+import { UmamiEvents } from "@/lib/analytics/events";
+import { trackEvent } from "@/lib/utils/trackEvent";
 
 export default function HomePage() {
 	const {
@@ -148,8 +150,8 @@ export default function HomePage() {
 		}
 	}, [selectedPlayer, validateAndRefreshPlayerData]);
 
-	const handlePlayerSelect = (playerName: string) => {
-		selectPlayer(playerName);
+	const handlePlayerSelect = (playerName: string, source: "picker" | "recent" = "picker") => {
+		selectPlayer(playerName, source);
 		// Trigger chatbot reveal after a brief delay
 		setTimeout(() => setShowChatbot(true), 500);
 	};
@@ -176,6 +178,7 @@ export default function HomePage() {
 	};
 
 	const handleMenuClick = () => {
+		trackEvent(UmamiEvents.StatsMenuOpened, { section: "stats" });
 		setShowStatsMenu(true);
 	};
 
@@ -249,7 +252,7 @@ export default function HomePage() {
 												animate={{ opacity: 1, x: 0 }}
 												transition={{ delay: index * 0.1 }}
 												className='rounded-lg p-3 md:p-4 cursor-pointer hover:bg-yellow-400/5 transition-colors bg-gradient-to-b from-white/[0.22] to-white/[0.05]'
-												onClick={() => handlePlayerSelect(playerName)}>
+												onClick={() => handlePlayerSelect(playerName, "recent")}>
 												<p className='font-medium text-white text-xs md:text-sm'>{playerName}</p>
 											</motion.div>
 										))}

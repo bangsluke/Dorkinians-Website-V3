@@ -1,5 +1,7 @@
 import { create } from "zustand";
 import { WeeklyTOTW } from "@/types";
+import { UmamiEvents } from "@/lib/analytics/events";
+import { trackEvent } from "@/lib/utils/trackEvent";
 import { log } from "../utils/logger";
 import { CachedPageData, CACHE_TTL, isCacheValid, generatePageCacheKey } from "../utils/pageCache";
 
@@ -231,6 +233,19 @@ export interface PlayerFilters {
 	position: ("GK" | "DEF" | "MID" | "FWD")[];
 }
 
+/** Rough count of non-default filter dimensions for analytics (low cardinality). */
+function countActiveFilterDimensions(f: PlayerFilters): number {
+	let n = 0;
+	if (f.timeRange.type !== "allTime") n++;
+	if (f.teams.length > 0) n++;
+	if (f.location.length !== 2) n++;
+	if (f.opposition.mode !== "all" || f.opposition.searchTerm) n++;
+	if (f.competition.types.length !== 3 || f.competition.searchTerm) n++;
+	if (f.result.length !== 3) n++;
+	if (f.position.length !== 4) n++;
+	return n;
+}
+
 interface NavigationState {
 	// Main page navigation
 	currentMainPage: MainPage;
@@ -288,7 +303,7 @@ interface NavigationState {
 	setTOTWSubPage: (page: TOTWSubPage) => void;
 	setClubInfoSubPage: (page: ClubInfoSubPage) => void;
 	// Player selection actions
-	selectPlayer: (playerName: string) => void;
+	selectPlayer: (playerName: string, source?: "picker" | "recent") => void;
 	clearPlayerSelection: () => void;
 	enterEditMode: () => void;
 	// Player data actions
@@ -696,6 +711,10 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 			localStorage.setItem("dorkinians-current-main-page", page);
 		}
 
+		if (typeof window !== "undefined" && page !== currentPage) {
+			trackEvent(UmamiEvents.PageViewed, { page, section: page });
+		}
+
 		log("info", "📊 [Navigation] State after change:", {
 			selectedPlayer: get().selectedPlayer,
 			isPlayerSelected: get().isPlayerSelected,
@@ -743,28 +762,44 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 			localStorage.setItem("dorkinians-player-filters-by-page", JSON.stringify(get().playerFiltersByPage));
 			localStorage.setItem("dorkinians-current-stats-sub-page", page);
 		}
+
+		if (typeof window !== "undefined" && page !== currentPage) {
+			trackEvent(UmamiEvents.SubpageViewed, { section: "stats", subSection: page });
+			trackEvent(UmamiEvents.StatsSubpageSwitched, { from: currentPage, to: page });
+		}
 	},
 
 	setTOTWSubPage: (page: TOTWSubPage) => {
+		const prev = get().currentTOTWSubPage;
 		set({ currentTOTWSubPage: page });
 		
 		// Persist to localStorage
 		if (typeof window !== "undefined") {
 			localStorage.setItem("dorkinians-current-totw-sub-page", page);
 		}
+
+		if (typeof window !== "undefined" && page !== prev) {
+			trackEvent(UmamiEvents.SubpageViewed, { section: "totw", subSection: page });
+		}
 	},
 
 	setClubInfoSubPage: (page: ClubInfoSubPage) => {
+		const prev = get().currentClubInfoSubPage;
 		set({ currentClubInfoSubPage: page });
 		
 		// Persist to localStorage
 		if (typeof window !== "undefined") {
 			localStorage.setItem("dorkinians-current-club-info-sub-page", page);
 		}
+
+		if (typeof window !== "undefined" && page !== prev) {
+			trackEvent(UmamiEvents.SubpageViewed, { section: "club-info", subSection: page });
+			trackEvent(UmamiEvents.ClubInfoSubpageViewed, { subSection: page });
+		}
 	},
 
 	// Player selection actions
-	selectPlayer: (playerName: string) => {
+	selectPlayer: (playerName: string, source: "picker" | "recent" = "picker") => {
 		// Save to localStorage
 		if (typeof window !== "undefined") {
 			localStorage.setItem("dorkinians-selected-player", playerName);
@@ -790,6 +825,13 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 			}
 		}
 		set({ selectedPlayer: playerName, isPlayerSelected: true, isEditMode: false });
+
+		if (typeof window !== "undefined") {
+			trackEvent(UmamiEvents.PlayerSelected, { source });
+			if (source === "recent") {
+				trackEvent(UmamiEvents.RecentPlayerSelected, { section: "home" });
+			}
+		}
 
 		// Fetch and cache player data asynchronously
 		get().fetchAndCachePlayerData(playerName);
@@ -823,6 +865,10 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 			cachedPlayerData: null,
 			isLoadingPlayerData: false,
 		});
+
+		if (typeof window !== "undefined") {
+			trackEvent(UmamiEvents.PlayerEditStarted, { section: "home" });
+		}
 	},
 
 	// Player data actions
@@ -905,6 +951,12 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 		// Persist to localStorage
 		if (typeof window !== "undefined") {
 			localStorage.setItem("dorkinians-player-filters-by-page", JSON.stringify(updatedFiltersByPage));
+			trackEvent(UmamiEvents.StatsSubpageSwitched, {
+				from: currentStatsSubPage,
+				to: nextPage,
+				source: "swipe",
+			});
+			trackEvent(UmamiEvents.SubpageViewed, { section: "stats", subSection: nextPage });
 		}
 	},
 
@@ -937,6 +989,12 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 		// Persist to localStorage
 		if (typeof window !== "undefined") {
 			localStorage.setItem("dorkinians-player-filters-by-page", JSON.stringify(updatedFiltersByPage));
+			trackEvent(UmamiEvents.StatsSubpageSwitched, {
+				from: currentStatsSubPage,
+				to: prevPage,
+				source: "swipe",
+			});
+			trackEvent(UmamiEvents.SubpageViewed, { section: "stats", subSection: prevPage });
 		}
 	},
 
@@ -946,7 +1004,11 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 		const subPages: TOTWSubPage[] = ["totw", "players-of-month"];
 		const currentIndex = subPages.indexOf(currentTOTWSubPage);
 		const nextIndex = (currentIndex + 1) % subPages.length;
-		set({ currentTOTWSubPage: subPages[nextIndex] });
+		const next = subPages[nextIndex];
+		set({ currentTOTWSubPage: next });
+		if (typeof window !== "undefined" && next !== currentTOTWSubPage) {
+			trackEvent(UmamiEvents.SubpageViewed, { section: "totw", subSection: next, source: "swipe" });
+		}
 	},
 
 	previousTOTWSubPage: () => {
@@ -954,7 +1016,11 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 		const subPages: TOTWSubPage[] = ["totw", "players-of-month"];
 		const currentIndex = subPages.indexOf(currentTOTWSubPage);
 		const prevIndex = currentIndex === 0 ? subPages.length - 1 : currentIndex - 1;
-		set({ currentTOTWSubPage: subPages[prevIndex] });
+		const prev = subPages[prevIndex];
+		set({ currentTOTWSubPage: prev });
+		if (typeof window !== "undefined" && prev !== currentTOTWSubPage) {
+			trackEvent(UmamiEvents.SubpageViewed, { section: "totw", subSection: prev, source: "swipe" });
+		}
 	},
 
 	// Swipe navigation within Club Info
@@ -963,7 +1029,12 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 		const subPages: ClubInfoSubPage[] = ["club-information", "league-information", "club-captains", "club-awards", "useful-links"];
 		const currentIndex = subPages.indexOf(currentClubInfoSubPage);
 		const nextIndex = (currentIndex + 1) % subPages.length;
-		set({ currentClubInfoSubPage: subPages[nextIndex] });
+		const next = subPages[nextIndex];
+		set({ currentClubInfoSubPage: next });
+		if (typeof window !== "undefined" && next !== currentClubInfoSubPage) {
+			trackEvent(UmamiEvents.SubpageViewed, { section: "club-info", subSection: next, source: "swipe" });
+			trackEvent(UmamiEvents.ClubInfoSubpageViewed, { subSection: next, source: "swipe" });
+		}
 	},
 
 	previousClubInfoSubPage: () => {
@@ -971,12 +1042,20 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 		const subPages: ClubInfoSubPage[] = ["club-information", "league-information", "club-captains", "club-awards", "useful-links"];
 		const currentIndex = subPages.indexOf(currentClubInfoSubPage);
 		const prevIndex = currentIndex === 0 ? subPages.length - 1 : currentIndex - 1;
-		set({ currentClubInfoSubPage: subPages[prevIndex] });
+		const prev = subPages[prevIndex];
+		set({ currentClubInfoSubPage: prev });
+		if (typeof window !== "undefined" && prev !== currentClubInfoSubPage) {
+			trackEvent(UmamiEvents.SubpageViewed, { section: "club-info", subSection: prev, source: "swipe" });
+			trackEvent(UmamiEvents.ClubInfoSubpageViewed, { subSection: prev, source: "swipe" });
+		}
 	},
 
 	// Filter actions
 	openFilterSidebar: () => {
 		set({ isFilterSidebarOpen: true });
+		if (typeof window !== "undefined") {
+			trackEvent(UmamiEvents.FilterOpened, { section: "stats" });
+		}
 	},
 
 	closeFilterSidebar: () => {
@@ -985,7 +1064,12 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 		set({ isFilterSidebarOpen: false, hasUnsavedFilters: false });
 	},
 
-	openAllGamesModal: () => set({ isAllGamesModalOpen: true }),
+	openAllGamesModal: () => {
+		set({ isAllGamesModalOpen: true });
+		if (typeof window !== "undefined") {
+			trackEvent(UmamiEvents.AllGamesModalOpened, { section: "stats" });
+		}
+	},
 	closeAllGamesModal: () => set({ isAllGamesModalOpen: false }),
 
 	updatePlayerFilters: (filters: Partial<PlayerFilters>) => {
@@ -1061,6 +1145,15 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 					cachedPlayerData: cachedData,
 					isLoadingPlayerData: false,
 				});
+
+				if (typeof window !== "undefined") {
+					const pf = get().playerFilters;
+					trackEvent(UmamiEvents.FiltersApplied, {
+						activeFilterCount: countActiveFilterDimensions(pf),
+						timeRangeType: pf.timeRange.type,
+						statsSubPage: get().currentStatsSubPage,
+					});
+				}
 			} else {
 				console.error("❌ Failed to fetch filtered player data");
 				const errorText = await response.text();
@@ -1111,6 +1204,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 		// Persist to localStorage
 		if (typeof window !== "undefined") {
 			localStorage.setItem("dorkinians-player-filters-by-page", JSON.stringify(updatedFiltersByPage));
+			trackEvent(UmamiEvents.FiltersReset, { statsSubPage: currentPage });
 		}
 	},
 

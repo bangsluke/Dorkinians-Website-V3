@@ -14,6 +14,8 @@ import dynamic from "next/dynamic";
 import HomeAwayGauge from "./HomeAwayGauge";
 
 import { safeLocalStorageGet, safeLocalStorageSet } from "@/lib/utils/pwaDebug";
+import { UmamiEvents } from "@/lib/analytics/events";
+import { trackEvent } from "@/lib/utils/trackEvent";
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { StatCardSkeleton, ChartSkeleton, TopPlayersTableSkeleton, RadarChartSkeleton, SankeyChartSkeleton, GameDetailsTableSkeleton, DataTableSkeleton } from "@/components/skeletons";
@@ -1494,7 +1496,11 @@ export default function ClubStats() {
 					<Button
 						variant="ghost"
 						size="sm"
-						onClick={() => setIsDataTableMode(!isDataTableMode)}
+						onClick={() => {
+							const next = !isDataTableMode;
+							trackEvent(UmamiEvents.DataTableToggled, { enabled: next, statsSubPage: "club-stats" });
+							setIsDataTableMode(next);
+						}}
 						className='underline'>
 						{isDataTableMode ? "Switch to data visualisation" : "Switch to data table"}
 					</Button>

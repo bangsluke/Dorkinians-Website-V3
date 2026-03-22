@@ -12,6 +12,8 @@ import { PlayersTableSkeleton, PlayerStatsExpansionSkeleton, RankingTableSkeleto
 import { appConfig } from "@/config/config";
 import { log } from "@/lib/utils/logger";
 import { cachedFetch, generatePageCacheKey } from "@/lib/utils/pageCache";
+import { UmamiEvents } from "@/lib/analytics/events";
+import { trackEvent } from "@/lib/utils/trackEvent";
 
 interface Player {
 	rank: number;
@@ -646,6 +648,11 @@ export default function PlayersOfMonth() {
 		}
 
 		// Expand and fetch stats
+		trackEvent(UmamiEvents.PlayersOfMonthRowExpanded, {
+			playerName,
+			season: selectedSeason,
+			month: selectedMonth,
+		});
 		setExpandedPlayers((prev) => new Set(prev).add(playerName));
 		
 		// Check local state first
@@ -1049,6 +1056,13 @@ export default function PlayersOfMonth() {
 					<div className='flex-1'>
 						<Listbox value={selectedMonth} onChange={(newMonth) => {
 							log("info", `[PlayersOfMonth] User selected month: "${newMonth}"`);
+							if (newMonth !== selectedMonth) {
+								trackEvent(UmamiEvents.PlayersOfMonthMonthChanged, {
+									fromMonth: selectedMonth,
+									toMonth: newMonth,
+									season: selectedSeason,
+								});
+							}
 							// Set loading state immediately when month changes
 							setLoading(true);
 							setLoadingStats(true);

@@ -11,6 +11,8 @@ import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { CaptainsTableSkeleton } from "@/components/skeletons";
 import { appConfig } from "@/config/config";
+import { UmamiEvents } from "@/lib/analytics/events";
+import { trackEvent } from "@/lib/utils/trackEvent";
 
 interface CaptainData {
 	team: string;
@@ -118,6 +120,7 @@ export default function ClubCaptains() {
 
 	// Handle captain name click/hover
 	const handleCaptainClick = (captainName: string) => {
+		trackEvent(UmamiEvents.CaptainHistoryOpened, { playerName: captainName, source: "click" });
 		setSelectedPlayer(captainName);
 		setShowPopup(true);
 	};
@@ -125,6 +128,7 @@ export default function ClubCaptains() {
 	const handleCaptainHover = (captainName: string) => {
 		// Only show on hover for desktop (screen width >= 768px)
 		if (typeof window !== "undefined" && window.innerWidth >= 768) {
+			trackEvent(UmamiEvents.CaptainHistoryOpened, { playerName: captainName, source: "hover" });
 			setSelectedPlayer(captainName);
 			setShowPopup(true);
 		}
