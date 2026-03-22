@@ -502,7 +502,7 @@ export default async () => {
 		const events = eventsRes.ok ? await eventsRes.json() : [];
 		const eventsPrev = eventsPrevRes.ok ? await eventsPrevRes.json() : [];
 		const paths = pathRes.ok ? await pathRes.json() : [];
-		const pathsPrev = pathPrevRes.ok ? await pathsPrevRes.json() : [];
+		const pathsPrev = pathPrevRes.ok ? await pathPrevRes.json() : [];
 
 		const pageBySection = valuesByKey(pvCurr);
 		const pageBySectionPrev = valuesByKey(pvPrev);
