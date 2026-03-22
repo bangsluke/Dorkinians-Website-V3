@@ -33,6 +33,7 @@ import "react-loading-skeleton/dist/skeleton.css";
 import { ChartSkeleton, TableSkeleton, StatCardSkeleton, AwardsListSkeleton, DataTableSkeleton } from "@/components/skeletons";
 import { log } from "@/lib/utils/logger";
 import { UmamiEvents } from "@/lib/analytics/events";
+import { trackStatsStatSelected } from "@/lib/analytics/statsTracking";
 import { trackEvent } from "@/lib/utils/trackEvent";
 import Button from "@/components/ui/Button";
 import { calculateFTPBreakdown } from "@/lib/utils/fantasyPoints";
@@ -2878,7 +2879,12 @@ export default function PlayerStats() {
 					<div className='flex items-center justify-between mb-2 gap-2'>
 						<h3 className='text-white font-semibold text-sm md:text-base flex-shrink-0'>Seasonal Performance</h3>
 						<div className='flex-1 max-w-[45%]'>
-							<Listbox value={seasonalSelectedStat} onChange={setSeasonalSelectedStat}>
+							<Listbox
+								value={seasonalSelectedStat}
+								onChange={(v) => {
+									setSeasonalSelectedStat(v);
+									trackStatsStatSelected("player-stats", "seasonal-performance", v);
+								}}>
 								<div className='relative'>
 									<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-xs md:text-sm'>
 										<span className='block truncate text-white'>
@@ -2981,7 +2987,12 @@ export default function PlayerStats() {
 					<div className='flex items-center justify-between mb-2 gap-2'>
 						<h3 className='text-white font-semibold text-sm md:text-base flex-shrink-0'>Team Performance</h3>
 						<div className='flex-1 max-w-[45%]'>
-							<Listbox value={teamSelectedStat} onChange={setTeamSelectedStat}>
+							<Listbox
+								value={teamSelectedStat}
+								onChange={(v) => {
+									setTeamSelectedStat(v);
+									trackStatsStatSelected("player-stats", "team-performance", v);
+								}}>
 								<div className='relative'>
 									<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-xs md:text-sm'>
 										<span className='block truncate text-white'>
@@ -3273,7 +3284,12 @@ export default function PlayerStats() {
 				<div className='flex items-center justify-between mb-2 gap-2'>
 					<h3 className='text-white font-semibold text-sm md:text-base flex-shrink-0'>Monthly Performance</h3>
 					<div className='flex-1 max-w-[45%]'>
-						<Listbox value={monthlySelectedStat} onChange={setMonthlySelectedStat}>
+						<Listbox
+							value={monthlySelectedStat}
+							onChange={(v) => {
+								setMonthlySelectedStat(v);
+								trackStatsStatSelected("player-stats", "monthly-performance", v);
+							}}>
 							<div className='relative'>
 								<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-xs md:text-sm'>
 									<span className='block truncate text-white'>

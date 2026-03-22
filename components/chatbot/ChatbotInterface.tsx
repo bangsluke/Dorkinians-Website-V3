@@ -699,7 +699,7 @@ export default function ChatbotInterface() {
 									className={`rounded-lg p-3 md:p-4 cursor-pointer hover:bg-yellow-400/5 transition-colors bg-gradient-to-b from-white/[0.22] to-white/[0.05]`}
 									onClick={() => {
 										scrollToTop();
-										trackEvent(UmamiEvents.ExampleQuestionSelected, { source: "homepage" });
+										trackEvent(UmamiEvents.ExampleQuestionSelected, { source: "homepage", questionId: q.id });
 										submitQuestion(q.question);
 									}}>
 									<div className='mb-2'>
@@ -785,7 +785,7 @@ export default function ChatbotInterface() {
 										className={`rounded-lg p-3 md:p-4 cursor-pointer hover:bg-yellow-400/5 transition-colors bg-gradient-to-b from-white/[0.22] to-white/[0.05]`}
 										onClick={() => {
 											scrollToTop();
-											trackEvent(UmamiEvents.ExampleQuestionSelected, { source: "homepage" });
+											trackEvent(UmamiEvents.ExampleQuestionSelected, { source: "homepage", questionId: q.id });
 											submitQuestion(q.question);
 										}}>
 										<div className='mb-2'>
@@ -818,8 +818,8 @@ export default function ChatbotInterface() {
 			<ExampleQuestionsModal
 				isOpen={showExampleQuestionsModal}
 				onClose={() => setShowExampleQuestionsModal(false)}
-				onSelectQuestion={(question) => {
-					trackEvent(UmamiEvents.ExampleQuestionSelected, { source: "modal" });
+				onSelectQuestion={(question, questionId) => {
+					trackEvent(UmamiEvents.ExampleQuestionSelected, { source: "modal", questionId });
 					scrollToTop();
 					setShowExampleQuestionsModal(false);
 					void submitQuestion(question);

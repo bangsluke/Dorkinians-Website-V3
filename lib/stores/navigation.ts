@@ -827,7 +827,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 		set({ selectedPlayer: playerName, isPlayerSelected: true, isEditMode: false });
 
 		if (typeof window !== "undefined") {
-			trackEvent(UmamiEvents.PlayerSelected, { source });
+			trackEvent(UmamiEvents.PlayerSelected, { source, playerName });
 			if (source === "recent") {
 				trackEvent(UmamiEvents.RecentPlayerSelected, { section: "home" });
 			}
@@ -1067,7 +1067,10 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 	openAllGamesModal: () => {
 		set({ isAllGamesModalOpen: true });
 		if (typeof window !== "undefined") {
-			trackEvent(UmamiEvents.AllGamesModalOpened, { section: "stats" });
+			trackEvent(UmamiEvents.AllGamesModalOpened, {
+				section: "stats",
+				statsSubPage: get().currentStatsSubPage,
+			});
 		}
 	},
 	closeAllGamesModal: () => set({ isAllGamesModalOpen: false }),

@@ -29,6 +29,9 @@ export const UmamiEvents = {
 	ChatbotCtaClicked: "Chatbot CTA Clicked",
 
 	// Stats / filters
+	StatsStatSelected: "Stats Stat Selected",
+	TeamStatsTeamSelected: "Team Stats Team Selected",
+	StatsSectionNavigated: "Stats Section Navigated",
 	StatsSubpageSwitched: "Stats Subpage Switched",
 	FiltersApplied: "Filters Applied",
 	FiltersReset: "Filters Reset",
