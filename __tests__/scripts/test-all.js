@@ -19,6 +19,7 @@ require("dotenv").config();
 
 // Check for debug mode
 const isDebugMode = process.argv.includes("--debug");
+const sendEmails = process.argv.includes("--emails") || process.env.SEND_TEST_EMAILS === "true";
 
 // Colors for console output (cross-platform compatible)
 const colors = {
@@ -50,12 +51,13 @@ function printInfo(message) {
 	console.log(`${colors.blue}ℹ️  ${message}${colors.reset}`);
 }
 
-function runCommand(command, description, suppressOutput = false) {
+function runCommand(command, description, suppressOutput = false, envOverrides = {}) {
 	try {
 		printInfo(`Running: ${description}`);
 		
 		const options = {
 			cwd: path.join(__dirname, "..", ".."),
+			env: { ...process.env, ...envOverrides },
 		};
 		
 		if (suppressOutput && !isDebugMode) {
@@ -154,7 +156,12 @@ if (!results.e2e) {
 
 // 5. Chatbot Report
 printSectionHeader("CHATBOT REPORT");
-results.chatbotReport = runCommand("npm run test:chatbot-players-report", "Chatbot Report", true);
+results.chatbotReport = runCommand(
+	"npm run test:chatbot-players-report",
+	"Chatbot Report",
+	true,
+	{ SEND_TEST_EMAILS: sendEmails ? "true" : "false" },
+);
 
 if (!results.chatbotReport) {
 	hasFailures = true;
@@ -162,7 +169,12 @@ if (!results.chatbotReport) {
 
 // 6. Questions Report
 printSectionHeader("QUESTIONS REPORT");
-results.questionsReport = runCommand("npm run test:questions-report", "Questions Report", true);
+results.questionsReport = runCommand(
+	"npm run test:questions-report",
+	"Questions Report",
+	true,
+	{ SEND_TEST_EMAILS: sendEmails ? "true" : "false" },
+);
 
 if (!results.questionsReport) {
 	hasFailures = true;
