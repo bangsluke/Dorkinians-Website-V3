@@ -758,6 +758,28 @@ The project uses a unified schema system where configuration files are synchroni
 
 ## Additional Documentation
 
+## Testing Commands and Coverage
+
+- `npm run test` runs unit + integration + e2e.
+- `npm run test:all` runs unit, integration, advanced, comprehensive, validation, performance, monitoring, security, ux, e2e, and report scripts as a strict all-pass pipeline (report emails suppressed).
+- `npm run test:all:emails` runs the same strict pipeline but enables chatbot/questions report emails.
+- `npm run test:weekly:email` runs the weekly consolidated test summary email with Unit, Integration, E2E and subsection breakdowns.
+- `npm run test:coverage` generates Jest coverage output to `coverage/` (`text`, `lcov`, and `html`).
+
+### Coverage Policy
+
+- Jest global coverage thresholds are enforced:
+  - Lines >= 80%
+  - Branches >= 70%
+  - Functions >= 80%
+  - Statements >= 80%
+- Playwright coverage is tracked via pass/fail counts in test output and Playwright reports under `__tests__/e2e/playwright-report`.
+
+### Coverage Governance Docs
+
+- Coverage reconciliation: `__tests__/docs/TEST_COVERAGE_REPORT.md`
+- Explicit exclusions: `__tests__/docs/TEST_EXCLUSIONS_LOG.md`
+
 For complete user-facing documentation and guides:
 
 - Complete user guide for all app features

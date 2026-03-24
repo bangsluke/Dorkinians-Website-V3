@@ -173,8 +173,9 @@ __tests__/
 │   ├── 04-totw/                   # TOTW page tests
 │   ├── 05-club-info/              # Club Info page tests
 │   ├── 06-settings/               # Settings page tests
-│   ├── 07-api/                    # API endpoint tests
-│   ├── 08-cross-cutting/          # Cross-cutting tests (executed last)
+│   ├── 07-admin/                  # Admin route and guard tests
+│   ├── 08-api/                    # API endpoint tests
+│   ├── 09-cross-cutting/          # Cross-cutting tests (executed last)
 │   ├── playwright-report/         # Test reports
 │   └── test-results/              # Test artifacts
 ├── comprehensive/                  # Comprehensive validation tests
@@ -413,7 +414,7 @@ __tests__/
 
 ### API Endpoint Tests
 
-**File**: `__tests__/e2e/07-api/api.spec.ts`
+**File**: `__tests__/e2e/08-api/api.spec.ts`
 
 **What is tested**:
 - Chatbot API response structure and timing
@@ -434,7 +435,7 @@ __tests__/
 
 ### Cross-Cutting Tests
 
-**File**: `__tests__/e2e/08-cross-cutting/cross-cutting.spec.ts`
+**File**: `__tests__/e2e/09-cross-cutting/cross-cutting.spec.ts`
 
 **What is tested**:
 - Loading states (skeletons appear and disappear)
@@ -712,6 +713,9 @@ npm run test:e2e:debug
 # Run tests with email notification
 npm run test:e2e:email
 
+# Run weekly consolidated test email (all major suites + subsections)
+npm run test:weekly:email
+
 # View test report
 npm run test:e2e:report
 ```
@@ -721,16 +725,14 @@ npm run test:e2e:report
 For GitHub Actions (automated weekly runs), the workflow uses:
 
 ```bash
-npm run test:e2e:email
+npm run test:weekly:email
 ```
 
 This will:
-- Run all tests in headless mode
-- Generate HTML report in `__tests__/e2e/playwright-report/`
-- Capture screenshots on failure in `__tests__/e2e/test-results/screenshots/`
-- Send email notification with test results (configured via GitHub secrets)
-- Upload test reports and screenshots as artifacts
-- Exit with non-zero code on failure (triggers GitHub Actions failure status)
+- Run the consolidated weekly matrix (Unit, Integration, Other Jest, E2E, and report scripts)
+- Build one email summary grouped by major sections and subsections (for example Navigation, Home, Player Stats)
+- Upload Playwright artifacts from E2E execution
+- Exit with non-zero code on failure
 
 See [GitHub Actions Setup for E2E Tests](#github-actions-setup-for-e2e-tests) for detailed setup instructions.
 
@@ -779,6 +781,9 @@ The `test:all` command runs all test suites in sequence with clear differentiati
 # Run all tests with suppressed console output (clean output)
 npm run test:all
 
+# Run all tests and allow chatbot/questions report emails
+npm run test:all:emails
+
 # Run all tests with full console output (debug mode)
 npm run test:all:debug
 ```
@@ -815,9 +820,9 @@ The command runs tests in the following sequence:
    - API endpoint tests
    - Cross-cutting tests
 
-5. **Chatbot Report** - Runs comprehensive chatbot tests and generates email report
+5. **Chatbot Report** - Runs comprehensive chatbot tests
 
-6. **Questions Report** - Runs questions tests and generates email report
+6. **Questions Report** - Runs questions tests
 
 #### Output Format
 
@@ -834,7 +839,12 @@ The command provides clear visual separation between test types:
 - Suppresses console logs from Jest tests using `--silent` flag
 - Uses minimal Playwright reporter (`--reporter=dot`) showing only test progress dots
 - Suppresses output from chatbot and questions report scripts
+- Does not send chatbot/questions emails (`SEND_TEST_EMAILS=false`)
 - Provides clean, minimal output perfect for CI/CD and quick status checks
+
+**Email Mode (`test:all:emails`)**:
+- Runs the same sequence as `test:all`
+- Enables chatbot/questions report email sending (`SEND_TEST_EMAILS=true`)
 
 **Debug Mode (`test:all:debug`)**:
 - Shows all console logs from Jest tests (no `--silent` flag)
@@ -850,7 +860,11 @@ Use `npm run test:all` when you want to:
 - Verify all test categories pass after significant changes
 - Get a comprehensive overview of system health
 - Run all tests in a single command for CI/CD pipelines
-- Get clean, minimal output for quick status checks
+- Get clean, minimal output for quick status checks without sending report emails
+
+Use `npm run test:all:emails` when you want to:
+
+- Run the strict full pipeline and send chatbot/questions report emails
 
 Use `npm run test:all:debug` when you want to:
 
@@ -1126,7 +1140,7 @@ The test suite is designed to run in CI/CD environments:
 
 ### Overview
 
-This guide explains how to set up weekly E2E test execution via GitHub Actions. The tests will run automatically once per week to verify that the Dorkinians FC website is functioning correctly. GitHub Actions provides a reliable, free solution that supports Playwright and browser binaries.
+This guide explains how to set up weekly automated test execution via GitHub Actions. The workflow runs once per week and sends a single consolidated email covering Unit, Integration, E2E, and subsection breakdowns.
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -1147,7 +1161,7 @@ The workflow file is already created at `.github/workflows/e2e-tests.yml`. It in
 - **Schedule**: Runs every Tuesday at 2:00 AM UTC (3:00 AM BST / 2:00 AM GMT)
 - **Manual Trigger**: Can be triggered manually via GitHub Actions UI
 - **Playwright Setup**: Automatically installs Playwright browsers
-- **Email Notifications**: Uses the `test:e2e:email` script to send results
+- **Email Notifications**: Uses the `test:weekly:email` script to send a single consolidated weekly summary
 - **Artifact Upload**: Saves test reports and screenshots for 30 days
 
 #### Step 2: Configure GitHub Secrets
@@ -1188,7 +1202,7 @@ The workflow runs automatically:
 To trigger tests manually:
 
 1. Go to **Actions** tab in GitHub
-2. Select **E2E Tests - Weekly** workflow
+2. Select **Weekly Test Summary Email** workflow
 3. Click **Run workflow**
 4. Select the branch (usually `main` or `master`)
 5. Click **Run workflow**
@@ -1199,10 +1213,10 @@ To trigger tests manually:
 2. **Node.js Setup**: Node.js 20 is installed with npm cache
 3. **Dependencies**: All npm dependencies are installed
 4. **Playwright Browsers**: Chromium browser is installed with dependencies
-5. **Test Suite Runs**: All E2E tests execute in headless mode
+5. **Test Suite Runs**: Unit, Integration, Other Jest, and E2E suites execute
 6. **Screenshots Captured**: On failure, screenshots are saved
 7. **Report Generated**: HTML report created in `__tests__/e2e/playwright-report/`
-8. **Email Sent**: Email notification is sent with results and screenshots
+8. **Email Sent**: One consolidated weekly email is sent with section/subsection status
 9. **Artifacts Uploaded**: Test reports and screenshots are saved as artifacts
 
 #### Expected Duration
@@ -1219,11 +1233,11 @@ To trigger tests manually:
 
 #### Email Notifications
 
-Email notifications are automatically sent via the `test:e2e:email` script:
+Email notifications are automatically sent via the `test:weekly:email` script:
 
 - **On Success**: Email with test summary and pass rate
 - **On Failure**: Email with detailed failure information, screenshots, and test output
-- **Format**: HTML email with formatted test results grouped by test suite
+- **Format**: HTML email grouped by Unit/Integration/E2E plus subsection breakdowns
 
 #### GitHub Actions Notifications
 

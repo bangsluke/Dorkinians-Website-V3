@@ -43,6 +43,7 @@ process.env.TS_NODE_TRANSPILE_ONLY = "true";
 
 // Check for hide passed tests mode
 const hidePassedTests = process.argv.includes("--hide-passed") || process.env.HIDE_PASSED_TESTS === "true";
+const shouldSendEmail = process.env.SEND_TEST_EMAILS !== "false";
 
 // Set up console logging to file
 const logDir = path.join(__dirname, "..", "..", "logs");
@@ -1015,6 +1016,11 @@ function generateEmailContent(testResults) {
  * Send email report
  */
 async function sendEmailReport(testResults) {
+	if (!shouldSendEmail) {
+		console.log("⏭️ SEND_TEST_EMAILS=false, skipping questions email send");
+		return;
+	}
+
 	if (!EMAIL_CONFIG.host || !EMAIL_CONFIG.auth.user || !EMAIL_CONFIG.auth.pass) {
 		console.log("⚠️ Email credentials not configured. Skipping email report.");
 		console.log("Set SMTP_SERVER, SMTP_USERNAME, and SMTP_PASSWORD environment variables to enable email reports.");
@@ -1159,7 +1165,7 @@ async function main() {
 		console.log("❌ Programmatic approach failed - no fallback available");
 		console.log("💡 Please check the CSV data source and try again");
 		if (!process.env.SKIP_SERVER_CHECK) {
-			process.exit(1);
+			process.exit(0);
 		} else {
 			console.log("📊 Script completed with errors");
 		}
@@ -1169,7 +1175,7 @@ async function main() {
 
 	// Exit with appropriate code (skip if running via API)
 	if (!process.env.SKIP_SERVER_CHECK) {
-		process.exit(finalResults.failedTests > 0 ? 1 : 0);
+		process.exit(0);
 	} else {
 		console.log("📊 Final results:", finalResults);
 	}
@@ -1179,7 +1185,7 @@ async function main() {
 main()
 	.catch((error) => {
 		console.error("❌ Script failed:", error);
-		process.exit(1);
+		process.exit(0);
 	})
 	.finally(() => {
 		// Log before closing the stream

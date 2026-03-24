@@ -1,4 +1,4 @@
-name: E2E Tests - Weekly
+name: Weekly Test Summary Email
 
 on:
   schedule:
@@ -15,8 +15,8 @@ on:
       - 'playwright.config.ts'
 
 jobs:
-  e2e-tests:
-    name: Run E2E Tests
+  weekly-tests:
+    name: Run Weekly Test Matrix + Email
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
@@ -36,8 +36,7 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
-      - name: Run E2E tests with email notification
-        continue-on-error: true
+      - name: Run weekly consolidated test email
         timeout-minutes: 60
         env:
           WEBSITE_URL: ${{ secrets.WEBSITE_URL != '' && secrets.WEBSITE_URL || 'https://dorkinians-website-v3.netlify.app' }}
@@ -50,7 +49,8 @@ jobs:
           SMTP_FROM_EMAIL: ${{ secrets.SMTP_FROM_EMAIL }}
           SMTP_TO_EMAIL: ${{ secrets.SMTP_TO_EMAIL }}
           SMTP_EMAIL_SECURE: ${{ secrets.SMTP_EMAIL_SECURE || 'false' }}
-        run: npm run test:e2e:email
+          SEND_TEST_EMAILS: 'true'
+        run: npm run test:weekly:email
 
       - name: Upload test results
         if: always()
