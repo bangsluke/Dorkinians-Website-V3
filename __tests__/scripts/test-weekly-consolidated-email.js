@@ -7,6 +7,15 @@ require("dotenv").config();
 
 const ROOT = path.join(__dirname, "..", "..");
 const SHOULD_SEND_EMAIL = process.env.SEND_TEST_EMAILS !== "false";
+const LOGO_URL =
+	process.env.WEEKLY_EMAIL_LOGO_URL || "https://bangsluke-assets.netlify.app/images/company-logos/Dorkinians.png";
+
+function toExcerpt(output, maxLength = 1200) {
+	if (!output || typeof output !== "string") return "";
+	const trimmed = output.trim();
+	if (trimmed.length <= maxLength) return trimmed;
+	return `...${trimmed.slice(trimmed.length - maxLength)}`;
+}
 
 function runCommand(command, timeoutMs = 15 * 60 * 1000, envOverrides = {}) {
 	try {
@@ -17,10 +26,10 @@ function runCommand(command, timeoutMs = 15 * 60 * 1000, envOverrides = {}) {
 			timeout: timeoutMs,
 			env: { ...process.env, ...envOverrides },
 		});
-		return { passed: true, output };
+		return { passed: true, output, excerpt: "" };
 	} catch (error) {
 		const output = `${error?.stdout || ""}\n${error?.stderr || ""}`;
-		return { passed: false, output };
+		return { passed: false, output, excerpt: toExcerpt(output) };
 	}
 }
 
@@ -53,41 +62,103 @@ function renderStatus(passed) {
 	return passed ? "PASSED" : "FAILED";
 }
 
+function statusColor(passed) {
+	return passed ? "#177245" : "#b42318";
+}
+
+function statusBg(passed) {
+	return passed ? "#ecfdf3" : "#fef3f2";
+}
+
 function toHtml(sections, summary) {
-	const rows = sections
+	const sectionCards = sections
 		.map((section) => {
+			const sectionPassed = section.passed && section.subsections.every((sub) => sub.passed);
+			const borderColor = sectionPassed ? "#b7ebcd" : "#f3c7c1";
 			const subRows = section.subsections
 				.map(
 					(sub) => `
       <tr>
-        <td style="padding:6px 8px;border:1px solid #ddd;">${sub.name}</td>
-        <td style="padding:6px 8px;border:1px solid #ddd;">${renderStatus(sub.passed)}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #eaecf0;color:#101828;">${sub.name}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #eaecf0;">
+          <span style="display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700;background:${statusBg(
+						sub.passed
+					)};color:${statusColor(sub.passed)};">
+            ${renderStatus(sub.passed)}
+          </span>
+        </td>
       </tr>`,
 				)
 				.join("");
 
 			return `
-      <h3>${section.name}</h3>
-      <p><code>${section.command}</code> — <strong>${renderStatus(section.passed)}</strong></p>
-      <table style="border-collapse:collapse;width:100%;margin-bottom:16px;">
+      <div style="margin:16px 0;border:1px solid ${borderColor};border-radius:12px;overflow:hidden;background:#ffffff;">
+        <div style="padding:14px 16px;border-bottom:1px solid #eaecf0;background:#f9fafb;display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-size:17px;font-weight:700;color:#101828;margin-bottom:4px;">${section.name}</div>
+            <div style="font-family:Consolas,'Courier New',monospace;font-size:12px;color:#475467;">${section.command}</div>
+          </div>
+          <span style="display:inline-block;padding:5px 11px;border-radius:999px;font-size:12px;font-weight:700;background:${statusBg(
+						sectionPassed
+					)};color:${statusColor(sectionPassed)};">
+            ${renderStatus(sectionPassed)}
+          </span>
+        </div>
+        <table style="border-collapse:collapse;width:100%;">
         <thead>
           <tr>
-            <th style="padding:6px 8px;border:1px solid #ddd;text-align:left;">Subsection</th>
-            <th style="padding:6px 8px;border:1px solid #ddd;text-align:left;">Status</th>
+            <th style="padding:10px 12px;border-bottom:1px solid #eaecf0;text-align:left;font-size:12px;letter-spacing:.02em;text-transform:uppercase;color:#475467;">Subsection</th>
+            <th style="padding:10px 12px;border-bottom:1px solid #eaecf0;text-align:left;font-size:12px;letter-spacing:.02em;text-transform:uppercase;color:#475467;">Status</th>
           </tr>
         </thead>
         <tbody>${subRows}</tbody>
-      </table>`;
+        </table>
+      </div>`;
 		})
 		.join("\n");
 
 	return `<!doctype html>
 <html>
-  <body style="font-family:Arial,sans-serif;">
-    <h2>Dorkinians Weekly Test Summary</h2>
-    <p><strong>Overall:</strong> ${summary.passedSections}/${summary.totalSections} sections passed</p>
-    <p><strong>Jest tests passed:</strong> ${summary.jestPassed ?? "n/a"} | <strong>Playwright passed:</strong> ${summary.e2ePassed ?? "n/a"}</p>
-    ${rows}
+  <body style="margin:0;padding:0;background:#f2f4f7;font-family:Arial,sans-serif;color:#101828;">
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#f2f4f7;padding:24px 0;">
+      <tr>
+        <td align="center">
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="760" style="width:760px;max-width:95%;background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #e4e7ec;">
+            <tr>
+              <td style="padding:20px 24px;background:#1C8841;">
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                  <tr>
+                    <td style="vertical-align:middle;">
+                      <img src="${LOGO_URL}" alt="Dorkinians FC Logo" width="56" height="56" style="display:block;border:0;outline:none;text-decoration:none;background:#ffffff;border-radius:8px;padding:4px;" />
+                    </td>
+                    <td style="vertical-align:middle;padding-left:12px;">
+                      <div style="font-size:22px;line-height:1.2;font-weight:700;color:#ffffff;">Dorkinians Website</div>
+                      <div style="font-size:14px;line-height:1.2;color:#ecfdf3;">Weekly Test Summary</div>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:18px 24px;background:#f9fafb;border-bottom:1px solid #eaecf0;">
+                <div style="font-size:16px;font-weight:700;color:#101828;margin-bottom:6px;">Overall Status: ${summary.passedSections}/${
+		summary.totalSections
+	} sections passed</div>
+                <div style="font-size:13px;color:#344054;">
+                  Jest tests passed: <strong>${summary.jestPassed ?? "n/a"}</strong> &nbsp;|&nbsp;
+                  Playwright passed: <strong>${summary.e2ePassed ?? "n/a"}</strong>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:14px 24px 24px 24px;">
+                ${sectionCards}
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
   </body>
 </html>`;
 }
@@ -170,10 +241,33 @@ async function main() {
 	};
 
 	const html = toHtml(sections, summary);
-	const subject = `[Weekly] Dorkinians test summary ${summary.passedSections}/${summary.totalSections} sections passed`;
+	const subject = `Dorkinians Website - Weekly Test Summary - ${summary.passedSections}/${summary.totalSections} sections passed`;
 	await sendMail(subject, html);
 
 	const failed = sections.some((s) => !s.passed || s.subsections.some((sub) => !sub.passed));
+	if (failed) {
+		console.error("Weekly consolidated test summary detected failing sections/subsections.");
+		for (const section of sections) {
+			if (!section.passed) {
+				console.error(`- Section failed: ${section.name}`);
+				console.error(`  Command: ${section.command}`);
+				if (section.excerpt) {
+					console.error("  Output excerpt:");
+					console.error(section.excerpt);
+				}
+			}
+			for (const sub of section.subsections) {
+				if (!sub.passed) {
+					console.error(`- Subsection failed: ${section.name} / ${sub.name}`);
+					console.error(`  Command: ${sub.command}`);
+					if (sub.excerpt) {
+						console.error("  Output excerpt:");
+						console.error(sub.excerpt);
+					}
+				}
+			}
+		}
+	}
 	process.exit(failed ? 1 : 0);
 }
 
