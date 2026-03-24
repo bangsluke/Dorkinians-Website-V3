@@ -19,6 +19,14 @@ module.exports = {
 	collectCoverageFrom: ["lib/**/*.ts", "components/**/*.tsx", "!**/*.d.ts", "!**/node_modules/**"],
 	coverageDirectory: "coverage",
 	coverageReporters: ["text", "lcov", "html"],
+	coverageThreshold: {
+		global: {
+			lines: 80,
+			branches: 70,
+			functions: 80,
+			statements: 80,
+		},
+	},
 	// Production database testing configuration
 	testTimeout: 60000,
 	// Enable verbose output for database operations
