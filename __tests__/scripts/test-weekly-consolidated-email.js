@@ -70,7 +70,25 @@ function statusBg(passed) {
 	return passed ? "#ecfdf3" : "#fef3f2";
 }
 
+function getRunContextLine() {
+	const label = process.env.WORKFLOW_TRIGGER_LABEL;
+	return typeof label === "string" && label.trim() ? label.trim() : "";
+}
+
 function toHtml(sections, summary) {
+	const runContext = getRunContextLine();
+	const subtitle = runContext ? "Test summary" : "Weekly Test Summary";
+	const contextRow = runContext
+		? `<tr>
+              <td style="padding:12px 24px 0 24px;background:#f9fafb;">
+                <div style="font-size:12px;color:#475467;font-family:Consolas,'Courier New',monospace;">${runContext
+									.replace(/&/g, "&amp;")
+									.replace(/</g, "&lt;")
+									.replace(/>/g, "&gt;")}</div>
+              </td>
+            </tr>`
+		: "";
+
 	const sectionCards = sections
 		.map((section) => {
 			const sectionPassed = section.passed && section.subsections.every((sub) => sub.passed);
@@ -133,12 +151,13 @@ function toHtml(sections, summary) {
                     </td>
                     <td style="vertical-align:middle;padding-left:12px;">
                       <div style="font-size:22px;line-height:1.2;font-weight:700;color:#ffffff;">Dorkinians Website</div>
-                      <div style="font-size:14px;line-height:1.2;color:#ecfdf3;">Weekly Test Summary</div>
+                      <div style="font-size:14px;line-height:1.2;color:#ecfdf3;">${subtitle}</div>
                     </td>
                   </tr>
                 </table>
               </td>
             </tr>
+            ${contextRow}
             <tr>
               <td style="padding:18px 24px;background:#f9fafb;border-bottom:1px solid #eaecf0;">
                 <div style="font-size:16px;font-weight:700;color:#101828;margin-bottom:6px;">Overall Status: ${summary.passedSections}/${
@@ -241,7 +260,9 @@ async function main() {
 	};
 
 	const html = toHtml(sections, summary);
-	const subject = `Dorkinians Website - Weekly Test Summary - ${summary.passedSections}/${summary.totalSections} sections passed`;
+	const runContext = getRunContextLine();
+	const subjectSuffix = runContext ? ` [${runContext}]` : "";
+	const subject = `Dorkinians Website - Test summary${subjectSuffix} - ${summary.passedSections}/${summary.totalSections} sections passed`;
 	await sendMail(subject, html);
 
 	const failed = sections.some((s) => !s.passed || s.subsections.some((sub) => !sub.passed));

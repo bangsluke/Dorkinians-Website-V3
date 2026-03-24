@@ -1140,7 +1140,7 @@ The test suite is designed to run in CI/CD environments:
 
 ### Overview
 
-This guide explains how to set up weekly automated test execution via GitHub Actions. The workflow runs once per week and sends a single consolidated email covering Unit, Integration, E2E, and subsection breakdowns.
+This guide explains how automated testing runs in GitHub Actions. A single workflow runs on **`push` to `develop`**, **`pull_request` to `main`**, a **weekly schedule**, and **manual dispatch**, and sends one consolidated email covering Unit, Integration, E2E, and subsection breakdowns. Use **branch protection on `main`** to require the **“Full test suite and email”** check so failing tests block merges.
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -1156,13 +1156,15 @@ This guide explains how to set up weekly automated test execution via GitHub Act
 
 #### Step 1: Workflow File
 
-The workflow file is already created at `.github/workflows/e2e-tests.yml`. It includes:
+The workflow file is `.github/workflows/full-test-suite-and-email.yml`. It includes:
 
-- **Schedule**: Runs every Tuesday at 2:00 AM UTC (3:00 AM BST / 2:00 AM GMT)
-- **Manual Trigger**: Can be triggered manually via GitHub Actions UI
-- **Playwright Setup**: Automatically installs Playwright browsers
-- **Email Notifications**: Uses the `test:weekly:email` script to send a single consolidated weekly summary
-- **Artifact Upload**: Saves test reports and screenshots for 30 days
+- **Push to `develop`**: Runs the full matrix after every commit to `develop`
+- **Pull request to `main`**: Runs for PRs targeting `main` (use as a required status check)
+- **Schedule**: Runs every Tuesday at 2:17 AM UTC (same cadence as before)
+- **Manual Trigger**: `workflow_dispatch` from the Actions tab
+- **Playwright Setup**: Installs Chromium with system dependencies
+- **Email Notifications**: Uses `npm run test:weekly:email` (consolidated HTML summary; subject includes trigger/ref when `WORKFLOW_TRIGGER_LABEL` is set in CI)
+- **Artifact Upload**: Saves Playwright reports and screenshots for 30 days
 
 #### Step 2: Configure GitHub Secrets
 
@@ -1193,18 +1195,19 @@ Navigate to your GitHub repository → Settings → Secrets and variables → Ac
 
 #### Automatic Execution
 
-The workflow runs automatically:
-- **Schedule**: Every Tuesday at 2:00 AM UTC
-- **Trigger**: GitHub Actions cron schedule
+The workflow runs automatically on:
+- **Push** to the `develop` branch
+- **Pull requests** into `main`
+- **Schedule**: Every Tuesday at 2:17 AM UTC (`cron: '17 2 * * 2'`)
 
 #### Manual Execution
 
 To trigger tests manually:
 
 1. Go to **Actions** tab in GitHub
-2. Select **Weekly Test Summary Email** workflow
+2. Select **Full test suite and summary email** workflow
 3. Click **Run workflow**
-4. Select the branch (usually `main` or `master`)
+4. Select the branch (e.g. `develop` or a feature branch)
 5. Click **Run workflow**
 
 #### What Happens During Execution
@@ -1250,7 +1253,7 @@ GitHub Actions also provides built-in notifications:
 
 2. **Workflow Status Badge**:
    - Add a badge to your README to show workflow status
-   - Badge URL: `https://github.com/USERNAME/REPO/workflows/E2E%20Tests%20-%20Weekly/badge.svg`
+   - Badge (replace `OWNER` / `REPO`): `https://github.com/OWNER/REPO/actions/workflows/full-test-suite-and-email.yml/badge.svg`
 
 #### Notification Content
 
@@ -1321,7 +1324,7 @@ Email notifications include:
 
 To change the test schedule:
 
-1. Edit `.github/workflows/e2e-tests.yml`
+1. Edit `.github/workflows/full-test-suite-and-email.yml`
 2. Update the cron expression in the `schedule` section:
    ```yaml
    schedule:
@@ -1341,16 +1344,16 @@ Examples:
 
 ### Workflow Configuration
 
-The workflow file (`.github/workflows/e2e-tests.yml`) includes:
+The workflow file (`.github/workflows/full-test-suite-and-email.yml`) includes:
 
 **Key Features:**
-- **Schedule**: Weekly execution (Tuesday 2:00 AM UTC)
-- **Manual Trigger**: Can be run on-demand
-- **Node.js 20**: Latest LTS version
-- **Playwright**: Chromium browser with dependencies
-- **Email Integration**: Uses existing `test:e2e:email` script
+- **Triggers**: `develop` push, PR to `main`, weekly cron, `workflow_dispatch`
+- **Concurrency**: One run per ref/event; in-progress runs cancel when superseded
+- **Node.js 20**: LTS
+- **Playwright**: Chromium with dependencies
+- **Email Integration**: `npm run test:weekly:email` (consolidated matrix + SMTP)
 - **Artifact Storage**: Reports and screenshots saved for 30 days
-- **Timeout**: 60 minutes maximum execution time (55 minutes for test step)
+- **Timeout**: 60 minutes for the job and test step
 
 **Environment Variables:**
 - `WEBSITE_URL`: Production website URL (from secrets or default)

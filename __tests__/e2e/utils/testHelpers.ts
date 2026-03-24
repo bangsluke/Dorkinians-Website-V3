@@ -183,8 +183,12 @@ export async function navigateToMainPage(page: Page, pageName: 'home' | 'stats' 
 			? 'button:has-text("TOTW"), [aria-label*="TOTW"]'
 			: 'button:has-text("Club Info"), [aria-label*="Club Info"]';
 
-		// Try test ID first
-		let buttonExists = await page.locator(testIdSelector).first().isVisible({ timeout: 2000 }).catch(() => false);
+		// Try test ID first (TOTW parent/sub share nav-sidebar-totw — prefer parent row)
+		let navLoc =
+			pageName === 'totw'
+				? page.locator('[data-testid="nav-footer-totw"], [data-testid="nav-sidebar-totw"]').first()
+				: page.locator(testIdSelector).first();
+		let buttonExists = await navLoc.isVisible({ timeout: 2000 }).catch(() => false);
 		let selectorToUse = testIdSelector;
 		
 		// Fall back to text selector if test ID not found
@@ -194,8 +198,11 @@ export async function navigateToMainPage(page: Page, pageName: 'home' | 'stats' 
 		}
 		
 		if (buttonExists) {
-			await page.locator(selectorToUse).first().click({ timeout: 10000 });
-			// Wait for navigation to complete
+			if (pageName === 'totw') {
+				await navLoc.click({ timeout: 10000 });
+			} else {
+				await page.locator(selectorToUse).first().click({ timeout: 10000 });
+			}
 			await page.waitForLoadState('domcontentloaded', { timeout: 10000 });
 		}
 	}
@@ -418,9 +425,9 @@ export async function submitChatbotQuery(page: Page, query: string) {
 		await page.getByTestId('chatbot-submit').filter({ has: page.locator(':visible') }).click();
 	}
 	
-	// Wait for response
-	await page.waitForTimeout(2000); // Initial wait
-	await waitForDataLoad(page);
+	// Wait for response (avoid networkidle — analytics/long-polling often prevent it on production)
+	await page.getByTestId('chatbot-submit').waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
+	await expect(page.getByTestId('chatbot-answer')).toBeVisible({ timeout: 120000 });
 }
 
 /**
@@ -443,7 +450,11 @@ export async function verifyNoConsoleErrors(page: Page) {
  */
 export async function getVisibleNavButton(page: Page, pageId: 'home' | 'stats' | 'totw' | 'club-info') {
 	const footerButton = page.getByTestId(`nav-footer-${pageId}`);
-	const sidebarButton = page.getByTestId(`nav-sidebar-${pageId}`);
+	// Parent TOTW and sub-page "Team of the Week" both use data-testid nav-sidebar-totw; parent is first in DOM.
+	const sidebarButton =
+		pageId === 'totw'
+			? page.getByTestId(`nav-sidebar-${pageId}`).first()
+			: page.getByTestId(`nav-sidebar-${pageId}`);
 	
 	// Check which button is visible - prioritize footer on mobile, sidebar on desktop
 	const viewport = page.viewportSize();

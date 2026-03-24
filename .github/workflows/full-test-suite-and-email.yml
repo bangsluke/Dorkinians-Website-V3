@@ -1,22 +1,24 @@
-name: Weekly Test Summary Email
+name: Full test suite and summary email
 
 on:
-  schedule:
-    # Run every Tuesday at 2:17 AM UTC (3:17 AM BST / 2:17 AM GMT)
-    # Using :17 to avoid peak hour traffic and reduce scheduling delays
-    - cron: '17 2 * * 2'
-  workflow_dispatch: # Allow manual triggering
   push:
     branches:
+      - develop
+  pull_request:
+    branches:
       - main
-    paths:
-      - '.github/workflows/e2e-tests.yml'
-      - '__tests__/e2e/**'
-      - 'playwright.config.ts'
+  schedule:
+    # Tuesday 02:17 UTC — weekly health check
+    - cron: '17 2 * * 2'
+  workflow_dispatch:
+
+concurrency:
+  group: full-test-suite-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
 
 jobs:
-  weekly-tests:
-    name: Run Weekly Test Matrix + Email
+  full_test_suite:
+    name: Full test suite and email
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
@@ -36,7 +38,7 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
-      - name: Run weekly consolidated test email
+      - name: Run full test matrix and send summary email
         timeout-minutes: 60
         env:
           WEBSITE_URL: ${{ secrets.WEBSITE_URL != '' && secrets.WEBSITE_URL || 'https://dorkinians-website-v3.netlify.app' }}
@@ -50,6 +52,7 @@ jobs:
           SMTP_TO_EMAIL: ${{ secrets.SMTP_TO_EMAIL }}
           SMTP_EMAIL_SECURE: ${{ secrets.SMTP_EMAIL_SECURE || 'false' }}
           SEND_TEST_EMAILS: 'true'
+          WORKFLOW_TRIGGER_LABEL: "${{ github.event_name == 'pull_request' && format('pull_request {0} → {1} ({2})', github.head_ref, github.base_ref, github.sha) || format('{0} @ {1} ({2})', github.event_name, github.ref_name, github.sha) }}"
         run: npm run test:weekly:email
 
       - name: Upload test results

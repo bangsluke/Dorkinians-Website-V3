@@ -63,6 +63,21 @@ console.log('');
 let testPassed = false;
 let testOutput = '';
 let exitCode = 1;
+/** Wall-clock duration of the Playwright process (seconds), set when the child exits */
+let e2eWallClockSec = 0;
+
+/** Suite order used in HTML/text report (keep aligned with Testing_Documentation.md) */
+const DOCUMENTED_SUITE_ORDER = [
+	'Navigation Tests',
+	'Home Page Tests',
+	'Stats Page Tests',
+	'TOTW Page Tests',
+	'Club Info Page Tests',
+	'Settings Page Tests',
+	'Admin Page Tests',
+	'API Endpoint Tests',
+	'Cross-Cutting Tests',
+];
 
 // Run Playwright tests using spawn for real-time output streaming
 const startTime = Date.now();
@@ -86,6 +101,7 @@ const child = spawn('npx', commandArgs, {
 	env: {
 		...process.env,
 		BASE_URL,
+		WEBSITE_URL: BASE_URL,
 	},
 	cwd: process.cwd(),
 	shell: true,
@@ -145,6 +161,7 @@ const heartbeatInterval = setInterval(() => {
 // Handle process completion
 child.on('close', (code) => {
 	clearInterval(heartbeatInterval);
+	e2eWallClockSec = Math.round(((Date.now() - startTime) / 1000) * 10) / 10;
 	
 	// Combine all output
 	testOutput = stdoutBuffer + (stderrBuffer ? '\n' + stderrBuffer : '');
@@ -168,6 +185,7 @@ child.on('close', (code) => {
 // Handle process errors
 child.on('error', (error) => {
 	clearInterval(heartbeatInterval);
+	e2eWallClockSec = Math.round(((Date.now() - startTime) / 1000) * 10) / 10;
 	testOutput = error.message || 'Test execution failed';
 	testPassed = false;
 	exitCode = 1;
@@ -196,6 +214,7 @@ const normalizeSuiteName = (suiteName) => {
 		'TOTW Page Tests': 'TOTW Page Tests',
 		'Club Info Page Tests': 'Club Info Page Tests',
 		'Settings Page Tests': 'Settings Page Tests',
+		'Admin Page Tests': 'Admin Page Tests',
 		'API Endpoint Tests': 'API Endpoint Tests',
 		'Cross-Cutting Tests': 'Cross-Cutting Tests',
 	};
@@ -258,88 +277,109 @@ const extractFailureReason = (testOutput, testLineIndex, lines) => {
 	return 'Failed (see raw output for details)';
 };
 
+// Playwright list reporter: "  ✓  N [Project] › path:line:col › Suite › name (1.2s)"
+const PLAYWRIGHT_LINE_RE =
+	/^\s*([✓✗✘×])\s+\d+\s+\[([^\]]+)\]\s+›\s+([^:]+):\d+:\d+\s+›\s+(.+?)\s+›\s+(.+?)\s+\(([\d.]+)s\)/;
+
 // Parse test results by suite (matching documentation sections)
 const parseTestResults = () => {
-	const testResults = {};
 	const lines = testOutput.split('\n');
-	let parsedCount = 0;
-	let failedCount = 0;
-	let passedCount = 0;
-	
+	const rawRows = [];
+
 	for (let i = 0; i < lines.length; i++) {
 		const line = lines[i];
-		
-		// Match test result lines: ✓ or ✗ or ✘ followed by worker number, [chromium], file path, suite, and test name
-		// Format: "  ✓    2 [chromium] › e2e\api\api.spec.ts:29:6 › API Endpoint Tests › should return TOTW data from TOTW API (2.7s)"
-		// Format: "  ✗    1 [chromium] › e2e\api\api.spec.ts:6:6 › API Endpoint Tests › should respond to chatbot API query (4.0s)"
-		// Also handles forward slashes: "  ✓ e2e/api/api.spec.ts:29:6 › API Endpoint Tests › should return TOTW data from TOTW API (2.7s)"
-		// Fallback pattern without worker number and [chromium] tag for some output formats
-		let testMatch = line.match(/^\s*([✓✗✘×])\s+\d+\s+\[chromium\]\s+›\s+([^:]+):\d+:\d+\s+›\s+(.+?)\s+›\s+(.+?)\s+\(([\d.]+)s\)/);
-		
-		// Fallback: try without worker number and [chromium] tag
+		let testMatch = line.match(PLAYWRIGHT_LINE_RE);
 		if (!testMatch) {
-			testMatch = line.match(/^\s*([✓✗✘×])\s+([^:]+):\d+:\d+\s+›\s+(.+?)\s+›\s+(.+?)\s+\(([\d.]+)s\)/);
+			testMatch = line.match(
+				/^\s*([✓✗✘×])\s+.*?\[([^\]]+)\]\s+›\s+([^:]+):\d+:\d+\s+›\s+(.+?)\s+›\s+(.+?)\s+\(([\d.]+)s\)/,
+			);
 		}
-		
-		// Additional fallback: try matching lines that might have different spacing
-		if (!testMatch) {
-			testMatch = line.match(/^\s*([✓✗✘×])\s+.*?\[chromium\].*?›\s+([^:]+):\d+:\d+\s+›\s+(.+?)\s+›\s+(.+?)\s+\(([\d.]+)s\)/);
-		}
-		
-		if (testMatch) {
-			const statusIcon = testMatch[1];
-			const status = statusIcon === '✓' ? 'passed' : 'failed';
-			const filePath = testMatch[2].trim();
-			const suite = normalizeSuiteName(testMatch[3].trim());
-			const testName = testMatch[4].trim();
-			const duration = parseFloat(testMatch[5]);
-			
-			parsedCount++;
-			if (status === 'passed') {
-				passedCount++;
-			} else {
-				failedCount++;
-			}
-			
-			// Extract failure reason if test failed
-			let failureReason = null;
-			if (status === 'failed') {
-				failureReason = extractFailureReason(testOutput, i, lines);
-			}
-			
-			if (!testResults[suite]) {
-				testResults[suite] = {
-					suite: suite,
-					tests: [],
-					passed: 0,
-					failed: 0,
-				};
-			}
-			
-			testResults[suite].tests.push({
-				name: testName,
-				status,
-				duration,
-				failureReason,
-				file: filePath,
-			});
-			
-			if (status === 'passed') {
-				testResults[suite].passed++;
-			} else {
-				testResults[suite].failed++;
-			}
-		}
+		if (!testMatch) continue;
+
+		const statusIcon = testMatch[1];
+		const filePath = testMatch[3].trim();
+		const suite = normalizeSuiteName(testMatch[4].trim());
+		const testName = testMatch[5].trim();
+		const duration = parseFloat(testMatch[6]);
+
+		rawRows.push({
+			lineIndex: i,
+			statusIcon,
+			filePath,
+			suite,
+			testName,
+			duration,
+		});
 	}
-	
-	// Debug logging
-	if (parsedCount === 0) {
+
+	// Merge chromium + Mobile Chrome (and any project) into one row per file/suite/name
+	const mergeMap = new Map();
+	for (const row of rawRows) {
+		const key = `${row.filePath}||${row.suite}||${row.testName}`;
+		const prev = mergeMap.get(key);
+		if (!prev) {
+			mergeMap.set(key, { ...row });
+			continue;
+		}
+		const anyFail = prev.statusIcon !== '✓' || row.statusIcon !== '✓';
+		const lineIndex =
+			row.statusIcon !== '✓' ? row.lineIndex : prev.statusIcon !== '✓' ? prev.lineIndex : row.lineIndex;
+		mergeMap.set(key, {
+			lineIndex,
+			statusIcon: anyFail ? '✗' : '✓',
+			filePath: row.filePath,
+			suite: row.suite,
+			testName: row.testName,
+			duration: Math.max(prev.duration, row.duration),
+		});
+	}
+
+	const testResults = {};
+	let mergedCount = 0;
+	let passedCount = 0;
+	let failedCount = 0;
+
+	for (const row of mergeMap.values()) {
+		mergedCount++;
+		const status = row.statusIcon === '✓' ? 'passed' : 'failed';
+		if (status === 'passed') passedCount++;
+		else failedCount++;
+
+		let failureReason = null;
+		if (status === 'failed') {
+			failureReason = extractFailureReason(testOutput, row.lineIndex, lines);
+		}
+
+		if (!testResults[row.suite]) {
+			testResults[row.suite] = {
+				suite: row.suite,
+				tests: [],
+				passed: 0,
+				failed: 0,
+			};
+		}
+
+		testResults[row.suite].tests.push({
+			name: row.testName,
+			status,
+			duration: row.duration,
+			failureReason,
+			file: row.filePath,
+		});
+
+		if (status === 'passed') testResults[row.suite].passed++;
+		else testResults[row.suite].failed++;
+	}
+
+	if (rawRows.length === 0) {
 		console.warn('⚠️ No test results parsed. First 20 lines of output:');
 		console.warn(lines.slice(0, 20).join('\n'));
 	} else {
-		console.log(`📊 Parsed ${parsedCount} tests (${passedCount} passed, ${failedCount} failed)`);
+		console.log(
+			`📊 Parsed ${rawRows.length} result lines → ${mergedCount} tests (${passedCount} passed, ${failedCount} failed)`,
+		);
 	}
-	
+
 	return testResults;
 };
 
@@ -363,7 +403,11 @@ const getTestSummary = () => {
 	if (passedMatch) summary.passed = parseInt(passedMatch[1], 10);
 	if (failedMatch) summary.failed = parseInt(failedMatch[1], 10);
 	if (skippedMatch) summary.skipped = parseInt(skippedMatch[1], 10);
-	if (durationMatch) summary.duration = parseFloat(durationMatch[1]);
+	if (e2eWallClockSec > 0) {
+		summary.duration = e2eWallClockSec;
+	} else if (durationMatch) {
+		summary.duration = parseFloat(durationMatch[1]);
+	}
 
 	summary.total = summary.passed + summary.failed + summary.skipped;
 	
@@ -412,16 +456,7 @@ const sendEmailReport = async () => {
 		}
 		
 		// Define order to match documentation
-		const suiteOrder = [
-			'Navigation Tests',
-			'Home Page Tests',
-			'Stats Page Tests',
-			'TOTW Page Tests',
-			'Club Info Page Tests',
-			'Settings Page Tests',
-			'API Endpoint Tests',
-			'Cross-Cutting Tests',
-		];
+		const suiteOrder = DOCUMENTED_SUITE_ORDER;
 		
 		// Sort suites by documentation order, then alphabetically for any extras
 		const sortedSuites = suiteNames.sort((a, b) => {
@@ -559,16 +594,7 @@ const sendEmailReport = async () => {
 		const suiteNames = Object.keys(testResults).sort();
 		
 		// Define order to match documentation
-		const suiteOrder = [
-			'Navigation Tests',
-			'Home Page Tests',
-			'Stats Page Tests',
-			'TOTW Page Tests',
-			'Club Info Page Tests',
-			'Settings Page Tests',
-			'API Endpoint Tests',
-			'Cross-Cutting Tests',
-		];
+		const suiteOrder = DOCUMENTED_SUITE_ORDER;
 		
 		// Sort suites by documentation order, then alphabetically for any extras
 		const sortedSuites = suiteNames.sort((a, b) => {
