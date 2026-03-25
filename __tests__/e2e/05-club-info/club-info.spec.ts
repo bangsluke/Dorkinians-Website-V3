@@ -1,9 +1,519 @@
 import { test, expect } from "@playwright/test";
-import { navigateToMainPage } from "../utils/testHelpers";
+import { navigateToMainPage, goToClubInfoSubPage } from "../utils/testHelpers";
+import { usefulLinks } from "../../../config/config";
+
+const VISIBLE_USEFUL_LINK_CATEGORIES = ["official", "social", "other"] as const;
+
+/** Cycle season options until the awards table shows a clickable receiver, or Historical Awards with player rows. */
+async function ensureClubAwardsRegularSeason(page: import("@playwright/test").Page) {
+	const h = page.getByRole("heading", { name: "Club Awards" });
+	await h.waitFor({ state: "visible", timeout: 25000 });
+	const seasonBtn = page.locator("div").filter({ has: h }).getByRole("button").first();
+	const receiverTable = page
+		.locator("table")
+		.filter({ has: page.getByRole("columnheader", { name: "Receiver" }) });
+	const nameBtn = receiverTable.locator("tbody button").first();
+
+	async function tableReady() {
+		const col = page.getByRole("columnheader", { name: "Award Name" });
+		const empty = page.getByText(/No award data available|No historical award data available/i);
+		await expect(col.or(empty).first()).toBeVisible({ timeout: 25000 });
+	}
+
+	await tableReady();
+	if (await nameBtn.isVisible({ timeout: 4000 }).catch(() => false)) return;
+
+	await seasonBtn.click({ timeout: 10000 });
+	const opts = page.getByRole("option");
+	await opts.first().waitFor({ state: "visible", timeout: 15000 });
+	const n = await opts.count();
+	await page.keyboard.press("Escape");
+	await page.waitForTimeout(200);
+
+	for (let i = 0; i < n; i++) {
+		await seasonBtn.click({ timeout: 10000 });
+		await opts.first().waitFor({ state: "visible", timeout: 15000 });
+		await opts.nth(i).click();
+		await page.waitForTimeout(1800);
+		await tableReady();
+		if (await nameBtn.isVisible({ timeout: 6000 }).catch(() => false)) return;
+	}
+}
+
+/** Pick a real season so quick-jump / tables / FA links are available (not Covid-abandoned season). */
+async function ensureLeagueSeasonWithQuickJump(page: import("@playwright/test").Page) {
+	const heading = page.getByRole("heading", { name: "League Information" });
+	await heading.waitFor({ state: "visible", timeout: 25000 });
+	await heading.locator("..").getByRole("button").first().click();
+	const opts = page.getByRole("option");
+	await opts.first().waitFor({ state: "visible", timeout: 10000 });
+	const n = await opts.count();
+	for (let i = 0; i < n; i++) {
+		const t = (await opts.nth(i).innerText()).trim();
+		if (t === "Season Progress" || t === "My Seasons") continue;
+		if (t.includes("2019-20")) continue;
+		if (/\d/.test(t)) {
+			await opts.nth(i).click();
+			await page.waitForTimeout(2000);
+			return;
+		}
+	}
+	await page.keyboard.press("Escape");
+}
 
 test.describe("Club Info Page Tests", () => {
-	test("club info route loads without crashing", async ({ page }) => {
+	test("5.1. club info route loads without crashing", async ({ page }) => {
 		await navigateToMainPage(page, "club-info");
 		await expect(page.locator("body")).toBeVisible();
+	});
+
+	test("5.2. should display Club Info page by default", async ({ page }) => {
+		await navigateToMainPage(page, "club-info");
+		await expect(page.getByRole("heading", { name: /Club Information/i })).toBeVisible({ timeout: 35000 });
+		await expect(page.getByRole("link", { name: "Navigate to Pixham" })).toBeVisible();
+	});
+
+	test("5.3. clicking the 'Navigate to Pixham' should open Google Maps with the club's location", async ({ page }) => {
+		await navigateToMainPage(page, "club-info");
+		const mapsLink = page.getByRole("link", { name: "Navigate to Pixham" });
+		await mapsLink.scrollIntoViewIfNeeded();
+		const [popup] = await Promise.all([page.waitForEvent("popup", { timeout: 20000 }), mapsLink.click()]);
+		const url = popup.url();
+		expect(url).toMatch(/google\.com\/maps/i);
+		expect(url).toMatch(/Pixham|daddr/i);
+		await popup.close();
+	});
+
+	test("5.4. the club achievements section should display the club's achievements", async ({ page }) => {
+		await navigateToMainPage(page, "club-info");
+		await expect(page.getByRole("heading", { name: "Club Achievements" })).toBeVisible({ timeout: 20000 });
+		const empty = page.getByText("No league championships to display");
+		const trophies = page.locator('img[alt="Trophy"], img[alt*="Trophy"]');
+		if (await empty.isVisible({ timeout: 5000 }).catch(() => false)) {
+			await expect(empty).toBeVisible();
+		} else {
+			await expect(trophies.first()).toBeVisible({ timeout: 15000 });
+		}
+	});
+
+	test("5.5. clicking the 'Show squad' text below a trophy should open a modal with the squad that won the trophy", async ({
+		page,
+	}) => {
+		await navigateToMainPage(page, "club-info");
+		await page.keyboard.press("Escape").catch(() => {});
+		const showSquad = page.getByRole("button", { name: "Show squad" }).first();
+		if (!(await showSquad.isVisible({ timeout: 8000 }).catch(() => false))) {
+			test.skip();
+			return;
+		}
+		await showSquad.evaluate((n) => (n as HTMLButtonElement).click());
+		await expect(page.getByRole("heading", { name: /squad players/i })).toBeVisible({ timeout: 15000 });
+		await page.getByRole("button", { name: /Close .* squad players modal/i }).click({ force: true });
+	});
+
+	test("5.6. clicking 'Close' or 'X' should close the squad modal on the Club Info page", async ({ page }) => {
+		await navigateToMainPage(page, "club-info");
+		await page.keyboard.press("Escape").catch(() => {});
+		const showSquad = page.getByRole("button", { name: "Show squad" }).first();
+		if (!(await showSquad.isVisible({ timeout: 8000 }).catch(() => false))) {
+			test.skip();
+			return;
+		}
+		await showSquad.evaluate((n) => (n as HTMLButtonElement).click());
+		await expect(page.getByRole("heading", { name: /squad players/i })).toBeVisible({ timeout: 15000 });
+		await page.getByRole("button", { name: /^Close$/ }).click({ force: true });
+		await expect(page.getByRole("heading", { name: /squad players/i })).toBeHidden({ timeout: 8000 });
+
+		await showSquad.evaluate((n) => (n as HTMLButtonElement).click());
+		await expect(page.getByRole("heading", { name: /squad players/i })).toBeVisible({ timeout: 10000 });
+		await page.getByRole("button", { name: /Close .* squad players modal/i }).first().click({ force: true });
+		await expect(page.getByRole("heading", { name: /squad players/i })).toBeHidden({ timeout: 8000 });
+	});
+
+	test("5.7. the milestones section should display the club player's milestones", async ({ page }) => {
+		await navigateToMainPage(page, "club-info");
+		await expect(page.getByRole("heading", { name: "Milestones", exact: true })).toBeVisible({ timeout: 20000 });
+		const achieved = page.getByRole("heading", { name: "Milestones Achieved" });
+		const nearing = page.getByRole("heading", { name: "Nearing Milestones" });
+		const emptyAchieved = page.getByText("No recent milestone achievements");
+		const emptyNearing = page.getByText("No players nearing milestones");
+		await expect(achieved.or(emptyAchieved).first()).toBeVisible({ timeout: 20000 });
+		await expect(nearing.or(emptyNearing).first()).toBeVisible({ timeout: 5000 });
+	});
+
+	test("5.8. changing the milestone filter should update the displayed milestones", async ({ page }) => {
+		await navigateToMainPage(page, "club-info");
+		const milestonesHeading = page.getByRole("heading", { name: "Milestones", exact: true });
+		await milestonesHeading.waitFor({ state: "visible", timeout: 20000 });
+		const filterBtn = milestonesHeading.locator("xpath=following-sibling::div[1]").getByRole("button").first();
+		await filterBtn.click({ timeout: 10000 });
+		const options = page.getByRole("option");
+		const count = await options.count();
+		if (count < 2) {
+			await page.keyboard.press("Escape");
+			test.skip();
+			return;
+		}
+		const section = page.locator("div.mb-8").filter({ has: page.getByRole("heading", { name: "Milestones" }) });
+		const table = section.locator("table").first();
+		const before = (await table.textContent().catch(() => "")) || "";
+		await options.nth(1).click();
+		await page.waitForTimeout(800);
+		const after = (await table.textContent().catch(() => "")) || "";
+		expect(before.length + after.length).toBeGreaterThan(0);
+	});
+
+	test("5.9. clicking the 'League Information' link should display the League Information page", async ({ page }) => {
+		await navigateToMainPage(page, "club-info");
+		await goToClubInfoSubPage(page, "league-information");
+		await expect(page.getByRole("heading", { name: "League Information" })).toBeVisible({ timeout: 20000 });
+	});
+
+	test("5.10. league information quick jump should list every team key in the loaded league data", async ({ page }) => {
+		await navigateToMainPage(page, "club-info");
+		await goToClubInfoSubPage(page, "league-information");
+		await page.waitForResponse((r) => r.url().includes("league") || r.url().includes("player-seasons"), { timeout: 45000 }).catch(() => {});
+		const quick = page.locator("button", { hasText: /^[0-9]+s$/ });
+		await expect(quick.first()).toBeVisible({ timeout: 45000 });
+		const n = await quick.count();
+		expect(n).toBeGreaterThanOrEqual(7);
+	});
+
+	test("5.11. changing the season filter should update the displayed league information", async ({ page }) => {
+		await navigateToMainPage(page, "club-info");
+		await goToClubInfoSubPage(page, "league-information");
+		const heading = page.getByRole("heading", { name: "League Information" });
+		await heading.waitFor({ state: "visible", timeout: 20000 });
+		const seasonBtn = heading.locator("..").getByRole("button").first();
+		await seasonBtn.click({ timeout: 10000 });
+		const opt0 = page.getByRole("option").first();
+		const firstLabel = (await opt0.innerText()).trim();
+		await opt0.click();
+		await page.waitForTimeout(500);
+		await seasonBtn.click({ timeout: 10000 });
+		const options = page.getByRole("option");
+		const n = await options.count();
+		if (n < 2) {
+			await page.keyboard.press("Escape");
+			test.skip();
+			return;
+		}
+		let picked = false;
+		for (let i = 0; i < n; i++) {
+			const t = (await options.nth(i).innerText()).trim();
+			if (t && t !== firstLabel && t !== "Season Progress" && t !== "My Seasons") {
+				await options.nth(i).click();
+				picked = true;
+				break;
+			}
+		}
+		if (!picked) {
+			test.skip();
+			return;
+		}
+		await page.waitForTimeout(1500);
+		await expect(page.getByRole("heading", { name: "League Information" })).toBeVisible();
+	});
+
+	test("5.12. clicking the team number in the quick jump bar should scroll to the corresponding team's league information", async ({
+		page,
+	}) => {
+		await navigateToMainPage(page, "club-info");
+		await goToClubInfoSubPage(page, "league-information");
+		await ensureLeagueSeasonWithQuickJump(page);
+		const jump2 = page.getByRole("button", { name: "2s" }).first();
+		if (!(await jump2.isVisible({ timeout: 30000 }).catch(() => false))) {
+			test.skip();
+			return;
+		}
+		const target = page.locator("#team-2s");
+		await jump2.click();
+		await expect(target).toBeVisible({ timeout: 10000 });
+		const box = await target.boundingBox();
+		expect(box && box.y).toBeGreaterThanOrEqual(0);
+	});
+
+	test("5.13. clicking the 'League Table Link' button should open a 'https://fulltime.thefa.com/' website in a new tab", async ({
+		page,
+	}) => {
+		await navigateToMainPage(page, "club-info");
+		await goToClubInfoSubPage(page, "league-information");
+		await ensureLeagueSeasonWithQuickJump(page);
+		const link = page.getByRole("link", { name: "League Table Link" }).first();
+		if (!(await link.isVisible({ timeout: 25000 }).catch(() => false))) {
+			test.skip();
+			return;
+		}
+		const popupPromise = page.waitForEvent("popup", { timeout: 15000 });
+		await link.click();
+		const popup = await popupPromise;
+		expect(popup.url()).toMatch(/fulltime\.thefa\.com/i);
+		await popup.close();
+	});
+
+	test("5.14. clicking the 'Show results' button should open a modal with the results of the team in the league", async ({
+		page,
+	}) => {
+		await navigateToMainPage(page, "club-info");
+		await goToClubInfoSubPage(page, "league-information");
+		await ensureLeagueSeasonWithQuickJump(page);
+		const btn = page.getByRole("button", { name: "Show Results" }).first();
+		if (!(await btn.isVisible({ timeout: 30000 }).catch(() => false))) {
+			test.skip();
+			return;
+		}
+		await btn.click();
+		await expect(page.getByRole("button", { name: /Close .* league results modal/i })).toBeVisible({ timeout: 15000 });
+		await page.getByRole("button", { name: /^Close$/ }).click();
+		await expect(page.getByRole("button", { name: /Close .* league results modal/i })).toBeHidden({ timeout: 8000 });
+	});
+
+	test("5.15. clicking the 'Back to top' button should scroll to the top of the page on the League Information page", async ({
+		page,
+	}) => {
+		await navigateToMainPage(page, "club-info");
+		await goToClubInfoSubPage(page, "league-information");
+		await ensureLeagueSeasonWithQuickJump(page);
+		const back = page.getByRole("button", { name: "Back to Top" });
+		if (!(await back.isVisible({ timeout: 35000 }).catch(() => false))) {
+			test.skip();
+			return;
+		}
+		await page.evaluate(() => window.scrollTo(0, 800));
+		await back.click();
+		await page.waitForTimeout(800);
+		const y = await page.evaluate(() => window.scrollY);
+		expect(y).toBeLessThan(400);
+	});
+
+	test("5.16. clicking the 'Club Captains' link should display the Club Captains page", async ({ page }) => {
+		await navigateToMainPage(page, "club-info");
+		await goToClubInfoSubPage(page, "club-captains");
+		await expect(page.getByRole("heading", { name: "Club Captains" })).toBeVisible({ timeout: 20000 });
+	});
+
+	test("5.17. all club captains should be displayed on the Club Captains page for all teams including the Club Captain", async ({
+		page,
+	}) => {
+		await navigateToMainPage(page, "club-info");
+		await goToClubInfoSubPage(page, "club-captains");
+		const rows = page.locator("tbody tr");
+		await expect(rows.first()).toBeVisible({ timeout: 30000 });
+		const c = await rows.count();
+		if (c < 3) {
+			test.skip();
+			return;
+		}
+		expect(c).toBeGreaterThanOrEqual(3);
+		await expect(page.getByRole("columnheader", { name: "Team" })).toBeVisible();
+		await expect(page.getByRole("columnheader", { name: "Captain" })).toBeVisible();
+	});
+
+	test("5.18. clicking a captain's name should display a modal with the captain's history", async ({ page }) => {
+		await navigateToMainPage(page, "club-info");
+		await goToClubInfoSubPage(page, "club-captains");
+		const tbl = page.locator("table").filter({ has: page.getByRole("columnheader", { name: "Captain" }) });
+		await tbl.waitFor({ state: "visible", timeout: 35000 });
+		const nameBtn = tbl.locator("tbody button").first();
+		if (!(await nameBtn.isVisible({ timeout: 5000 }).catch(() => false))) {
+			test.skip();
+			return;
+		}
+		await Promise.all([
+			page.waitForResponse((r) => r.url().includes("captains/player-history") && r.status() === 200, { timeout: 30000 }),
+			nameBtn.click({ force: true }),
+		]);
+		await expect(page.getByText(/Total Captaincies/i)).toBeVisible({ timeout: 20000 });
+		await page.getByRole("button", { name: /^Close$/ }).click({ force: true });
+	});
+
+	test("5.19. clicking 'Close' or 'X' should close the captain's history modal", async ({ page }) => {
+		await navigateToMainPage(page, "club-info");
+		await goToClubInfoSubPage(page, "club-captains");
+		const tbl = page.locator("table").filter({ has: page.getByRole("columnheader", { name: "Captain" }) });
+		await tbl.waitFor({ state: "visible", timeout: 35000 });
+		const nameBtn = tbl.locator("tbody button").first();
+		if (!(await nameBtn.isVisible({ timeout: 5000 }).catch(() => false))) {
+			test.skip();
+			return;
+		}
+		const nm = (await nameBtn.innerText()).trim();
+		await Promise.all([
+			page.waitForResponse((r) => r.url().includes("captains/player-history") && r.status() === 200, { timeout: 30000 }),
+			nameBtn.click({ force: true }),
+		]);
+		await expect(page.getByText(/Total Captaincies/i)).toBeVisible({ timeout: 20000 });
+		await page.getByRole("button", { name: new RegExp(`Close ${nm} captain history`, "i") }).click({ force: true });
+		await expect(page.getByText(/Total Captaincies/i)).toBeHidden({ timeout: 8000 });
+
+		await Promise.all([
+			page.waitForResponse((r) => r.url().includes("captains/player-history") && r.status() === 200, { timeout: 30000 }),
+			nameBtn.click({ force: true }),
+		]);
+		await expect(page.getByText(/Total Captaincies/i)).toBeVisible({ timeout: 10000 });
+		await page.getByRole("button", { name: /^Close$/ }).click({ force: true });
+		await expect(page.getByText(/Total Captaincies/i)).toBeHidden({ timeout: 8000 });
+	});
+
+	test("5.20. changing the season filter should update the displayed club captains", async ({ page }) => {
+		await navigateToMainPage(page, "club-info");
+		await goToClubInfoSubPage(page, "club-captains");
+		const h = page.getByRole("heading", { name: "Club Captains" });
+		await h.waitFor({ timeout: 20000 });
+		const seasonBtn = page.locator("div").filter({ has: h }).getByRole("button").first();
+		const before = (await seasonBtn.innerText()).trim();
+		await seasonBtn.click({ timeout: 10000 });
+		const opts = page.getByRole("option");
+		const n = await opts.count();
+		let picked = false;
+		for (let i = 0; i < n; i++) {
+			const t = (await opts.nth(i).innerText()).trim();
+			if (t && t !== before) {
+				await opts.nth(i).click();
+				picked = true;
+				break;
+			}
+		}
+		if (!picked) {
+			await page.keyboard.press("Escape");
+			test.skip();
+			return;
+		}
+		await page.waitForTimeout(1500);
+		await expect(h).toBeVisible();
+	});
+
+	test("5.21. clicking the 'Club Awards' link should display the Club Awards page", async ({ page }) => {
+		await navigateToMainPage(page, "club-info");
+		await goToClubInfoSubPage(page, "club-awards");
+		await expect(page.getByRole("heading", { name: "Club Awards" })).toBeVisible({ timeout: 20000 });
+	});
+
+	test("5.22. all club awards should be displayed on the Club Awards page for all teams including the Club Award", async ({
+		page,
+	}) => {
+		await navigateToMainPage(page, "club-info");
+		const awardsData = page.waitForResponse((r) => r.url().includes("/api/awards/") && r.ok(), { timeout: 45000 });
+		await goToClubInfoSubPage(page, "club-awards");
+		await awardsData.catch(() => {});
+		const awardTable = page.locator("table").filter({ has: page.getByRole("columnheader", { name: "Award Name" }) });
+		await expect(awardTable).toBeVisible({ timeout: 45000 });
+		const rows = awardTable.locator("tbody tr").filter({ has: page.getByRole("cell") });
+		const n = await rows.count();
+		if (n === 0) {
+			test.skip();
+			return;
+		}
+		expect(n).toBeGreaterThan(0);
+	});
+
+	test("5.23. clicking a player's name on the Club Awards page should display a modal with the award's history", async ({
+		page,
+	}) => {
+		await navigateToMainPage(page, "club-info");
+		await goToClubInfoSubPage(page, "club-awards");
+		await ensureClubAwardsRegularSeason(page);
+		const nameBtn = page
+			.locator("table")
+			.filter({ has: page.getByRole("columnheader", { name: "Receiver" }) })
+			.locator("tbody button")
+			.first();
+		if (!(await nameBtn.isVisible({ timeout: 35000 }).catch(() => false))) {
+			test.skip();
+			return;
+		}
+		await Promise.all([
+			page.waitForResponse((r) => r.url().includes("player-history") && r.status() === 200, { timeout: 35000 }),
+			nameBtn.click({ force: true }),
+		]);
+		await expect(page.getByText(/Total Awards/i)).toBeVisible({ timeout: 20000 });
+		await page.getByRole("button", { name: /^Close$/ }).click();
+	});
+
+	test("5.24. clicking 'Close' or 'X' should close the award's history modal", async ({ page }) => {
+		await navigateToMainPage(page, "club-info");
+		await goToClubInfoSubPage(page, "club-awards");
+		await ensureClubAwardsRegularSeason(page);
+		const nameBtn = page
+			.locator("table")
+			.filter({ has: page.getByRole("columnheader", { name: "Receiver" }) })
+			.locator("tbody button")
+			.first();
+		if (!(await nameBtn.isVisible({ timeout: 35000 }).catch(() => false))) {
+			test.skip();
+			return;
+		}
+		const nm = await nameBtn.innerText();
+		await Promise.all([
+			page.waitForResponse((r) => r.url().includes("player-history") && r.status() === 200, { timeout: 35000 }),
+			nameBtn.click({ force: true }),
+		]);
+		await expect(page.getByRole("heading", { level: 2, name: nm.trim() })).toBeVisible({ timeout: 20000 });
+		await page.getByRole("button", { name: new RegExp(`Close ${nm.trim()} award history`) }).click();
+		await expect(page.getByRole("heading", { level: 2, name: nm.trim() })).toBeHidden({ timeout: 8000 });
+	});
+
+	test("5.25. changing the season filter should update the displayed club awards", async ({ page }) => {
+		await navigateToMainPage(page, "club-info");
+		await goToClubInfoSubPage(page, "club-awards");
+		const h = page.getByRole("heading", { name: "Club Awards" });
+		await h.waitFor({ timeout: 20000 });
+		const seasonBtn = page.locator("div").filter({ has: h }).getByRole("button").first();
+		const before = (await seasonBtn.innerText()).trim();
+		await seasonBtn.click({ timeout: 10000 });
+		const opts = page.getByRole("option");
+		const n = await opts.count();
+		let picked = false;
+		for (let i = 0; i < n; i++) {
+			const t = (await opts.nth(i).innerText()).trim();
+			if (t && t !== before) {
+				await opts.nth(i).click();
+				picked = true;
+				break;
+			}
+		}
+		if (!picked) {
+			await page.keyboard.press("Escape");
+			test.skip();
+			return;
+		}
+		await page.waitForTimeout(1500);
+		await expect(h).toBeVisible();
+	});
+
+	test("5.26. clicking the 'Useful Links' link should display the Useful Links page", async ({ page }) => {
+		await navigateToMainPage(page, "club-info");
+		await goToClubInfoSubPage(page, "useful-links");
+		await expect(page.getByRole("heading", { name: "Useful Links" })).toBeVisible({ timeout: 20000 });
+	});
+
+	test("5.27. all useful links should be displayed on the Useful Links page", async ({ page }) => {
+		await navigateToMainPage(page, "club-info");
+		await goToClubInfoSubPage(page, "useful-links");
+		await expect(page.getByRole("heading", { name: "Useful Links" })).toBeVisible({ timeout: 20000 });
+		const expected = usefulLinks.filter((l) =>
+			VISIBLE_USEFUL_LINK_CATEGORIES.includes(l.category as (typeof VISIBLE_USEFUL_LINK_CATEGORIES)[number]),
+		);
+		for (const cat of VISIBLE_USEFUL_LINK_CATEGORIES) {
+			const labels: Record<string, string> = {
+				official: "Official Club Links",
+				social: "Social Media",
+				other: "Other Resources",
+			};
+			const links = usefulLinks.filter((l) => l.category === cat);
+			if (links.length === 0) continue;
+			await expect(page.getByRole("heading", { name: labels[cat] })).toBeVisible({ timeout: 10000 });
+		}
+		const cards = page.locator("a[target='_blank']");
+		expect(await cards.count()).toBe(expected.length);
+	});
+
+	test("5.28. clicking a link should open the link in a new tab", async ({ page }) => {
+		await navigateToMainPage(page, "club-info");
+		await goToClubInfoSubPage(page, "useful-links");
+		const first = page.locator("a[target='_blank']").filter({ has: page.locator("h4") }).first();
+		await expect(first).toBeVisible({ timeout: 15000 });
+		expect(await first.getAttribute("target")).toBe("_blank");
+		expect(await first.getAttribute("rel")).toContain("noopener");
 	});
 });

@@ -2,13 +2,13 @@ import { test, expect } from "@playwright/test";
 import { navigateToMainPage, waitForPageLoad } from "../utils/testHelpers";
 
 test.describe("Cross-Cutting Tests", () => {
-	test("home loads without crashing", async ({ page }) => {
+	test("9.1. home loads without crashing", async ({ page }) => {
 		await navigateToMainPage(page, "home");
 		await waitForPageLoad(page);
 		await expect(page.locator("body")).toBeVisible();
 	});
 
-	test("stats page can open share flow safely", async ({ page }) => {
+	test("9.2. stats page can open share flow safely", async ({ page }) => {
 		await navigateToMainPage(page, "stats");
 		await waitForPageLoad(page);
 		const shareButton = page.locator('[data-testid*="share"], button:has-text("Share"), button:has-text("Visualisation")').first();

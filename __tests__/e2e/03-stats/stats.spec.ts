@@ -68,13 +68,13 @@ async function openStatsFromHome(page: import("@playwright/test").Page) {
 }
 
 test.describe("Stats Page Tests", () => {
-	test("1. should display Player Stats page by default", async ({ page }) => {
+	test("3.1. should display Player Stats page by default", async ({ page }) => {
 		await setupPlayerStatsPage(page, DEFAULT_PLAYER);
 		await page.goto("/stats", { waitUntil: "domcontentloaded" });
 		await expect(page.getByTestId("stats-page-heading").first()).toBeVisible({ timeout: 25000 });
 	});
 
-	test("2. should navigate between Stats sub-pages", async ({ page }) => {
+	test("3.2. should navigate between Stats sub-pages", async ({ page }) => {
 		await openStatsFromHome(page);
 		await page.getByTestId("nav-sidebar-team-stats").click({ timeout: 15000 });
 		await page.waitForTimeout(600);
@@ -86,7 +86,7 @@ test.describe("Stats Page Tests", () => {
 		await expect(page.getByTestId("stats-page-heading").first()).toBeVisible({ timeout: 20000 });
 	});
 
-	test("3. should open and use filter sidebar", async ({ page }) => {
+	test("3.3. should open and use filter sidebar", async ({ page }) => {
 		await openStatsFromHome(page);
 		const vp = page.viewportSize();
 		const mobile = vp ? vp.width < 768 : false;
@@ -99,7 +99,7 @@ test.describe("Stats Page Tests", () => {
 		await page.keyboard.press("Escape").catch(() => {});
 	});
 
-	test("4. should display data tables", async ({ page }) => {
+	test("3.4. should display data tables", async ({ page }) => {
 		await setupPlayerStatsPage(page, DEFAULT_PLAYER);
 		await page.goto("/stats", { waitUntil: "domcontentloaded" });
 		await expect(page.getByTestId("stats-page-heading").first()).toBeVisible({ timeout: 25000 });
@@ -107,7 +107,7 @@ test.describe("Stats Page Tests", () => {
 		await expect(page.locator("table").first()).toBeVisible({ timeout: 20000 });
 	});
 
-	test("4.1. should display tooltips on the data table", async ({ page }) => {
+	test("3.5. should display tooltips on the data table", async ({ page }) => {
 		await setupPlayerStatsPage(page, DEFAULT_PLAYER);
 		await page.goto("/stats", { waitUntil: "domcontentloaded" });
 		await expect(page.getByTestId("stats-page-heading").first()).toBeVisible({ timeout: 25000 });
@@ -119,7 +119,7 @@ test.describe("Stats Page Tests", () => {
 		await expect(tip.or(page.locator("text=/appearances|goals|minutes/i").first())).toBeVisible({ timeout: 8000 });
 	});
 
-	test("5. should display charts", async ({ page }) => {
+	test("3.6. should display charts", async ({ page }) => {
 		await setupPlayerStatsPage(page, DEFAULT_PLAYER);
 		await page.goto("/stats", { waitUntil: "domcontentloaded" });
 		await expect(page.getByTestId("stats-page-heading").first()).toBeVisible({ timeout: 25000 });
@@ -128,21 +128,21 @@ test.describe("Stats Page Tests", () => {
 		await expect(chart).toBeVisible({ timeout: 25000 });
 	});
 
-	test("6. should navigate to Team Stats sub-page", async ({ page }) => {
+	test("3.7. should navigate to Team Stats sub-page", async ({ page }) => {
 		await openStatsFromHome(page);
 		await page.getByTestId("nav-sidebar-team-stats").click({ timeout: 15000 });
 		await page.waitForTimeout(1500);
 		await expect(page.getByTestId("team-top-players-heading").first()).toBeVisible({ timeout: 20000 });
 	});
 
-	test("7. should navigate to Club Stats sub-page", async ({ page }) => {
+	test("3.8. should navigate to Club Stats sub-page", async ({ page }) => {
 		await openStatsFromHome(page);
 		await page.getByTestId("nav-sidebar-club-stats").click({ timeout: 15000 });
 		await page.waitForTimeout(1500);
 		await expect(page.getByTestId("club-top-players-heading").first()).toBeVisible({ timeout: 20000 });
 	});
 
-	test("8. should navigate to Comparison sub-page", async ({ page }) => {
+	test("3.9. should navigate to Comparison sub-page", async ({ page }) => {
 		await openStatsFromHome(page);
 		await page.getByTestId("nav-sidebar-comparison").click({ timeout: 15000 });
 		await page.waitForTimeout(1500);
@@ -153,7 +153,7 @@ test.describe("Stats Page Tests", () => {
 		}
 	});
 
-	test("9. should display all Player Stats sections", async ({ page }) => {
+	test("3.10. should display all Player Stats sections", async ({ page }) => {
 		await setupPlayerStatsPage(page, DEFAULT_PLAYER);
 		await page.goto("/stats", { waitUntil: "domcontentloaded" });
 		await expect(page.getByTestId("stats-page-heading").first()).toBeVisible({ timeout: 25000 });
@@ -164,7 +164,7 @@ test.describe("Stats Page Tests", () => {
 		}
 	});
 
-	test("10. should display all Team Stats sections", async ({ page }) => {
+	test("3.11. should display all Team Stats sections", async ({ page }) => {
 		await openStatsFromHome(page);
 		await page.getByTestId("nav-sidebar-team-stats").click({ timeout: 15000 });
 		await page.waitForTimeout(2000);
@@ -175,7 +175,7 @@ test.describe("Stats Page Tests", () => {
 		}
 	});
 
-	test("11. should display all Club Stats sections", async ({ page }) => {
+	test("3.12. should display all Club Stats sections", async ({ page }) => {
 		await openStatsFromHome(page);
 		await page.getByTestId("nav-sidebar-club-stats").click({ timeout: 15000 });
 		await page.waitForTimeout(2000);
@@ -186,7 +186,7 @@ test.describe("Stats Page Tests", () => {
 		}
 	});
 
-	test("12. should display all Comparison sections", async ({ page }) => {
+	test("3.13. should display all Comparison sections", async ({ page }) => {
 		await openStatsFromHome(page);
 		await page.getByTestId("nav-sidebar-comparison").click({ timeout: 15000 });
 		await page.waitForTimeout(2000);
@@ -197,7 +197,7 @@ test.describe("Stats Page Tests", () => {
 		}
 	});
 
-	test("13. should toggle data table on Player Stats", async ({ page }) => {
+	test("3.14. should toggle data table on Player Stats", async ({ page }) => {
 		await setupPlayerStatsPage(page, DEFAULT_PLAYER);
 		await page.goto("/stats", { waitUntil: "domcontentloaded" });
 		await expect(page.getByTestId("stats-page-heading").first()).toBeVisible({ timeout: 25000 });
@@ -206,7 +206,7 @@ test.describe("Stats Page Tests", () => {
 		await toggleDataTable(page, "visualisation");
 	});
 
-	test("14. should toggle data table on Team Stats", async ({ page }) => {
+	test("3.15. should toggle data table on Team Stats", async ({ page }) => {
 		await openStatsFromHome(page);
 		await page.getByTestId("nav-sidebar-team-stats").click({ timeout: 15000 });
 		await page.waitForTimeout(2000);
@@ -214,7 +214,7 @@ test.describe("Stats Page Tests", () => {
 		await toggleDataTable(page, "visualisation");
 	});
 
-	test("15. should toggle data table on Club Stats", async ({ page }) => {
+	test("3.16. should toggle data table on Club Stats", async ({ page }) => {
 		await openStatsFromHome(page);
 		await page.getByTestId("nav-sidebar-club-stats").click({ timeout: 15000 });
 		await page.waitForTimeout(2000);
@@ -222,7 +222,7 @@ test.describe("Stats Page Tests", () => {
 		await toggleDataTable(page, "visualisation");
 	});
 
-	test("16. stats filter and stats navigation icons should be visible", async ({ page }, testInfo) => {
+	test("3.17. stats filter and stats navigation icons should be visible", async ({ page }, testInfo) => {
 		await openStatsFromHome(page);
 		const mobile = testInfo.project.name.includes("Mobile");
 		if (mobile) {
@@ -234,7 +234,7 @@ test.describe("Stats Page Tests", () => {
 		}
 	});
 
-	test("17. all stats navigation links should correctly navigate to the correct page and section", async ({ page }, testInfo) => {
+	test("3.18. all stats navigation links should correctly navigate to the correct page and section", async ({ page }, testInfo) => {
 		await openStatsFromHome(page);
 		const mobile = testInfo.project.name.includes("Mobile");
 		if (mobile) {

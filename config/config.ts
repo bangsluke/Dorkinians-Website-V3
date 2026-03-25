@@ -180,7 +180,7 @@ export const usefulLinks: UsefulLink[] = [
 	},
 	{
 		id: "kit-store",
-		title: "Dorkinian Shop",
+		title: "Dorkinians Shop",
 		url: "https://www.dorkiniansfc.co.uk/shop",
 		description: "For annual membership payments and payment plans",
 		category: "official",
