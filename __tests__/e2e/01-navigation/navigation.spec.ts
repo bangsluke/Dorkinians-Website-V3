@@ -7,7 +7,7 @@ async function expectMainPageReady(page: import("@playwright/test").Page) {
 }
 
 test.describe("Navigation Tests", () => {
-	test("1. should navigate to Home page", async ({ page }) => {
+	test("1.1. should navigate to Home page", async ({ page }) => {
 		await page.goto("/");
 		await expectMainPageReady(page);
 		await expect(page).toHaveURL(/\/?$/);
@@ -16,7 +16,7 @@ test.describe("Navigation Tests", () => {
 		});
 	});
 
-	test("2. should navigate to Stats page", async ({ page }) => {
+	test("1.2. should navigate to Stats page", async ({ page }) => {
 		await page.goto("/");
 		await expectMainPageReady(page);
 		const statsBtn = await getVisibleNavButton(page, "stats");
@@ -24,7 +24,7 @@ test.describe("Navigation Tests", () => {
 		await expect(page.getByTestId("stats-page-heading").first()).toBeVisible({ timeout: 20000 });
 	});
 
-	test("3. should navigate to TOTW page", async ({ page }) => {
+	test("1.3. should navigate to TOTW page", async ({ page }) => {
 		await page.goto("/");
 		await expectMainPageReady(page);
 		const totwBtn = await getVisibleNavButton(page, "totw");
@@ -33,7 +33,7 @@ test.describe("Navigation Tests", () => {
 		await expect(page.locator("body")).toBeVisible();
 	});
 
-	test("4. should navigate to Club Info page", async ({ page }) => {
+	test("1.4. should navigate to Club Info page", async ({ page }) => {
 		await page.goto("/");
 		await expectMainPageReady(page);
 		const clubBtn = await getVisibleNavButton(page, "club-info");
@@ -44,7 +44,7 @@ test.describe("Navigation Tests", () => {
 
 	test.describe("Settings Navigation - Desktop", () => {
 		test.use({ viewport: { width: 1280, height: 720 } });
-		test("5. should navigate to Settings page on desktop", async ({ page }) => {
+		test("1.5. should navigate to Settings page on desktop", async ({ page }) => {
 			await page.goto("/");
 			await expectMainPageReady(page);
 			await page.getByTestId("nav-sidebar-settings").click({ timeout: 15000 });
@@ -55,7 +55,7 @@ test.describe("Navigation Tests", () => {
 
 	test.describe("Settings Navigation - Mobile", () => {
 		test.use({ viewport: { width: 390, height: 844 } });
-		test("6. should navigate to Settings page on mobile", async ({ page }) => {
+		test("1.6. should navigate to Settings page on mobile", async ({ page }) => {
 			await page.goto("/");
 			await expectMainPageReady(page);
 			await page.getByTestId("header-settings").click({ timeout: 15000 });
@@ -64,7 +64,7 @@ test.describe("Navigation Tests", () => {
 		});
 	});
 
-	test("7. should navigate between Stats sub-pages", async ({ page }) => {
+	test("1.7. should navigate between Stats sub-pages", async ({ page }) => {
 		await page.goto("/");
 		await expectMainPageReady(page);
 		const statsBtn = await getVisibleNavButton(page, "stats");
@@ -85,7 +85,7 @@ test.describe("Navigation Tests", () => {
 		await expect(page.getByTestId("stats-page-heading").first()).toBeVisible({ timeout: 20000 });
 	});
 
-	test("8. should navigate between TOTW sub-pages", async ({ page }, testInfo) => {
+	test("1.8. should navigate between TOTW sub-pages", async ({ page }, testInfo) => {
 		await page.goto("/");
 		await expectMainPageReady(page);
 		const totwBtn = await getVisibleNavButton(page, "totw");

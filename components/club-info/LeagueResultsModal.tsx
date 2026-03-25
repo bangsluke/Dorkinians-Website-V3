@@ -174,25 +174,23 @@ export default function LeagueResultsModal({
 		}
 	};
 
-	// Format goalscorers for display
+	// Format goalscorers for display (empty string when none; excludes zero-goal entries)
 	const formatGoalscorers = (goalscorers: Goalscorer[] | undefined, oppoOwnGoals: number = 0): string => {
 		const parts: string[] = [];
-		
-		// Add regular goalscorers
+
 		if (goalscorers && Array.isArray(goalscorers) && goalscorers.length > 0) {
-			const validGoalscorers = goalscorers.filter((g) => g && g.playerName);
+			const validGoalscorers = goalscorers.filter(
+				(g) => g && g.playerName && Number(g.goals) > 0
+			);
 			validGoalscorers.forEach((g) => {
-				if (g.playerName) {
-					if (g.goals === 1) {
-						parts.push(g.playerName);
-					} else {
-						parts.push(`${g.playerName} (${g.goals})`);
-					}
+				if (Number(g.goals) === 1) {
+					parts.push(g.playerName);
+				} else {
+					parts.push(`${g.playerName} (${g.goals})`);
 				}
 			});
 		}
-		
-		// Add opponent own goal if it exists
+
 		if (oppoOwnGoals > 0) {
 			if (oppoOwnGoals === 1) {
 				parts.push("Opponent Own Goal");
@@ -200,11 +198,11 @@ export default function LeagueResultsModal({
 				parts.push(`Opponent Own Goal (${oppoOwnGoals})`);
 			}
 		}
-		
+
 		if (parts.length === 0) {
-			return "No goalscorers recorded";
+			return "";
 		}
-		
+
 		return parts.join(", ");
 	};
 
@@ -281,6 +279,10 @@ export default function LeagueResultsModal({
 											const isExpanded = expandedFixtureId === fixtureId;
 											const lineup = fixtureId ? lineupByFixtureId[fixtureId] : undefined;
 											const lineupLoading = fixtureId ? lineupLoadingByFixtureId[fixtureId] : false;
+											const goalscorersText = formatGoalscorers(
+												fixture.goalscorers,
+												fixture.oppoOwnGoals || 0
+											);
 											return (
 												<div
 													key={fixtureId || index}
@@ -322,10 +324,10 @@ export default function LeagueResultsModal({
 															{formatResult(fixture)} <span className='text-base font-normal'>vs <span className='font-medium'>{fixture.opposition || "Unknown"}</span></span>
 														</div>
 														{/* Goalscorers */}
-														{((fixture.goalscorers && Array.isArray(fixture.goalscorers) && fixture.goalscorers.length > 0) || (fixture.oppoOwnGoals && fixture.oppoOwnGoals > 0)) && (
+														{goalscorersText && (
 															<div className='text-sm text-gray-300 mt-2'>
 																<span className='text-gray-400'>Goalscorers: </span>
-																{formatGoalscorers(fixture.goalscorers, fixture.oppoOwnGoals || 0)}
+																{goalscorersText}
 															</div>
 														)}
 														{/* MoM */}

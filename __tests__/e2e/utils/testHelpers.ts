@@ -173,42 +173,222 @@ export async function navigateToMainPage(page: Page, pageName: 'home' | 'stats' 
 
 	await page.goto(pageMap[pageName], { timeout: 30000, waitUntil: 'domcontentloaded' });
 
-	// If not settings and not home, use client-side navigation to switch pages
+	// If not settings and not home, use the same visible nav control as navigation tests (footer vs sidebar).
 	if (pageName !== 'settings' && pageName !== 'home') {
-		// Try test IDs first, then fall back to text-based selectors
-		const testIdSelector = `[data-testid="nav-footer-${pageName}"], [data-testid="nav-sidebar-${pageName}"]`;
-		const textSelector = pageName === 'stats'
-			? 'button:has-text("Stats"), [aria-label*="Stats"]'
-			: pageName === 'totw'
-			? 'button:has-text("TOTW"), [aria-label*="TOTW"]'
-			: 'button:has-text("Club Info"), [aria-label*="Club Info"]';
+		// Wait for a nav control in the DOM (sidebar may be hidden on mobile but still attached).
+		await page
+			.locator('[data-testid="nav-footer-home"], [data-testid="nav-sidebar-home"]')
+			.first()
+			.waitFor({ state: 'attached', timeout: 20000 });
 
-		// Try test ID first (TOTW parent/sub share nav-sidebar-totw — prefer parent row)
-		let navLoc =
-			pageName === 'totw'
-				? page.locator('[data-testid="nav-footer-totw"], [data-testid="nav-sidebar-totw"]').first()
-				: page.locator(testIdSelector).first();
-		let buttonExists = await navLoc.isVisible({ timeout: 2000 }).catch(() => false);
-		let selectorToUse = testIdSelector;
-		
-		// Fall back to text selector if test ID not found
-		if (!buttonExists) {
-			buttonExists = await page.locator(textSelector).first().isVisible({ timeout: 5000 }).catch(() => false);
-			selectorToUse = textSelector;
-		}
-		
-		if (buttonExists) {
-			if (pageName === 'totw') {
-				await navLoc.click({ timeout: 10000 });
-			} else {
-				await page.locator(selectorToUse).first().click({ timeout: 10000 });
+		const clickMainNav = async () => {
+			try {
+				if (pageName === 'stats' || pageName === 'totw' || pageName === 'club-info') {
+					const navBtn = await getVisibleNavButton(page, pageName);
+					await navBtn.click({ force: true, timeout: 15000 });
+				}
+			} catch {
+				const testIdSelector = `[data-testid="nav-footer-${pageName}"], [data-testid="nav-sidebar-${pageName}"]`;
+				const textSelector =
+					pageName === 'stats'
+						? 'button:has-text("Stats"), [aria-label*="Stats"]'
+						: pageName === 'totw'
+						? 'button:has-text("TOTW"), [aria-label*="TOTW"]'
+						: 'button:has-text("Club Info"), [aria-label*="Club Info"]';
+				let navLoc =
+					pageName === 'totw'
+						? page.locator('[data-testid="nav-footer-totw"], [data-testid="nav-sidebar-totw"]').first()
+						: page.locator(testIdSelector).first();
+				let buttonExists = await navLoc.isVisible({ timeout: 2000 }).catch(() => false);
+				let selectorToUse = testIdSelector;
+				if (!buttonExists) {
+					buttonExists = await page.locator(textSelector).first().isVisible({ timeout: 5000 }).catch(() => false);
+					selectorToUse = textSelector;
+				}
+				if (buttonExists) {
+					if (pageName === 'totw') {
+						await navLoc.click({ force: true, timeout: 10000 });
+					} else {
+						await page.locator(selectorToUse).first().click({ force: true, timeout: 10000 });
+					}
+				}
 			}
-			await page.waitForLoadState('domcontentloaded', { timeout: 10000 });
+		};
+
+		const mainContentReady = async (): Promise<boolean> => {
+			if (pageName === 'stats') {
+				return page.getByTestId('stats-page-heading').isVisible({ timeout: 8000 }).catch(() => false);
+			}
+			if (pageName === 'totw') {
+				// Season listbox is not mounted until TOTW data has loaded (see TeamOfTheWeek.tsx).
+				return page
+					.getByRole('heading', { level: 1, name: /Team of (the Week|the Season|All Time)/i })
+					.isVisible({ timeout: 12000 })
+					.catch(() => false);
+			}
+			if (pageName === 'club-info') {
+				return page
+					.getByRole('heading', { name: /Club Information/i })
+					.isVisible({ timeout: 8000 })
+					.catch(() => false);
+			}
+			return false;
+		};
+
+		/** Footer only calls setMainPage; persisted sub-page may hide the default view (TOTW pitch / club information). */
+		const ensureDefaultSubPage = async () => {
+			if (pageName === 'totw') {
+				// Mobile footer leaves TOTW sub-page on whatever was persisted (often Players of the Month).
+				if (await page.getByTestId('players-of-month-season-selector').isVisible({ timeout: 1500 }).catch(() => false)) {
+					const dot = page.getByTestId('totw-subpage-indicator-totw');
+					if (await dot.isVisible({ timeout: 2000 }).catch(() => false)) {
+						await dot.click({ force: true, timeout: 10000 });
+					} else {
+						const sub = page.getByRole('button', { name: 'Team of the Week' });
+						if (await sub.isVisible({ timeout: 2000 }).catch(() => false)) {
+							await sub.click({ force: true, timeout: 10000 });
+						}
+					}
+				}
+			} else if (pageName === 'club-info') {
+				if (await page.getByRole('heading', { name: /Club Information/i }).isVisible({ timeout: 2000 }).catch(() => false)) {
+					return;
+				}
+				const dot = page.getByTestId('club-info-subpage-indicator-0');
+				if (await dot.isVisible({ timeout: 2000 }).catch(() => false)) {
+					await dot.click({ force: true, timeout: 10000 });
+					return;
+				}
+				const sub = page.getByRole('button', { name: 'Club Information' });
+				if (await sub.isVisible({ timeout: 2000 }).catch(() => false)) {
+					await sub.click({ force: true, timeout: 10000 });
+				}
+			}
+		};
+
+		for (let attempt = 0; attempt < 3; attempt++) {
+			await clickMainNav();
+			await page.waitForLoadState('domcontentloaded', { timeout: 10000 }).catch(() => {});
+			await ensureDefaultSubPage();
+			if (await mainContentReady()) {
+				break;
+			}
+			await page.waitForTimeout(350);
+		}
+
+		if (pageName === 'stats') {
+			await page.getByTestId('stats-page-heading').waitFor({ state: 'visible', timeout: 20000 });
+		} else if (pageName === 'totw') {
+			await page
+				.getByRole('heading', { level: 1, name: /Team of (the Week|the Season|All Time)/i })
+				.waitFor({ state: 'visible', timeout: 20000 });
+			await page.getByTestId('totw-season-selector').waitFor({ state: 'visible', timeout: 65000 });
+		} else if (pageName === 'club-info') {
+			await page.getByRole('heading', { name: /Club Information/i }).waitFor({ state: 'visible', timeout: 25000 });
 		}
 	}
 	
 	// Final wait for page to be ready
 	await waitForPageLoad(page);
+}
+
+export type ClubInfoSubPageId =
+	| "club-information"
+	| "league-information"
+	| "club-captains"
+	| "club-awards"
+	| "useful-links";
+
+const CLUB_INFO_SUBPAGE_DOT_INDEX: Record<ClubInfoSubPageId, number> = {
+	"club-information": 0,
+	"league-information": 1,
+	"club-captains": 2,
+	"club-awards": 3,
+	"useful-links": 4,
+};
+
+/**
+ * Navigate between Club Info sub-pages (mobile dot indicators vs desktop sidebar).
+ * Precondition: main Club Info area is already open (`navigateToMainPage(page, "club-info")`).
+ */
+const CLUB_INFO_SUB_HEADING: Record<ClubInfoSubPageId, RegExp> = {
+	"club-information": /Club Information/i,
+	"league-information": /League Information/i,
+	"club-captains": /Club Captains/i,
+	"club-awards": /Club Awards/i,
+	"useful-links": /Useful Links/i,
+};
+
+const CLUB_INFO_SIDEBAR_LABEL: Record<ClubInfoSubPageId, string> = {
+	"club-information": "Club Information",
+	"league-information": "League Information",
+	"club-captains": "Club Captains",
+	"club-awards": "Club Awards",
+	"useful-links": "Useful Links",
+};
+
+export async function goToClubInfoSubPage(page: Page, subPageId: ClubInfoSubPageId) {
+	const viewport = page.viewportSize();
+	const isMobile = viewport !== null && viewport.width < 768;
+	const headingRe = CLUB_INFO_SUB_HEADING[subPageId];
+
+	for (let attempt = 0; attempt < 3; attempt++) {
+		if (isMobile) {
+			const idx = CLUB_INFO_SUBPAGE_DOT_INDEX[subPageId];
+			const dot = page.getByTestId(`club-info-subpage-indicator-${idx}`);
+			await dot.waitFor({ state: "visible", timeout: 15000 });
+			await dot.click({ force: true, timeout: 10000 });
+		} else if (attempt < 2) {
+			await page.keyboard.press("Escape").catch(() => {});
+			const btn = page.locator("aside").getByTestId(`nav-sidebar-${subPageId}`);
+			await btn.waitFor({ state: "visible", timeout: 15000 });
+			await btn.scrollIntoViewIfNeeded();
+			try {
+				await btn.click({ timeout: 8000 });
+			} catch {
+				await btn.click({ force: true, timeout: 10000 });
+			}
+			if (!(await page.getByRole("heading", { name: headingRe }).isVisible({ timeout: 2500 }).catch(() => false))) {
+				const fallback = page
+					.locator("aside")
+					.getByRole("button", { name: CLUB_INFO_SIDEBAR_LABEL[subPageId] });
+				await fallback.click({ timeout: 10000 }).catch(() => fallback.click({ force: true, timeout: 10000 }));
+			}
+		} else {
+			const btn = page.locator("aside").getByTestId(`nav-sidebar-${subPageId}`);
+			await btn.evaluate((n) => (n as HTMLButtonElement).click());
+		}
+		await page.waitForLoadState("domcontentloaded", { timeout: 10000 });
+		if (await page.getByRole("heading", { name: headingRe }).isVisible({ timeout: 5000 }).catch(() => false)) {
+			return;
+		}
+	}
+}
+
+export type TOTWSubPageId = "totw" | "players-of-month";
+
+/**
+ * Navigate between TOTW sub-pages (mobile dot indicators vs desktop sidebar).
+ * Precondition: TOTW main section is open (`navigateToMainPage(page, "totw")`).
+ */
+export async function goToTOTWSubPage(page: Page, subPageId: TOTWSubPageId) {
+	const viewport = page.viewportSize();
+	const isMobile = viewport !== null && viewport.width < 768;
+	if (isMobile) {
+		await page.getByTestId(`totw-subpage-indicator-${subPageId}`).click({ force: true, timeout: 15000 });
+	} else if (subPageId === "totw") {
+		await page.getByTestId("nav-sidebar-totw").first().click({ force: true, timeout: 15000 });
+	} else {
+		await page.getByTestId("nav-sidebar-players-of-month").click({ force: true, timeout: 15000 });
+	}
+	await page.waitForLoadState("domcontentloaded", { timeout: 10000 });
+}
+
+/** Wait for TOTW / PoM loading skeleton panels to finish (best-effort). */
+export async function waitForTotwSkeletonsGone(page: Page, timeout = 45000) {
+	const skel = page.getByTestId("loading-skeleton");
+	if ((await skel.count()) === 0) return;
+	await skel.first().waitFor({ state: "hidden", timeout });
 }
 
 /**
