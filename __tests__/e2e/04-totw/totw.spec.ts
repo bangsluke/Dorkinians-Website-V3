@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import {
+	isMobileProject,
 	navigateToMainPage,
 	goToTOTWSubPage,
 	waitForTotwSkeletonsGone,
@@ -111,7 +112,7 @@ test.describe("TOTW Page Tests", () => {
 		page,
 	}, testInfo) => {
 		await navigateToMainPage(page, "totw");
-		const mobile = testInfo.project.name.includes("Mobile");
+		const mobile = isMobileProject(testInfo);
 		if (mobile) {
 			await page.getByTestId("totw-subpage-indicator-players-of-month").click({ timeout: 15000 });
 		} else {

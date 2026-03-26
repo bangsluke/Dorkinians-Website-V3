@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { selectPlayer, submitChatbotQuery, waitForChatbot } from "../utils/testHelpers";
+import { isMobileProject, selectPlayer, submitChatbotQuery, waitForChatbot } from "../utils/testHelpers";
 
 const DEFAULT_PLAYER = process.env.E2E_PLAYER_NAME || "Luke Bangs";
 
@@ -66,21 +66,21 @@ test.describe("Home Page Tests", () => {
 		await expect(page.getByRole("button", { name: /Select question:/i }).first()).toBeVisible({ timeout: 10000 });
 	});
 
-	test("2.9. should close modal and load question into chatbot input when example question is clicked", async ({ page }) => {
+	test("2.9. when an example question is clicked in the example questions modal, it should close the modal, load the question into the chatbot input and submit the question", async ({ page }) => {
 		await page.goto("/");
 		await selectPlayer(page, DEFAULT_PLAYER);
 		await waitForChatbot(page);
 		await page.getByTestId("chatbot-show-more-example-questions").click({ timeout: 15000 });
 		await page.getByRole("button", { name: /Select question:/i }).first().click({ timeout: 15000 });
-		const inputVal = await page.getByTestId("chatbot-input").inputValue({ timeout: 15000 });
-		expect(inputVal.trim().length).toBeGreaterThan(8);
+		await waitForChatbot(page);
+		await expect(page.getByTestId("chatbot-answer")).toBeVisible({ timeout: 120000 });
 	});
 
 	test("2.10. stats filter and stats navigation icons should not be visible", async ({ page }, testInfo) => {
 		await page.goto("/");
 		await selectPlayer(page, DEFAULT_PLAYER);
 		await waitForChatbot(page);
-		const mobile = testInfo.project.name.includes("Mobile");
+		const mobile = isMobileProject(testInfo);
 		if (mobile) {
 			await expect(page.getByTestId("header-filter")).toHaveCount(0);
 			await expect(page.getByTestId("header-menu")).toHaveCount(0);

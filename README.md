@@ -71,6 +71,9 @@
   - [Chatbot Query Endpoint](#chatbot-query-endpoint)
   - [Database Seeding Endpoint](#database-seeding-endpoint)
 - [Additional Documentation](#additional-documentation)
+- [Testing Commands and Coverage](#testing-commands-and-coverage)
+  - [Coverage Policy](#coverage-policy)
+  - [Coverage Governance Docs](#coverage-governance-docs)
 
 ## Project Overview
 
@@ -760,11 +763,20 @@ The project uses a unified schema system where configuration files are synchroni
 
 ## Testing Commands and Coverage
 
-- `npm run test` runs unit + integration + e2e.
+- `npm run test` runs unit, integration, advanced, comprehensive, validation, performance, monitoring, security, ux, e2e, and report scripts as a strict all-pass pipeline (report emails suppressed).
 - `npm run test:all` runs unit, integration, advanced, comprehensive, validation, performance, monitoring, security, ux, e2e, and report scripts as a strict all-pass pipeline (report emails suppressed).
 - `npm run test:all:emails` runs the same strict pipeline but enables chatbot/questions report emails.
 - `npm run test:weekly:email` runs the weekly consolidated test summary email with Unit, Integration, E2E and subsection breakdowns.
 - `npm run test:coverage` generates Jest coverage output to `coverage/` (`text`, `lcov`, and `html`).
+
+To run the E2E tests for just one area, use the following commands:
+- `npm run test:e2e:navigation` - Run only the navigation tests
+- `npm run test:e2e:home` - Run only the home page tests
+- `npm run test:e2e:stats` - Run only the stats page tests
+- `npm run test:e2e:totw` - Run only the TOTW page tests
+- `npm run test:e2e:club-info` - Run only the club info page tests
+- `npm run test:e2e:settings` - Run only the settings page tests
+- `npm run test:e2e:admin` - Run only the admin page tests
 
 ### Coverage Policy
 

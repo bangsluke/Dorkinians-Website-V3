@@ -1,10 +1,9 @@
 {
 	"name": "dorkinians-website-v3",
-	"version": "3.2.0",
+	"version": "3.2.1",
 	"description": "Dorkinians FC Statistics Website",
 	"private": true,
 	"scripts": {
-		"test": "npm run test:unit && npm run test:integration && npm run test:e2e",
 		"dev": "cross-env CONSOLE_LOG_LEVEL=info next dev",
 		"dev:debug": "cross-env CONSOLE_LOG_LEVEL=debug next dev",
 		"dev:quiet": "cross-env CONSOLE_LOG_LEVEL=error next dev",
@@ -16,6 +15,7 @@
 		"type-check": "tsc --noEmit",
 		"apply-schema": "node scripts/apply-schema.js",
 		"sync-config": "cd ../database-dorkinians && npm run sync-config",
+		"test": "node __tests__/scripts/test-all.js",
 		"test:all": "node __tests__/scripts/test-all.js",
 		"test:all:emails": "node __tests__/scripts/test-all.js --emails",
 		"test:all:debug": "node __tests__/scripts/test-all.js --debug",

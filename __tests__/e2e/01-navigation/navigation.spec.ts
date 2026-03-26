@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { getVisibleNavButton } from "../utils/testHelpers";
+import { clickStatsSubPage, getVisibleNavButton, isMobileProject } from "../utils/testHelpers";
 
 async function expectMainPageReady(page: import("@playwright/test").Page) {
 	await page.waitForLoadState("domcontentloaded");
@@ -71,17 +71,26 @@ test.describe("Navigation Tests", () => {
 		await statsBtn.click({ timeout: 15000 });
 		await expect(page.getByTestId("stats-page-heading").first()).toBeVisible({ timeout: 20000 });
 
-		await page.getByTestId("nav-sidebar-team-stats").click({ timeout: 15000 });
-		await page.waitForTimeout(800);
-		await expect(page.locator("body")).toBeVisible();
+		await clickStatsSubPage(page, "team-stats");
+		const teamTopPlayersHeading = page.getByTestId("team-top-players-heading").first();
+		const teamStatsHeading = page.getByRole("heading", { name: /Team Stats/i }).first();
+		try {
+			await expect(teamTopPlayersHeading).toBeVisible({ timeout: 20000 });
+		} catch {
+			await expect(teamStatsHeading).toBeVisible({ timeout: 20000 });
+		}
 
-		await page.getByTestId("nav-sidebar-club-stats").click({ timeout: 15000 });
-		await page.waitForTimeout(800);
+		await clickStatsSubPage(page, "club-stats");
+		await expect(page.getByTestId("club-top-players-heading").first().or(page.getByText(/No team data available/i))).toBeVisible({
+			timeout: 20000,
+		});
 
-		await page.getByTestId("nav-sidebar-comparison").click({ timeout: 15000 });
-		await page.waitForTimeout(800);
+		await clickStatsSubPage(page, "comparison");
+		await expect(
+			page.locator("#comparison-radar-chart").or(page.getByText(/No data available for comparison/i)).or(page.getByText(/Select a player to display data here/i))
+		).toBeVisible({ timeout: 20000 });
 
-		await page.getByTestId("nav-sidebar-player-stats").click({ timeout: 15000 });
+		await clickStatsSubPage(page, "player-stats");
 		await expect(page.getByTestId("stats-page-heading").first()).toBeVisible({ timeout: 20000 });
 	});
 
@@ -92,7 +101,7 @@ test.describe("Navigation Tests", () => {
 		await totwBtn.click({ timeout: 15000 });
 		await page.waitForTimeout(500);
 
-		const mobile = testInfo.project.name.includes("Mobile");
+		const mobile = isMobileProject(testInfo);
 
 		if (mobile) {
 			await page.getByTestId("totw-subpage-indicator-players-of-month").click({ timeout: 15000 });

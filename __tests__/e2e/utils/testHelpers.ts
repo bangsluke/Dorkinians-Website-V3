@@ -1,4 +1,4 @@
-import { Page, expect } from '@playwright/test';
+import { Page, TestInfo, expect } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -121,6 +121,13 @@ export function logSectionHeader(sectionName: string, emoji: string, number: str
 export async function waitForPageLoad(page: Page) {
 	// Wait for DOM - networkidle is unreliable with continuous requests (analytics, websockets, etc.)
 	await page.waitForLoadState('domcontentloaded', { timeout: 10000 });
+}
+
+/**
+ * Standard project-level mobile/desktop check for E2E tests.
+ */
+export function isMobileProject(testInfo: TestInfo): boolean {
+	return testInfo.project.name.includes('Mobile');
 }
 
 /**
@@ -540,6 +547,9 @@ export async function setPlayerDirectly(page: Page, playerName: string) {
  * without requiring navigation to home page
  */
 export async function setupPlayerStatsPage(page: Page, playerName: string) {
+	// localStorage access requires a same-origin document context.
+	await page.goto('/', { waitUntil: 'domcontentloaded' });
+
 	await page.evaluate((name) => {
 		// Set selected player (required for Player Stats)
 		localStorage.setItem('dorkinians-selected-player', name);
@@ -568,13 +578,25 @@ export async function setupPlayerStatsPage(page: Page, playerName: string) {
 		playerName,
 		{ timeout: 5000 }
 	);
+
+	// Trigger app initialization from storage for stats route.
+	// Without this, some tests may land on "No player data available" if initialization happens after assertions.
+	await page.goto('/stats', { waitUntil: 'domcontentloaded' });
+	await page.waitForTimeout(500);
 }
 
 /**
  * Wait for chatbot to appear
  */
 export async function waitForChatbot(page: Page) {
-	await waitForElement(page, '[data-testid="chatbot-input"]', { timeout: 10000 });
+	// Ensure the player selection has finished first (prevents racing with player/chatbot transitions)
+	await waitForElement(page, '[data-testid="home-edit-player-button"]', { timeout: 20000 });
+	
+	const viewport = page.viewportSize();
+	const isMobile = viewport !== null && viewport.width < 768;
+	const timeout = isMobile ? 10000 : 20000;
+	
+	await waitForElement(page, '[data-testid="chatbot-input"]', { timeout });
 }
 
 /**
@@ -658,6 +680,101 @@ export async function getVisibleNavButton(page: Page, pageId: 'home' | 'stats' |
 	
 	// If neither is visible yet, return the one that should be visible based on viewport
 	return isMobile ? footerButton : sidebarButton;
+}
+
+export type StatsSubPageId = "player-stats" | "team-stats" | "club-stats" | "comparison";
+
+/**
+ * Click a stats sub-page control and wait for the target content to render.
+ * Mobile uses the dot indicators; desktop uses the sidebar buttons.
+ */
+export async function clickStatsSubPage(page: Page, subPageId: StatsSubPageId) {
+	const viewport = page.viewportSize();
+	const isMobile = viewport !== null && viewport.width < 768;
+	
+	const MOBILE_INDICES: Record<StatsSubPageId, number> = {
+		"player-stats": 0,
+		"team-stats": 1,
+		"club-stats": 2,
+		"comparison": 3,
+	};
+	
+	if (isMobile) {
+		const idx = MOBILE_INDICES[subPageId];
+		const indicator = page.getByTestId(`stats-subpage-indicator-${idx}`);
+		await indicator.waitFor({ state: "visible", timeout: 15000 });
+		await indicator.click({ timeout: 15000 });
+	} else {
+		const btn = page.getByTestId(`nav-sidebar-${subPageId}`);
+		await btn.waitFor({ state: "visible", timeout: 15000 });
+		await btn.scrollIntoViewIfNeeded();
+		await btn.click({ timeout: 15000 });
+	}
+	
+	// Wait for the relevant sub-page marker.
+	// These selectors should exist regardless of viewport.
+	const contentTimeout = 45000;
+	switch (subPageId) {
+		case "player-stats":
+			await page.getByTestId("stats-page-heading").first().waitFor({ state: "visible", timeout: contentTimeout });
+			break;
+		case "team-stats":
+			// Team stats can now render either with loaded content or with page header
+			// while team data is being initialized/selected.
+			{
+				const teamHeading = page.getByTestId("team-top-players-heading").first();
+				const teamPageHeading = page.getByRole("heading", { name: /Team Stats/i }).first();
+				
+				const headingTimeout = 5000;
+				try {
+					await teamHeading.waitFor({ state: "visible", timeout: headingTimeout });
+				} catch {
+					await teamPageHeading.waitFor({ state: "visible", timeout: contentTimeout });
+				}
+			}
+			break;
+		case "club-stats":
+			{
+				const clubHeading = page.getByTestId("club-top-players-heading").first();
+				const clubPageHeading = page.getByRole("heading", { name: /Club Stats/i }).first();
+				const clubEmpty = page.getByText(/No team data available/i).first();
+				
+				const headingTimeout = 5000;
+				try {
+					await clubHeading.waitFor({ state: "visible", timeout: headingTimeout });
+				} catch {
+					try {
+						await clubPageHeading.waitFor({ state: "visible", timeout: headingTimeout });
+					} catch {
+						await clubEmpty.waitFor({ state: "visible", timeout: contentTimeout });
+					}
+				}
+			}
+			break;
+		case "comparison":
+			{
+				const radar = page.locator("#comparison-radar-chart").first();
+				const comparisonPageHeading = page.getByRole("heading", { name: /Player Comparison|Comparison/i }).first();
+				const comparisonSelectPrompt = page.getByText(/Select a player to display data here/i).first();
+				const comparisonEmpty = page.getByText(/No data available for comparison/i).first();
+				
+				const headingTimeout = 5000;
+				try {
+					await radar.waitFor({ state: "visible", timeout: headingTimeout });
+				} catch {
+					try {
+						await comparisonSelectPrompt.waitFor({ state: "visible", timeout: headingTimeout });
+					} catch {
+						try {
+							await comparisonEmpty.waitFor({ state: "visible", timeout: headingTimeout });
+						} catch {
+							await comparisonPageHeading.waitFor({ state: "visible", timeout: contentTimeout });
+						}
+					}
+				}
+			}
+			break;
+	}
 }
 
 /**
