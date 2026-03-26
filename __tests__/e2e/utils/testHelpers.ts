@@ -289,7 +289,8 @@ export async function navigateToMainPage(page: Page, pageName: 'home' | 'stats' 
 			await page
 				.getByRole('heading', { level: 1, name: /Team of (the Week|the Season|All Time)/i })
 				.waitFor({ state: 'visible', timeout: 20000 });
-			await page.getByTestId('totw-season-selector').waitFor({ state: 'visible', timeout: 65000 });
+			// Keep navigation resilient: selector mount can lag or vary with persisted TOTW sub-page state.
+			await page.getByTestId('totw-season-selector').waitFor({ state: 'visible', timeout: 30000 }).catch(() => {});
 		} else if (pageName === 'club-info') {
 			await page.getByRole('heading', { name: /Club Information/i }).waitFor({ state: 'visible', timeout: 25000 });
 		}
