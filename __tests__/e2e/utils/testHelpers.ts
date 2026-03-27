@@ -640,10 +640,17 @@ export async function setupPlayerStatsPage(page: Page, playerName: string) {
 		{ timeout: 5000 }
 	);
 
-	// Trigger app initialization from storage for stats route.
-	// Without this, some tests may land on "No player data available" if initialization happens after assertions.
-	await page.goto('/stats', { waitUntil: 'domcontentloaded' });
-	await page.waitForTimeout(500);
+	// Trigger app initialization from storage.
+	// The app renders Stats from `/` based on localStorage, so navigating to `/stats` would 404.
+	await page.reload({ waitUntil: 'domcontentloaded' });
+	// Wait for either the stats heading or the empty-state heading.
+	// Use a single consolidated readiness check to avoid race conditions.
+	const statsHeading = page.getByTestId('stats-page-heading').first();
+	const noPlayerHeading = page.getByRole('heading', { name: /No player data available/i }).first();
+	await Promise.race([
+		statsHeading.waitFor({ state: 'visible', timeout: 20000 }),
+		noPlayerHeading.waitFor({ state: 'visible', timeout: 20000 }),
+	]);
 }
 
 /**

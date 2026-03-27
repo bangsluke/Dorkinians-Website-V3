@@ -61,11 +61,14 @@ const CLUB_SECTION_IDS = [
 
 async function openStatsFromHome(page: import("@playwright/test").Page) {
 	const goToStatsRoute = async () => {
-		await page.goto("/stats", { waitUntil: "domcontentloaded" });
+		// Stats is rendered from `/` based on localStorage (`dorkinians-current-main-page`).
+		// Navigating to `/stats` would 404.
+		await page.goto("/", { waitUntil: "domcontentloaded" });
+		await page.waitForTimeout(500);
 	};
 
 	await setupPlayerStatsPage(page, DEFAULT_PLAYER);
-	// setupPlayerStatsPage navigates to `/stats` after setting storage.
+	// setupPlayerStatsPage triggers the app to render Stats from `/` after setting storage.
 	// In dev, route compilation can temporarily render Next.js 404; retry from home when that happens.
 	for (let attempt = 0; attempt < 3; attempt++) {
 		await page.waitForLoadState("domcontentloaded");
