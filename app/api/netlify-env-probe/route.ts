@@ -3,15 +3,11 @@ import { NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 
 /**
- * Temporary Netlify diagnostic. Gated on Netlify’s built-in `NETLIFY` flag (not a UI secret),
- * because custom env vars are the ones failing—`NETLIFY_ENV_PROBE` would 404 forever.
+ * Temporary Netlify diagnostic. Do not gate on `NETLIFY` / `CONTEXT` / `DEPLOY_URL` — on this
+ * stack those can be unset while user env vars are present (classic function probe showed nulls).
  * Remove this route after debugging.
  */
 export async function GET() {
-	if (process.env.NETLIFY !== "true") {
-		return new NextResponse(null, { status: 404 });
-	}
-
 	const check = (key: string) => typeof process.env[key] === "string" && process.env[key]!.length > 0;
 
 	const keys = [
