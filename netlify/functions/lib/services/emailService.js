@@ -1,4 +1,11 @@
+const path = require("path");
 const nodemailer = require("nodemailer");
+const {
+	renderReportEmailHtml,
+	buildSubject,
+	buildDefaultContext,
+	renderSmtpPingInnerHtml,
+} = require(path.join(__dirname, "../../../../lib/email/dorkiniansReportEmail.js"));
 
 class EmailService {
 	constructor() {
@@ -271,18 +278,21 @@ class EmailService {
 		}
 
 		try {
+			const html = renderReportEmailHtml({
+				title: "SMTP connectivity check",
+				subtitle: "Dorkinians Stats Website",
+				context: buildDefaultContext({
+					triggeredBy: "emailService.sendTestEmail",
+					npmScript: "Netlify function",
+				}),
+				innerHtml: renderSmtpPingInnerHtml(),
+			});
 			const mailOptions = {
 				from: this.config.from,
 				to: this.config.to,
-				subject: "🧪 Test Email - Dorkinians Website V3",
-				html: `
-					<h2>🧪 Test Email</h2>
-					<p>This is a test email to verify the email service configuration.</p>
-					<p><strong>Timestamp:</strong> ${new Date().toLocaleString()}</p>
-					<p><strong>Environment:</strong> ${process.env.NODE_ENV || "unknown"}</p>
-					<hr>
-					<p><em>If you receive this email, the email service is working correctly.</em></p>
-				`,
+				subject: buildSubject("SMTP connectivity check"),
+				text: "SMTP connectivity check: if you received this message, outbound mail from the Dorkinians site backend is configured.",
+				html,
 			};
 
 			const info = await this.transporter.sendMail(mailOptions);

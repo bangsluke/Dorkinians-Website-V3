@@ -133,7 +133,7 @@ test.describe("Stats Page Tests", () => {
 		test.setTimeout(120000);
 		await openStatsFromHome(page);
 		if (await page.getByRole("heading", { name: /No player data available/i }).isVisible({ timeout: 2000 }).catch(() => false)) {
-			test.skip();
+			test.skip(true, "No player data available — cannot exercise stats sub-page navigation.");
 			return;
 		}
 		// On some mobile renders, the stats subpage controls do not mount consistently.
@@ -141,7 +141,7 @@ test.describe("Stats Page Tests", () => {
 		const indicatorVisible = await page.getByTestId("stats-subpage-indicator-1").isVisible({ timeout: 3000 }).catch(() => false);
 		const goToVisible = await page.getByRole("button", { name: /Go to Team Stats|Team Stats/i }).first().isVisible({ timeout: 1500 }).catch(() => false);
 		if (!indicatorVisible && !goToVisible) {
-			test.skip();
+			test.skip(true, "Stats subpage controls not visible (mobile/flaky mount) — skipping navigation.");
 			return;
 		}
 		await clickStatsSubPage(page, "team-stats");
@@ -167,7 +167,7 @@ test.describe("Stats Page Tests", () => {
 		await openStatsFromHome(page);
 		const noPlayerData = page.getByRole("heading", { name: /No player data available/i }).first();
 		if (await noPlayerData.isVisible({ timeout: 2500 }).catch(() => false)) {
-			test.skip();
+			test.skip(true, "No player data available — cannot assert data tables.");
 			return;
 		}
 		await expect(page.locator("main")).toBeVisible({ timeout: 25000 });
@@ -178,7 +178,7 @@ test.describe("Stats Page Tests", () => {
 		}
 		const table = page.locator("table").first();
 		if (!(await table.isVisible({ timeout: 20000 }).catch(() => false))) {
-			test.skip();
+			test.skip(true, "No data table visible after toggling — skipping table assertions.");
 			return;
 		}
 		await expect(table).toBeVisible({ timeout: 20000 });
@@ -187,11 +187,11 @@ test.describe("Stats Page Tests", () => {
 	test("3.5. should display tooltips on the data table", async ({ page }) => {
 		await openStatsFromHome(page);
 		if (await page.getByRole("heading", { name: /No player data available/i }).first().isVisible({ timeout: 2500 }).catch(() => false)) {
-			test.skip();
+			test.skip(true, "No player data available — cannot test table tooltips.");
 			return;
 		}
 		if (!(await page.getByTestId("stats-page-heading").first().isVisible({ timeout: 25000 }).catch(() => false))) {
-			test.skip();
+			test.skip(true, "Stats page heading not visible — skipping tooltip test.");
 			return;
 		}
 		const toggle = page.getByRole("button", { name: /Switch to (data table|data visualisation)/i });
@@ -200,7 +200,7 @@ test.describe("Stats Page Tests", () => {
 		}
 		const row = page.locator("table tbody tr").first();
 		if (!(await row.isVisible({ timeout: 20000 }).catch(() => false))) {
-			test.skip();
+			test.skip(true, "No table row visible — cannot hover for tooltip.");
 			return;
 		}
 		await row.hover({ timeout: 10000 });
@@ -217,7 +217,7 @@ test.describe("Stats Page Tests", () => {
 	test("3.6. should display charts", async ({ page }) => {
 		await openStatsFromHome(page);
 		if (!(await page.getByTestId("stats-page-heading").first().isVisible({ timeout: 25000 }).catch(() => false))) {
-			test.skip();
+			test.skip(true, "Stats page heading not visible — skipping chart test.");
 			return;
 		}
 		const tableToggle = page.getByRole("button", { name: /Switch to data visualisation/i });
@@ -227,7 +227,7 @@ test.describe("Stats Page Tests", () => {
 		await page.waitForTimeout(2000);
 		const chart = page.locator(".recharts-wrapper, canvas, svg.recharts-surface").first();
 		if (!(await chart.isVisible({ timeout: 25000 }).catch(() => false))) {
-			test.skip();
+			test.skip(true, "Chart/visualisation not visible after toggle — skipping.");
 			return;
 		}
 		await expect(chart).toBeVisible({ timeout: 25000 });
@@ -236,7 +236,7 @@ test.describe("Stats Page Tests", () => {
 	test("3.7. should navigate to Team Stats sub-page", async ({ page }) => {
 		await openStatsFromHome(page);
 		if (!(await clickStatsSubPage(page, "team-stats"))) {
-			test.skip();
+			test.skip(true, "Could not open Team Stats sub-page — control not available.");
 			return;
 		}
 		const teamTopPlayersHeading = page.getByTestId("team-top-players-heading").first();
@@ -251,14 +251,14 @@ test.describe("Stats Page Tests", () => {
 	test("3.8. should navigate to Club Stats sub-page", async ({ page }) => {
 		await openStatsFromHome(page);
 		if (!(await clickStatsSubPage(page, "club-stats"))) {
-			test.skip();
+			test.skip(true, "Could not open Club Stats sub-page — control not available.");
 			return;
 		}
 		// Club Stats can legitimately be empty when there is no team data available.
 		const clubHeading = page.getByTestId("club-top-players-heading").first();
 		const noTeam = page.getByText(/No team data available/i).first();
 		if (!(await clubHeading.or(noTeam).isVisible({ timeout: 20000 }).catch(() => false))) {
-			test.skip();
+			test.skip(true, "Club Stats heading and empty state not visible — skipping.");
 			return;
 		}
 	});
@@ -266,7 +266,7 @@ test.describe("Stats Page Tests", () => {
 	test("3.9. should navigate to Comparison sub-page", async ({ page }) => {
 		await openStatsFromHome(page);
 		if (!(await clickStatsSubPage(page, "comparison"))) {
-			test.skip();
+			test.skip(true, "Could not open Comparison sub-page — control not available.");
 			return;
 		}
 		// Comparison UI has changed its empty-state prompt text; the heading is stable and unambiguous.
@@ -280,19 +280,19 @@ test.describe("Stats Page Tests", () => {
 		await openStatsFromHome(page);
 		const noPlayerData = page.getByRole("heading", { name: /No player data available/i }).first();
 		if (await noPlayerData.isVisible({ timeout: 2500 }).catch(() => false)) {
-			test.skip();
+			test.skip(true, "No player data available — cannot enumerate Player Stats sections.");
 			return;
 		}
 		await expect(page.locator("main")).toBeVisible({ timeout: 25000 });
 		if (isMobileProject(testInfo)) {
-			test.skip();
+			test.skip(true, "Skipped on mobile: full Player Stats section sweep is desktop-only.");
 			return;
 		}
 		for (const id of PLAYER_SECTION_IDS) {
 			const el = page.locator(`#${id}`);
 			await el.scrollIntoViewIfNeeded().catch(() => {});
 			if (!(await el.isVisible({ timeout: 20000 }).catch(() => false))) {
-				test.skip();
+				test.skip(true, `Player Stats section #${id} not visible after scroll — skipping remainder.`);
 				return;
 			}
 		}
@@ -303,14 +303,14 @@ test.describe("Stats Page Tests", () => {
 		await openStatsFromHome(page);
 		await clickStatsSubPage(page, "team-stats");
 		if (await page.getByText(/No team data available/i).isVisible({ timeout: 2500 }).catch(() => false)) {
-			test.skip();
+			test.skip(true, "No team data — cannot enumerate Team Stats sections.");
 			return;
 		}
 		for (const id of TEAM_SECTION_IDS) {
 			const el = page.locator(`#${id}`);
 			await el.scrollIntoViewIfNeeded().catch(() => {});
 			if (!(await el.isVisible({ timeout: 25000 }).catch(() => false))) {
-				test.skip();
+				test.skip(true, `Team Stats section #${id} not visible after scroll — skipping remainder.`);
 				return;
 			}
 		}
@@ -321,14 +321,14 @@ test.describe("Stats Page Tests", () => {
 		await openStatsFromHome(page);
 		await clickStatsSubPage(page, "club-stats");
 		if (await page.getByText(/No team data available/i).isVisible({ timeout: 2500 }).catch(() => false)) {
-			test.skip();
+			test.skip(true, "No team/club data — cannot enumerate Club Stats sections.");
 			return;
 		}
 		for (const id of CLUB_SECTION_IDS) {
 			const el = page.locator(`#${id}`);
 			await el.scrollIntoViewIfNeeded().catch(() => {});
 			if (!(await el.isVisible({ timeout: 30000 }).catch(() => false))) {
-				test.skip();
+				test.skip(true, `Club Stats section #${id} not visible after scroll — skipping remainder.`);
 				return;
 			}
 		}
@@ -337,7 +337,7 @@ test.describe("Stats Page Tests", () => {
 	test("3.13. should display all Comparison sections", async ({ page }) => {
 		await openStatsFromHome(page);
 		if (!(await clickStatsSubPage(page, "comparison"))) {
-			test.skip();
+			test.skip(true, "Could not open Comparison sub-page — control not available.");
 			return;
 		}
 		// Comparison UI has changed its empty-state prompt text; use the stable heading marker.
@@ -349,17 +349,17 @@ test.describe("Stats Page Tests", () => {
 	test("3.14. should toggle data table on Player Stats", async ({ page }) => {
 		await openStatsFromHome(page);
 		if (await page.getByRole("heading", { name: /No player data available/i }).first().isVisible({ timeout: 2500 }).catch(() => false)) {
-			test.skip();
+			test.skip(true, "No player data available — cannot toggle Player Stats table.");
 			return;
 		}
 		if (!(await page.getByTestId("stats-page-heading").first().isVisible({ timeout: 25000 }).catch(() => false))) {
-			test.skip();
+			test.skip(true, "Stats page heading not visible — skipping table toggle.");
 			return;
 		}
 		await page.waitForTimeout(1500);
 		const toggle = page.getByRole("button", { name: /Switch to (data table|data visualisation)/i });
 		if (!(await toggle.isVisible({ timeout: 3000 }).catch(() => false))) {
-			test.skip();
+			test.skip(true, "Table/visualisation toggle not visible on Player Stats.");
 			return;
 		}
 		await toggleDataTable(page, "table");
@@ -372,7 +372,7 @@ test.describe("Stats Page Tests", () => {
 		}
 		await openStatsFromHome(page);
 		if (!(await clickStatsSubPage(page, "team-stats"))) {
-			test.skip();
+			test.skip(true, "Could not open Team Stats — cannot toggle table.");
 			return;
 		}
 		const teamReady =
@@ -380,13 +380,13 @@ test.describe("Stats Page Tests", () => {
 			(await page.getByRole("heading", { name: /Team Stats/i }).first().isVisible({ timeout: 8000 }).catch(() => false)) ||
 			(await page.getByText(/No team data available/i).first().isVisible({ timeout: 3000 }).catch(() => false));
 		if (!teamReady) {
-			test.skip();
+			test.skip(true, "Team Stats page not in a ready state (no heading or empty state) — skipping toggle.");
 			return;
 		}
 		const toggle = page.getByRole("button", { name: /Switch to (data table|data visualisation)/i });
 		await toggle.scrollIntoViewIfNeeded().catch(() => {});
 		if (!(await toggle.isVisible({ timeout: 25000 }).catch(() => false))) {
-			test.skip();
+			test.skip(true, "Table/visualisation toggle not visible on Team Stats.");
 			return;
 		}
 		await toggleDataTable(page, "table");
@@ -419,7 +419,7 @@ test.describe("Stats Page Tests", () => {
 			} else if (headerReady) {
 				await expect(headerMenu).toBeVisible({ timeout: 10000 });
 			} else {
-				test.skip();
+				test.skip(true, "Neither sidebar nor header stats nav controls visible on desktop — skipping.");
 			}
 		}
 	});
@@ -427,7 +427,7 @@ test.describe("Stats Page Tests", () => {
 	test("3.18. all stats navigation links should correctly navigate to the correct page and section", async ({ page }, testInfo) => {
 		await openStatsFromHome(page);
 		if (await page.getByRole("heading", { name: /No player data available/i }).isVisible({ timeout: 2000 }).catch(() => false)) {
-			test.skip();
+			test.skip(true, "No player data available — cannot test stats navigation links.");
 			return;
 		}
 		const mobile = isMobileProject(testInfo);
@@ -439,7 +439,7 @@ test.describe("Stats Page Tests", () => {
 		await expect(page.getByRole("heading", { name: "Stats Navigation" })).toBeVisible({ timeout: 15000 });
 		await page.getByTestId("stats-nav-menu-player-stats").click({ timeout: 15000 });
 		if (await page.getByRole("heading", { name: /No player data available/i }).isVisible({ timeout: 3000 }).catch(() => false)) {
-			test.skip();
+			test.skip(true, "No player data after opening stats nav — skipping link assertions.");
 			return;
 		}
 		const keyPerfNavButton = page.getByRole("button", { name: "Key Performance Stats" }).first();
@@ -455,7 +455,7 @@ test.describe("Stats Page Tests", () => {
 			.isVisible({ timeout: 2000 })
 			.catch(() => false);
 		if (!(keyPerfVisible || playerStatsVisible || noPlayerVisible)) {
-			test.skip();
+			test.skip(true, "Key Performance / Player Stats / empty state not observable after nav — skipping.");
 			return;
 		}
 	});

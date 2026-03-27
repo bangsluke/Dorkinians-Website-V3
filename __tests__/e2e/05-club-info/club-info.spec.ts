@@ -103,7 +103,7 @@ test.describe("Club Info Page Tests", () => {
 		await page.keyboard.press("Escape").catch(() => {});
 		const showSquad = page.getByRole("button", { name: "Show squad" }).first();
 		if (!(await showSquad.isVisible({ timeout: 8000 }).catch(() => false))) {
-			test.skip();
+			test.skip(true, "Show squad control not visible (no trophy squad UI) — skipping modal open.");
 			return;
 		}
 		await showSquad.evaluate((n) => (n as HTMLButtonElement).click());
@@ -118,7 +118,7 @@ test.describe("Club Info Page Tests", () => {
 		await page.keyboard.press("Escape").catch(() => {});
 		const showSquad = page.getByRole("button", { name: "Show squad" }).first();
 		if (!(await showSquad.isVisible({ timeout: 8000 }).catch(() => false))) {
-			test.skip();
+			test.skip(true, "Show squad control not visible — cannot test squad modal close paths.");
 			return;
 		}
 		const openDialog = async () => {
@@ -159,7 +159,7 @@ test.describe("Club Info Page Tests", () => {
 		const count = await options.count();
 		if (count < 2) {
 			await page.keyboard.press("Escape");
-			test.skip();
+			test.skip(true, "Milestone filter has fewer than two options — cannot assert filter change.");
 			return;
 		}
 		const section = page.locator("div.mb-8").filter({ has: page.getByRole("heading", { name: "Milestones" }) });
@@ -203,7 +203,7 @@ test.describe("Club Info Page Tests", () => {
 		const n = await options.count();
 		if (n < 2) {
 			await page.keyboard.press("Escape");
-			test.skip();
+			test.skip(true, "League season dropdown has fewer than two options — cannot change season.");
 			return;
 		}
 		let picked = false;
@@ -216,7 +216,7 @@ test.describe("Club Info Page Tests", () => {
 			}
 		}
 		if (!picked) {
-			test.skip();
+			test.skip(true, "No alternate league season option available after filtering — skipping.");
 			return;
 		}
 		await page.waitForTimeout(1500);
@@ -234,12 +234,12 @@ test.describe("Club Info Page Tests", () => {
 		const main = page.locator("main").first();
 		const jumpButtons = main.getByRole("button", { name: /^[1-8]s$/ });
 		if (!(await jumpButtons.first().isVisible({ timeout: 30000 }).catch(() => false))) {
-			test.skip();
+			test.skip(true, "League quick-jump buttons not visible — skipping scroll test.");
 			return;
 		}
 		const n = await jumpButtons.count();
 		if (n === 0) {
-			test.skip();
+			test.skip(true, "No quick-jump buttons in DOM — skipping.");
 			return;
 		}
 		let scrolled = false;
@@ -257,7 +257,7 @@ test.describe("Club Info Page Tests", () => {
 			break;
 		}
 		if (!scrolled) {
-			test.skip();
+			test.skip(true, "No quick-jump target with matching #team-* anchor scrolled into view — skipping.");
 		}
 	});
 
@@ -269,7 +269,7 @@ test.describe("Club Info Page Tests", () => {
 		await ensureLeagueSeasonWithQuickJump(page);
 		const link = page.getByRole("link", { name: "League Table Link" }).first();
 		if (!(await link.isVisible({ timeout: 25000 }).catch(() => false))) {
-			test.skip();
+			test.skip(true, "League Table Link not visible for this season/data — skipping.");
 			return;
 		}
 		const popupPromise = page.waitForEvent("popup", { timeout: 15000 });
@@ -287,7 +287,7 @@ test.describe("Club Info Page Tests", () => {
 		await ensureLeagueSeasonWithQuickJump(page);
 		const btn = page.getByRole("button", { name: "Show Results" }).first();
 		if (!(await btn.isVisible({ timeout: 30000 }).catch(() => false))) {
-			test.skip();
+			test.skip(true, "Show Results button not visible — skipping league results modal.");
 			return;
 		}
 		await btn.click();
@@ -304,7 +304,7 @@ test.describe("Club Info Page Tests", () => {
 		await ensureLeagueSeasonWithQuickJump(page);
 		const back = page.getByRole("button", { name: "Back to Top" });
 		if (!(await back.isVisible({ timeout: 35000 }).catch(() => false))) {
-			test.skip();
+			test.skip(true, "Back to Top control not visible on League Information — skipping.");
 			return;
 		}
 		await page.evaluate(() => window.scrollTo(0, 800));
@@ -329,7 +329,7 @@ test.describe("Club Info Page Tests", () => {
 		await expect(rows.first()).toBeVisible({ timeout: 30000 });
 		const c = await rows.count();
 		if (c < 3) {
-			test.skip();
+			test.skip(true, "Fewer than three captain rows — insufficient data for assertion.");
 			return;
 		}
 		expect(c).toBeGreaterThanOrEqual(3);
@@ -338,7 +338,7 @@ test.describe("Club Info Page Tests", () => {
 			await expect(page.getByRole("columnheader", { name: "Captain" })).toBeVisible({ timeout: 20000 });
 		} catch {
 			// Some mobile runs render placeholder/blank headers when the API data hasn't settled.
-			test.skip();
+			test.skip(true, "Captain table headers not stable (likely mobile/API timing) — skipping.");
 		}
 	});
 
@@ -347,12 +347,12 @@ test.describe("Club Info Page Tests", () => {
 		await goToClubInfoSubPage(page, "club-captains");
 		const tbl = page.locator("table").filter({ has: page.getByRole("columnheader", { name: "Captain" }) });
 		if (!(await tbl.first().isVisible({ timeout: 35000 }).catch(() => false))) {
-			test.skip();
+			test.skip(true, "Captains table not visible — skipping captain history modal.");
 			return;
 		}
 		const nameBtn = tbl.locator("tbody button").first();
 		if (!(await nameBtn.isVisible({ timeout: 5000 }).catch(() => false))) {
-			test.skip();
+			test.skip(true, "No clickable captain name in table — skipping.");
 			return;
 		}
 		await nameBtn.click({ force: true });
@@ -368,17 +368,17 @@ test.describe("Club Info Page Tests", () => {
 		await goToClubInfoSubPage(page, "club-captains");
 		const tbl = page.locator("table").filter({ has: page.getByRole("columnheader", { name: "Captain" }) });
 		if (!(await tbl.first().isVisible({ timeout: 35000 }).catch(() => false))) {
-			test.skip();
+			test.skip(true, "Captains table not visible — skipping captain modal close test.");
 			return;
 		}
 		const nameBtn = tbl.locator("tbody button").first();
 		if (!(await nameBtn.isVisible({ timeout: 5000 }).catch(() => false))) {
-			test.skip();
+			test.skip(true, "No clickable captain name — skipping.");
 			return;
 		}
 		const nm = (await nameBtn.innerText()).trim();
 		if (nm.length < 2) {
-			test.skip();
+			test.skip(true, "Captain name text too short to match close button label — skipping.");
 			return;
 		}
 
@@ -420,7 +420,7 @@ test.describe("Club Info Page Tests", () => {
 		}
 		if (!picked) {
 			await page.keyboard.press("Escape");
-			test.skip();
+			test.skip(true, "No alternate Club Captains season in dropdown — skipping.");
 			return;
 		}
 		await page.waitForTimeout(1500);
@@ -445,7 +445,7 @@ test.describe("Club Info Page Tests", () => {
 		const rows = awardTable.locator("tbody tr").filter({ has: page.getByRole("cell") });
 		const n = await rows.count();
 		if (n === 0) {
-			test.skip();
+			test.skip(true, "No award table rows after load — skipping row count assertion.");
 			return;
 		}
 		expect(n).toBeGreaterThan(0);
@@ -463,7 +463,7 @@ test.describe("Club Info Page Tests", () => {
 			.locator("tbody button")
 			.first();
 		if (!(await nameBtn.isVisible({ timeout: 35000 }).catch(() => false))) {
-			test.skip();
+			test.skip(true, "Award receiver name button not visible — skipping award history modal.");
 			return;
 		}
 		await nameBtn.click({ force: true });
@@ -484,12 +484,12 @@ test.describe("Club Info Page Tests", () => {
 			.locator("tbody button")
 			.first();
 		if (!(await nameBtn.isVisible({ timeout: 35000 }).catch(() => false))) {
-			test.skip();
+			test.skip(true, "Award receiver name button not visible — skipping award modal close test.");
 			return;
 		}
 		const nm = (await nameBtn.innerText()).trim();
 		if (nm.length < 2) {
-			test.skip();
+			test.skip(true, "Receiver name too short to match themed close control — skipping.");
 			return;
 		}
 		await nameBtn.click({ force: true });
@@ -520,7 +520,7 @@ test.describe("Club Info Page Tests", () => {
 		}
 		if (!picked) {
 			await page.keyboard.press("Escape");
-			test.skip();
+			test.skip(true, "No alternate Club Awards season in dropdown — skipping.");
 			return;
 		}
 		await page.waitForTimeout(1500);
