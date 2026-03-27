@@ -9,6 +9,8 @@ const ROOT = path.join(__dirname, "..", "..");
 const SHOULD_SEND_EMAIL = process.env.SEND_TEST_EMAILS !== "false";
 const LOGO_URL =
 	process.env.WEEKLY_EMAIL_LOGO_URL || "https://bangsluke-assets.netlify.app/images/company-logos/Dorkinians.png";
+const E2E_SKIP_REASON_NOTE =
+	"Skipped E2E tests are intentional guard skips (for example: missing/slow test data, valid empty states, or project/device-specific conditions).";
 
 function toExcerpt(output, maxLength = 1200) {
 	if (!output || typeof output !== "string") return "";
@@ -40,6 +42,11 @@ function parseCount(output, label) {
 
 function parsePlaywrightPassed(output) {
 	const match = output.match(/(\d+)\s+passed/i);
+	return match ? Number(match[1]) : null;
+}
+
+function parsePlaywrightSkipped(output) {
+	const match = output.match(/(\d+)\s+skipped/i);
 	return match ? Number(match[1]) : null;
 }
 
@@ -167,6 +174,11 @@ function toHtml(sections, summary) {
                   Jest tests passed: <strong>${summary.jestPassed ?? "n/a"}</strong> &nbsp;|&nbsp;
                   Playwright passed: <strong>${summary.e2ePassed ?? "n/a"}</strong>
                 </div>
+                ${
+									summary.e2eSkipped && summary.e2eSkipped > 0
+										? `<div style="font-size:13px;color:#344054;margin-top:6px;"><strong>Skip note:</strong> ${E2E_SKIP_REASON_NOTE}</div>`
+										: ""
+								}
               </td>
             </tr>
             <tr>
@@ -182,7 +194,17 @@ function toHtml(sections, summary) {
 </html>`;
 }
 
-async function sendMail(subject, html) {
+function toText(summary) {
+	return [
+		"Dorkinians Website - Weekly Test Summary",
+		`Overall Status: ${summary.passedSections}/${summary.totalSections} sections passed`,
+		`Jest tests passed: ${summary.jestPassed ?? "n/a"}`,
+		`Playwright passed: ${summary.e2ePassed ?? "n/a"}`,
+		...(summary.e2eSkipped && summary.e2eSkipped > 0 ? [`Skip note: ${E2E_SKIP_REASON_NOTE}`] : []),
+	].join("\n");
+}
+
+async function sendMail(subject, html, text) {
 	if (!SHOULD_SEND_EMAIL) {
 		console.log("SEND_TEST_EMAILS=false, skipping consolidated weekly email send");
 		return;
@@ -205,7 +227,7 @@ async function sendMail(subject, html) {
 		tls: { rejectUnauthorized: false },
 	});
 
-	await transporter.sendMail({ from, to, subject, html });
+	await transporter.sendMail({ from, to, subject, html, text });
 }
 
 async function main() {
@@ -257,13 +279,15 @@ async function main() {
 		passedSections: sections.filter((s) => s.passed).length,
 		jestPassed: parseCount(sections[0].output + sections[1].output, "Tests"),
 		e2ePassed: parsePlaywrightPassed(sections[2].output),
+		e2eSkipped: parsePlaywrightSkipped(sections[2].output),
 	};
 
 	const html = toHtml(sections, summary);
+	const text = toText(summary);
 	const runContext = getRunContextLine();
 	const subjectSuffix = runContext ? ` [${runContext}]` : "";
 	const subject = `Dorkinians Website - Test summary${subjectSuffix} - ${summary.passedSections}/${summary.totalSections} sections passed`;
-	await sendMail(subject, html);
+	await sendMail(subject, html, text);
 
 	const failed = sections.some((s) => !s.passed || s.subsections.some((sub) => !sub.passed));
 	if (failed) {

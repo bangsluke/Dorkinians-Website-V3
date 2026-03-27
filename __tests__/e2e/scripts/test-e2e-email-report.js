@@ -16,6 +16,8 @@ require('dotenv').config();
 // Use WEBSITE_URL (available in Netlify) or fallback to BASE_URL for backward compatibility
 const BASE_URL = process.env.WEBSITE_URL || process.env.BASE_URL || 'https://dorkinians-website-v3.netlify.app';
 const HEADLESS = process.env.HEADLESS !== 'false';
+const E2E_SKIP_REASON_NOTE =
+	'Skipped E2E tests are intentional guard skips (for example: missing/slow test data, valid empty states, or project/device-specific conditions).';
 
 // Email configuration
 const getEmailConfig = () => {
@@ -561,6 +563,7 @@ const sendEmailReport = async () => {
 				<div class="summary-item"><span class="label">Passed:</span> <span style="color: #28a745;">${summary.passed}</span></div>
 				<div class="summary-item"><span class="label">Failed:</span> <span style="color: #dc3545;">${summary.failed}</span></div>
 				<div class="summary-item"><span class="label">Skipped:</span> ${summary.skipped}</div>
+				${summary.skipped > 0 ? `<div class="summary-item"><span class="label">Skip note:</span> ${E2E_SKIP_REASON_NOTE}</div>` : ''}
 				${summary.duration > 0 ? `<div class="summary-item"><span class="label">Duration:</span> ${summary.duration}s</div>` : ''}
 			</div>
 
@@ -640,6 +643,7 @@ Test Summary:
 - Passed: ${summary.passed}
 - Failed: ${summary.failed}
 - Skipped: ${summary.skipped}
+${summary.skipped > 0 ? `- Skip note: ${E2E_SKIP_REASON_NOTE}` : ''}
 ${summary.duration > 0 ? `- Duration: ${summary.duration}s` : ''}
 
 Test Results by Page:

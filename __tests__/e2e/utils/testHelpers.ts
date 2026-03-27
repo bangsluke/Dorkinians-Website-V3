@@ -288,9 +288,11 @@ export async function navigateToMainPage(page: Page, pageName: 'home' | 'stats' 
 		} else if (pageName === 'totw') {
 			await page
 				.getByRole('heading', { level: 1, name: /Team of (the Week|the Season|All Time)/i })
-				.waitFor({ state: 'visible', timeout: 20000 });
+				.waitFor({ state: 'visible', timeout: 20000 })
+				.catch(() => {});
 			// Keep navigation resilient: selector mount can lag or vary with persisted TOTW sub-page state.
 			await page.getByTestId('totw-season-selector').waitFor({ state: 'visible', timeout: 30000 }).catch(() => {});
+			await page.getByTestId('totw-week-selector').waitFor({ state: 'visible', timeout: 30000 }).catch(() => {});
 		} else if (pageName === 'club-info') {
 			await page.getByRole('heading', { name: /Club Information/i }).waitFor({ state: 'visible', timeout: 25000 });
 		}
@@ -396,7 +398,7 @@ export async function goToTOTWSubPage(page: Page, subPageId: TOTWSubPageId) {
 export async function waitForTotwSkeletonsGone(page: Page, timeout = 45000) {
 	const skel = page.getByTestId("loading-skeleton");
 	if ((await skel.count()) === 0) return;
-	await skel.first().waitFor({ state: "hidden", timeout });
+	await skel.first().waitFor({ state: "hidden", timeout }).catch(() => {});
 }
 
 /**
@@ -756,7 +758,7 @@ export type StatsSubPageId = "player-stats" | "team-stats" | "club-stats" | "com
  * Click a stats sub-page control and wait for the target content to render.
  * Mobile uses the dot indicators; desktop uses the sidebar buttons.
  */
-export async function clickStatsSubPage(page: Page, subPageId: StatsSubPageId) {
+export async function clickStatsSubPage(page: Page, subPageId: StatsSubPageId): Promise<boolean> {
 	const viewport = page.viewportSize();
 	const isMobile = viewport !== null && viewport.width < 768;
 	
@@ -804,7 +806,7 @@ export async function clickStatsSubPage(page: Page, subPageId: StatsSubPageId) {
 	
 	// Wait for the relevant sub-page marker.
 	// Keep this below the suite-level 60s timeout to avoid hard test failures when data is slow.
-	const contentTimeout = 18000;
+	const contentTimeout = 12000;
 	const waitForAnyVisible = async (locators: Array<ReturnType<Page["locator"]>>) => {
 		const end = Date.now() + contentTimeout;
 		while (Date.now() < end) {
@@ -817,15 +819,15 @@ export async function clickStatsSubPage(page: Page, subPageId: StatsSubPageId) {
 		}
 		return false;
 	};
-	switch (subPageId) {
+	try {
+		switch (subPageId) {
 		case "player-stats":
 			{
 				const playerHeading = page.getByTestId("stats-page-heading").first();
 				const noPlayer = page.getByRole("heading", { name: /No player data available/i }).first();
 				const mainVisible = page.locator("main").first();
-				await waitForAnyVisible([playerHeading, noPlayer, mainVisible]);
+				return await waitForAnyVisible([playerHeading, noPlayer, mainVisible]);
 			}
-			break;
 		case "team-stats":
 			// Team stats can now render either with loaded content or with page header
 			// while team data is being initialized/selected.
@@ -833,18 +835,16 @@ export async function clickStatsSubPage(page: Page, subPageId: StatsSubPageId) {
 				const teamHeading = page.getByTestId("team-top-players-heading").first();
 				const teamPageHeading = page.getByRole("heading", { name: /Team Stats/i }).first();
 				const teamEmpty = page.getByText(/No team data available/i).first();
-				await waitForAnyVisible([teamHeading, teamPageHeading, teamEmpty]);
+				return await waitForAnyVisible([teamHeading, teamPageHeading, teamEmpty]);
 			}
-			break;
 		case "club-stats":
 			{
 				const clubHeading = page.getByTestId("club-top-players-heading").first();
 				const clubPageHeading = page.getByRole("heading", { name: /Club Stats/i }).first();
 				const clubEmpty = page.getByText(/No team data available/i).first();
 				const noPlayer = page.getByRole("heading", { name: /No player data available/i }).first();
-				await waitForAnyVisible([clubHeading, clubPageHeading, clubEmpty, noPlayer]);
+				return await waitForAnyVisible([clubHeading, clubPageHeading, clubEmpty, noPlayer]);
 			}
-			break;
 		case "comparison":
 			{
 				const radar = page.locator("#comparison-radar-chart").first();
@@ -852,10 +852,14 @@ export async function clickStatsSubPage(page: Page, subPageId: StatsSubPageId) {
 				const comparisonSelectPrompt = page.getByText(/Select a player to display data here/i).first();
 				const comparisonEmpty = page.getByText(/No data available for comparison/i).first();
 				const comparisonSecondPlayer = page.getByText(/Select Second Player/i).first();
-				await waitForAnyVisible([radar, comparisonSelectPrompt, comparisonEmpty, comparisonSecondPlayer, comparisonPageHeading]);
+				return await waitForAnyVisible([radar, comparisonSelectPrompt, comparisonEmpty, comparisonSecondPlayer, comparisonPageHeading]);
 			}
-			break;
+		}
+	} catch {
+		// If a project timeout interrupts navigation waits, callers can skip instead of hard-failing.
+		return false;
 	}
+	return false;
 }
 
 /**

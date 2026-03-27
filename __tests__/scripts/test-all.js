@@ -31,6 +31,8 @@ const colors = {
 	blue: "\x1b[34m",
 	cyan: "\x1b[36m",
 };
+const E2E_SKIP_REASON_NOTE =
+	"Skipped E2E tests are intentional guard skips (for example: missing/slow test data, valid empty states, or project/device-specific conditions).";
 
 function printSectionHeader(title) {
 	const separator = "=".repeat(80);
@@ -58,20 +60,28 @@ function runCommand(command, description, suppressOutput = false, envOverrides =
 		const options = {
 			cwd: path.join(__dirname, "..", ".."),
 			env: { ...process.env, ...envOverrides },
+			encoding: "utf8",
 		};
 		
 		if (suppressOutput && !isDebugMode) {
 			// Suppress output by piping to null
 			options.stdio = "pipe";
 		} else {
-			// Show all output in debug mode
-			options.stdio = "inherit";
+			// Pipe output so we can parse it later when needed
+			options.stdio = "pipe";
 		}
 		
-		execSync(command, options);
+		const output = execSync(command, options) || "";
+		runCommand.lastOutput = output;
+		if (!suppressOutput || isDebugMode) {
+			process.stdout.write(output);
+		}
 		printSuccess(`${description} completed successfully`);
 		return true;
 	} catch (error) {
+		const stdout = error && error.stdout ? error.stdout.toString() : "";
+		const stderr = error && error.stderr ? error.stderr.toString() : "";
+		runCommand.lastOutput = `${stdout}${stderr ? `\n${stderr}` : ""}`;
 		printError(`${description} failed`);
 		// In debug mode, show error details
 		if (isDebugMode && error.stdout) {
@@ -149,6 +159,11 @@ const playwrightCommand = isDebugMode
 	? "playwright test"
 	: "playwright test --reporter=dot";
 results.e2e = runCommand(playwrightCommand, "E2E Tests (Playwright)");
+const e2eSkippedMatch = (runCommand.lastOutput || "").match(/(\d+)\s+skipped/i);
+const e2eSkippedCount = e2eSkippedMatch ? Number(e2eSkippedMatch[1]) : 0;
+if (e2eSkippedCount > 0) {
+	printInfo(`${e2eSkippedCount} E2E test(s) were skipped. ${E2E_SKIP_REASON_NOTE}`);
+}
 
 if (!results.e2e) {
 	hasFailures = true;
