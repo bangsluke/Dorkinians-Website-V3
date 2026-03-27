@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { TEST_PLAYERS, TEST_QUERIES } from "../fixtures/testData";
 
+// Smoke-level HTTP checks against running app (baseURL from Playwright config); does not assert response body shape.
 test.describe("API Endpoint Tests", () => {
 	test("8.1. chatbot api responds to a basic query", async ({ request }) => {
 		const response = await request.post("/api/chatbot", {

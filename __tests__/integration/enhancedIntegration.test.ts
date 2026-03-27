@@ -9,6 +9,10 @@ jest.mock("@/lib/neo4j", () => ({
 	},
 }));
 
+// Sequenced ChatbotService journeys with Neo4j fully mocked via jest—no real database I/O.
+// Covers multi-turn prompts, player context switching, malformed input, and higher-volume call patterns.
+// Assertions focus on non-empty string answers and stable shapes; mock data is static so timing flakes are rare.
+
 describe("Enhanced Integration Testing", () => {
 	let chatbotService: ChatbotService;
 
@@ -18,6 +22,7 @@ describe("Enhanced Integration Testing", () => {
 	});
 
 	test("handles a multi-question user journey with non-empty responses", async () => {
+		// Arrange: scripted conversation covering comparisons and rankings
 		const userSession = [
 			"How many goals has Luke Bangs scored?",
 			"What about assists?",
@@ -27,6 +32,7 @@ describe("Enhanced Integration Testing", () => {
 		];
 
 		for (const question of userSession) {
+			// Act & assert: each turn returns substantive text
 			const context: QuestionContext = { question, userContext: "Luke Bangs" };
 			const response = await chatbotService.processQuestion(context);
 			expect(response).toBeDefined();
@@ -36,6 +42,7 @@ describe("Enhanced Integration Testing", () => {
 	});
 
 	test("supports switching contexts between players without throwing", async () => {
+		// Arrange: same service session with changing userContext values
 		const switchingFlow: Array<{ question: string; userContext: string }> = [
 			{ question: "How many goals has Luke Bangs scored?", userContext: "Luke Bangs" },
 			{ question: "What about Oli Goddard?", userContext: "Oli Goddard" },
@@ -43,6 +50,7 @@ describe("Enhanced Integration Testing", () => {
 		];
 
 		for (const step of switchingFlow) {
+			// Act & assert: context swap still yields answers
 			const response = await chatbotService.processQuestion(step);
 			expect(response).toBeDefined();
 			expect(typeof response.answer).toBe("string");
@@ -51,6 +59,7 @@ describe("Enhanced Integration Testing", () => {
 	});
 
 	test("handles error-prone and malformed prompts gracefully", async () => {
+		// Arrange: invalid players, empty string, and vague prompts
 		const prompts = [
 			"How many goals has InvalidPlayer scored?",
 			"Compare InvalidPlayer and Luke Bangs",
@@ -59,6 +68,7 @@ describe("Enhanced Integration Testing", () => {
 		];
 
 		for (const question of prompts) {
+			// Act & assert: service degrades to safe non-empty guidance
 			const context: QuestionContext = { question, userContext: "Luke Bangs" };
 			const response = await chatbotService.processQuestion(context);
 			expect(response).toBeDefined();
@@ -68,6 +78,7 @@ describe("Enhanced Integration Testing", () => {
 	});
 
 	test("maintains response shape under higher-volume sequence", async () => {
+		// Arrange: burst of varied analytical questions
 		const sequence = [
 			"How many goals has Luke Bangs scored?",
 			"How many assists does Luke Bangs have?",
@@ -77,6 +88,7 @@ describe("Enhanced Integration Testing", () => {
 		];
 
 		for (const question of sequence) {
+			// Act & assert: answers and sources array stay well-formed
 			const response = await chatbotService.processQuestion({ question, userContext: "Luke Bangs" });
 			expect(response).toBeDefined();
 			expect(typeof response.answer).toBe("string");

@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { navigateToMainPage, waitForPageLoad } from "../utils/testHelpers";
 
+// Light smoke across main shells; share test is optional when no share CTA is in DOM.
 test.describe("Cross-Cutting Tests", () => {
 	test("9.1. home loads without crashing", async ({ page }) => {
 		await navigateToMainPage(page, "home");

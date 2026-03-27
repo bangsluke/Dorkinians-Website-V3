@@ -1,5 +1,6 @@
 import { useNavigationStore } from "../../../lib/stores/navigation";
 
+// Zustand navigation slice: filter sidebar, player filters per stats sub-page, selected player cache.
 describe("Navigation store coverage", () => {
 	beforeEach(() => {
 		useNavigationStore.setState({
@@ -14,6 +15,7 @@ describe("Navigation store coverage", () => {
 		useNavigationStore.getState().openFilterSidebar();
 		expect(useNavigationStore.getState().isFilterSidebarOpen).toBe(true);
 
+		// Closing with unsaved filters should clear the dirty flag (discard or apply semantics in store)
 		useNavigationStore.setState({ hasUnsavedFilters: true } as any);
 		useNavigationStore.getState().closeFilterSidebar();
 		expect(useNavigationStore.getState().isFilterSidebarOpen).toBe(false);

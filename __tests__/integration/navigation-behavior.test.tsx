@@ -11,6 +11,10 @@ jest.mock("@/lib/stores/navigation", () => ({
 	useNavigationStore: jest.fn(),
 }));
 
+// jsdom behavior tests for stats navigation chrome (StatsContainer, PlayerStats, Comparison) with navigation store fully mocked.
+// No real routing or data fetching—only verifies dot indicators, empty states, and CTA wiring against static store shapes.
+// Placeholder integration cases document future full-store coverage; they intentionally assert tautologies today.
+
 const mockUseNavigationStore = useNavigationStore as jest.MockedFunction<typeof useNavigationStore>;
 
 describe("Navigation Behavior Tests", () => {
@@ -21,6 +25,7 @@ describe("Navigation Behavior Tests", () => {
 
 	describe("StatsContainer - Always Show All 4 Sub-Pages", () => {
 		it("should always show all 4 sub-pages regardless of player selection state", () => {
+			// Arrange: stats-focused navigation slice
 			const mockStore = {
 				currentStatsSubPage: "player-stats" as const,
 				setStatsSubPage: jest.fn(),
@@ -31,13 +36,14 @@ describe("Navigation Behavior Tests", () => {
 
 			mockUseNavigationStore.mockReturnValue(mockStore);
 
+			// Act: render stats pager shell
 			render(<StatsContainer />);
 
-			// Should show all 4 dot indicators
+			// Assert: four dot indicators exist
 			const dotIndicators = screen.getAllByRole("button", { name: /go to/i });
 			expect(dotIndicators).toHaveLength(4);
 
-			// Check that all expected pages are present
+			// Assert: labels for each stats subpage are exposed
 			expect(screen.getByLabelText("Go to Player Stats")).toBeInTheDocument();
 			expect(screen.getByLabelText("Go to Team Stats")).toBeInTheDocument();
 			expect(screen.getByLabelText("Go to Club Stats")).toBeInTheDocument();
@@ -45,6 +51,7 @@ describe("Navigation Behavior Tests", () => {
 		});
 
 		it("should show all 4 sub-pages even when no player is selected", () => {
+			// Arrange: same stats nav mock without player context requirements
 			const mockStore = {
 				currentStatsSubPage: "player-stats" as const,
 				setStatsSubPage: jest.fn(),
@@ -55,9 +62,9 @@ describe("Navigation Behavior Tests", () => {
 
 			mockUseNavigationStore.mockReturnValue(mockStore);
 
+			// Act & assert: pager still exposes four navigation dots
 			render(<StatsContainer />);
 
-			// Should still show all 4 dot indicators
 			const dotIndicators = screen.getAllByRole("button", { name: /go to/i });
 			expect(dotIndicators).toHaveLength(4);
 		});
@@ -65,6 +72,7 @@ describe("Navigation Behavior Tests", () => {
 
 	describe("PlayerStats - No Player State", () => {
 		it('should show "Select a player" message when no player is selected', () => {
+			// Arrange: empty player selection state
 			const mockStore = {
 				selectedPlayer: null,
 				cachedPlayerData: null,
@@ -74,14 +82,17 @@ describe("Navigation Behavior Tests", () => {
 
 			mockUseNavigationStore.mockReturnValue(mockStore);
 
+			// Act: render player stats surface
 			render(<PlayerStats />);
 
+			// Assert: empty-state copy and CTA visible
 			expect(screen.getByText("Player Stats")).toBeInTheDocument();
 			expect(screen.getByText("Select a player to display data here")).toBeInTheDocument();
 			expect(screen.getByTitle("Select a player")).toBeInTheDocument();
 		});
 
 		it("should navigate to home when edit button is clicked in no-player state", () => {
+			// Arrange: track navigation handler while player missing
 			const mockSetMainPage = jest.fn();
 			const mockStore = {
 				selectedPlayer: null,
@@ -94,13 +105,16 @@ describe("Navigation Behavior Tests", () => {
 
 			render(<PlayerStats />);
 
+			// Act: user taps select-player CTA
 			const editButton = screen.getByTitle("Select a player");
 			fireEvent.click(editButton);
 
+			// Assert: routes back to home for selection flow
 			expect(mockSetMainPage).toHaveBeenCalledWith("home");
 		});
 
 		it("should show player stats when player is selected", () => {
+			// Arrange: rich cached payload for chosen player
 			const mockPlayerData = {
 				playerData: {
 					id: "1",
@@ -170,6 +184,7 @@ describe("Navigation Behavior Tests", () => {
 
 			mockUseNavigationStore.mockReturnValue(mockStore);
 
+			// Act & assert: populated header + edit affordance
 			render(<PlayerStats />);
 
 			expect(screen.getByText("Player Stats - Test Player")).toBeInTheDocument();
@@ -179,6 +194,7 @@ describe("Navigation Behavior Tests", () => {
 
 	describe("Comparison - No Player State", () => {
 		it('should show "Select a player" message when no player is selected', () => {
+			// Arrange: comparison view without selected player
 			const mockStore = {
 				selectedPlayer: null,
 				setMainPage: jest.fn(),
@@ -188,12 +204,14 @@ describe("Navigation Behavior Tests", () => {
 
 			render(<Comparison />);
 
+			// Assert: empty-state messaging for comparison tab
 			expect(screen.getByText("Player Comparison")).toBeInTheDocument();
 			expect(screen.getByText("Select a player to display data here")).toBeInTheDocument();
 			expect(screen.getByTitle("Select a player")).toBeInTheDocument();
 		});
 
 		it("should navigate to home when edit button is clicked in no-player state", () => {
+			// Arrange: comparison empty state with navigation spy
 			const mockSetMainPage = jest.fn();
 			const mockStore = {
 				selectedPlayer: null,
@@ -204,13 +222,16 @@ describe("Navigation Behavior Tests", () => {
 
 			render(<Comparison />);
 
+			// Act: click select-player affordance
 			const editButton = screen.getByTitle("Select a player");
 			fireEvent.click(editButton);
 
+			// Assert: bounce to home for picker
 			expect(mockSetMainPage).toHaveBeenCalledWith("home");
 		});
 
 		it("should show comparison content when player is selected", () => {
+			// Arrange: player chosen but comparison UI still placeholder
 			const mockStore = {
 				selectedPlayer: "Test Player",
 				setMainPage: jest.fn(),
@@ -218,6 +239,7 @@ describe("Navigation Behavior Tests", () => {
 
 			mockUseNavigationStore.mockReturnValue(mockStore);
 
+			// Act & assert: heading + placeholder body render
 			render(<Comparison />);
 
 			expect(screen.getByText("Player Comparison")).toBeInTheDocument();
@@ -227,14 +249,12 @@ describe("Navigation Behavior Tests", () => {
 
 	describe("Navigation Flow Integration", () => {
 		it("should maintain player selection when navigating from home to stats", () => {
-			// This test would require a more complex setup with the actual store
-			// For now, we'll test the individual components as above
+			// Placeholder: full store-backed navigation not wired in this suite yet
 			expect(true).toBe(true); // Placeholder for integration test
 		});
 
 		it("should clear player selection when navigating to non-stats pages", () => {
-			// This test would require a more complex setup with the actual store
-			// For now, we'll test the individual components as above
+			// Placeholder: awaits end-to-end navigation harness
 			expect(true).toBe(true); // Placeholder for integration test
 		});
 	});

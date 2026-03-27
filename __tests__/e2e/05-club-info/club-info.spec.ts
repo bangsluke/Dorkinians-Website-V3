@@ -2,6 +2,10 @@ import { test, expect } from "@playwright/test";
 import { navigateToMainPage, goToClubInfoSubPage } from "../utils/testHelpers";
 import { usefulLinks } from "../../../config/config";
 
+// Club Information sub-pages (league, captains, awards, links). Many tests call test.skip when API/data leaves
+// controls hidden; captain table header stability is explicitly treated as flaky on mobile in places below.
+// Typical flow: navigateToMainPage("club-info") for default tab, then goToClubInfoSubPage(...) for other tabs; read test.skip messages for data preconditions.
+
 const VISIBLE_USEFUL_LINK_CATEGORIES = ["official", "social", "other"] as const;
 
 /** Cycle season options until the awards table shows a clickable receiver, or Historical Awards with player rows. */
@@ -63,11 +67,13 @@ async function ensureLeagueSeasonWithQuickJump(page: import("@playwright/test").
 
 test.describe("Club Info Page Tests", () => {
 	test("5.1. club info route loads without crashing", async ({ page }) => {
+		// Smoke: shell renders from footer/sidebar nav
 		await navigateToMainPage(page, "club-info");
 		await expect(page.locator("body")).toBeVisible();
 	});
 
 	test("5.2. should display Club Info page by default", async ({ page }) => {
+		// Default sub-page is Club Information after main nav
 		await navigateToMainPage(page, "club-info");
 		await expect(page.getByRole("heading", { name: /Club Information/i })).toBeVisible({ timeout: 35000 });
 		await expect(page.getByRole("link", { name: "Navigate to Pixham" })).toBeVisible();
@@ -75,6 +81,7 @@ test.describe("Club Info Page Tests", () => {
 
 	test("5.3. clicking the 'Navigate to Pixham' should open Google Maps with the club's location", async ({ page }) => {
 		await navigateToMainPage(page, "club-info");
+		// External maps link opens in popup window
 		const mapsLink = page.getByRole("link", { name: "Navigate to Pixham" });
 		await mapsLink.scrollIntoViewIfNeeded();
 		const [popup] = await Promise.all([page.waitForEvent("popup", { timeout: 20000 }), mapsLink.click()]);

@@ -1,8 +1,10 @@
 import { test, expect } from "@playwright/test";
 import { appConfig } from "../../../config/config";
 
+// `/settings` route: modals, site-details cards (network), clipboard share, feedback with mocked API.
 test.describe("Settings Page Tests", () => {
 	const feedbackHeading = /Report a Bug|Request a Feature/i;
+	// Returns dialog locator when open; null if CTA missing (skip downstream tests that need the modal).
 	const openFeedbackModal = async (page: import("@playwright/test").Page) => {
 		const feedbackBtn = page.getByRole("button", { name: /Report Bug \/ Request Feature/i }).first();
 		const dialog = page.getByRole("dialog", { name: feedbackHeading });
@@ -119,7 +121,7 @@ test.describe("Settings Page Tests", () => {
 		await page.goto("/settings", { waitUntil: "domcontentloaded" });
 		const detailsOk = await detailsPromise.then(() => true).catch(() => false);
 		if (!detailsOk) {
-			test.skip();
+			test.skip(true, "/api/site-details did not return OK within timeout — cannot expand Version Release Details card.");
 			return;
 		}
 		const card = page.locator("div.cursor-pointer").filter({ has: page.getByRole("heading", { name: "Version Release Details" }) }).first();
@@ -132,7 +134,7 @@ test.describe("Settings Page Tests", () => {
 		await page.goto("/settings", { waitUntil: "domcontentloaded" });
 		const detailsOk = await detailsPromise.then(() => true).catch(() => false);
 		if (!detailsOk) {
-			test.skip();
+			test.skip(true, "/api/site-details did not return OK within timeout — cannot expand Updates To Come card.");
 			return;
 		}
 		const card = page.locator("div.cursor-pointer").filter({ has: page.getByRole("heading", { name: "Updates To Come" }) }).first();
@@ -145,7 +147,7 @@ test.describe("Settings Page Tests", () => {
 		await page.goto("/settings", { waitUntil: "domcontentloaded" });
 		const detailsOk = await detailsPromise.then(() => true).catch(() => false);
 		if (!detailsOk) {
-			test.skip();
+			test.skip(true, "/api/site-details did not return OK within timeout — cannot expand Stat Limitations card.");
 			return;
 		}
 		const card = page.locator("div.cursor-pointer").filter({ has: page.getByRole("heading", { name: "Stat Limitations" }) }).first();
@@ -196,7 +198,7 @@ test.describe("Settings Page Tests", () => {
 		await page.goto("/settings", { waitUntil: "domcontentloaded" });
 		const dialog = await openFeedbackModal(page);
 		if (!dialog) {
-			test.skip();
+			test.skip(true, "Feedback modal did not open — Report Bug CTA missing or failed to open dialog.");
 			return;
 		}
 		await page.getByRole("button", { name: "Close feedback modal" }).click();
@@ -204,7 +206,7 @@ test.describe("Settings Page Tests", () => {
 
 		const reopenedDialog = await openFeedbackModal(page);
 		if (!reopenedDialog) {
-			test.skip();
+			test.skip(true, "Could not reopen feedback modal for second close control — skipping.");
 			return;
 		}
 		await page.getByRole("button", { name: /^Close$/ }).last().click();

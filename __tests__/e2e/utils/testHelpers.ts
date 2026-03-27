@@ -2,6 +2,11 @@ import { Page, TestInfo, expect } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
 
+// Shared Playwright helpers for specs under __tests__/e2e/: section logging (cross-project), main-page nav,
+// Club Info / TOTW / Stats sub-pages, player Listbox selection (retries on mobile detach), localStorage shortcuts,
+// chatbot I/O, and assertions. Many waits are best-effort or polled — specs should skip when preconditions fail
+// instead of assuming helpers always reach a single DOM shape (slow APIs and CI retries amplify flakiness).
+
 // Use a file-based lock to persist across all execution contexts
 const LOCK_FILE = path.join(process.cwd(), '__tests__', 'e2e', '.section-locks.json');
 const LOCK_DIR = path.dirname(LOCK_FILE);
@@ -704,6 +709,7 @@ export async function submitChatbotQuery(page: Page, query: string) {
 
 /**
  * Verify no console errors
+ * Note: registers a console listener and returns the array; callers must still run assertions after actions complete.
  */
 export async function verifyNoConsoleErrors(page: Page) {
 	const errors: string[] = [];
