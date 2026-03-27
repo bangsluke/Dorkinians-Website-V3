@@ -62,12 +62,19 @@ export function sanitizeLogData(data: any): any {
 	}
 
 	if (typeof data === 'string') {
-		// Remove potential API keys, passwords, and sensitive URLs
+		// Remove assignment-style secrets only (e.g. KEY=value). Do not use `:` as a
+		// separator — Zod/env errors look like "SEED_API_KEY: SEED_API_KEY must be ..." and
+		// would be mangled into misleading text.
 		return data
-			.replace(/api[_-]?key['":\s]*[=:]\s*['"]?[\w-]+['"]?/gi, 'api_key=***')
-			.replace(/password['":\s]*[=:]\s*['"]?[^'"]+['"]?/gi, 'password=***')
-			.replace(/secret['":\s]*[=:]\s*['"]?[^'"]+['"]?/gi, 'secret=***')
-			.replace(/token['":\s]*[=:]\s*['"]?[^'"]+['"]?/gi, 'token=***')
+			.replace(/api[_-]?key\s*=\s*['"]?[\w.-]+['"]?/gi, 'api_key=***')
+			.replace(/"apiKey"\s*:\s*"[^"]*"/gi, '"apiKey":"***"')
+			.replace(/'apiKey'\s*:\s*'[^']*'/gi, "'apiKey':'***'")
+			.replace(/password\s*=\s*['"]?[^\s'";]+['"]?/gi, 'password=***')
+			.replace(/"password"\s*:\s*"[^"]*"/gi, '"password":"***"')
+			.replace(/secret\s*=\s*['"]?[^\s'";]+['"]?/gi, 'secret=***')
+			.replace(/"secret"\s*:\s*"[^"]*"/gi, '"secret":"***"')
+			.replace(/token\s*=\s*['"]?[^\s'";]+['"]?/gi, 'token=***')
+			.replace(/"token"\s*:\s*"[^"]*"/gi, '"token":"***"')
 			.replace(/https?:\/\/[^\/]+@[^\s]+/gi, (match) => {
 				// Remove credentials from URLs
 				return match.replace(/\/\/[^\/]+@/, '//***@');

@@ -1,3 +1,7 @@
+# Site HTML and Next.js SSR run on Netlify. Heroku apps named dorkinians-database-* are the
+# Neo4j seeder/worker (see database-dorkinians), not the public website. For site-wide 500s,
+# use Netlify deploy logs and Functions / Edge logs; grep for "Environment variable validation failed".
+
 [build]
   command = "npm run build"
   publish = ".next"

@@ -3,6 +3,36 @@ const fs = require("fs");
 const path = require("path");
 const webpack = require("webpack");
 
+// Merge .env* from this directory with override so repo values win over a stale SEED_API_KEY
+// (or other vars) already present in process.env from Windows user env / parent shell / CI.
+// Next's default merge keeps existing process.env entries, which caused builds to ignore .env fixes.
+(function loadEnvFromPackageDir() {
+	try {
+		const dotenv = require("dotenv");
+		const root = __dirname;
+		const load = (filename) => {
+			const full = path.join(root, filename);
+			if (fs.existsSync(full)) {
+				dotenv.config({ path: full, override: true, quiet: true });
+			}
+		};
+		load(".env");
+		load(".env.local");
+		if (process.env.NODE_ENV === "production") {
+			load(".env.production");
+			load(".env.production.local");
+		} else {
+			load(".env.development");
+			load(".env.development.local");
+		}
+	} catch {
+		// dotenv is optional if dependency tree changes
+	}
+})();
+
+// Absolute path to this app (used by lib/config/loadPackageEnv.ts in build workers)
+process.env.DORKINIANS_WEBSITE_ROOT = path.resolve(__dirname);
+
 // Bundle analyzer configuration (only when ANALYZE=true and package is available)
 let withBundleAnalyzer = (config) => config;
 if (process.env.ANALYZE === "true") {
@@ -96,8 +126,11 @@ const nextConfig = {
 			exclude: ['error'],
 		} : false,
 	},
-	// Empty turbopack config to acknowledge webpack config exists (Next.js 16 requirement)
-	turbopack: {},
+	// Pin project root: otherwise Next infers the nearest parent lockfile (e.g. C:\Users\bangs\package-lock.json)
+	// and can load the wrong .env / fail env validation while building from this repo.
+	turbopack: {
+		root: path.resolve(__dirname),
+	},
 	webpack: (config, { isServer }) => {
 		// Ignore optional dependencies that don't work in Next.js
 		config.plugins.push(
