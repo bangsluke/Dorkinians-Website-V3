@@ -44,6 +44,8 @@ export interface MatchDetail {
 	penaltiesMissed: number;
 	penaltiesConceded: number;
 	penaltiesSaved: number;
+	/** Automated 1–10 match rating when present in graph */
+	matchRating?: number | null;
 }
 
 export interface WeeklyTOTW {

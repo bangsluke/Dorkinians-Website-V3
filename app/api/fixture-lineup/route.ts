@@ -11,6 +11,13 @@ export async function OPTIONS() {
 	return NextResponse.json({}, { headers: corsHeaders });
 }
 
+function toRating(value: unknown): number | null {
+	if (value === null || value === undefined) return null;
+	const n = typeof value === "number" ? value : toNum(value);
+	if (Number.isNaN(n)) return null;
+	return Math.round(n * 10) / 10;
+}
+
 function toNum(value: unknown): number {
 	if (value === null || value === undefined) return 0;
 	if (typeof value === "number") return isNaN(value) ? 0 : value;
@@ -48,8 +55,9 @@ export async function GET(request: NextRequest) {
 			       md.saves AS saves, md.cleanSheets AS cleanSheets, md.conceded AS conceded,
 			       md.ownGoals AS ownGoals,
 			       md.penaltiesScored AS penaltiesScored, md.penaltiesMissed AS penaltiesMissed,
-			       md.penaltiesConceded AS penaltiesConceded, md.penaltiesSaved AS penaltiesSaved
-			ORDER BY md.playerName ASC
+			       md.penaltiesConceded AS penaltiesConceded, md.penaltiesSaved AS penaltiesSaved,
+			       md.matchRating AS matchRating, md.started AS started, md.playerOrder AS playerOrder
+			ORDER BY coalesce(md.playerOrder, 9999) ASC, md.playerName ASC
 		`;
 
 		const result = await neo4jService.runQuery(query, {
@@ -74,6 +82,8 @@ export async function GET(request: NextRequest) {
 			penaltiesMissed: toNum(r.get("penaltiesMissed")),
 			penaltiesConceded: toNum(r.get("penaltiesConceded")),
 			penaltiesSaved: toNum(r.get("penaltiesSaved")),
+			matchRating: toRating(r.get("matchRating")),
+			started: r.get("started") === true,
 		}));
 
 		return NextResponse.json({ lineup }, { headers: corsHeaders });

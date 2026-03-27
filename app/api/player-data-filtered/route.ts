@@ -191,6 +191,14 @@ export async function POST(request: NextRequest) {
 				competitionsCompeted: 0,
 				teammatesPlayedWith: 0,
 				graphLabel: playerRecord.get("graphLabel"),
+				starts: 0,
+				subAppearances: 0,
+				winRateWhenStarting: 0,
+				winRateFromBench: 0,
+				startRatePercent: 0,
+				averageMatchRating: null as number | null,
+				highestMatchRating: null as number | null,
+				matchesRated8Plus: 0,
 			};
 
 			return NextResponse.json({
@@ -318,6 +326,24 @@ export async function POST(request: NextRequest) {
 			competitionsCompeted: toNumber(record.get("competitionsCompeted")),
 			teammatesPlayedWith: toNumber(record.get("teammatesPlayedWith")),
 			graphLabel: record.get("graphLabel"),
+			starts: toNumber(record.get("starts")),
+			subAppearances: toNumber(record.get("subAppearances")),
+			winRateWhenStarting: toNumber(record.get("winRateWhenStarting")),
+			winRateFromBench: toNumber(record.get("winRateFromBench")),
+			startRatePercent: toNumber(record.get("startRatePercent")),
+			averageMatchRating: (() => {
+				const v = record.get("averageMatchRating");
+				if (v === null || v === undefined) return null;
+				const n = typeof v === "number" ? v : toNumber(v);
+				return Math.round(n * 10) / 10;
+			})(),
+			highestMatchRating: (() => {
+				const v = record.get("highestMatchRating");
+				if (v === null || v === undefined) return null;
+				const n = typeof v === "number" ? v : toNumber(v);
+				return Math.round(n * 10) / 10;
+			})(),
+			matchesRated8Plus: toNumber(record.get("matchesRated8Plus")),
 		};
 
 		// Include copyable query in response for debugging

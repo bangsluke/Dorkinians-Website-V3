@@ -192,6 +192,45 @@ function buildTeamStatsQuery(teamName: string, filters: any = null): { query: st
 	return { query, params };
 }
 
+/** Fixture-level formation counts (excludes position filters — formation is derived from starters). */
+function buildFormationBreakdownQuery(teamName: string, filters: any = null): { query: string; params: any } {
+	const graphLabel = neo4jService.getGraphLabel();
+	const params: any = { graphLabel };
+	const hasTeamFilter = filters?.teams && Array.isArray(filters.teams) && filters.teams.length > 0;
+
+	let query = `
+		MATCH (f:Fixture {graphLabel: $graphLabel})
+	`;
+
+	const filterConditions = buildFilterConditions(filters, params);
+	const fixtureConditions = filterConditions.filter((cond) => !cond.includes("md.class"));
+
+	const clauses: string[] = [];
+
+	if (teamName && teamName !== "Whole Club" && !hasTeamFilter) {
+		params.teamName = teamName;
+		clauses.push(`f.team = $teamName`);
+	}
+
+	const useTeamsFromFilters = hasTeamFilter || teamName === "Whole Club" || !teamName;
+	const fc = useTeamsFromFilters
+		? fixtureConditions
+		: fixtureConditions.filter((cond) => !cond.includes("f.team IN $teams"));
+	clauses.push(...fc);
+
+	clauses.push(`f.inferredFormation IS NOT NULL AND trim(toString(f.inferredFormation)) <> ""`);
+
+	query += ` WHERE ${clauses.join(" AND ")}
+		WITH f.inferredFormation as formation, f.result as res
+		WITH formation, count(*) as games,
+			sum(CASE WHEN res = "W" THEN 1 ELSE 0 END) as wins
+		RETURN formation, games, wins
+		ORDER BY games DESC
+	`;
+
+	return { query, params };
+}
+
 // Validation function for filter structure (reused from player-data-filtered)
 function validateFilters(filters: any): string | null {
 	// Validate timeRange
@@ -350,8 +389,11 @@ export async function POST(request: NextRequest) {
 		}
 
 		let result;
+		let formationResult;
 		try {
 			result = await neo4jService.runQuery(query, params);
+			const { query: formQuery, params: formParams } = buildFormationBreakdownQuery(teamName, filters);
+			formationResult = await neo4jService.runQuery(formQuery, formParams);
 		} catch (queryError: any) {
 			logError("Cypher query error", queryError);
 			// Security: Don't expose error details to client
@@ -439,6 +481,16 @@ export async function POST(request: NextRequest) {
 			fantasyPointsPerAppearance: toNumber(record.get("fantasyPointsPerAppearance")),
 			numberOfSeasons: toNumber(record.get("numberOfSeasons")),
 			numberOfCompetitions: toNumber(record.get("numberOfCompetitions")),
+			formationBreakdown: (formationResult?.records || []).map((r) => {
+				const games = toNumber(r.get("games"));
+				const wins = toNumber(r.get("wins"));
+				return {
+					formation: String(r.get("formation") || ""),
+					games,
+					wins,
+					winPercentage: games > 0 ? Math.round((wins / games) * 1000) / 10 : 0,
+				};
+			}),
 		};
 
 		// Include copyable query in response for debugging

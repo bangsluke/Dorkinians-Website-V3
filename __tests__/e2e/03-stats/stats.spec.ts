@@ -19,6 +19,7 @@ const PLAYER_SECTION_IDS = [
 	"team-performance",
 	"positional-stats",
 	"match-results",
+	"starting-impact",
 	"game-details",
 	"monthly-performance",
 	"defensive-record",
@@ -512,6 +513,26 @@ test.describe("Stats Page Tests", () => {
 		if (!(keyPerfVisible || playerStatsVisible || noPlayerVisible)) {
 			test.skip(true, "Key Performance / Player Stats / empty state not observable after nav — skipping.");
 			return;
+		}
+	});
+
+	test("3.19. Phase 1: Starting impact and optional Tactical Overview (formations)", async ({ page }) => {
+		await openStatsFromHome(page);
+		if (await page.getByRole("heading", { name: /No player data available/i }).first().isVisible({ timeout: 2500 }).catch(() => false)) {
+			test.skip(true, "No player data — skipping Phase 1 UI checks.");
+			return;
+		}
+		await page.waitForTimeout(800);
+		const impact = page.locator("#starting-impact");
+		if (await impact.isVisible({ timeout: 12000 }).catch(() => false)) {
+			await expect(page.getByRole("heading", { name: /^Starting impact$/i })).toBeVisible();
+		}
+		if (!(await clickStatsSubPage(page, "team-stats"))) {
+			return;
+		}
+		const formBlock = page.locator("#team-formation-breakdown");
+		if (await formBlock.isVisible({ timeout: 8000 }).catch(() => false)) {
+			await expect(page.getByRole("heading", { name: /Formations used/i })).toBeVisible();
 		}
 	});
 });

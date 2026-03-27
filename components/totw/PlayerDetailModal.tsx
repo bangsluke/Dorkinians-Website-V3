@@ -374,6 +374,11 @@ export default function PlayerDetailModal({ playerName, matchDetails, aggregated
 													{matchSummary.resultScore && (
 														<p className='text-white text-sm md:text-base font-semibold mt-1'>{matchSummary.resultScore}</p>
 													)}
+													{match.matchRating != null && !Number.isNaN(Number(match.matchRating)) && (
+														<p className='text-dorkinians-yellow text-xs md:text-sm mt-1'>
+															Match rating: {Number(match.matchRating).toFixed(1)} / 10
+														</p>
+													)}
 												</div>
 
 												{/* Statistics Table */}

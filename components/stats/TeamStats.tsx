@@ -47,9 +47,12 @@ interface TopPlayer {
 	penaltiesConceded: number;
 	penaltiesSaved: number;
 	distance: number;
+	starts: number;
+	averageMatchRating: number | null;
+	matchesRated8Plus: number;
 }
 
-type StatType = "appearances" | "goals" | "assists" | "cleanSheets" | "mom" | "saves" | "yellowCards" | "redCards" | "penaltiesScored" | "fantasyPoints" | "goalInvolvements" | "minutes" | "ownGoals" | "conceded" | "penaltiesMissed" | "penaltiesConceded" | "penaltiesSaved" | "distance";
+type StatType = "appearances" | "starts" | "goals" | "assists" | "cleanSheets" | "mom" | "saves" | "yellowCards" | "redCards" | "penaltiesScored" | "fantasyPoints" | "goalInvolvements" | "minutes" | "ownGoals" | "conceded" | "penaltiesMissed" | "penaltiesConceded" | "penaltiesSaved" | "distance" | "avgMatchRating" | "matchesRated8Plus";
 
 function StatRow({ stat, value, teamData }: { stat: any; value: any; teamData: TeamData }) {
 	const [showTooltip, setShowTooltip] = useState(false);
@@ -397,7 +400,7 @@ export default function TeamStats() {
 	const [selectedStatType, setSelectedStatType] = useState<StatType>(() => {
 		if (typeof window !== "undefined") {
 			const saved = safeLocalStorageGet("team-stats-top-players-stat-type");
-			const validStatTypes: StatType[] = ["appearances", "goals", "assists", "cleanSheets", "mom", "saves", "yellowCards", "redCards", "penaltiesScored", "fantasyPoints", "goalInvolvements", "minutes", "ownGoals", "conceded", "penaltiesMissed", "penaltiesConceded", "penaltiesSaved", "distance"];
+			const validStatTypes: StatType[] = ["appearances", "starts", "goals", "assists", "cleanSheets", "mom", "saves", "yellowCards", "redCards", "penaltiesScored", "fantasyPoints", "goalInvolvements", "minutes", "ownGoals", "conceded", "penaltiesMissed", "penaltiesConceded", "penaltiesSaved", "distance", "avgMatchRating", "matchesRated8Plus"];
 			if (saved && validStatTypes.includes(saved as StatType)) {
 				return saved as StatType;
 			}
@@ -670,7 +673,15 @@ export default function TeamStats() {
 				});
 				
 				log("info", `[TeamStats] Received ${data.players?.length || 0} players for statType: ${selectedStatType}`, data.players);
-				setTopPlayers(data.players || []);
+				const raw = (data.players || []) as Partial<TopPlayer>[];
+				setTopPlayers(
+					raw.map((p) => ({
+						...(p as TopPlayer),
+						starts: typeof p.starts === "number" ? p.starts : 0,
+						averageMatchRating: p.averageMatchRating ?? null,
+						matchesRated8Plus: typeof p.matchesRated8Plus === "number" ? p.matchesRated8Plus : 0,
+					}))
+				);
 			} catch (error) {
 				log("error", "[TeamStats] Error fetching top players:", error);
 				// Log PWA debug info on error
@@ -917,6 +928,8 @@ export default function TeamStats() {
 		switch (statType) {
 			case "appearances":
 				return player.appearances;
+			case "starts":
+				return player.starts;
 			case "goals":
 				return player.goals + player.penaltiesScored;
 			case "assists":
@@ -951,6 +964,10 @@ export default function TeamStats() {
 				return player.penaltiesSaved;
 			case "distance":
 				return player.distance;
+			case "avgMatchRating":
+				return player.averageMatchRating ?? 0;
+			case "matchesRated8Plus":
+				return player.matchesRated8Plus;
 			default:
 				return 0;
 		}
@@ -965,6 +982,8 @@ export default function TeamStats() {
 				const homeGamesText = `${player.homeGames} ${player.homeGames === 1 ? "Home Game" : "Home Games"}`;
 				const awayGamesText = `${player.awayGames} ${player.awayGames === 1 ? "Away Game" : "Away Games"}`;
 				return `${homeGamesText} and ${awayGamesText}`;
+			case "starts":
+				return `${player.starts} ${player.starts === 1 ? "start" : "starts"} in ${apps}`;
 			case "goals":
 				const totalGoals = player.goals + player.penaltiesScored;
 				const penaltyText = player.penaltiesScored > 0 ? ` (incl. ${player.penaltiesScored} ${player.penaltiesScored === 1 ? "penalty" : "penalties"})` : "";
@@ -1006,6 +1025,11 @@ export default function TeamStats() {
 			case "distance":
 				const roundedDistance = Math.round(player.distance * 10) / 10;
 				return `${roundedDistance} miles travelled to games in ${apps}`;
+			case "avgMatchRating":
+				const ar = player.averageMatchRating;
+				return ar != null ? `Average rating ${ar.toFixed(1)} in ${apps}` : apps;
+			case "matchesRated8Plus":
+				return `${player.matchesRated8Plus} ${player.matchesRated8Plus === 1 ? "game" : "games"} rated 8+ in ${apps}`;
 			default:
 				return apps;
 		}
@@ -1016,6 +1040,8 @@ export default function TeamStats() {
 		switch (statType) {
 			case "appearances":
 				return "Appearances";
+			case "starts":
+				return "Starts";
 			case "goals":
 				return "Goals";
 			case "assists":
@@ -1050,6 +1076,10 @@ export default function TeamStats() {
 				return "Penalties Saved";
 			case "distance":
 				return "Distance Travelled";
+			case "avgMatchRating":
+				return "Avg match rating";
+			case "matchesRated8Plus":
+				return "Matches rated 8+";
 			default:
 				return "Appearances";
 		}
@@ -1379,6 +1409,50 @@ export default function TeamStats() {
 									</div>
 								)}
 
+								{!isDataTableMode && teamData.formationBreakdown && teamData.formationBreakdown.length > 0 && (
+									<div id='team-formation-breakdown' className='md:break-inside-avoid md:mb-4'>
+										<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+											<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Formations used</h3>
+											<p className='text-white/60 text-xs mb-3'>Games and win % by inferred formation (from starting XI)</p>
+											<div className='chart-container -my-2' style={{ touchAction: 'pan-y' }}>
+												<ResponsiveContainer width='100%' height={280}>
+													<BarChart
+														data={teamData.formationBreakdown}
+														margin={{ top: 8, right: 12, left: 0, bottom: 4 }}>
+														<CartesianGrid strokeDasharray='3 3' stroke='#ffffff22' />
+														<XAxis
+															dataKey='formation'
+															tick={{ fill: '#e5e5e5', fontSize: 10 }}
+															interval={0}
+															angle={-30}
+															textAnchor='end'
+															height={72}
+														/>
+														<YAxis yAxisId='games' tick={{ fill: '#e5e5e5', fontSize: 11 }} allowDecimals={false} width={36} />
+														<YAxis
+															yAxisId='pct'
+															orientation='right'
+															tick={{ fill: '#e5e5e5', fontSize: 11 }}
+															domain={[0, 100]}
+															width={40}
+															unit='%'
+														/>
+														<Tooltip
+															contentStyle={{ backgroundColor: '#1a1a1a', border: '1px solid #444' }}
+															labelStyle={{ color: '#fff' }}
+															formatter={(value: number, name: string) =>
+																name === 'Win %' ? [`${value}%`, name] : [value, name]
+															}
+														/>
+														<Bar yAxisId='games' dataKey='games' name='Games' fill='#d4a012' radius={[4, 4, 0, 0]} />
+														<Bar yAxisId='pct' dataKey='winPercentage' name='Win %' fill='#22c55e' radius={[4, 4, 0, 0]} />
+													</BarChart>
+												</ResponsiveContainer>
+											</div>
+										</div>
+									</div>
+								)}
+
 								{/* Recent Games Form */}
 								{!isDataTableMode && selectedTeam && apiFilters && (
 									<div id='team-recent-games' className='md:break-inside-avoid md:mb-4'>
@@ -1403,6 +1477,7 @@ export default function TeamStats() {
 													<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-xs md:text-sm shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
 														{([
 															"appearances",
+															"starts",
 															"minutes",
 															"mom",
 															"goals",
@@ -1420,6 +1495,8 @@ export default function TeamStats() {
 															"conceded",
 															"ownGoals",
 															"distance",
+															"avgMatchRating",
+															"matchesRated8Plus",
 														] as StatType[]).map((statType) => (
 															<Listbox.Option
 																key={statType}
@@ -1465,6 +1542,8 @@ export default function TeamStats() {
 															formattedStatValue = statValue.toLocaleString();
 														} else if (selectedStatType === "distance") {
 															formattedStatValue = (Math.round(statValue * 10) / 10).toFixed(1);
+														} else if (selectedStatType === "avgMatchRating") {
+															formattedStatValue = player.averageMatchRating != null ? player.averageMatchRating.toFixed(1) : "—";
 														} else {
 															formattedStatValue = statValue;
 														}

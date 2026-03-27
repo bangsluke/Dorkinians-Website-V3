@@ -176,9 +176,17 @@ export function buildPlayerStatsQuery(playerName: string, filters: any = null): 
 			sum(CASE WHEN f.result = "D" THEN 1 ELSE 0 END) as draws,
 			sum(CASE WHEN f.result = "L" THEN 1 ELSE 0 END) as losses,
 			sum(CASE WHEN md.goals > 0 AND f.result = "W" THEN 1 ELSE 0 END) as winsWhenScoring,
-			sum(CASE WHEN md.goals > 0 THEN 1 ELSE 0 END) as gamesWithGoals
+			sum(CASE WHEN md.goals > 0 THEN 1 ELSE 0 END) as gamesWithGoals,
+			sum(CASE WHEN md.started = true THEN 1 ELSE 0 END) as starts,
+			sum(CASE WHEN md.started = false THEN 1 ELSE 0 END) as subAppearances,
+			sum(CASE WHEN md.started = true AND f.result = "W" THEN 1 ELSE 0 END) as winsWhenStarting,
+			sum(CASE WHEN md.started = false AND f.result = "W" THEN 1 ELSE 0 END) as winsFromBench,
+			avg(md.matchRating) as averageMatchRating,
+			max(md.matchRating) as highestMatchRating,
+			sum(CASE WHEN coalesce(md.matchRating, 0) >= 8.0 THEN 1 ELSE 0 END) as matchesRated8Plus
 		// Calculate team aggregations separately - re-match with filters
 		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets, gkCleanSheets,
+			starts, subAppearances, winsWhenStarting, winsFromBench, averageMatchRating, highestMatchRating, matchesRated8Plus,
 			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, penaltyShootoutPenaltiesScored, penaltyShootoutPenaltiesMissed, penaltyShootoutPenaltiesSaved, fantasyPoints, distance,
 			gk, def, mid, fwd, gkMinutes, defMinutes, midMinutes, fwdMinutes,
 			teams, seasons, oppositionPlayed, competitionsCompeted, homeGames, homeWins, awayGames, awayWins, wins, draws, losses, winsWhenScoring, gamesWithGoals
@@ -194,6 +202,7 @@ export function buildPlayerStatsQuery(playerName: string, filters: any = null): 
 	
 	query += `
 		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets, gkCleanSheets,
+			starts, subAppearances, winsWhenStarting, winsFromBench, averageMatchRating, highestMatchRating, matchesRated8Plus,
 			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, penaltyShootoutPenaltiesScored, penaltyShootoutPenaltiesMissed, penaltyShootoutPenaltiesSaved, fantasyPoints, distance,
 			gk, def, mid, fwd, gkMinutes, defMinutes, midMinutes, fwdMinutes,
 			teams, seasons, oppositionPlayed, competitionsCompeted, homeGames, homeWins, awayGames, awayWins, wins, draws, losses, winsWhenScoring, gamesWithGoals,
@@ -201,6 +210,7 @@ export function buildPlayerStatsQuery(playerName: string, filters: any = null): 
 			md2.goals as teamGoal,
 			md2.penaltiesScored as teamPenaltiesScored
 		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets, gkCleanSheets,
+			starts, subAppearances, winsWhenStarting, winsFromBench, averageMatchRating, highestMatchRating, matchesRated8Plus,
 			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, penaltyShootoutPenaltiesScored, penaltyShootoutPenaltiesMissed, penaltyShootoutPenaltiesSaved, fantasyPoints, distance,
 			gk, def, mid, fwd, gkMinutes, defMinutes, midMinutes, fwdMinutes,
 			teams, seasons, oppositionPlayed, competitionsCompeted, homeGames, homeWins, awayGames, awayWins, wins, draws, losses, winsWhenScoring, gamesWithGoals,
@@ -219,11 +229,13 @@ export function buildPlayerStatsQuery(playerName: string, filters: any = null): 
 				ELSE 999
 			END as teamPriority
 		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets, gkCleanSheets,
+			starts, subAppearances, winsWhenStarting, winsFromBench, averageMatchRating, highestMatchRating, matchesRated8Plus,
 			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, penaltyShootoutPenaltiesScored, penaltyShootoutPenaltiesMissed, penaltyShootoutPenaltiesSaved, fantasyPoints, distance,
 			gk, def, mid, fwd, gkMinutes, defMinutes, midMinutes, fwdMinutes,
 			teams, seasons, oppositionPlayed, competitionsCompeted, homeGames, homeWins, awayGames, awayWins, wins, draws, losses, winsWhenScoring, gamesWithGoals,
 			collect({team: team, appearances: teamAppearances, goals: teamGoals, teamPriority: teamPriority}) as teamStats
 		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets, gkCleanSheets,
+			starts, subAppearances, winsWhenStarting, winsFromBench, averageMatchRating, highestMatchRating, matchesRated8Plus,
 			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, penaltyShootoutPenaltiesScored, penaltyShootoutPenaltiesMissed, penaltyShootoutPenaltiesSaved, fantasyPoints, distance,
 			gk, def, mid, fwd, gkMinutes, defMinutes, midMinutes, fwdMinutes,
 			teams, seasons, oppositionPlayed, competitionsCompeted, homeGames, homeWins, awayGames, awayWins, wins, draws, losses, winsWhenScoring, gamesWithGoals, teamStats
@@ -231,6 +243,7 @@ export function buildPlayerStatsQuery(playerName: string, filters: any = null): 
 		// Use reduce to find max, handling empty teamStats
 		// For ties, prefer higher team (lower priority number: 1st XI = 1, 2nd XI = 2, etc.)
 		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets, gkCleanSheets,
+			starts, subAppearances, winsWhenStarting, winsFromBench, averageMatchRating, highestMatchRating, matchesRated8Plus,
 			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, penaltyShootoutPenaltiesScored, penaltyShootoutPenaltiesMissed, penaltyShootoutPenaltiesSaved, fantasyPoints, distance,
 			gk, def, mid, fwd, gkMinutes, defMinutes, midMinutes, fwdMinutes,
 			teams, seasons, oppositionPlayed, competitionsCompeted, homeGames, homeWins, awayGames, awayWins, wins, draws, losses, winsWhenScoring, gamesWithGoals,
@@ -255,6 +268,7 @@ export function buildPlayerStatsQuery(playerName: string, filters: any = null): 
 		// Calculate teammates - need to query separately
 		// Pass through mostPlayedTeam and mostScoredTeam so they're available later
 		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets, gkCleanSheets,
+			starts, subAppearances, winsWhenStarting, winsFromBench, averageMatchRating, highestMatchRating, matchesRated8Plus,
 			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, penaltyShootoutPenaltiesScored, penaltyShootoutPenaltiesMissed, penaltyShootoutPenaltiesSaved, fantasyPoints, distance,
 			gk, def, mid, fwd, gkMinutes, defMinutes, midMinutes, fwdMinutes,
 			teams, seasons, oppositionPlayed, competitionsCompeted, homeGames, homeWins, awayGames, awayWins, wins, draws, losses, winsWhenScoring, gamesWithGoals,
@@ -271,6 +285,7 @@ export function buildPlayerStatsQuery(playerName: string, filters: any = null): 
 	
 	query += `
 		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets, gkCleanSheets,
+			starts, subAppearances, winsWhenStarting, winsFromBench, averageMatchRating, highestMatchRating, matchesRated8Plus,
 			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, penaltyShootoutPenaltiesScored, penaltyShootoutPenaltiesMissed, penaltyShootoutPenaltiesSaved, fantasyPoints, distance,
 			gk, def, mid, fwd, gkMinutes, defMinutes, midMinutes, fwdMinutes,
 			teams, seasons, oppositionPlayed, competitionsCompeted, homeGames, homeWins, awayGames, awayWins, wins, draws, losses, winsWhenScoring, gamesWithGoals,
@@ -286,6 +301,7 @@ export function buildPlayerStatsQuery(playerName: string, filters: any = null): 
 		MATCH (md4)<-[:PLAYED_IN]-(p2:Player {graphLabel: $graphLabel})
 		WHERE p2.playerName <> $playerName
 		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets, gkCleanSheets,
+			starts, subAppearances, winsWhenStarting, winsFromBench, averageMatchRating, highestMatchRating, matchesRated8Plus,
 			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, penaltyShootoutPenaltiesScored, penaltyShootoutPenaltiesMissed, penaltyShootoutPenaltiesSaved, fantasyPoints, distance,
 			gk, def, mid, fwd, gkMinutes, defMinutes, midMinutes, fwdMinutes,
 			mostPlayedForTeam, mostPlayedForTeamAppearances, mostScoredForTeam, mostScoredForTeamGoals, numberTeamsPlayedFor, numberSeasonsPlayedFor,
@@ -294,6 +310,7 @@ export function buildPlayerStatsQuery(playerName: string, filters: any = null): 
 			count(DISTINCT p2.playerName) as teammatesPlayedWith
 		// Calculate derived stats
 		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets, gkCleanSheets,
+			starts, subAppearances, winsWhenStarting, winsFromBench, averageMatchRating, highestMatchRating, matchesRated8Plus,
 			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, penaltyShootoutPenaltiesScored, penaltyShootoutPenaltiesMissed, penaltyShootoutPenaltiesSaved, fantasyPoints, distance,
 			gk, def, mid, fwd, gkMinutes, defMinutes, midMinutes, fwdMinutes,
 			mostPlayedForTeam, mostPlayedForTeamAppearances, mostScoredForTeam, mostScoredForTeamGoals, numberTeamsPlayedFor, numberSeasonsPlayedFor,
@@ -325,7 +342,10 @@ export function buildPlayerStatsQuery(playerName: string, filters: any = null): 
 			CASE WHEN homeGames + awayGames > 0 THEN toFloat(wins) / (homeGames + awayGames) * 100 ELSE 0.0 END as gamesPercentWon,
 			CASE WHEN homeGames > 0 THEN toFloat(homeWins) / homeGames * 100 ELSE 0.0 END as homeGamesPercentWon,
 			CASE WHEN awayGames > 0 THEN toFloat(awayWins) / awayGames * 100 ELSE 0.0 END as awayGamesPercentWon,
-			CASE WHEN homeGames + awayGames > 0 THEN toFloat(wins * 3 + draws * 1 + losses * 0) / (homeGames + awayGames) ELSE 0.0 END as pointsPerGame
+			CASE WHEN homeGames + awayGames > 0 THEN toFloat(wins * 3 + draws * 1 + losses * 0) / (homeGames + awayGames) ELSE 0.0 END as pointsPerGame,
+			CASE WHEN starts > 0 THEN toFloat(winsWhenStarting) / starts * 100 ELSE 0.0 END as winRateWhenStarting,
+			CASE WHEN subAppearances > 0 THEN toFloat(winsFromBench) / subAppearances * 100 ELSE 0.0 END as winRateFromBench,
+			CASE WHEN appearances > 0 THEN toFloat(starts) / appearances * 100 ELSE 0.0 END as startRatePercent
 		RETURN p.id as id,
 			p.playerName as playerName,
 			p.allowOnSite as allowOnSite,
@@ -401,7 +421,15 @@ export function buildPlayerStatsQuery(playerName: string, filters: any = null): 
 			coalesce(numberSeasonsPlayedFor, 0) as numberSeasonsPlayedFor,
 			coalesce(oppositionPlayed, 0) as oppositionPlayed,
 			coalesce(competitionsCompeted, 0) as competitionsCompeted,
-			coalesce(teammatesPlayedWith, 0) as teammatesPlayedWith
+			coalesce(teammatesPlayedWith, 0) as teammatesPlayedWith,
+			coalesce(starts, 0) as starts,
+			coalesce(subAppearances, 0) as subAppearances,
+			coalesce(winRateWhenStarting, 0.0) as winRateWhenStarting,
+			coalesce(winRateFromBench, 0.0) as winRateFromBench,
+			coalesce(startRatePercent, 0.0) as startRatePercent,
+			averageMatchRating as averageMatchRating,
+			highestMatchRating as highestMatchRating,
+			coalesce(matchesRated8Plus, 0) as matchesRated8Plus
 	`;
 
 	return { query, params };
@@ -530,6 +558,24 @@ export async function GET(request: NextRequest) {
 			competitionsCompeted: toNumber(record.get("competitionsCompeted")),
 			teammatesPlayedWith: toNumber(record.get("teammatesPlayedWith")),
 			graphLabel: record.get("graphLabel"),
+			starts: toNumber(record.get("starts")),
+			subAppearances: toNumber(record.get("subAppearances")),
+			winRateWhenStarting: toNumber(record.get("winRateWhenStarting")),
+			winRateFromBench: toNumber(record.get("winRateFromBench")),
+			startRatePercent: toNumber(record.get("startRatePercent")),
+			averageMatchRating: (() => {
+				const v = record.get("averageMatchRating");
+				if (v === null || v === undefined) return null;
+				const n = typeof v === "number" ? v : toNumber(v);
+				return Math.round(n * 10) / 10;
+			})(),
+			highestMatchRating: (() => {
+				const v = record.get("highestMatchRating");
+				if (v === null || v === undefined) return null;
+				const n = typeof v === "number" ? v : toNumber(v);
+				return Math.round(n * 10) / 10;
+			})(),
+			matchesRated8Plus: toNumber(record.get("matchesRated8Plus")),
 		};
 
 		return NextResponse.json({ playerData }, { headers: corsHeaders });
