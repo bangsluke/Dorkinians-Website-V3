@@ -3,7 +3,9 @@
 # use Netlify deploy logs and Functions / Edge logs; grep for "Environment variable validation failed".
 
 [build]
-  command = "npm run build"
+  # Materialize Netlify UI env into .env.production so OpenNext copies it into the Next server
+  # handler (classic netlify/functions/* still get Lambda env; the Next handler often does not).
+  command = "node scripts/sync-build-env-to-dotenv.cjs && npm run build"
   publish = ".next"
 
 [build.environment]
