@@ -1,14 +1,11 @@
-name: Full test suite and summary email
+name: Full test suite (test:all) and summary email
 
 on:
   push:
     branches:
-      - develop
-  pull_request:
-    branches:
       - main
   schedule:
-    # Tuesday 02:17 UTC — weekly health check
+    # Tuesday 02:17 UTC — weekly full suite (same as test:all on main)
     - cron: '17 2 * * 2'
   workflow_dispatch:
 
@@ -20,7 +17,7 @@ jobs:
   full_test_suite:
     name: Full test suite and email
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
 
     steps:
       - name: Checkout code
@@ -38,8 +35,8 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
-      - name: Run full test matrix and send summary email
-        timeout-minutes: 60
+      - name: Run test:all and send CI summary email
+        timeout-minutes: 90
         env:
           WEBSITE_URL: ${{ secrets.WEBSITE_URL != '' && secrets.WEBSITE_URL || 'https://dorkinians-website-v3.netlify.app' }}
           HEADLESS: 'true'
@@ -51,9 +48,9 @@ jobs:
           SMTP_FROM_EMAIL: ${{ secrets.SMTP_FROM_EMAIL }}
           SMTP_TO_EMAIL: ${{ secrets.SMTP_TO_EMAIL }}
           SMTP_EMAIL_SECURE: ${{ secrets.SMTP_EMAIL_SECURE || 'false' }}
-          SEND_TEST_EMAILS: 'true'
-          WORKFLOW_TRIGGER_LABEL: "${{ github.event_name == 'pull_request' && format('pull_request {0} → {1} ({2})', github.head_ref, github.base_ref, github.sha) || format('{0} @ {1} ({2})', github.event_name, github.ref_name, github.sha) }}"
-        run: npm run test:weekly:email
+          SEND_CI_TEST_ALL_SUMMARY_EMAIL: 'true'
+          WORKFLOW_TRIGGER_LABEL: "${{ format('{0} @ {1} ({2})', github.event_name, github.ref_name, github.sha) }}"
+        run: npm run test:all
 
       - name: Upload test results
         if: always()

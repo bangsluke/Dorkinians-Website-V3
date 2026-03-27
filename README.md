@@ -72,6 +72,7 @@
   - [Database Seeding Endpoint](#database-seeding-endpoint)
 - [Additional Documentation](#additional-documentation)
 - [Testing Commands and Coverage](#testing-commands-and-coverage)
+  - [CI on main and email](#ci-on-main-and-email)
   - [Coverage Policy](#coverage-policy)
   - [Coverage Governance Docs](#coverage-governance-docs)
 
@@ -764,10 +765,18 @@ The project uses a unified schema system where configuration files are synchroni
 ## Testing Commands and Coverage
 
 - `npm run test` runs unit, integration, advanced, comprehensive, validation, performance, monitoring, security, ux, e2e, and report scripts as a strict all-pass pipeline (report emails suppressed).
-- `npm run test:all` runs unit, integration, advanced, comprehensive, validation, performance, monitoring, security, ux, e2e, and report scripts as a strict all-pass pipeline (report emails suppressed).
+- `npm run test:all` runs unit, integration, advanced, comprehensive, validation, performance, monitoring, security, ux, e2e, and report scripts as a strict all-pass pipeline (report emails suppressed). In CI, set **`SEND_CI_TEST_ALL_SUMMARY_EMAIL=true`** (with SMTP secrets) to send one consolidated HTML summary email after the run, including pass/fail for each suite.
 - `npm run test:all:emails` runs the same strict pipeline but enables chatbot/questions report emails.
 - `npm run test:weekly:email` runs the weekly consolidated test summary email with Unit, Integration, E2E and subsection breakdowns.
 - `npm run test:coverage` generates Jest coverage output to `coverage/` (`text`, `lcov`, and `html`).
+
+### CI on main and email
+
+**Pushes to `main`**, a **weekly schedule** (Tuesday 02:17 UTC), and manual **workflow dispatch** run the GitHub Actions workflow [`.github/workflows/full-test-suite-and-email.yml`](./.github/workflows/full-test-suite-and-email.yml). The job installs dependencies, installs Playwright Chromium, runs **`npm run test:all`** (the full strict pipeline: unit, integration, other Jest suites, full Playwright E2E, chatbot report, questions report), then sends **one SMTP confirmation email** summarising every suite’s pass/fail via **`SEND_CI_TEST_ALL_SUMMARY_EMAIL`**. Artifacts: Playwright HTML report and screenshots.
+
+Configure repository **Actions secrets**: `SMTP_SERVER`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_EMAIL`, `SMTP_TO_EMAIL`; optional `SMTP_EMAIL_SECURE`, `WEBSITE_URL` (E2E target).
+
+This workflow is **informational by default**: it does not block merges to `main` unless you add it as a **required status check** under branch protection. Failed runs appear in the **Actions** tab; you can also enable **Actions** notifications in your GitHub account settings for extra alerts.
 
 To run the E2E tests for just one area, use the following commands:
 - `npm run test:e2e:navigation` - Run only the navigation tests
