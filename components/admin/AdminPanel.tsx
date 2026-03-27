@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { seedingStatusService } from "@/lib/services/seedingStatusService";
+import { getCsrfHeaders } from "@/lib/middleware/csrf";
 import JobMonitoringDashboard from "./JobMonitoringDashboard";
 import { killJob as killJobUtil } from "../../lib/jobUtils";
 
@@ -357,6 +358,7 @@ export default function AdminPanel() {
 			let response = null;
 			let data = null;
 			let successfulPath = "";
+			let lastFailureMessage: string | null = null;
 
 			for (const path of functionPaths) {
 				try {
@@ -387,6 +389,7 @@ export default function AdminPanel() {
 						method: "POST",
 						headers: {
 							"Content-Type": "application/json",
+							...getCsrfHeaders(),
 						},
 						body: JSON.stringify(requestBody),
 					});
@@ -417,6 +420,25 @@ export default function AdminPanel() {
 						addDebugLog(`Path ${path} returned status: ${response.status}`, 'warn');
 						const errorText = await response.text().catch(() => "Could not read error response");
 						addDebugLog(`Error response for ${path}: ${errorText.substring(0, 200)}`, 'warn');
+						try {
+							const errJson = JSON.parse(errorText) as {
+								hint?: string;
+								reason?: string;
+								message?: string;
+								error?: string;
+							};
+							const parts = [errJson.hint, errJson.reason, errJson.message, errJson.error].filter(
+								(s): s is string => typeof s === "string" && s.length > 0,
+							);
+							if (parts.length > 0) {
+								lastFailureMessage = [...new Set(parts)].join(" — ");
+							}
+						} catch {
+							if (response.status === 403 && errorText.includes("CSRF")) {
+								lastFailureMessage =
+									"CSRF validation failed for /api/trigger-seed. Refresh the admin page and try again.";
+							}
+						}
 					}
 				} catch (pathError) {
 					const errorDetails = {
@@ -498,8 +520,19 @@ export default function AdminPanel() {
 			} else {
 				addDebugLog("❌ All function paths failed", 'error');
 				addDebugLog("💡 Check Heroku app status: https://dashboard.heroku.com/apps/dorkinians-database-v3", 'info');
-				addDebugLog("💡 The Netlify function is working but can't connect to Heroku", 'info');
-				throw new Error("Failed to trigger seeding - Heroku service is unreachable. Check Heroku dashboard for app status.");
+				if (lastFailureMessage) {
+					addDebugLog(`💡 Detail: ${lastFailureMessage}`, 'info');
+					throw new Error(
+						`Failed to trigger seeding — ${lastFailureMessage}`,
+					);
+				}
+				addDebugLog(
+					"💡 If Heroku logs show 401 / Invalid API key length, sync SEED_API_KEY between hosting (Netlify/Vercel) and Heroku.",
+					"info",
+				);
+				throw new Error(
+					"Failed to trigger seeding — no endpoint accepted the request. If Heroku shows 401 on POST /seed, SEED_API_KEY must match exactly on both sides.",
+				);
 			}
 		} catch (err) {
 			addDebugLog(`Seeding trigger error: ${err instanceof Error ? err.message : "Network error"}`, 'error');
