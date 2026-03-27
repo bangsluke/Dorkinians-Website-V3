@@ -228,9 +228,10 @@ if (!results.otherJest) {
 
 // 4. E2E Tests
 printSectionHeader("E2E TESTS (PLAYWRIGHT)");
-const playwrightCommand = isDebugMode
-	? "playwright test"
-	: "playwright test --reporter=dot";
+// In CI, do not force --reporter=dot: it overrides playwright.config.ts (list/html/junit)
+// and hides per-test progress in GitHub Actions logs for long runs.
+const playwrightCommand =
+	isDebugMode || process.env.CI === "true" ? "playwright test" : "playwright test --reporter=dot";
 results.e2e = runCommand(playwrightCommand, "E2E Tests (Playwright)");
 const e2eSkippedMatch = (runCommand.lastOutput || "").match(/(\d+)\s+skipped/i);
 const e2eSkippedCount = e2eSkippedMatch ? Number(e2eSkippedMatch[1]) : 0;
