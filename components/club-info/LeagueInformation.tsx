@@ -762,9 +762,9 @@ export default function LeagueInformation() {
 			</div>
 
 			{/* Team Navigation - Sticky */}
-			{!isMySeasonsMode && !isSeasonProgressMode && selectedSeason && selectedSeason !== "2019-20" && selectedSeason !== "my-seasons" && selectedSeason !== "season-progress" && (
+			{!isMySeasonsMode && !isSeasonProgressMode && selectedSeason !== "2019-20" && selectedSeason !== "my-seasons" && selectedSeason !== "season-progress" && (
 				<>
-					{loading || appConfig.forceSkeletonView ? (
+					{(!leagueData || loading || appConfig.forceSkeletonView) ? (
 						<div className='sticky top-0 z-20 py-2 -mx-3 md:-mx-6'>
 							<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
 								<div className='flex flex-wrap justify-center gap-2 md:gap-3 px-2'>

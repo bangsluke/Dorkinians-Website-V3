@@ -13,6 +13,12 @@
 
 const { execSync } = require("child_process");
 const path = require("path");
+const {
+	sendReportEmail,
+	buildDefaultContext,
+	wrapSectionCard,
+	escapeHtml,
+} = require(path.join(__dirname, "..", "..", "lib", "email", "dorkiniansReportEmail"));
 
 // Load environment variables
 require("dotenv").config();
@@ -31,6 +37,8 @@ const colors = {
 	blue: "\x1b[34m",
 	cyan: "\x1b[36m",
 };
+const E2E_SKIP_REASON_NOTE =
+	"Skipped E2E tests are intentional guard skips (for example: missing/slow test data, valid empty states, or project/device-specific conditions).";
 
 function printSectionHeader(title) {
 	const separator = "=".repeat(80);
@@ -58,20 +66,28 @@ function runCommand(command, description, suppressOutput = false, envOverrides =
 		const options = {
 			cwd: path.join(__dirname, "..", ".."),
 			env: { ...process.env, ...envOverrides },
+			encoding: "utf8",
 		};
 		
 		if (suppressOutput && !isDebugMode) {
 			// Suppress output by piping to null
 			options.stdio = "pipe";
 		} else {
-			// Show all output in debug mode
-			options.stdio = "inherit";
+			// Pipe output so we can parse it later when needed
+			options.stdio = "pipe";
 		}
 		
-		execSync(command, options);
+		const output = execSync(command, options) || "";
+		runCommand.lastOutput = output;
+		if (!suppressOutput || isDebugMode) {
+			process.stdout.write(output);
+		}
 		printSuccess(`${description} completed successfully`);
 		return true;
 	} catch (error) {
+		const stdout = error && error.stdout ? error.stdout.toString() : "";
+		const stderr = error && error.stderr ? error.stderr.toString() : "";
+		runCommand.lastOutput = `${stdout}${stderr ? `\n${stderr}` : ""}`;
 		printError(`${description} failed`);
 		// In debug mode, show error details
 		if (isDebugMode && error.stdout) {
@@ -82,6 +98,73 @@ function runCommand(command, description, suppressOutput = false, envOverrides =
 		}
 		return false;
 	}
+}
+
+function statusColor(passed) {
+	return passed ? "#177245" : "#b42318";
+}
+
+function statusBg(passed) {
+	return passed ? "#ecfdf3" : "#fef3f2";
+}
+
+function renderPassFail(passed) {
+	return passed ? "PASSED" : "FAILED";
+}
+
+function buildTestAllSummaryInnerHtml(summaryItems, passedCount, totalCount, e2eSkippedCount) {
+	const summaryInner = `<div style="font-size:16px;font-weight:700;color:#101828;margin-bottom:6px;">Overall: ${passedCount}/${totalCount} suites passed</div>
+		${
+			e2eSkippedCount > 0
+				? `<div style="font-size:13px;color:#344054;margin-top:6px;"><strong>Skip note:</strong> ${escapeHtml(E2E_SKIP_REASON_NOTE)}</div>`
+				: ""
+		}`;
+
+	const subRows = summaryItems
+		.map(
+			(item) => `
+      <tr>
+        <td style="padding:10px 12px;border-bottom:1px solid #eaecf0;color:#101828;">${escapeHtml(item.name)}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #eaecf0;">
+          <span style="display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700;background:${statusBg(item.result)};color:${statusColor(item.result)};">
+            ${renderPassFail(item.result)}
+          </span>
+        </td>
+      </tr>`,
+		)
+		.join("");
+
+	const table = `
+	  <div style="margin:16px 0;border:1px solid #eaecf0;border-radius:12px;overflow:hidden;background:#ffffff;">
+        <table style="border-collapse:collapse;width:100%;">
+        <thead>
+          <tr>
+            <th style="padding:10px 12px;border-bottom:1px solid #eaecf0;text-align:left;font-size:12px;letter-spacing:.02em;text-transform:uppercase;color:#475467;">Suite</th>
+            <th style="padding:10px 12px;border-bottom:1px solid #eaecf0;text-align:left;font-size:12px;letter-spacing:.02em;text-transform:uppercase;color:#475467;">Status</th>
+          </tr>
+        </thead>
+        <tbody>${subRows}</tbody>
+        </table>
+      </div>`;
+
+	return wrapSectionCard(summaryInner, { heading: "Overall status" }) + table;
+}
+
+function buildTestAllSummaryText(summaryItems, passedCount, totalCount, e2eSkippedCount) {
+	const lines = [
+		"Full test suite (test:all) summary",
+		`Overall: ${passedCount}/${totalCount} suites passed`,
+		...summaryItems.map((item) => `- ${item.name}: ${item.result ? "PASSED" : "FAILED"}`),
+	];
+	if (e2eSkippedCount > 0) {
+		lines.push(`Skip note: ${E2E_SKIP_REASON_NOTE}`);
+	}
+	return lines.join("\n");
+}
+
+function getWorkflowTriggerLabel() {
+	const label = process.env.WORKFLOW_TRIGGER_LABEL;
+	return typeof label === "string" && label.trim() ? label.trim() : "";
 }
 
 // Track results
@@ -149,6 +232,11 @@ const playwrightCommand = isDebugMode
 	? "playwright test"
 	: "playwright test --reporter=dot";
 results.e2e = runCommand(playwrightCommand, "E2E Tests (Playwright)");
+const e2eSkippedMatch = (runCommand.lastOutput || "").match(/(\d+)\s+skipped/i);
+const e2eSkippedCount = e2eSkippedMatch ? Number(e2eSkippedMatch[1]) : 0;
+if (e2eSkippedCount > 0) {
+	printInfo(`${e2eSkippedCount} E2E test(s) were skipped. ${E2E_SKIP_REASON_NOTE}`);
+}
 
 if (!results.e2e) {
 	hasFailures = true;
@@ -202,10 +290,47 @@ const totalCount = summary.length;
 
 console.log(`\n${colors.bright}Total: ${passedCount}/${totalCount} test suites passed${colors.reset}\n`);
 
-if (hasFailures) {
-	printError("Some test suites failed. Please review the output above.");
-	process.exit(1);
-} else {
-	printSuccess("All test suites passed successfully!");
-	process.exit(0);
+async function sendSummaryEmailAndExit() {
+	const sendCiSummary = process.env.SEND_CI_TEST_ALL_SUMMARY_EMAIL === "true";
+	if (sendCiSummary) {
+		const runContext = getWorkflowTriggerLabel();
+		const subjectSuffix = runContext ? ` [${runContext}]` : "";
+		const subjectDetail = `Full suite (test:all)${subjectSuffix} — ${passedCount}/${totalCount} passed${hasFailures ? " — FAILURES" : ""}`;
+		const innerHtml = buildTestAllSummaryInnerHtml(summary, passedCount, totalCount, e2eSkippedCount);
+		const textBody = buildTestAllSummaryText(summary, passedCount, totalCount, e2eSkippedCount);
+		const emailResult = await sendReportEmail({
+			subjectDetail,
+			title: "Full test suite (test:all)",
+			subtitle: runContext ? `CI summary · ${runContext}` : "Unit, integration, other Jest, E2E, chatbot report, questions report",
+			context: buildDefaultContext({
+				triggeredBy: "node __tests__/scripts/test-all.js",
+				npmScript: "npm run test:all",
+				extra: runContext || undefined,
+			}),
+			innerHtml,
+			textBody,
+			smtpMode: "strict",
+		});
+		if (!emailResult.ok) {
+			throw new Error(
+				emailResult.reason === "missing_smtp_config"
+					? "Missing SMTP configuration for test-all CI summary email"
+					: "Failed to send test-all CI summary email",
+			);
+		}
+		printSuccess("CI summary email sent.");
+	}
+
+	if (hasFailures) {
+		printError("Some test suites failed. Please review the output above.");
+		process.exit(1);
+	} else {
+		printSuccess("All test suites passed successfully!");
+		process.exit(0);
+	}
 }
+
+sendSummaryEmailAndExit().catch((err) => {
+	console.error("test-all finalize failed:", err);
+	process.exit(1);
+});

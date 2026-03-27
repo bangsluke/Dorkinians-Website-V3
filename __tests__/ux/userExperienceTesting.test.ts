@@ -9,6 +9,10 @@ jest.mock("@/lib/neo4j", () => ({
 	},
 }));
 
+// UX-oriented chatbot checks: readable opening characters and graceful handling of vague prompts with mocked Neo4j.
+// Complements functional suites by asserting minimal polish heuristics on answer strings.
+// Non-empty answers are required even for junk input—signals user-facing fallback copy is present.
+
 describe("User Experience Testing", () => {
 	let chatbotService: ChatbotService;
 
@@ -18,6 +22,7 @@ describe("User Experience Testing", () => {
 	});
 
 	test("returns readable responses for common prompts", async () => {
+		// Arrange: typical follow-up friendly prompts
 		const prompts = [
 			"How many goals has Luke Bangs scored?",
 			"What about his assists?",
@@ -25,6 +30,7 @@ describe("User Experience Testing", () => {
 		];
 
 		for (const question of prompts) {
+			// Act & assert: answers start with letters and are non-empty
 			const context: QuestionContext = { question, userContext: "Luke Bangs" };
 			const response = await chatbotService.processQuestion(context);
 			expect(response.answer).toBeDefined();
@@ -34,9 +40,11 @@ describe("User Experience Testing", () => {
 	});
 
 	test("handles unclear prompts with non-empty guidance text", async () => {
+		// Arrange: nonsense / empty user text
 		const prompts = ["What is this?", "???", ""];
 
 		for (const question of prompts) {
+			// Act & assert: still returns helpful non-empty copy
 			const context: QuestionContext = { question, userContext: "Luke Bangs" };
 			const response = await chatbotService.processQuestion(context);
 			expect(response.answer).toBeDefined();

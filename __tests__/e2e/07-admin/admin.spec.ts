@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 
+// Unauthenticated E2E: expect redirect or gate copy, not privileged admin actions.
 test.describe("Admin Page Tests", () => {
 	test("7.1. admin route redirects or prompts sign-in when unauthenticated", async ({ page }) => {
 		await page.goto("/admin", { waitUntil: "domcontentloaded" });

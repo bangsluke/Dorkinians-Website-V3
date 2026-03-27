@@ -40,6 +40,10 @@ jest.mock("next/dynamic", () => ({
 	default: () => () => null,
 }));
 
+// jsdom integration tests for FilterSidebar and ChatbotInterface with navigation/toast stores mocked and fetch stubbed.
+// No real API calls: components load dynamically; session/local storage cleared each run. Relies on stable data-testid hooks.
+// Async tests use waitFor around mocked network resolution; flakes usually mean DOM/testid drift rather than backend issues.
+
 describe("UI integration coverage", () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
@@ -55,15 +59,18 @@ describe("UI integration coverage", () => {
 	});
 
 	test("FilterSidebar loads filter data when opened", async () => {
+		// Arrange: render open sidebar with mocked store callbacks
 		const FilterSidebar = (await import("../../components/filters/FilterSidebar")).default;
 		render(React.createElement(FilterSidebar, { isOpen: true, onClose: jest.fn() }));
 
+		// Assert: opening triggers async filter hydration
 		await waitFor(() => {
 			expect(mockStore.loadFilterData).toHaveBeenCalled();
 		});
 	});
 
 	test("ChatbotInterface submits and renders response", async () => {
+		// Arrange: successful chat API payload
 		(global.fetch as jest.Mock).mockResolvedValue({
 			ok: true,
 			json: async () => ({
@@ -74,9 +81,11 @@ describe("UI integration coverage", () => {
 		const ChatbotInterface = (await import("../../components/chatbot/ChatbotInterface")).default;
 		render(React.createElement(ChatbotInterface));
 
+		// Act: user submits a question
 		fireEvent.change(screen.getByTestId("chatbot-input"), { target: { value: "How many goals?" } });
 		fireEvent.click(screen.getByTestId("chatbot-submit"));
 
+		// Assert: answer region populated and session id persisted
 		await waitFor(() => {
 			expect(screen.getByTestId("chatbot-answer")).toBeTruthy();
 		});
@@ -85,6 +94,7 @@ describe("UI integration coverage", () => {
 	});
 
 	test("ChatbotInterface shows error state on API failure", async () => {
+		// Arrange: failed HTTP response from chat endpoint
 		(global.fetch as jest.Mock).mockResolvedValue({
 			ok: false,
 			status: 500,
@@ -94,9 +104,11 @@ describe("UI integration coverage", () => {
 		const ChatbotInterface = (await import("../../components/chatbot/ChatbotInterface")).default;
 		render(React.createElement(ChatbotInterface));
 
+		// Act: submit triggers error handling UI path
 		fireEvent.change(screen.getByTestId("chatbot-input"), { target: { value: "Bad question" } });
 		fireEvent.click(screen.getByTestId("chatbot-submit"));
 
+		// Assert: answer container still renders (error state)
 		await waitFor(() => {
 			expect(screen.getByTestId("chatbot-answer")).toBeTruthy();
 		});
