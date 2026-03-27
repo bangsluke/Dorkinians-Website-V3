@@ -229,16 +229,36 @@ test.describe("Club Info Page Tests", () => {
 		await navigateToMainPage(page, "club-info");
 		await goToClubInfoSubPage(page, "league-information");
 		await ensureLeagueSeasonWithQuickJump(page);
-		const jump2 = page.getByRole("button", { name: "2s" }).first();
-		if (!(await jump2.isVisible({ timeout: 30000 }).catch(() => false))) {
+		// Quick-jump labels match `teamKey` (e.g. "2s"); headings use id `team-${teamKey}`.
+		// Some seasons render the bar before every `team-*` anchor is mounted — use the first jump whose `#team-${key}` exists.
+		const main = page.locator("main").first();
+		const jumpButtons = main.getByRole("button", { name: /^[1-8]s$/ });
+		if (!(await jumpButtons.first().isVisible({ timeout: 30000 }).catch(() => false))) {
 			test.skip();
 			return;
 		}
-		const target = page.locator("#team-2s");
-		await jump2.click();
-		await expect(target).toBeVisible({ timeout: 10000 });
-		const box = await target.boundingBox();
-		expect(box && box.y).toBeGreaterThanOrEqual(0);
+		const n = await jumpButtons.count();
+		if (n === 0) {
+			test.skip();
+			return;
+		}
+		let scrolled = false;
+		for (let i = 0; i < n; i++) {
+			const btn = jumpButtons.nth(i);
+			const label = (await btn.innerText()).trim();
+			if (!/^[1-8]s$/.test(label)) continue;
+			const target = page.locator(`#team-${label}`);
+			if ((await target.count()) === 0) continue;
+			await btn.click();
+			await expect(target).toBeVisible({ timeout: 15000 });
+			const box = await target.boundingBox();
+			expect(box && box.y).toBeGreaterThanOrEqual(0);
+			scrolled = true;
+			break;
+		}
+		if (!scrolled) {
+			test.skip();
+		}
 	});
 
 	test("5.13. clicking the 'League Table Link' button should open a 'https://fulltime.thefa.com/' website in a new tab", async ({

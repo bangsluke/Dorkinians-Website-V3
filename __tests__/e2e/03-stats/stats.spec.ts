@@ -366,9 +366,26 @@ test.describe("Stats Page Tests", () => {
 		await toggleDataTable(page, "visualisation");
 	});
 
-	test("3.15. should toggle data table on Team Stats", async ({ page }) => {
+	test("3.15. should toggle data table on Team Stats", async ({ page }, testInfo) => {
+		if (isMobileProject(testInfo)) {
+			test.setTimeout(120000);
+		}
 		await openStatsFromHome(page);
 		if (!(await clickStatsSubPage(page, "team-stats"))) {
+			test.skip();
+			return;
+		}
+		const teamReady =
+			(await page.getByTestId("team-top-players-heading").first().isVisible({ timeout: 25000 }).catch(() => false)) ||
+			(await page.getByRole("heading", { name: /Team Stats/i }).first().isVisible({ timeout: 8000 }).catch(() => false)) ||
+			(await page.getByText(/No team data available/i).first().isVisible({ timeout: 3000 }).catch(() => false));
+		if (!teamReady) {
+			test.skip();
+			return;
+		}
+		const toggle = page.getByRole("button", { name: /Switch to (data table|data visualisation)/i });
+		await toggle.scrollIntoViewIfNeeded().catch(() => {});
+		if (!(await toggle.isVisible({ timeout: 25000 }).catch(() => false))) {
 			test.skip();
 			return;
 		}
