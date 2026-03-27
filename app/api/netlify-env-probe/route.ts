@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+
 /**
- * One-off Netlify debugging: set NETLIFY_ENV_PROBE=true in Netlify UI, deploy, GET this route,
- * then remove the env var and delete this file. Returns only booleans / non-secret metadata.
+ * Temporary Netlify diagnostic. Gated on Netlify’s built-in `NETLIFY` flag (not a UI secret),
+ * because custom env vars are the ones failing—`NETLIFY_ENV_PROBE` would 404 forever.
+ * Remove this route after debugging.
  */
 export async function GET() {
-	if (process.env.NETLIFY_ENV_PROBE !== "true") {
+	if (process.env.NETLIFY !== "true") {
 		return new NextResponse(null, { status: 404 });
 	}
 
@@ -26,6 +29,7 @@ export async function GET() {
 
 	return NextResponse.json(
 		{
+			source: "next-server-handler",
 			netlify: process.env.NETLIFY ?? null,
 			context: process.env.CONTEXT ?? null,
 			deployUrl: process.env.DEPLOY_URL ?? null,
