@@ -92,6 +92,34 @@ export interface PlayerData {
 	competitionsCompeted: number;
 	teammatesPlayedWith: number;
 	graphLabel: string;
+	/** Phase 1: starter / ratings (filtered aggregates from API) */
+	starts?: number;
+	subAppearances?: number;
+	winRateWhenStarting?: number;
+	winRateFromBench?: number;
+	startRatePercent?: number;
+	averageMatchRating?: number | null;
+	highestMatchRating?: number | null;
+	matchesRated8Plus?: number;
+	/** Phase 2+ (optional until seeded) */
+	goalsPer90?: number | null;
+	assistsPer90?: number | null;
+	goalInvolvementsPer90?: number | null;
+	ftpPer90?: number | null;
+	cleanSheetsPer90?: number | null;
+	concededPer90?: number | null;
+	savesPer90Metric?: number | null;
+	cardsPer90?: number | null;
+	momPer90Metric?: number | null;
+	formCurrent?: number | null;
+	formBaseline?: number | null;
+	formTrend?: string | null;
+	formPeak?: number | null;
+	formPeakWeek?: string | null;
+	currentScoringStreak?: number;
+	currentAppearanceStreak?: number;
+	seasonBestScoringStreak?: number;
+	seasonBestAppearanceStreak?: number;
 }
 
 // Cached player data with date validation
@@ -145,6 +173,8 @@ export interface TeamData {
 	numberOfSeasons: number;
 	numberOfCompetitions: number;
 	numberOfPlayers: number;
+	/** Phase 1 tactical (from team-data-filtered) */
+	formationBreakdown?: Array<{ formation: string; games: number; wins: number; winPercentage: number }>;
 }
 
 // TOTW cache interfaces

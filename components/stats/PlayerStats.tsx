@@ -1768,9 +1768,11 @@ export default function PlayerStats() {
 		const seasonsDisplay = totalSeasons > 0 ? `${seasonsPlayed}/${totalSeasons}` : seasonsPlayed.toString();
 		return [
 			{ name: "Apps", value: toNumber(playerData.appearances) },
+			{ name: "Starts", value: toNumber(playerData.starts) },
 			{ name: "Mins", value: toNumber(playerData.minutes) },
 			{ name: "Seasons", value: seasonsDisplay, isString: true },
 			{ name: "MoM", value: toNumber(playerData.mom) },
+			{ name: "Avg Rtg", value: playerData.averageMatchRating, isRating: true },
 			{ name: "Goals", value: toNumber(playerData.allGoalsScored) },
 			{ name: "Assists", value: toNumber(playerData.assists) },
 		];
@@ -2807,15 +2809,17 @@ export default function PlayerStats() {
 							{keyPerformanceData.map((item, index) => {
 								let statKey = "APP";
 								if (item.name === "Apps") statKey = "APP";
+								else if (item.name === "Starts") statKey = "PlayerStarts";
 								else if (item.name === "Mins") statKey = "MIN";
 								else if (item.name === "Seasons") statKey = "NumberSeasonsPlayedFor";
 								else if (item.name === "MoM") statKey = "MOM";
+								else if (item.name === "Avg Rtg") statKey = "PlayerAvgMatchRating";
 								else if (item.name === "Goals") statKey = "AllGSC";
 								else if (item.name === "Assists") statKey = "A";
 								const stat = statObject[statKey as keyof typeof statObject];
 								// Use Goals-Icon specifically for Goals stat
 								const iconName = item.name === "Goals" ? "Goals-Icon" : (stat?.iconName || "Appearance-Icon");
-								// Priority loading for first 3 icons (Apps, Mins, Goals)
+								// Priority loading for first visible icons
 								const isPriority = index < 3;
 								return (
 									<div key={item.name} className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
@@ -2846,6 +2850,11 @@ export default function PlayerStats() {
 													if (item.name === "Mins") {
 														// Format minutes with commas and without " mins" suffix
 														return Math.round(toNumber(item.value)).toLocaleString();
+													}
+													if ((item as any).isRating) {
+														const v = item.value as number | null | undefined;
+														if (v === null || v === undefined) return "—";
+														return formatStatValue(v, stat?.statFormat || "Decimal1", stat?.numberDecimalPlaces ?? 1, (stat as any)?.statUnit);
 													}
 													return formatStatValue(item.value, stat?.statFormat || "Integer", stat?.numberDecimalPlaces || 0, (stat as any)?.statUnit);
 												})()}
@@ -3147,6 +3156,33 @@ export default function PlayerStats() {
 					</div>
 				);
 			})()}
+
+			{/* Starting impact — uses filtered aggregates from player-data */}
+			{toNumber(validPlayerData.appearances) > 0 && (
+				<div id='starting-impact' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
+					<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Starting impact</h3>
+					<div className='grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm md:text-base text-white'>
+						<div className='bg-white/5 rounded-lg p-3'>
+							<div className='text-white/70 mb-1'>Starts / subs</div>
+							<div className='font-bold text-lg'>
+								{toNumber(validPlayerData.starts)} / {toNumber(validPlayerData.subAppearances)}
+							</div>
+						</div>
+						<div className='bg-white/5 rounded-lg p-3'>
+							<div className='text-white/70 mb-1'>Start rate</div>
+							<div className='font-bold text-lg'>{toNumber(validPlayerData.startRatePercent).toFixed(1)}%</div>
+						</div>
+						<div className='bg-white/5 rounded-lg p-3'>
+							<div className='text-white/70 mb-1'>Win % when starting</div>
+							<div className='font-bold text-lg'>{toNumber(validPlayerData.winRateWhenStarting).toFixed(1)}%</div>
+						</div>
+						<div className='bg-white/5 rounded-lg p-3'>
+							<div className='text-white/70 mb-1'>Win % from bench</div>
+							<div className='font-bold text-lg'>{toNumber(validPlayerData.winRateFromBench).toFixed(1)}%</div>
+						</div>
+					</div>
+				</div>
+			)}
 
 			{/* Game Details Section */}
 			{isLoadingGameDetails ? (
