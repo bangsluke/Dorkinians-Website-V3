@@ -35,12 +35,18 @@ interface GameSummary {
 	homeScore: number;
 	awayScore: number;
 	team?: string;
+	playerMinutes?: number;
+	matchRating?: number | null;
+	started?: boolean;
+	playerOrder?: number;
+	playerPosition?: string;
 }
 
 interface LineupPlayer {
 	playerName: string;
 	position: string;
 	minutes: number;
+	matchRating?: number | null;
 	goals: number;
 	assists: number;
 	mom: number;
@@ -109,6 +115,12 @@ function formatDate(dateString: string): string {
 	} catch {
 		return dateString;
 	}
+}
+
+function matchRatingBadgeClass(rating: number): string {
+	if (rating >= 8) return "bg-emerald-600/35 text-emerald-100 border border-emerald-500/40";
+	if (rating >= 6) return "bg-amber-600/30 text-amber-100 border border-amber-500/35";
+	return "bg-slate-600/35 text-slate-200 border border-slate-500/30";
 }
 
 function formatResult(game: GameSummary): string {
@@ -347,6 +359,13 @@ export default function AllGamesModal({
 								const isSeasonExpanded = expandedSeasons.has(s.season);
 								const games = gamesBySeason[s.season] ?? [];
 								const gamesLoading = gamesLoadingBySeason[s.season];
+								const ratedInSeason = games.filter((g) => g.matchRating != null && !Number.isNaN(Number(g.matchRating)));
+								const seasonAvgRating =
+									ratedInSeason.length > 0
+										? Math.round(
+												(ratedInSeason.reduce((sum, g) => sum + Number(g.matchRating), 0) / ratedInSeason.length) * 10
+											) / 10
+										: null;
 
 								return (
 									<div key={s.season} className="rounded-lg border border-white/10 bg-white/5 overflow-hidden">
@@ -357,6 +376,9 @@ export default function AllGamesModal({
 										>
 											<span className="font-medium">
 												{s.season} Season ({s.apps} App{s.apps === 1 ? "" : "s"})
+												{seasonAvgRating != null && !gamesLoading && games.length > 0 && (
+													<span className="text-dorkinians-yellow font-normal"> · Avg rating {seasonAvgRating.toFixed(1)}</span>
+												)}
 											</span>
 											{isSeasonExpanded ? (
 												<ChevronDownIcon className="w-5 h-5 text-white flex-shrink-0" />
@@ -377,6 +399,14 @@ export default function AllGamesModal({
 												{!gamesLoading && games.length === 0 && (
 													<p className="text-gray-400 text-sm">No games in this season</p>
 												)}
+												{!gamesLoading && games.length > 0 && ratedInSeason.length > 0 && (
+													<p className="text-xs text-gray-500 mb-2">
+														Match rating (1–10):{" "}
+														<span className={matchRatingBadgeClass(8.5)}>8+</span>{" "}
+														<span className={`ml-1 ${matchRatingBadgeClass(6.5)}`}>6–7.9</span>{" "}
+														<span className={`ml-1 ${matchRatingBadgeClass(4)}`}>&lt;6</span>
+													</p>
+												)}
 												{!gamesLoading &&
 													games.length > 0 &&
 													games.map((game) => {
@@ -391,7 +421,15 @@ export default function AllGamesModal({
 																	onClick={() => toggleGame(game.fixtureId)}
 																	className="w-full text-left p-4 relative hover:bg-gray-800/70 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-inset"
 																>
-																	<div className="absolute top-4 right-4 flex gap-2 items-center">
+																	<div className="absolute top-4 right-4 flex flex-wrap justify-end gap-2 items-center max-w-[55%]">
+																		{game.matchRating != null && !Number.isNaN(Number(game.matchRating)) && (
+																			<span
+																				className={`px-2 py-1 rounded text-xs font-semibold ${matchRatingBadgeClass(Number(game.matchRating))}`}
+																				title="Automated match rating (1–10)"
+																			>
+																				{Number(game.matchRating).toFixed(1)}
+																			</span>
+																		)}
 																		{game.compType && (
 																			<span
 																				className={`px-2 py-1 rounded text-xs font-medium ${
@@ -424,13 +462,21 @@ export default function AllGamesModal({
 																			vs <span className="font-medium">{game.opposition || "Unknown"}</span>
 																		</span>
 																	</div>
-									{(game.team || game.competition) && (
-										<div className="text-sm text-gray-400">
-											{game.team && game.competition
-												? `${game.team} - ${game.competition}`
-												: game.team || game.competition}
-										</div>
-									)}
+																	{(game.team || game.competition) && (
+																		<div className="text-sm text-gray-400">
+																			{game.team && game.competition
+																				? `${game.team} - ${game.competition}`
+																				: game.team || game.competition}
+																		</div>
+																	)}
+																	{(game.started !== undefined || game.playerMinutes !== undefined) && (
+																		<div className="text-xs text-gray-500 mt-1">
+																			{game.started === true ? "Started" : game.started === false ? "Bench" : ""}
+																			{game.started !== undefined && game.playerMinutes !== undefined ? " · " : ""}
+																			{game.playerMinutes !== undefined ? `${game.playerMinutes} min` : ""}
+																			{game.playerPosition ? ` · ${game.playerPosition}` : ""}
+																		</div>
+																	)}
 																	<div className="absolute bottom-4 right-4">
 																		<ChevronDownIcon
 																			className={`w-5 h-5 text-white transition-transform ${isGameExpanded ? "rotate-180" : ""}`}
@@ -449,6 +495,7 @@ export default function AllGamesModal({
 																		{!lineupLoading && lineup && lineup.length > 0 && (() => {
 																			const sorted = sortLineupByPositionAndMinutes(lineup);
 																			const optionalCols = getVisibleOptionalColumns(lineup);
+																			const showRtgCol = sorted.some((row) => row.matchRating != null);
 																			return (
 																				<div className="overflow-x-auto">
 																					<table className="w-full text-white text-[0.7rem]">
@@ -457,6 +504,7 @@ export default function AllGamesModal({
 																								<th className="sticky left-0 z-10 bg-gray-800 text-left py-2 px-2 shadow-[2px_0_4px_rgba(0,0,0,0.15)]">Player</th>
 																								<th className="text-left py-2 px-2">POS</th>
 																								<th className="text-right py-2 px-2">Mins</th>
+																								{showRtgCol && <th className="text-right py-2 px-2">Rtg</th>}
 																								<th className="text-right py-2 px-2">MoM</th>
 																								<th className="text-right py-2 px-2">G</th>
 																								<th className="text-right py-2 px-2">A</th>
@@ -485,6 +533,17 @@ export default function AllGamesModal({
 																											})()}
 																										</td>
 																										<td className="py-2 px-2 text-right">{row.minutes}</td>
+																										{showRtgCol && (
+																											<td className="py-2 px-2 text-right">
+																												{row.matchRating != null ? (
+																													<span className={`inline-block px-1.5 py-0.5 rounded text-[0.65rem] font-medium ${matchRatingBadgeClass(row.matchRating)}`}>
+																														{row.matchRating.toFixed(1)}
+																													</span>
+																												) : (
+																													""
+																												)}
+																											</td>
+																										)}
 																										<td className="py-2 px-2 text-right">{row.mom ? "✓" : ""}</td>
 																										<td className="py-2 px-2 text-right">{row.goals > 0 ? row.goals : ""}</td>
 																										<td className="py-2 px-2 text-right">{row.assists > 0 ? row.assists : ""}</td>

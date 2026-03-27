@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Record as Neo4jRecord } from "neo4j-driver";
 import { neo4jService } from "@/lib/neo4j";
 import { buildFilterConditions } from "@/app/api/player-data/route";
 
@@ -68,19 +69,24 @@ export async function GET(request: NextRequest) {
 			MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
 			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
 			${whereClause}
-			WITH DISTINCT f
+			WITH f, md
 			ORDER BY f.date ASC
 			RETURN f.id AS fixtureId, f.date AS date, f.opposition AS opposition,
 			       f.homeOrAway AS homeOrAway, f.result AS result,
 			       f.dorkiniansGoals AS dorkiniansGoals, f.conceded AS conceded,
 			       f.compType AS compType, f.competition AS competition,
 			       f.homeScore AS homeScore, f.awayScore AS awayScore,
-			       f.team AS team
+			       f.team AS team,
+			       md.minutes AS playerMinutes,
+			       md.matchRating AS matchRating,
+			       md.started AS started,
+			       md.playerOrder AS playerOrder,
+			       md.class AS playerPosition
 		`;
 
 		const result = await neo4jService.runQuery(query, params);
 
-		const games = result.records.map((r) => {
+		const games = result.records.map((r: Neo4jRecord) => {
 			const dateVal = r.get("date");
 			const teamVal = r.get("team");
 			return {
@@ -96,6 +102,11 @@ export async function GET(request: NextRequest) {
 				homeScore: toNum(r.get("homeScore")),
 				awayScore: toNum(r.get("awayScore")),
 				team: teamVal != null ? String(teamVal) : "",
+				playerMinutes: toNum(r.get("playerMinutes")),
+				matchRating: toRating(r.get("matchRating")),
+				started: r.get("started") === true,
+				playerOrder: toNum(r.get("playerOrder")),
+				playerPosition: r.get("playerPosition") != null ? String(r.get("playerPosition")) : "",
 			};
 		});
 
@@ -118,4 +129,11 @@ function toNum(value: unknown): number {
 	}
 	const n = Number(value);
 	return isNaN(n) ? 0 : n;
+}
+
+function toRating(value: unknown): number | null {
+	if (value === null || value === undefined) return null;
+	const n = typeof value === "number" ? value : toNum(value);
+	if (Number.isNaN(n)) return null;
+	return Math.round(n * 10) / 10;
 }

@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
 		const body = await request.json();
 		const { filters, statType } = body;
 
-		const validStatTypes = ["appearances", "goals", "assists", "cleanSheets", "mom", "saves", "yellowCards", "redCards", "penaltiesScored", "fantasyPoints", "goalInvolvements", "minutes", "ownGoals", "conceded", "penaltiesMissed", "penaltiesConceded", "penaltiesSaved", "distance"];
+		const validStatTypes = ["appearances", "goals", "assists", "cleanSheets", "mom", "saves", "yellowCards", "redCards", "penaltiesScored", "fantasyPoints", "goalInvolvements", "minutes", "ownGoals", "conceded", "penaltiesMissed", "penaltiesConceded", "penaltiesSaved", "distance", "starts", "avgMatchRating", "matchesRated8Plus"];
 		if (!statType || !validStatTypes.includes(statType)) {
 			return NextResponse.json({ error: `Valid statType is required. Options: ${validStatTypes.join(", ")}` }, { status: 400, headers: corsHeaders });
 		}
@@ -72,15 +72,17 @@ export async function POST(request: NextRequest) {
 			penaltiesConceded: "penaltiesConceded",
 			penaltiesSaved: "penaltiesSaved",
 			distance: "distance",
+			starts: "starts",
+			avgMatchRating: "averageMatchRating",
+			matchesRated8Plus: "matchesRated8Plus",
 		};
 
 		const statField = statFieldMap[statType];
+		const sortField = statType === "goals" ? "totalGoals" : statField;
 
 		// Aggregate stats per player
 		// cleanSheets is stored as integer on MatchDetail, sum it directly like goals/assists
 		// For goals stat type, we need to use total goals (goals + penaltiesScored) for sorting
-		const goalsField = statType === "goals" ? "totalGoals" : statField;
-		
 		query += `
 			WITH p, md, f
 			WITH p,
@@ -104,19 +106,26 @@ export async function POST(request: NextRequest) {
 				sum(coalesce(md.penaltiesSaved, 0)) as penaltiesSaved,
 				sum(coalesce(md.distance, 0)) as distance,
 				sum(CASE WHEN f.homeOrAway = "Home" THEN 1 ELSE 0 END) as homeGames,
-				sum(CASE WHEN f.homeOrAway = "Away" THEN 1 ELSE 0 END) as awayGames
+				sum(CASE WHEN f.homeOrAway = "Away" THEN 1 ELSE 0 END) as awayGames,
+				sum(CASE WHEN md.started = true THEN 1 ELSE 0 END) as starts,
+				avg(md.matchRating) as averageMatchRating,
+				sum(CASE WHEN coalesce(md.matchRating, 0) >= 8.0 THEN 1 ELSE 0 END) as matchesRated8Plus
 		`;
 		
 		// Handle WHERE clause based on stat type
 		// For appearances, filter by appearances > 0
 		// For other stats, filter by the stat value > 0 (except cleanSheets which should show players with 0 too if they have appearances)
-		if (statType === "appearances") {
+		if (statType === "appearances" || statType === "starts") {
 			query += ` WHERE appearances > 0`;
 		} else if (statType === "cleanSheets") {
 			// For clean sheets, show players with appearances even if they have 0 clean sheets
 			query += ` WHERE appearances > 0`;
+		} else if (statType === "avgMatchRating") {
+			query += ` WHERE appearances > 0 AND averageMatchRating IS NOT NULL`;
+		} else if (statType === "matchesRated8Plus") {
+			query += ` WHERE matchesRated8Plus > 0`;
 		} else {
-			query += ` WHERE ${goalsField} > 0`;
+			query += ` WHERE ${sortField} > 0`;
 		}
 		
 		query += `
@@ -140,8 +149,11 @@ export async function POST(request: NextRequest) {
 				coalesce(penaltiesSaved, 0) as penaltiesSaved,
 				coalesce(distance, 0) as distance,
 				coalesce(homeGames, 0) as homeGames,
-				coalesce(awayGames, 0) as awayGames
-			ORDER BY ${goalsField} DESC, appearances ASC
+				coalesce(awayGames, 0) as awayGames,
+				coalesce(starts, 0) as starts,
+				averageMatchRating as averageMatchRating,
+				coalesce(matchesRated8Plus, 0) as matchesRated8Plus
+			ORDER BY ${sortField} DESC, appearances ASC
 			LIMIT 5
 		`;
 
@@ -212,6 +224,14 @@ export async function POST(request: NextRequest) {
 				penaltiesConceded: toNumber(record.get("penaltiesConceded")),
 				penaltiesSaved: toNumber(record.get("penaltiesSaved")),
 				distance: toNumber(record.get("distance")),
+				starts: toNumber(record.get("starts")),
+				averageMatchRating: (() => {
+					const v = record.get("averageMatchRating");
+					if (v === null || v === undefined) return null as number | null;
+					const n = typeof v === "number" ? v : toNumber(v);
+					return Math.round(n * 10) / 10;
+				})(),
+				matchesRated8Plus: toNumber(record.get("matchesRated8Plus")),
 			};
 			console.log(`[TopPlayersStats] Player: ${player.playerName}, ${statType}: ${player[statField as keyof typeof player]}, statType: ${statType}`);
 			return player;
