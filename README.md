@@ -765,14 +765,14 @@ The project uses a unified schema system where configuration files are synchroni
 ## Testing Commands and Coverage
 
 - `npm run test` runs unit, integration, advanced, comprehensive, validation, performance, monitoring, security, ux, e2e, and report scripts as a strict all-pass pipeline (report emails suppressed).
-- `npm run test:all` runs unit, integration, advanced, comprehensive, validation, performance, monitoring, security, ux, e2e, and report scripts as a strict all-pass pipeline (report emails suppressed). In CI, set **`SEND_CI_TEST_ALL_SUMMARY_EMAIL=true`** (with SMTP secrets) to send one consolidated HTML summary email after the run, including pass/fail for each suite.
+- `npm run test:all` runs unit, integration, advanced, comprehensive, validation, performance, monitoring, security, ux, e2e, and report scripts as a strict all-pass pipeline (report emails suppressed). With **`SEND_CI_TEST_ALL_SUMMARY_EMAIL=true`** and SMTP secrets, after the run it sends one HTML email: subject **`Dorkinians Stats Website - Full test suite - X/Y passed`**, Umami-style gradient header (**Full Test Suite** + “Dorkinians Website” eyebrow), overall status, then **per-suite cards** with subsection tables. Failed/skipped tests (Jest/Playwright) and failed report scripts get a second breakdown block; Jest writes JSON under `__tests__/e2e/test-results/jest-test-all-*.json` and Playwright (when **`CI=true`**) writes **`junit.xml`** there for detail parsing.
 - `npm run test:all:emails` runs the same strict pipeline but enables chatbot/questions report emails.
 - `npm run test:weekly:email` runs the weekly consolidated test summary email with Unit, Integration, E2E and subsection breakdowns.
 - `npm run test:coverage` generates Jest coverage output to `coverage/` (`text`, `lcov`, and `html`).
 
 ### CI on main and email
 
-**Pushes to `main`**, a **weekly schedule** (Tuesday 02:17 UTC), and manual **workflow dispatch** run the GitHub Actions workflow [`.github/workflows/full-test-suite-and-email.yml`](./.github/workflows/full-test-suite-and-email.yml). The job installs dependencies, installs Playwright Chromium, runs **`npm run test:all`** (the full strict pipeline: unit, integration, other Jest suites, full Playwright E2E, chatbot report, questions report), then sends **one SMTP confirmation email** summarising every suite’s pass/fail via **`SEND_CI_TEST_ALL_SUMMARY_EMAIL`**. Artifacts: Playwright HTML report and screenshots.
+**Pushes to `main`**, a **weekly schedule** (Tuesday 02:17 UTC), and manual **workflow dispatch** run the GitHub Actions workflow [`.github/workflows/full-test-suite-and-email.yml`](./.github/workflows/full-test-suite-and-email.yml). The job installs dependencies, installs Playwright Chromium, runs **`npm run test:all`** with **`SEND_CI_TEST_ALL_SUMMARY_EMAIL`**, then sends **one SMTP email** with the subject and layout described above (per-suite breakdown and fail/skip detail when applicable). **`CI=true`** in the workflow enables Playwright’s JUnit file for E2E line items in that email. Artifacts: Playwright HTML report and screenshots.
 
 Configure repository **Actions secrets**: `SMTP_SERVER`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_EMAIL`, `SMTP_TO_EMAIL`; optional `SMTP_EMAIL_SECURE`, `WEBSITE_URL` (E2E target).
 

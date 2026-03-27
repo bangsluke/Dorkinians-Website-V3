@@ -11,21 +11,35 @@
  * 6. Questions Report
  */
 
-const { execSync } = require("child_process");
+const { execSync, spawn } = require("child_process");
 const path = require("path");
+const { sendReportEmail, buildDefaultContext } = require(path.join(__dirname, "..", "..", "lib", "email", "dorkiniansReportEmail"));
 const {
-	sendReportEmail,
-	buildDefaultContext,
-	wrapSectionCard,
-	escapeHtml,
-} = require(path.join(__dirname, "..", "..", "lib", "email", "dorkiniansReportEmail"));
+	ensureArtifactDir,
+	jestJsonOutputSuffix,
+	getTestAllArtifactPaths,
+	buildSectionsFromArtifacts,
+	buildTestAllEmailInnerHtml,
+	buildTestAllEmailPlainText,
+} = require(path.join(__dirname, "..", "..", "lib", "email", "testAllSummaryEmail"));
 
 // Load environment variables
 require("dotenv").config();
 
+const REPO_ROOT = path.join(__dirname, "..", "..");
+const writeTestAllArtifacts = process.env.SEND_CI_TEST_ALL_SUMMARY_EMAIL === "true";
+const artifactPaths = getTestAllArtifactPaths(REPO_ROOT);
+if (writeTestAllArtifacts) {
+	ensureArtifactDir(REPO_ROOT);
+}
+
 // Check for debug mode
 const isDebugMode = process.argv.includes("--debug");
 const sendEmails = process.argv.includes("--emails") || process.env.SEND_TEST_EMAILS === "true";
+
+const jestJsonSuffixUnit = writeTestAllArtifacts ? jestJsonOutputSuffix(artifactPaths.jestUnit) : "";
+const jestJsonSuffixIntegration = writeTestAllArtifacts ? jestJsonOutputSuffix(artifactPaths.jestIntegration) : "";
+const jestJsonSuffixOther = writeTestAllArtifacts ? jestJsonOutputSuffix(artifactPaths.jestOther) : "";
 
 // Colors for console output (cross-platform compatible)
 const colors = {
@@ -59,107 +73,83 @@ function printInfo(message) {
 	console.log(`${colors.blue}ℹ️  ${message}${colors.reset}`);
 }
 
-function runCommand(command, description, suppressOutput = false, envOverrides = {}) {
-	try {
+function runCommandStreaming(command, description, envOverrides = {}) {
+	return new Promise((resolve) => {
 		printInfo(`Running: ${description}`);
-		
-		const options = {
-			cwd: path.join(__dirname, "..", ".."),
+		const chunks = [];
+
+		const child = spawn(command, {
+			shell: true,
+			cwd: REPO_ROOT,
 			env: { ...process.env, ...envOverrides },
-			encoding: "utf8",
-		};
-		
-		if (suppressOutput && !isDebugMode) {
-			// Suppress output by piping to null
-			options.stdio = "pipe";
-		} else {
-			// Pipe output so we can parse it later when needed
-			options.stdio = "pipe";
+			windowsHide: true,
+			stdio: ["ignore", "pipe", "pipe"],
+		});
+
+		child.stdout.on("data", (data) => {
+			chunks.push(data);
+			process.stdout.write(data);
+		});
+		child.stderr.on("data", (data) => {
+			chunks.push(data);
+			process.stderr.write(data);
+		});
+
+		child.on("error", (err) => {
+			printError(`${description} failed`);
+			if (isDebugMode) {
+				console.error(err);
+			}
+			runCommand.lastOutput = Buffer.concat(chunks).toString("utf8");
+			resolve(false);
+		});
+
+		child.on("close", (code) => {
+			const output = chunks.length ? Buffer.concat(chunks).toString("utf8") : "";
+			runCommand.lastOutput = output;
+			if (code === 0) {
+				printSuccess(`${description} completed successfully`);
+				resolve(true);
+			} else {
+				printError(`${description} failed`);
+				resolve(false);
+			}
+		});
+	});
+}
+
+async function runCommand(command, description, suppressOutput = false, envOverrides = {}) {
+	if (suppressOutput && !isDebugMode) {
+		try {
+			printInfo(`Running: ${description}`);
+
+			const options = {
+				cwd: REPO_ROOT,
+				env: { ...process.env, ...envOverrides },
+				encoding: "utf8",
+				stdio: "pipe",
+			};
+
+			const output = execSync(command, options) || "";
+			runCommand.lastOutput = output;
+			printSuccess(`${description} completed successfully`);
+			return true;
+		} catch (error) {
+			const stdout = error && error.stdout ? error.stdout.toString() : "";
+			const stderr = error && error.stderr ? error.stderr.toString() : "";
+			runCommand.lastOutput = `${stdout}${stderr ? `\n${stderr}` : ""}`;
+			printError(`${description} failed`);
+			if (isDebugMode && error.stdout) {
+				console.log(error.stdout.toString());
+			}
+			if (isDebugMode && error.stderr) {
+				console.error(error.stderr.toString());
+			}
+			return false;
 		}
-		
-		const output = execSync(command, options) || "";
-		runCommand.lastOutput = output;
-		if (!suppressOutput || isDebugMode) {
-			process.stdout.write(output);
-		}
-		printSuccess(`${description} completed successfully`);
-		return true;
-	} catch (error) {
-		const stdout = error && error.stdout ? error.stdout.toString() : "";
-		const stderr = error && error.stderr ? error.stderr.toString() : "";
-		runCommand.lastOutput = `${stdout}${stderr ? `\n${stderr}` : ""}`;
-		printError(`${description} failed`);
-		// In debug mode, show error details
-		if (isDebugMode && error.stdout) {
-			console.log(error.stdout.toString());
-		}
-		if (isDebugMode && error.stderr) {
-			console.error(error.stderr.toString());
-		}
-		return false;
 	}
-}
 
-function statusColor(passed) {
-	return passed ? "#177245" : "#b42318";
-}
-
-function statusBg(passed) {
-	return passed ? "#ecfdf3" : "#fef3f2";
-}
-
-function renderPassFail(passed) {
-	return passed ? "PASSED" : "FAILED";
-}
-
-function buildTestAllSummaryInnerHtml(summaryItems, passedCount, totalCount, e2eSkippedCount) {
-	const summaryInner = `<div style="font-size:16px;font-weight:700;color:#101828;margin-bottom:6px;">Overall: ${passedCount}/${totalCount} suites passed</div>
-		${
-			e2eSkippedCount > 0
-				? `<div style="font-size:13px;color:#344054;margin-top:6px;"><strong>Skip note:</strong> ${escapeHtml(E2E_SKIP_REASON_NOTE)}</div>`
-				: ""
-		}`;
-
-	const subRows = summaryItems
-		.map(
-			(item) => `
-      <tr>
-        <td style="padding:10px 12px;border-bottom:1px solid #eaecf0;color:#101828;">${escapeHtml(item.name)}</td>
-        <td style="padding:10px 12px;border-bottom:1px solid #eaecf0;">
-          <span style="display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700;background:${statusBg(item.result)};color:${statusColor(item.result)};">
-            ${renderPassFail(item.result)}
-          </span>
-        </td>
-      </tr>`,
-		)
-		.join("");
-
-	const table = `
-	  <div style="margin:16px 0;border:1px solid #eaecf0;border-radius:12px;overflow:hidden;background:#ffffff;">
-        <table style="border-collapse:collapse;width:100%;">
-        <thead>
-          <tr>
-            <th style="padding:10px 12px;border-bottom:1px solid #eaecf0;text-align:left;font-size:12px;letter-spacing:.02em;text-transform:uppercase;color:#475467;">Suite</th>
-            <th style="padding:10px 12px;border-bottom:1px solid #eaecf0;text-align:left;font-size:12px;letter-spacing:.02em;text-transform:uppercase;color:#475467;">Status</th>
-          </tr>
-        </thead>
-        <tbody>${subRows}</tbody>
-        </table>
-      </div>`;
-
-	return wrapSectionCard(summaryInner, { heading: "Overall status" }) + table;
-}
-
-function buildTestAllSummaryText(summaryItems, passedCount, totalCount, e2eSkippedCount) {
-	const lines = [
-		"Full test suite (test:all) summary",
-		`Overall: ${passedCount}/${totalCount} suites passed`,
-		...summaryItems.map((item) => `- ${item.name}: ${item.result ? "PASSED" : "FAILED"}`),
-	];
-	if (e2eSkippedCount > 0) {
-		lines.push(`Skip note: ${E2E_SKIP_REASON_NOTE}`);
-	}
-	return lines.join("\n");
+	return runCommandStreaming(command, description, envOverrides);
 }
 
 function getWorkflowTriggerLabel() {
@@ -178,131 +168,166 @@ const results = {
 };
 
 let hasFailures = false;
+let chatbotLogExcerpt = "";
+let questionsLogExcerpt = "";
 
 // Main execution
-console.log(`${colors.bright}${colors.blue}`);
-console.log("╔════════════════════════════════════════════════════════════════════════════╗");
-console.log("║                    COMPREHENSIVE TEST SUITE RUNNER                         ║");
-if (isDebugMode) {
-	console.log("║                            DEBUG MODE ENABLED                              ║");
+async function runAllSuites() {
+	console.log(`${colors.bright}${colors.blue}`);
+	console.log("╔════════════════════════════════════════════════════════════════════════════╗");
+	console.log("║                    COMPREHENSIVE TEST SUITE RUNNER                         ║");
+	if (isDebugMode) {
+		console.log("║                            DEBUG MODE ENABLED                              ║");
+	}
+	console.log("╚════════════════════════════════════════════════════════════════════════════╝");
+	console.log(`${colors.reset}`);
+
+	// 1. Unit Tests
+	printSectionHeader("UNIT TESTS");
+	const jestUnitCommand = isDebugMode
+		? `jest --testPathPatterns=unit${jestJsonSuffixUnit}`
+		: `jest --silent --testPathPatterns=unit${jestJsonSuffixUnit}`;
+	results.unit = await runCommand(jestUnitCommand, "Unit Tests", writeTestAllArtifacts && !isDebugMode);
+
+	if (!results.unit) {
+		hasFailures = true;
+	}
+
+	// 2. Integration Tests
+	printSectionHeader("INTEGRATION TESTS");
+	const jestIntegrationCommand = isDebugMode
+		? `jest --testPathPatterns=integration${jestJsonSuffixIntegration}`
+		: `jest --silent --testPathPatterns=integration${jestJsonSuffixIntegration}`;
+	results.integration = await runCommand(jestIntegrationCommand, "Integration Tests", writeTestAllArtifacts && !isDebugMode);
+
+	if (!results.integration) {
+		hasFailures = true;
+	}
+
+	// 3. Other Jest Tests (comprehensive, advanced, performance, validation, ux, security, monitoring)
+	printSectionHeader("OTHER JEST TESTS");
+	printInfo("Running: Comprehensive, Advanced, Performance, Validation, UX, Security, and Monitoring Tests");
+	const jestOtherCommand = isDebugMode
+		? `jest --testPathPatterns="(comprehensive|advanced|performance|validation|ux|security|monitoring)"${jestJsonSuffixOther}`
+		: `jest --silent --testPathPatterns="(comprehensive|advanced|performance|validation|ux|security|monitoring)"${jestJsonSuffixOther}`;
+	results.otherJest = await runCommand(
+		jestOtherCommand,
+		"Other Jest Tests (Comprehensive, Advanced, Performance, Validation, UX, Security, Monitoring)",
+		writeTestAllArtifacts && !isDebugMode,
+	);
+
+	if (!results.otherJest) {
+		hasFailures = true;
+	}
+
+	// 4. E2E Tests — use playwright.config reporters (list + html); stream stdout so progress is visible live
+	printSectionHeader("E2E TESTS (PLAYWRIGHT)");
+	const playwrightCommand = "playwright test";
+	results.e2e = await runCommand(playwrightCommand, "E2E Tests (Playwright)");
+	const e2eSkippedMatch = (runCommand.lastOutput || "").match(/(\d+)\s+skipped/i);
+	let e2eSkippedCount = e2eSkippedMatch ? Number(e2eSkippedMatch[1]) : 0;
+	if (e2eSkippedCount > 0) {
+		printInfo(`${e2eSkippedCount} E2E test(s) were skipped. ${E2E_SKIP_REASON_NOTE}`);
+	}
+
+	if (!results.e2e) {
+		hasFailures = true;
+	}
+
+	// 5. Chatbot Report
+	printSectionHeader("CHATBOT REPORT");
+	results.chatbotReport = await runCommand(
+		"npm run test:chatbot-players-report",
+		"Chatbot Report",
+		true,
+		{ SEND_TEST_EMAILS: sendEmails ? "true" : "false" },
+	);
+
+	if (!results.chatbotReport) {
+		hasFailures = true;
+		chatbotLogExcerpt = runCommand.lastOutput || "";
+	}
+
+	// 6. Questions Report
+	printSectionHeader("QUESTIONS REPORT");
+	results.questionsReport = await runCommand(
+		"npm run test:questions-report",
+		"Questions Report",
+		true,
+		{ SEND_TEST_EMAILS: sendEmails ? "true" : "false" },
+	);
+
+	if (!results.questionsReport) {
+		hasFailures = true;
+		questionsLogExcerpt = runCommand.lastOutput || "";
+	}
+
+	// Final Summary
+	printSectionHeader("TEST SUMMARY");
+
+	const summary = [
+		{ name: "Unit Tests", result: results.unit },
+		{ name: "Integration Tests", result: results.integration },
+		{ name: "Other Jest Tests", result: results.otherJest },
+		{ name: "E2E Tests", result: results.e2e },
+		{ name: "Chatbot Report", result: results.chatbotReport },
+		{ name: "Questions Report", result: results.questionsReport },
+	];
+
+	summary.forEach((item) => {
+		const status = item.result ? `${colors.green}✅ PASSED${colors.reset}` : `${colors.red}❌ FAILED${colors.reset}`;
+		console.log(`  ${item.name.padEnd(25)} ${status}`);
+	});
+
+	const passedCount = summary.filter((item) => item.result).length;
+	const totalCount = summary.length;
+
+	console.log(`\n${colors.bright}Total: ${passedCount}/${totalCount} test suites passed${colors.reset}\n`);
+
+	await sendSummaryEmailAndExit(summary, passedCount, totalCount, e2eSkippedCount);
 }
-console.log("╚════════════════════════════════════════════════════════════════════════════╝");
-console.log(`${colors.reset}`);
 
-// 1. Unit Tests
-printSectionHeader("UNIT TESTS");
-const jestUnitCommand = isDebugMode 
-	? "jest --testPathPatterns=unit"
-	: "jest --silent --testPathPatterns=unit";
-results.unit = runCommand(jestUnitCommand, "Unit Tests");
-
-if (!results.unit) {
-	hasFailures = true;
-}
-
-// 2. Integration Tests
-printSectionHeader("INTEGRATION TESTS");
-const jestIntegrationCommand = isDebugMode
-	? "jest --testPathPatterns=integration"
-	: "jest --silent --testPathPatterns=integration";
-results.integration = runCommand(jestIntegrationCommand, "Integration Tests");
-
-if (!results.integration) {
-	hasFailures = true;
-}
-
-// 3. Other Jest Tests (comprehensive, advanced, performance, validation, ux, security, monitoring)
-printSectionHeader("OTHER JEST TESTS");
-printInfo("Running: Comprehensive, Advanced, Performance, Validation, UX, Security, and Monitoring Tests");
-const jestOtherCommand = isDebugMode
-	? 'jest --testPathPatterns="(comprehensive|advanced|performance|validation|ux|security|monitoring)"'
-	: 'jest --silent --testPathPatterns="(comprehensive|advanced|performance|validation|ux|security|monitoring)"';
-results.otherJest = runCommand(
-	jestOtherCommand,
-	"Other Jest Tests (Comprehensive, Advanced, Performance, Validation, UX, Security, Monitoring)"
-);
-
-if (!results.otherJest) {
-	hasFailures = true;
-}
-
-// 4. E2E Tests
-printSectionHeader("E2E TESTS (PLAYWRIGHT)");
-// In CI, do not force --reporter=dot: it overrides playwright.config.ts (list/html/junit)
-// and hides per-test progress in GitHub Actions logs for long runs.
-const playwrightCommand =
-	isDebugMode || process.env.CI === "true" ? "playwright test" : "playwright test --reporter=dot";
-results.e2e = runCommand(playwrightCommand, "E2E Tests (Playwright)");
-const e2eSkippedMatch = (runCommand.lastOutput || "").match(/(\d+)\s+skipped/i);
-const e2eSkippedCount = e2eSkippedMatch ? Number(e2eSkippedMatch[1]) : 0;
-if (e2eSkippedCount > 0) {
-	printInfo(`${e2eSkippedCount} E2E test(s) were skipped. ${E2E_SKIP_REASON_NOTE}`);
-}
-
-if (!results.e2e) {
-	hasFailures = true;
-}
-
-// 5. Chatbot Report
-printSectionHeader("CHATBOT REPORT");
-results.chatbotReport = runCommand(
-	"npm run test:chatbot-players-report",
-	"Chatbot Report",
-	true,
-	{ SEND_TEST_EMAILS: sendEmails ? "true" : "false" },
-);
-
-if (!results.chatbotReport) {
-	hasFailures = true;
-}
-
-// 6. Questions Report
-printSectionHeader("QUESTIONS REPORT");
-results.questionsReport = runCommand(
-	"npm run test:questions-report",
-	"Questions Report",
-	true,
-	{ SEND_TEST_EMAILS: sendEmails ? "true" : "false" },
-);
-
-if (!results.questionsReport) {
-	hasFailures = true;
-}
-
-// Final Summary
-printSectionHeader("TEST SUMMARY");
-
-const summary = [
-	{ name: "Unit Tests", result: results.unit },
-	{ name: "Integration Tests", result: results.integration },
-	{ name: "Other Jest Tests", result: results.otherJest },
-	{ name: "E2E Tests", result: results.e2e },
-	{ name: "Chatbot Report", result: results.chatbotReport },
-	{ name: "Questions Report", result: results.questionsReport },
-];
-
-summary.forEach((item) => {
-	const status = item.result ? `${colors.green}✅ PASSED${colors.reset}` : `${colors.red}❌ FAILED${colors.reset}`;
-	console.log(`  ${item.name.padEnd(25)} ${status}`);
-});
-
-const passedCount = summary.filter((item) => item.result).length;
-const totalCount = summary.length;
-
-console.log(`\n${colors.bright}Total: ${passedCount}/${totalCount} test suites passed${colors.reset}\n`);
-
-async function sendSummaryEmailAndExit() {
+async function sendSummaryEmailAndExit(summary, passedCount, totalCount, e2eSkippedCount) {
 	const sendCiSummary = process.env.SEND_CI_TEST_ALL_SUMMARY_EMAIL === "true";
 	if (sendCiSummary) {
 		const runContext = getWorkflowTriggerLabel();
-		const subjectSuffix = runContext ? ` [${runContext}]` : "";
-		const subjectDetail = `Full suite (test:all)${subjectSuffix} — ${passedCount}/${totalCount} passed${hasFailures ? " — FAILURES" : ""}`;
-		const innerHtml = buildTestAllSummaryInnerHtml(summary, passedCount, totalCount, e2eSkippedCount);
-		const textBody = buildTestAllSummaryText(summary, passedCount, totalCount, e2eSkippedCount);
+		const sections = buildSectionsFromArtifacts({
+			artifactsEnabled: writeTestAllArtifacts,
+			repoRoot: REPO_ROOT,
+			suitePass: {
+				unit: results.unit,
+				integration: results.integration,
+				otherJest: results.otherJest,
+				e2e: results.e2e,
+				chatbotReport: results.chatbotReport,
+				questionsReport: results.questionsReport,
+			},
+			logs: { chatbot: chatbotLogExcerpt, questions: questionsLogExcerpt },
+		});
+
+		const innerHtml = buildTestAllEmailInnerHtml({
+			summaryItems: summary,
+			passedCount,
+			totalCount,
+			e2eSkippedCount,
+			e2eSkipNote: E2E_SKIP_REASON_NOTE,
+			sections,
+		});
+
+		const textBody = buildTestAllEmailPlainText({
+			summaryItems: summary,
+			passedCount,
+			totalCount,
+			e2eSkippedCount,
+			e2eSkipNote: E2E_SKIP_REASON_NOTE,
+			sections,
+		});
+
 		const emailResult = await sendReportEmail({
-			subjectDetail,
-			title: "Full test suite (test:all)",
-			subtitle: runContext ? `CI summary · ${runContext}` : "Unit, integration, other Jest, E2E, chatbot report, questions report",
+			subjectDetail: `Full test suite - ${passedCount}/${totalCount} passed`,
+			title: "Full Test Suite",
+			subtitle: "",
+			headerVariant: "umami",
 			context: buildDefaultContext({
 				triggeredBy: "node __tests__/scripts/test-all.js",
 				npmScript: "npm run test:all",
@@ -331,7 +356,7 @@ async function sendSummaryEmailAndExit() {
 	}
 }
 
-sendSummaryEmailAndExit().catch((err) => {
-	console.error("test-all finalize failed:", err);
+runAllSuites().catch((err) => {
+	console.error("test-all failed:", err);
 	process.exit(1);
 });
