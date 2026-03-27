@@ -656,6 +656,8 @@ The application validates all required environment variables at startup using Zo
 
 See [Additional_Details.md](./docs/Additional_Details.md#environment-setup) for detailed environment configuration instructions.
 
+**If the live site returns 500 for every URL (including `/favicon.ico`):** The browser is hitting **Netlify** (this Next.js app), not the Heroku **database seeder** (`database-dorkinians`). Check **Netlify → Deploy log / Functions / Observability** for `Environment variable validation failed` (emitted when `app/layout.tsx` env validation runs). Compare missing keys against the schema in `lib/config/envValidation.ts` (especially `AUTH_URL` / `NEXTAUTH_URL` matching your custom domain, `SEED_API_KEY` and `AUTH_SECRET` length ≥ 32, and all `PROD_NEO4J_*` values).
+
 > [Back to Table of Contents](#table-of-contents)
 
 ### Schema Management

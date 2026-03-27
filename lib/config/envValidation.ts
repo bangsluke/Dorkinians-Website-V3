@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ensurePackageEnvLoaded } from "@/lib/config/loadPackageEnv";
 import { logError } from "@/lib/utils/logger";
 
 // Environment variable validation schema
@@ -46,6 +47,7 @@ type Env = z.infer<typeof envSchema>;
 
 // Validate environment variables
 export function validateEnv(): { success: true; env: Env } | { success: false; errors: string[] } {
+	ensurePackageEnvLoaded();
 	try {
 		const env = envSchema.parse(process.env);
 		return { success: true, env };
