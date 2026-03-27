@@ -13,7 +13,7 @@
 const { execSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
-const nodemailer = require("nodemailer");
+const { sendReportEmail, buildDefaultContext, wrapSectionCard, escapeHtml } = require("../../lib/email/dorkiniansReportEmail");
 
 // Enhanced logging for debugging
 const debugLogFile = path.join(__dirname, "..", "..", "logs", "test-chatbot-debug.log");
@@ -931,44 +931,39 @@ function generateEmailContent(testResults) {
 	const passedTestsCount = testResults.passedTests;
 	const totalTestsCount = testResults.totalTests;
 
+	const metaLines = `<p style="margin:0 0 6px 0;"><strong>Generated:</strong> ${escapeHtml(timestamp)}</p>
+		<p style="margin:0 0 6px 0;"><strong>Test suite:</strong> Comprehensive stat testing</p>
+		${
+			hidePassedTests
+				? `<p style="margin:0;"><strong>Note:</strong> Failed tests only — ${passedTestsCount} passed tests hidden from the table.</p>`
+				: ""
+		}`;
+
 	let html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
       <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .header { background-color: #f4f4f4; padding: 20px; border-radius: 5px; }
-        .summary { background-color: ${successRate >= 80 ? "#d4edda" : successRate >= 60 ? "#fff3cd" : "#f8d7da"}; 
+        .chatbot-report-inner { font-family: Arial, sans-serif; color: #101828; }
+        .chatbot-report-inner .summary { background-color: ${successRate >= 80 ? "#d4edda" : successRate >= 60 ? "#fff3cd" : "#f8d7da"};
                    padding: 15px; border-radius: 5px; margin: 20px 0; }
-        .test-details { margin: 20px 0; }
-        .test-item { background-color: #f8f9fa; padding: 10px; margin: 5px 0; border-left: 4px solid #007bff; }
-        .failed-test { border-left-color: #dc3545; }
-        .passed-test { border-left-color: #28a745; }
-        .stats-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-        .stats-table th, .stats-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        .stats-table th { background-color: #f2f2f2; }
-        .detailed-table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 12px; }
-        .detailed-table th, .detailed-table td { border: 1px solid #ddd; padding: 6px; text-align: left; }
-        .detailed-table th { background-color: #f2f2f2; font-weight: bold; }
-        .detailed-table .player-name { max-width: 120px; font-weight: bold; }
-        .detailed-table .question { max-width: 300px; word-wrap: break-word; }
-        .detailed-table .test-data { max-width: 100px; text-align: center; }
-        .detailed-table .chatbot-answer { max-width: 200px; word-wrap: break-word; }
-        .detailed-table .cypher-query { max-width: 200px; word-wrap: break-word; font-family: monospace; font-size: 10px; }
-        .detailed-table .status { max-width: 80px; text-align: center; font-weight: bold; }
-        .status-passed { color: #28a745; }
-        .status-failed { color: #dc3545; }
-        .category-header { background-color: #e9ecef; font-weight: bold; }
-        .hidden-info { background-color: #e3f2fd; padding: 10px; border-radius: 5px; margin: 10px 0; }
+        .chatbot-report-inner .test-details { margin: 20px 0; }
+        .chatbot-report-inner .stats-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        .chatbot-report-inner .stats-table th, .chatbot-report-inner .stats-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        .chatbot-report-inner .stats-table th { background-color: #f2f2f2; }
+        .chatbot-report-inner .detailed-table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 12px; }
+        .chatbot-report-inner .detailed-table th, .chatbot-report-inner .detailed-table td { border: 1px solid #ddd; padding: 6px; text-align: left; }
+        .chatbot-report-inner .detailed-table th { background-color: #f2f2f2; font-weight: bold; }
+        .chatbot-report-inner .detailed-table .player-name { max-width: 120px; font-weight: bold; }
+        .chatbot-report-inner .detailed-table .question { max-width: 300px; word-wrap: break-word; }
+        .chatbot-report-inner .detailed-table .test-data { max-width: 100px; text-align: center; }
+        .chatbot-report-inner .detailed-table .chatbot-answer { max-width: 200px; word-wrap: break-word; }
+        .chatbot-report-inner .detailed-table .cypher-query { max-width: 200px; word-wrap: break-word; font-family: monospace; font-size: 10px; }
+        .chatbot-report-inner .detailed-table .status { max-width: 80px; text-align: center; font-weight: bold; }
+        .chatbot-report-inner .status-passed { color: #28a745; }
+        .chatbot-report-inner .status-failed { color: #dc3545; }
+        .chatbot-report-inner .category-header { background-color: #e9ecef; font-weight: bold; }
+        .chatbot-report-inner .hidden-info { background-color: #e3f2fd; padding: 10px; border-radius: 5px; margin: 10px 0; }
       </style>
-    </head>
-    <body>
-      <div class="header">
-        <h1>🤖 Dorkinians Chatbot Comprehensive Test Report${hidePassedTests ? " (Failed Tests Only)" : ""}</h1>
-        <p><strong>Generated:</strong> ${timestamp}</p>
-        <p><strong>Test Suite:</strong> Comprehensive Stat Testing</p>
-        ${hidePassedTests ? `<p><strong>Note:</strong> This report shows only failed tests to reduce email length. ${passedTestsCount} passed tests are hidden.</p>` : ""}
-      </div>
+      <div class="chatbot-report-inner">
+      ${wrapSectionCard(metaLines, { heading: "Report details" })}
 
       <div class="summary">
         <h2>📊 Test Summary</h2>
@@ -1039,7 +1034,7 @@ function generateEmailContent(testResults) {
 
 		Object.keys(categories).forEach((category) => {
 			// Add category header row
-			html += `<tr class="category-header"><td colspan="6">${category}</td></tr>`;
+			html += `<tr class="category-header"><td colspan="6">${escapeHtml(category)}</td></tr>`;
 
 			categories[category].forEach((test) => {
 				const isFailed =
@@ -1085,11 +1080,11 @@ function generateEmailContent(testResults) {
 
 				html += `
           <tr>
-            <td class="player-name">${playerName}</td>
-            <td class="question">${question}</td>
-            <td class="test-data">${formattedExpectedValue}</td>
-            <td class="chatbot-answer">${test.received}</td>
-            <td class="cypher-query">${test.cypherQuery || "N/A"}</td>
+            <td class="player-name">${escapeHtml(String(playerName))}</td>
+            <td class="question">${escapeHtml(String(question))}</td>
+            <td class="test-data">${escapeHtml(String(formattedExpectedValue))}</td>
+            <td class="chatbot-answer">${escapeHtml(String(test.received ?? ""))}</td>
+            <td class="cypher-query">${escapeHtml(String(test.cypherQuery || "N/A"))}</td>
             <td class="status ${statusClass}">${isFailed ? "❌ FAILED" : "✅ PASSED"}</td>
           </tr>
         `;
@@ -1135,8 +1130,7 @@ function generateEmailContent(testResults) {
           <li>Update response generation logic for better accuracy</li>
         </ul>
       </div>
-    </body>
-    </html>
+      </div>
   `;
 
 	return html;
@@ -1586,20 +1580,27 @@ async function sendEmailReport(testResults) {
 	}
 
 	try {
-		const transporter = nodemailer.createTransport(EMAIL_CONFIG);
-
-		const htmlContent = generateEmailContent(testResults);
-
-		const mailOptions = {
-			from: EMAIL_CONFIG.auth.user,
-			to: RECIPIENT_EMAIL,
-			subject: `🤖 Dorkinians Chatbot Test Report${hidePassedTests ? " (Failed Tests Only)" : ""} - ${new Date().toLocaleDateString()}`,
-			html: htmlContent,
-			text: `Dorkinians Chatbot Test Report${hidePassedTests ? " (Failed Tests Only)" : ""}\n\nTotal Tests: ${testResults.totalTests}\nPassed: ${testResults.passedTests}${hidePassedTests ? " (hidden)" : ""}\nFailed: ${testResults.failedTests}\nSuccess Rate: ${testResults.totalTests > 0 ? ((testResults.passedTests / testResults.totalTests) * 100).toFixed(1) : 0}%\n\nSee HTML version for detailed results.`,
-		};
+		const dateStr = new Date().toLocaleDateString();
+		const subjectTail = `Chatbot stat tests${hidePassedTests ? " (failed only)" : ""} — ${dateStr}`;
+		const textBody = `Chatbot test report${hidePassedTests ? " (failed only)" : ""}\n\nTotal Tests: ${testResults.totalTests}\nPassed: ${testResults.passedTests}${hidePassedTests ? " (hidden from table)" : ""}\nFailed: ${testResults.failedTests}\nSuccess Rate: ${testResults.totalTests > 0 ? ((testResults.passedTests / testResults.totalTests) * 100).toFixed(1) : 0}%\n\nSee HTML version for detailed results.`;
 
 		console.log("📧 Sending email report...");
-		await transporter.sendMail(mailOptions);
+		const emailResult = await sendReportEmail({
+			subjectDetail: subjectTail,
+			title: "Chatbot test report",
+			subtitle: hidePassedTests ? "Failed tests only" : "Comprehensive stat testing",
+			context: buildDefaultContext({
+				triggeredBy: "node __tests__/scripts/test-chatbot-email-report.js",
+				npmScript: "npm run test:chatbot-players-report",
+			}),
+			innerHtml: generateEmailContent(testResults),
+			textBody,
+			smtpMode: "default",
+		});
+		if (!emailResult.ok) {
+			console.log("⚠️ Email not sent (missing SMTP env). Set SMTP_SERVER, SMTP_USERNAME, SMTP_PASSWORD, and from/to addresses.");
+			return;
+		}
 		console.log(`✅ Email report sent successfully to ${RECIPIENT_EMAIL}`);
 	} catch (error) {
 		console.error("❌ Failed to send email report:", error.message);

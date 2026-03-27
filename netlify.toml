@@ -11,6 +11,8 @@
 
 [functions]
   directory = "netlify/functions"
+  # Ensure shared report email module is available to bundled functions (e.g. emailService.sendTestEmail).
+  included_files = ["lib/email/**"]
 
 [functions."trigger-seed"]
   timeout = 1800

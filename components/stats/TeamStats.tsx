@@ -16,7 +16,7 @@ import HomeAwayGauge from "./HomeAwayGauge";
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { StatCardSkeleton, ChartSkeleton, TableSkeleton, TopPlayersTableSkeleton, BestSeasonFinishSkeleton, RecentGamesSkeleton, DataTableSkeleton } from "@/components/skeletons";
-import { LoadingState, ErrorState, EmptyState } from "@/components/ui/StateComponents";
+import { ErrorState } from "@/components/ui/StateComponents";
 import { useToast } from "@/lib/hooks/useToast";
 import { log } from "@/lib/utils/logger";
 import Button from "@/components/ui/Button";
@@ -472,11 +472,21 @@ export default function TeamStats() {
 
 	// Initialize or reset selected team when player or teams data changes
 	useEffect(() => {
-		if (!selectedPlayer || !filterData.teams || filterData.teams.length === 0) {
-			if (!selectedPlayer) {
-				setSelectedTeam("");
-				previousPlayerRef.current = null;
-			}
+		if (!filterData.teams || filterData.teams.length === 0) {
+			setSelectedTeam("");
+			previousPlayerRef.current = selectedPlayer || null;
+			return;
+		}
+
+		// No selected player: still allow browsing team stats via dropdown/default team.
+		if (!selectedPlayer) {
+			previousPlayerRef.current = null;
+			setSelectedTeam((current) => {
+				if (current && filterData.teams.some((team) => team.name === current)) {
+					return current;
+				}
+				return filterData.teams[0]?.name || "";
+			});
 			return;
 		}
 
@@ -1162,23 +1172,6 @@ export default function TeamStats() {
 							setError(null);
 							// Data will refresh when selectedTeam or filters change
 						}}
-					/>
-				</div>
-			</div>
-		);
-	}
-
-	// Show empty state if no team selected
-	if (!selectedTeam) {
-		return (
-			<div className='h-full flex flex-col'>
-				<div className='flex-shrink-0 p-2 md:p-4'>
-					<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow text-center mb-4'>Team Stats</h2>
-				</div>
-				<div className='flex-1 px-2 md:px-4 pb-4 flex items-center justify-center'>
-					<EmptyState 
-						title="No team selected"
-						message="Please select a team from the dropdown above to view team statistics."
 					/>
 				</div>
 			</div>

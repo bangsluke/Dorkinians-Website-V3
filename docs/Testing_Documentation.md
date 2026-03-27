@@ -1035,6 +1035,10 @@ For email notifications, ensure these environment variables are set:
 - `SMTP_TO_EMAIL` - Recipient email address
 - `SMTP_EMAIL_SECURE` - Use TLS/SSL (true/false)
 
+**Unified report emails** (E2E email script, weekly consolidated, chatbot/questions reports, Netlify `sendTestEmail`) share one HTML layout in `lib/email/dorkiniansReportEmail.js`: green header with logo, invocation context block, and full-width-friendly body. All use the subject prefix **`Dorkinians Stats Website -`** plus a type-specific suffix. Optional tuning:
+- `EMAIL_REPORT_LOGO_URL` — header logo URL (falls back to `WEEKLY_EMAIL_LOGO_URL`, then `UMAMI_EMAIL_LOGO_URL`, then the default Netlify asset)
+- `EMAIL_REPORT_CONTEXT` — extra context line in the email (GitHub Actions often uses `WORKFLOW_TRIGGER_LABEL` instead)
+
 > [Back to Table of Contents](#table-of-contents)
 
 ## Test Utilities
