@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { seedingStatusService } from "@/lib/services/seedingStatusService";
 import { getCsrfHeaders } from "@/lib/middleware/csrf";
+import { summarizeSeedingTriggerError } from "@/lib/utils/summarizeSeedingTriggerError";
 
 interface SeedingResult {
 	success: boolean;
@@ -281,17 +282,9 @@ export default function AdminPanelEnhanced() {
 						console.warn(`Path ${path} returned status:`, response.status);
 						const errorText = await response.text().catch(() => "");
 						try {
-							const errJson = JSON.parse(errorText) as {
-								hint?: string;
-								reason?: string;
-								message?: string;
-								error?: string;
-							};
-							const parts = [errJson.hint, errJson.reason, errJson.message, errJson.error].filter(
-								(s): s is string => typeof s === "string" && s.length > 0,
-							);
-							if (parts.length > 0) {
-								lastFailureMessage = [...new Set(parts)].join(" — ");
+							const summary = summarizeSeedingTriggerError(JSON.parse(errorText));
+							if (summary) {
+								lastFailureMessage = summary;
 							}
 						} catch {
 							if (response.status === 403 && errorText.includes("CSRF")) {

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { seedingStatusService } from "@/lib/services/seedingStatusService";
 import { getCsrfHeaders } from "@/lib/middleware/csrf";
+import { summarizeSeedingTriggerError } from "@/lib/utils/summarizeSeedingTriggerError";
 import JobMonitoringDashboard from "./JobMonitoringDashboard";
 import { killJob as killJobUtil } from "../../lib/jobUtils";
 
@@ -421,17 +422,9 @@ export default function AdminPanel() {
 						const errorText = await response.text().catch(() => "Could not read error response");
 						addDebugLog(`Error response for ${path}: ${errorText.substring(0, 200)}`, 'warn');
 						try {
-							const errJson = JSON.parse(errorText) as {
-								hint?: string;
-								reason?: string;
-								message?: string;
-								error?: string;
-							};
-							const parts = [errJson.hint, errJson.reason, errJson.message, errJson.error].filter(
-								(s): s is string => typeof s === "string" && s.length > 0,
-							);
-							if (parts.length > 0) {
-								lastFailureMessage = [...new Set(parts)].join(" — ");
+							const summary = summarizeSeedingTriggerError(JSON.parse(errorText));
+							if (summary) {
+								lastFailureMessage = summary;
 							}
 						} catch {
 							if (response.status === 403 && errorText.includes("CSRF")) {
