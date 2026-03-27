@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { seedingStatusService } from "@/lib/services/seedingStatusService";
+import { getCsrfHeaders } from "@/lib/middleware/csrf";
 
 interface SeedingResult {
 	success: boolean;
@@ -234,6 +235,7 @@ export default function AdminPanelEnhanced() {
 			let response = null;
 			let data = null;
 			let successfulPath = "";
+			let lastFailureMessage: string | null = null;
 
 			for (const path of functionPaths) {
 				try {
@@ -242,6 +244,7 @@ export default function AdminPanelEnhanced() {
 						method: "POST",
 						headers: {
 							"Content-Type": "application/json",
+							...getCsrfHeaders(),
 						},
 						body: JSON.stringify({
 							environment: "production",
@@ -276,6 +279,26 @@ export default function AdminPanelEnhanced() {
 						}
 					} else {
 						console.warn(`Path ${path} returned status:`, response.status);
+						const errorText = await response.text().catch(() => "");
+						try {
+							const errJson = JSON.parse(errorText) as {
+								hint?: string;
+								reason?: string;
+								message?: string;
+								error?: string;
+							};
+							const parts = [errJson.hint, errJson.reason, errJson.message, errJson.error].filter(
+								(s): s is string => typeof s === "string" && s.length > 0,
+							);
+							if (parts.length > 0) {
+								lastFailureMessage = [...new Set(parts)].join(" — ");
+							}
+						} catch {
+							if (response.status === 403 && errorText.includes("CSRF")) {
+								lastFailureMessage =
+									"CSRF validation failed for /api/trigger-seed. Refresh the admin page and try again.";
+							}
+						}
 					}
 				} catch (pathError) {
 					console.warn(`Path ${path} failed:`, pathError);
@@ -358,7 +381,11 @@ export default function AdminPanelEnhanced() {
 					}
 				}
 			} else {
-				throw new Error("Failed to trigger seeding - all function paths failed");
+				throw new Error(
+					lastFailureMessage
+						? `Failed to trigger seeding — ${lastFailureMessage}`
+						: "Failed to trigger seeding — no endpoint accepted the request. If Heroku logs show 401 on POST /seed, SEED_API_KEY must match exactly on Netlify/Vercel and Heroku.",
+				);
 			}
 		} catch (err) {
 			console.error("Seeding trigger error:", err);

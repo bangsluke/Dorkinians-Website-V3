@@ -638,7 +638,7 @@ exports.handler = async (event, context) => {
 			const hint = (status === 403 && body && (body.includes("CORS") || body.includes("Origin")))
 				? `Check Heroku: NODE_ENV=production and CORS allows Origin: ${origin}`
 				: (status === 401 || status === 403)
-					? "Check Heroku: SEED_API_KEY (X-API-Key) and CORS/Origin."
+					? "SEED_API_KEY on Netlify must exactly match SEED_API_KEY on Heroku (same value and length). Heroku log \"Invalid API key length\" means the keys differ. Also verify CORS Origin if you see 403."
 					: "Check Heroku logs and /seed endpoint.";
 
 			console.error("❌ CRITICAL: Heroku seeding service failed to start after all retry attempts");
