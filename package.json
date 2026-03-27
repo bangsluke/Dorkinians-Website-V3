@@ -110,6 +110,7 @@
 		"node": ">=18.0.0"
 	},
 	"overrides": {
-		"lodash": "4.17.23"
+		"lodash": "4.17.23",
+		"nodemailer": "^7.0.7"
 	}
 }
