@@ -194,6 +194,8 @@ export interface TeamData {
 	numberOfPlayers: number;
 	/** Foundation tactical (from team-data-filtered) */
 	formationBreakdown?: Array<{ formation: string; games: number; wins: number; winPercentage: number }>;
+	/** Feature 5: longest active streak holder per category (single-XI view only) */
+	streakLeaders?: Array<{ category: string; label: string; playerName: string; value: number }>;
 }
 
 // TOTW cache interfaces

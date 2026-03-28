@@ -47,6 +47,10 @@ const Settings = dynamic(() => import("@/components/pages/Settings"), {
 	loading: () => <LoadingState message="Loading settings..." />,
 	ssr: false,
 });
+
+const StreaksAtRiskBanner = dynamic(() => import("@/components/home/StreaksAtRiskBanner"), {
+	ssr: false,
+});
 import UpdateToast from "@/components/admin/UpdateToast";
 import DevClearStorageFAB from "@/components/admin/DevClearStorageFAB";
 import ToastContainer from "@/components/ui/ToastContainer";
@@ -214,6 +218,8 @@ export default function HomePage() {
 									</motion.div>
 								)}
 							</AnimatePresence>
+
+							<StreaksAtRiskBanner />
 
 							{/* Player Selection or Player Name Display */}
 							<AnimatePresence mode='wait'>

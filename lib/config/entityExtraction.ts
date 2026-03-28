@@ -263,6 +263,52 @@ export const STAT_TYPE_PSEUDONYMS = {
 		"what's my form",
 		"whats my form",
 	],
+	"All-Time Best Scoring Streak": [
+		"longest scoring streak",
+		"all.?time.*scoring streak",
+		"best ever scoring streak",
+		"record scoring streak",
+		"best scoring streak ever",
+	],
+	"All-Time Best Win Streak": [
+		"longest win streak",
+		"all.?time.*win streak",
+		"best win streak ever",
+		"record win streak",
+	],
+	"All-Time Best Appearance Streak": [
+		"longest appearance streak",
+		"longest apps streak",
+		"all.?time.*appearance streak",
+		"best appearance streak ever",
+	],
+	"All-Time Best Clean Sheet Streak": [
+		"longest clean sheet streak",
+		"all.?time.*clean sheet streak",
+		"best clean sheet streak ever",
+	],
+	"Current Scoring Streak": [
+		"current scoring streak",
+		"active scoring streak",
+		"scoring run",
+		"goals in a row",
+		"goal streak",
+	],
+	"Current Win Streak": ["current win streak", "winning run", "wins in a row"],
+	"Current Appearance Streak": [
+		"current appearance streak",
+		"appearances in a row",
+		"apps in a row",
+		"playing streak",
+	],
+	"Current Assist Streak": ["current assist streak", "assists in a row", "assist run"],
+	"Current Clean Sheet Streak": ["current clean sheet streak", "clean sheets in a row", "shutout streak"],
+	"Current Goal Involvement Streak": [
+		"current goal involvement streak",
+		"goal involvements in a row",
+		"g\\+a streak",
+		"goals or assists streak",
+	],
 	"Goals Per Appearance": ["goal per game ratio", "goal-per-game ratio", "goals per game", "goals per match", "goals on average scored", "average goals scored", "goals on average.*scored per appearance", "goals.*average.*per appearance"],
 	"Conceded Per Appearance": [
 		"goals on average does.*concede per match",
@@ -1413,8 +1459,11 @@ export class EntityExtractor {
 			});
 		});
 
-		// Check for goal involvements first
-		if (this.lowerQuestion.includes("goal involvements") || this.lowerQuestion.includes("goal involvement")) {
+		// Check for goal involvements first (not "goal involvement streak" — that maps to streak stat types)
+		if (
+			(this.lowerQuestion.includes("goal involvements") || this.lowerQuestion.includes("goal involvement")) &&
+			!this.lowerQuestion.includes("streak")
+		) {
 			statTypes.push({
 				value: "goal involvements",
 				originalText: "goal involvements",

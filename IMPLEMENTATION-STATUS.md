@@ -80,17 +80,17 @@
 | **Team Top Players** | Added `bestCurrentForm` stat option backed by `currentFormEwma`. |
 | **Tests** | Added targeted E2E check for Form section (`3.21`) and integration coverage for top players `bestCurrentForm`. |
 
-### Derived analytics — Streaks (Feature 5, in progress)
+### Derived analytics — Streaks (Feature 5)
 
 | Area | Notes |
 |------|--------|
 | **Data layer (`../database-dorkinians/`)** | `services/streakDetection.js` — `detectStreaks`, appearance streak vs primary-team fixtures, season-best (latest season in data) + all-time bests; `applyFoundationDerivedAggregates()` writes all `current*` / `seasonBest*` / `allTimeBest*` Player fields after form EWMA. |
 | **Schema** | `TBL_Players.properties` extended per `NEW-FEATURES.md` Feature 5. |
-| **Tests (DB)** | `npm run test:streak-detection` — unit tests on streak helpers. |
-| **Website API** | `player-data` / `player-data-filtered` RETURN + map streak fields from `p` (career values; not reduced when filters exclude matches). |
-| **UI** | `PlayerStats` — **Streaks** section after Form (`#streaks-section`): active streak cards + season-best grid. |
+| **Tests (DB)** | `npm run test:streak-detection` — unit tests on streak helpers; `scripts/test-foundation-derived-integration.js` asserts streak keys on Player after aggregates. |
+| **Website API** | `player-data` / `player-data-filtered` RETURN + map streak fields from `p`; `GET /api/club-streaks-preview` — next fixture + squad streak highlights; `team-data-filtered` adds `streakLeaders` (single-XI) when `teamName !== "Whole Club"`. |
+| **UI** | `PlayerStats` — **Streaks** section after Form (`#streaks-section`); homepage `StreaksAtRiskBanner`; Team Stats `#team-streak-leaders` (longest active streaks for selected XI). |
+| **Chatbot** | Streak metrics in `chatbotMetrics` / entity extraction / `mapStatTypeToKey`; `playerQueryBuilder` + `rankingQueryHandler` Player-node streak queries; single-value + ranking answers in `chatbotService`; integer formatting in `formattingUtils`. |
 | **Tests (site)** | Playwright `3.24` — streaks section visible; section id in desktop sweep list. |
-| **Still to do (same feature)** | Homepage “streaks at risk”, Team Stats longest current streaks, chatbot streak Q&A (per `NEW-FEATURES.md`). |
 
 ### Optional foundation gap (non-blocking)
 
@@ -105,7 +105,6 @@
 - **Feature 2:** ✅ Completed.
 - **Feature 3:** ✅ Chatbot: `FORM_CURRENT` metric, ranking (best/worst form), single-player current form + baseline/trend; Player Stats form chart: golden cross caption + info tooltip.
 - **Feature 4 (automated match ratings):** ✅ Done in foundation — `calculateMatchRating` / `matchRating` on MatchDetail and aggregates surfaced on the site (see Completed sections above).
-- **Feature 5:** Core streak engine + `Player` fields + Player Stats **Streaks** UI + API + DB unit tests ✅. Remaining: homepage banner, team leaderboards, chatbot, optional Neo4j integration test for streak properties.
 
 ### Records & graph
 
