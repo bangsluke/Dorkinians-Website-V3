@@ -11,6 +11,7 @@ import UmamiAnalytics from "../components/admin/UmamiAnalytics";
 import WebVitals from "../components/admin/WebVitals";
 import ErrorBoundaryWrapper from "@/components/ErrorBoundaryWrapper";
 import { validateEnv } from "@/lib/config/envValidation";
+import { isDevelopBranchDeploy } from "@/lib/utils/isDevelopBranchDeploy";
 import { logError } from "@/lib/utils/logger";
 
 // Validate environment variables at app startup
@@ -28,14 +29,15 @@ if (process.env.NODE_ENV !== "development") {
 
 const inter = Inter({ subsets: ["latin"] });
 
+const developDeploy = isDevelopBranchDeploy();
+
 export const metadata: Metadata = {
-	title: "Dorkinians FC Stats",
+	title: developDeploy ? "Dorkinians FC Stats (Develop)" : "Dorkinians FC Stats",
 	description: "Dorkinians FC Statistics and Chatbot - Mobile-first PWA",
-	manifest: "/manifest.json",
 	appleWebApp: {
 		capable: true,
 		statusBarStyle: "default",
-		title: "Dorkinians Stats",
+		title: developDeploy ? "Dorkinians Dev" : "Dorkinians Stats",
 		startupImage: [
 			{
 				url: "/apple-touch-startup-image-1290x2796.png",
