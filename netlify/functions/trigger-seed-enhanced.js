@@ -271,10 +271,12 @@ exports.handler = async (event, context) => {
 		}
 
 		const emailConfig = requestBody.emailConfig || {};
-		const seasonConfig = requestBody.seasonConfig || {
+		const seasonConfig = {
 			currentSeason: null,
 			useSeasonOverride: false,
 			fullRebuild: true,
+			blueGreenCutover: true,
+			...(requestBody.seasonConfig || {}),
 		};
 
 		// Detect if this is a cron job call (no email config) and set defaults

@@ -33,10 +33,12 @@ export async function POST(request: NextRequest) {
 			sendEmailAtStart: false,
 			sendEmailAtCompletion: true,
 		};
-		const seasonConfig = requestBody.seasonConfig || {
+		const seasonConfig = {
 			currentSeason: null,
 			useSeasonOverride: false,
 			fullRebuild: true,
+			blueGreenCutover: true,
+			...(requestBody.seasonConfig || {}),
 		};
 
 		logRequest("Seed request received", {
