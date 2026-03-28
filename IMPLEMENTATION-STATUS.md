@@ -4,7 +4,7 @@
 
 **Last updated:** 2026-03-28
 
-**Current milestone:** ✅ Feature 8 Season Wrapped (first cut) shipped — routes, JSON API, OG images, `html-to-image` share, homepage banner; set `NEXT_PUBLIC_SITE_URL` in production for correct `wrappedUrl`
+**Current milestone:** ✅ Feature 9 Achievement badges (first cut) — DB seed writes `PlayerBadge` + Player fields; site APIs + Player Stats bar/grid + Club Awards leaderboard; run **full re-seed** so badges exist in Neo4j
 
 **Database repo:** When this website repo sits next to the seeding service, paths below use **`../database-dorkinians/`**. If you only have the database clone, open the copy of this file from the website repo or maintain a short pointer there.
 
@@ -124,6 +124,15 @@
 | **Home** | `SeasonWrappedBanner` after streaks banner; hide with `NEXT_PUBLIC_SEASON_WRAPPED_ACTIVE=false`. |
 | **Tests** | Jest: `__tests__/unit/wrapped/*`, `wrapped-api.integration.test.ts`; Playwright: `__tests__/e2e/10-wrapped/wrapped.spec.ts`. |
 
+### Achievement badges (Feature 9)
+
+| Area | Notes |
+|------|--------|
+| **Data layer (`../database-dorkinians/`)** | `config/schema.js` — `PlayerBadge`, `HAS_BADGE`, extra `Player` fields; `services/badgeDefinitions.js`, `badgeComputation.js`, `playerBadgesComputation.js`; `relationshipManager.applyPlayerBadges()`; `seedingOrchestrator` runs it after `applyGraphInsights()`. |
+| **Tests (DB)** | `npm run test:badges` — `services/badgeComputation.test.js`. |
+| **Website** | `GET /api/player-badges?playerName=` — earned badges + progress; `GET /api/club-badge-leaderboard` — most badges / diamond / gold; `lib/badges/catalog.ts` (keep in sync with DB catalogue), `evaluate.ts`, `neo4jProps.ts`; `PlayerStats` — badge bar (`data-testid="player-badge-bar"`), milestone grid under Captaincies (`player-badge-milestones`); `BadgeLeaderboardSection` on Club Awards and Records. |
+| **Tests (site)** | Jest: `__tests__/unit/badges/parseBadgeId.test.ts`; Playwright: `5.31` (club badge leaderboard), `3.26` (player milestones, skips until seed). |
+
 ### Optional foundation gap (non-blocking)
 
 - **Chatbot** patterns for “how many times have I started?” (listed in plan; not necessarily done).
@@ -144,7 +153,7 @@
 
 ### Badges
 
-- `PlayerBadge` model, badge engine, player UI, club badge leaderboard, tests.
+- ✅ Feature 9 initial delivery (see **Completed → Achievement badges**). Optional later: chatbot badge phrasing, “recently unlocked” spotlight, richer badge icons.
 
 ---
 

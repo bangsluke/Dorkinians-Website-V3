@@ -14,6 +14,7 @@ import { appConfig } from "@/config/config";
 import { UmamiEvents } from "@/lib/analytics/events";
 import { trackEvent } from "@/lib/utils/trackEvent";
 import RecordsSection from "./RecordsSection";
+import BadgeLeaderboardSection from "./BadgeLeaderboardSection";
 
 interface AwardData {
 	awardName: string;
@@ -425,6 +426,8 @@ export default function ClubAwards() {
 			</div>
 
 			<RecordsSection />
+
+			<BadgeLeaderboardSection />
 
 			{/* Award History Popup */}
 			{showPopup && selectedPlayer && <AwardHistoryPopup playerName={selectedPlayer} onClose={handleClosePopup} />}

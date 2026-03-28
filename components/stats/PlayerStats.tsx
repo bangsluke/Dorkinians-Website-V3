@@ -41,6 +41,9 @@ import { ErrorState, EmptyState } from "@/components/ui/StateComponents";
 import { useToast } from "@/lib/hooks/useToast";
 import AllGamesModal from "@/components/stats/AllGamesModal";
 import PlayerRecentFormBoxes, { type PlayerFormRecentMatch } from "@/components/stats/PlayerRecentFormBoxes";
+import BadgeDot from "@/components/stats/BadgeDot";
+import PlayerBadgeMilestoneGrid, { type EarnedBadgeRow, type ProgressRow } from "@/components/stats/PlayerBadgeMilestoneGrid";
+import { selectBadgesForBar } from "@/lib/badges/evaluate";
 
 type PlayerStatsTableMode = "totals" | "perApp" | "per90";
 type PlayerStatsKeyMode = "totals" | "per90";
@@ -1761,6 +1764,15 @@ export default function PlayerStats() {
 	const [totalAwards, setTotalAwards] = useState<number>(0);
 	const [isLoadingAwardHistory, setIsLoadingAwardHistory] = useState(false);
 
+	// Feature 9 — milestone badges (Neo4j PlayerBadge + progress)
+	const [badgePayload, setBadgePayload] = useState<{
+		totalBadges: number;
+		highestBadgeTier: string | null;
+		earned: EarnedBadgeRow[];
+		progress: ProgressRow[];
+	} | null>(null);
+	const [isLoadingBadges, setIsLoadingBadges] = useState(false);
+
 	// State for icon loading tracking in Key Performance Stats
 	const [loadedIcons, setLoadedIcons] = useState<Set<string>>(new Set());
 	const [allIconsLoaded, setAllIconsLoaded] = useState(false);
@@ -2265,6 +2277,8 @@ export default function PlayerStats() {
 			setTotalCaptaincies(0);
 			setAwardHistory([]);
 			setTotalAwards(0);
+			setBadgePayload(null);
+			setIsLoadingBadges(false);
 			return;
 		}
 		if (appConfig.forceSkeletonView) {
@@ -2276,6 +2290,7 @@ export default function PlayerStats() {
 			setIsLoadingAwards(true);
 			setIsLoadingCaptainHistory(true);
 			setIsLoadingAwardHistory(true);
+			setIsLoadingBadges(true);
 
 			try {
 				const playerParams = { playerName: selectedPlayer };
@@ -2331,9 +2346,34 @@ export default function PlayerStats() {
 							setTotalAwards(0);
 						})
 						.finally(() => setIsLoadingAwardHistory(false)),
+
+					cachedFetch(`/api/player-badges?playerName=${encodeURIComponent(selectedPlayer)}`, {
+						method: "GET",
+						cacheKey: generatePageCacheKey("stats", "player-stats", "player-badges", playerParams),
+						getCachedPageData,
+						setCachedPageData,
+					})
+						.then((data) => {
+							if (data && Array.isArray(data.earned) && Array.isArray(data.progress)) {
+								setBadgePayload({
+									totalBadges: typeof data.totalBadges === "number" ? data.totalBadges : data.earned.length,
+									highestBadgeTier: data.highestBadgeTier ?? null,
+									earned: data.earned,
+									progress: data.progress,
+								});
+							} else {
+								setBadgePayload(null);
+							}
+						})
+						.catch((error) => {
+							log("error", "Error fetching player badges:", error);
+							setBadgePayload(null);
+						})
+						.finally(() => setIsLoadingBadges(false)),
 				]);
 			} catch (error) {
 				log("error", "Error in parallel awards data fetching:", error);
+				setIsLoadingBadges(false);
 			}
 		};
 
@@ -2427,6 +2467,11 @@ export default function PlayerStats() {
 			value: toNumber(stat[selectedOption.statKey] || 0),
 		}));
 	}, [monthlyStats, monthlySelectedStat, statOptions]);
+
+	const badgeBarItems = useMemo(() => {
+		if (!badgePayload?.earned?.length) return [];
+		return selectBadgesForBar(badgePayload.earned, 5);
+	}, [badgePayload]);
 
 	/* COMMENTED OUT: Share Stats functionality - will be re-added in the future */
 	// Get available visualizations (must be before early returns)
@@ -4080,7 +4125,7 @@ export default function PlayerStats() {
 			{/* Captaincies, Awards and Achievements Section */}
 			<div id='captaincies-awards-and-achievements' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 				<h3 className='text-white font-semibold text-sm md:text-base mb-4'>Captaincies, Awards and Achievements</h3>
-				{isLoadingAwards || isLoadingCaptainHistory || isLoadingAwardHistory ? (
+				{isLoadingAwards || isLoadingCaptainHistory || isLoadingAwardHistory || isLoadingBadges ? (
 					<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
 						<AwardsListSkeleton />
 					</SkeletonTheme>
@@ -4183,9 +4228,25 @@ export default function PlayerStats() {
 									<span className='font-bold text-dorkinians-yellow'>{awardsData?.totsCount || 0}</span>
 								</p>
 							</div>
+
+							{badgePayload && (
+								<div className='pt-2 border-t border-white/10'>
+									<p className='text-white text-xs md:text-sm mb-1'>
+										<span className='text-white/70'>Milestone badges earned: </span>
+										<span className='font-bold text-dorkinians-yellow'>{badgePayload.totalBadges}</span>
+										{badgePayload.highestBadgeTier ? (
+											<span className='text-white/70'>
+												{" "}
+												(highest tier: <span className='capitalize text-dorkinians-yellow'>{badgePayload.highestBadgeTier}</span>)
+											</span>
+										) : null}
+									</p>
+									<PlayerBadgeMilestoneGrid earned={badgePayload.earned} progress={badgePayload.progress} />
+								</div>
+							)}
 						</div>
 
-						{totalCaptaincies === 0 && totalAwards === 0 && (awardsData?.playerOfMonthCount || 0) === 0 && (awardsData?.playerOfMonthFirstCount || 0) === 0 && (awardsData?.starManCount || 0) === 0 && (awardsData?.totwCount || 0) === 0 && (awardsData?.totsCount || 0) === 0 && (
+						{totalCaptaincies === 0 && totalAwards === 0 && (awardsData?.playerOfMonthCount || 0) === 0 && (awardsData?.playerOfMonthFirstCount || 0) === 0 && (awardsData?.starManCount || 0) === 0 && (awardsData?.totwCount || 0) === 0 && (awardsData?.totsCount || 0) === 0 && (badgePayload?.earned?.length ?? 0) === 0 && (
 							<p className='text-white/70 text-xs md:text-sm'>No captaincies, awards or achievements recorded.</p>
 						)}
 					</div>
@@ -4244,15 +4305,24 @@ export default function PlayerStats() {
 	return (
 		<div className='h-full flex flex-col'>
 			<div className='flex-shrink-0 p-2 md:p-4'>
-				<div className='flex items-center justify-center mb-2 md:mb-4 relative'>
-					<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow text-center' data-testid="stats-page-heading">Stats - {selectedPlayer}</h2>
-					<Button
-						variant="icon"
-						size="sm"
-						onClick={handleEditClick}
-						title='Edit player selection'
-						className='absolute right-0 w-8 h-8 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10'
-						icon={<PenOnPaperIcon className='h-4 w-4 md:h-5 md:w-5' />} />
+				<div className='flex flex-col items-center mb-2 md:mb-4 gap-2'>
+					<div className='flex items-center justify-center relative w-full'>
+						<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow text-center' data-testid="stats-page-heading">Stats - {selectedPlayer}</h2>
+						<Button
+							variant="icon"
+							size="sm"
+							onClick={handleEditClick}
+							title='Edit player selection'
+							className='absolute right-0 w-8 h-8 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10'
+							icon={<PenOnPaperIcon className='h-4 w-4 md:h-5 md:w-5' />} />
+					</div>
+					{badgeBarItems.length > 0 ? (
+						<div className='flex flex-wrap justify-center gap-1.5' data-testid='player-badge-bar' aria-label='Top milestone badges'>
+							{badgeBarItems.map((b) => (
+								<BadgeDot key={b.badgeId} tier={b.tier} title={`${b.badgeName} (${b.tier})`} size='sm' />
+							))}
+						</div>
+					) : null}
 				</div>
 				<div className='flex justify-center mb-2 md:mb-4'>
 					<Button

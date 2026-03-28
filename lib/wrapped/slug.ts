@@ -2,17 +2,21 @@
  * URL-safe slug for `/wrapped/[playerSlug]` — base64url of UTF-8 player name (handles spaces and punctuation).
  */
 
+/** RFC 4648 base64url without relying on `Buffer` encoding `base64url` (unsupported in many browser polyfills). */
+function bytesToBase64UrlFromStandardBase64(standardBase64: string): string {
+	return standardBase64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
 function utf8ToBase64Url(s: string): string {
 	if (typeof Buffer !== "undefined") {
-		return Buffer.from(s, "utf8").toString("base64url");
+		return bytesToBase64UrlFromStandardBase64(Buffer.from(s, "utf8").toString("base64"));
 	}
 	const bytes = new TextEncoder().encode(s);
 	let binary = "";
 	for (let i = 0; i < bytes.length; i++) {
 		binary += String.fromCharCode(bytes[i]!);
 	}
-	const b64 = btoa(binary);
-	return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+	return bytesToBase64UrlFromStandardBase64(btoa(binary));
 }
 
 function base64UrlToUtf8(slug: string): string {

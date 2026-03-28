@@ -592,4 +592,13 @@ test.describe("Club Info Page Tests", () => {
 		await holderBtn.click();
 		await expect(page.getByTestId("stats-page-heading")).toContainText(name, { timeout: 25000 });
 	});
+
+	test("5.31. Badge leaderboard section is shown on Club Awards and Records", async ({ page }) => {
+		await navigateToMainPage(page, "club-info");
+		await goToClubInfoSubPage(page, "club-awards");
+		await expect(page.getByRole("heading", { name: /Club Awards and Records/i })).toBeVisible({ timeout: 20000 });
+		const section = page.getByTestId("badge-leaderboard-section");
+		await section.scrollIntoViewIfNeeded();
+		await expect(section.getByRole("heading", { name: /^Badge leaderboard$/i })).toBeVisible({ timeout: 15000 });
+	});
 });
