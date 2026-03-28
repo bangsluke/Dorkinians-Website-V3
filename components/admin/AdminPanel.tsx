@@ -96,6 +96,8 @@ export default function AdminPanel() {
 	const [seasonOverride, setSeasonOverride] = useState<string>("");
 	const [useSeasonOverride, setUseSeasonOverride] = useState<boolean>(false);
 	const [fullRebuild, setFullRebuild] = useState<boolean>(true);
+	/** Full rebuild only: seed to staging graphLabel then swap (minimises downtime). Default on. */
+	const [blueGreenCutover, setBlueGreenCutover] = useState<boolean>(true);
 	const [seasonOverrideError, setSeasonOverrideError] = useState<string>("");
 	
 	// Debug logs state
@@ -377,6 +379,7 @@ export default function AdminPanel() {
 							currentSeason: useSeasonOverride ? seasonOverride : currentSeason,
 							useSeasonOverride: useSeasonOverride,
 							fullRebuild: fullRebuild,
+							blueGreenCutover: fullRebuild ? blueGreenCutover : false,
 						},
 						debug: debugLogs,
 					};
@@ -1269,6 +1272,19 @@ export default function AdminPanel() {
 							/>
 							<label htmlFor='fullRebuild' className='text-sm text-gray-700'>
 								Full rebuild (clear ALL data, not just current season)
+							</label>
+						</div>
+						<div className={`flex items-center ${!fullRebuild ? "opacity-50" : ""}`}>
+							<input
+								type='checkbox'
+								id='blueGreenCutover'
+								checked={blueGreenCutover}
+								disabled={!fullRebuild}
+								onChange={(e) => setBlueGreenCutover(e.target.checked)}
+								className='mr-2 h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded disabled:cursor-not-allowed'
+							/>
+							<label htmlFor='blueGreenCutover' className='text-sm text-gray-700'>
+								Blue/green cutover (build new graph first, then swap — less downtime)
 							</label>
 						</div>
 						<div className='flex items-center'>
