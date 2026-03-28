@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neo4jService } from "@/lib/neo4j";
-import { buildPlayerStatsQuery, mapPlayerStreakFieldsFromRecord, PLAYER_STREAK_PROPERTY_RETURN } from "../player-data/route";
+import {
+	buildPlayerStatsQuery,
+	mapPlayerGraphInsightFieldsFromRecord,
+	mapPlayerStreakFieldsFromRecord,
+	PLAYER_GRAPH_INSIGHT_PROPERTY_RETURN,
+	PLAYER_STREAK_PROPERTY_RETURN,
+} from "../player-data/route";
 import { getCorsHeadersWithSecurity } from "@/lib/utils/securityHeaders";
 import { dataApiRateLimiter } from "@/lib/middleware/rateLimiter";
 import { sanitizeError } from "@/lib/utils/errorSanitizer";
@@ -113,6 +119,7 @@ export async function POST(request: NextRequest) {
 		const playerCheckQuery = `
 			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
 			RETURN p.id as id, p.playerName as playerName, p.allowOnSite as allowOnSite, p.graphLabel as graphLabel,
+${PLAYER_GRAPH_INSIGHT_PROPERTY_RETURN},
 ${PLAYER_STREAK_PROPERTY_RETURN}
 			LIMIT 1
 		`;
@@ -233,6 +240,7 @@ ${PLAYER_STREAK_PROPERTY_RETURN}
 				averageMatchRating: null as number | null,
 				highestMatchRating: null as number | null,
 				matchesRated8Plus: 0,
+				...mapPlayerGraphInsightFieldsFromRecord(playerRecord, toNumber),
 				...mapPlayerStreakFieldsFromRecord(playerRecord, toNumber),
 			};
 
@@ -397,6 +405,7 @@ ${PLAYER_STREAK_PROPERTY_RETURN}
 				return Math.round(n * 10) / 10;
 			})(),
 			matchesRated8Plus: toNumber(record.get("matchesRated8Plus")),
+			...mapPlayerGraphInsightFieldsFromRecord(record, toNumber),
 			...mapPlayerStreakFieldsFromRecord(record, toNumber),
 		};
 

@@ -1690,7 +1690,25 @@ function PositionalStatsVisualization({ gk, def, mid, fwd, appearances, gkMinute
 }
 
 export default function PlayerStats() {
-	const { selectedPlayer, cachedPlayerData, isLoadingPlayerData, enterEditMode, setMainPage, currentStatsSubPage, playerFilters, filterData, getCachedPageData, setCachedPageData, hasUnsavedFilters, isFilterSidebarOpen, openAllGamesModal, closeAllGamesModal, isAllGamesModalOpen } = useNavigationStore();
+	const {
+		selectedPlayer,
+		cachedPlayerData,
+		isLoadingPlayerData,
+		enterEditMode,
+		setMainPage,
+		setStatsSubPage,
+		selectPlayer,
+		currentStatsSubPage,
+		playerFilters,
+		filterData,
+		getCachedPageData,
+		setCachedPageData,
+		hasUnsavedFilters,
+		isFilterSidebarOpen,
+		openAllGamesModal,
+		closeAllGamesModal,
+		isAllGamesModalOpen,
+	} = useNavigationStore();
 	const { showError } = useToast();
 	const [error, setError] = useState<string | null>(null);
 	
@@ -1813,6 +1831,25 @@ export default function PlayerStats() {
 	}, [filteredStatEntries, tableStatMode]);
 
 	const playerData: PlayerData | null = cachedPlayerData?.playerData || null;
+
+	const partnershipList = useMemo(() => {
+		const raw = playerData?.partnershipsTopJson;
+		if (!raw) return [] as Array<{ name: string; winRate: number; matches: number }>;
+		try {
+			const parsed = JSON.parse(raw) as unknown;
+			if (!Array.isArray(parsed)) return [];
+			return parsed
+				.filter((x): x is Record<string, unknown> => x != null && typeof x === "object")
+				.map((x) => ({
+					name: String(x.name ?? ""),
+					winRate: typeof x.winRate === "number" ? x.winRate : Number(x.winRate),
+					matches: typeof x.matches === "number" ? x.matches : Number(x.matches),
+				}))
+				.filter((x) => x.name.length > 0 && !Number.isNaN(x.winRate) && !Number.isNaN(x.matches));
+		} catch {
+			return [];
+		}
+	}, [playerData?.partnershipsTopJson]);
 
 	// Debug log for position counts (must be before early returns)
 	useEffect(() => {
@@ -3212,6 +3249,103 @@ export default function PlayerStats() {
 						);
 					})()}
 				</div>
+			) : null}
+
+			{playerData ? (
+				<>
+					<div
+						id='partnerships-section'
+						className='relative z-30 bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
+						<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Partnerships</h3>
+						<p className='text-white/55 text-[11px] md:text-xs mb-3'>
+							Win rate when you appear in the same match (minimum five shared games). Values come from the full graph after seeding — not
+							filter-dependent.
+						</p>
+						{partnershipList.length === 0 ? (
+							<p className='text-white/60 text-xs'>
+								No partnership data yet. Run a full seed so graph insights (Feature 7) can populate this section.
+							</p>
+						) : (
+							<ul className='space-y-2'>
+								{partnershipList.slice(0, 5).map((p) => {
+									const base = playerData.impactWinRateWith;
+									const chem =
+										base != null && typeof p.winRate === "number" && !Number.isNaN(p.winRate)
+											? Math.round((p.winRate - base) * 10) / 10
+											: null;
+									const showChem = chem != null && chem > 0.5;
+									return (
+										<li key={p.name} className='flex flex-wrap items-baseline justify-between gap-2 bg-white/5 rounded-md px-3 py-2'>
+											<div className='min-w-0'>
+												<button
+													type='button'
+													onClick={() => {
+														trackEvent(UmamiEvents.PlayerSelected, { source: "player-graph-partner", playerName: p.name });
+														selectPlayer(p.name, "picker");
+														setMainPage("stats");
+														setStatsSubPage("player-stats");
+													}}
+													className='text-[#E8C547] text-xs md:text-sm font-medium hover:underline text-left'>
+													{p.name}
+												</button>
+												{showChem ? (
+													<p className='text-dorkinians-green-text text-[10px] mt-0.5'>+{chem} pp vs your XI win rate</p>
+												) : null}
+											</div>
+											<p className='text-white text-xs md:text-sm font-semibold tabular-nums shrink-0'>
+												{Math.round(p.winRate * 10) / 10}% · {Math.round(p.matches)} games
+											</p>
+										</li>
+									);
+								})}
+							</ul>
+						)}
+					</div>
+					<div
+						id='impact-section'
+						className='relative z-30 bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
+						<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Impact</h3>
+						{playerData.impactDelta == null ||
+						playerData.impactWinRateWith == null ||
+						!playerData.mostPlayedForTeam ||
+						String(playerData.mostPlayedForTeam).trim() === "" ? (
+							<p className='text-white/60 text-xs'>
+								Impact compares your most-played XI&apos;s results when you play vs when you don&apos;t (needs enough games without you).
+								Run a full seed after Feature 7, or check you have a primary team set.
+							</p>
+						) : (
+							<>
+								<p className='text-white text-sm md:text-base font-medium mb-2'>
+									{playerData.impactDelta >= 0 ? (
+										<>
+											<span className='text-dorkinians-yellow'>{playerData.mostPlayedForTeam}</span> wins{" "}
+											<span className='text-dorkinians-yellow font-bold'>
+												{Math.abs(Math.round(playerData.impactDelta * 10) / 10)}
+											</span>
+											percentage points more often when you play.
+										</>
+									) : (
+										<>
+											<span className='text-dorkinians-yellow'>{playerData.mostPlayedForTeam}</span> wins{" "}
+											<span className='text-dorkinians-yellow font-bold'>
+												{Math.abs(Math.round(playerData.impactDelta * 10) / 10)}
+											</span>
+											percentage points less often when you play.
+										</>
+									)}
+								</p>
+								{playerData.impactRatesDisplay ? (
+									<p className='text-white/70 text-xs md:text-sm mb-2'>{playerData.impactRatesDisplay}</p>
+								) : null}
+								{playerData.impactSampleWithout != null && playerData.impactSampleWithout < 10 ? (
+									<p className='text-white/50 text-[11px] md:text-xs border-l-2 border-[rgba(232,197,71,0.35)] pl-2'>
+										Sample without you is small ({playerData.impactSampleWithout} games) — interpret with care.
+									</p>
+								) : null}
+							</>
+						)}
+					</div>
+				</>
 			) : null}
 
 			{/* All Games Section */}

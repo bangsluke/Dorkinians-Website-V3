@@ -51,6 +51,9 @@ const Settings = dynamic(() => import("@/components/pages/Settings"), {
 const StreaksAtRiskBanner = dynamic(() => import("@/components/home/StreaksAtRiskBanner"), {
 	ssr: false,
 });
+const SeasonWrappedBanner = dynamic(() => import("@/components/home/SeasonWrappedBanner"), {
+	ssr: false,
+});
 import UpdateToast from "@/components/admin/UpdateToast";
 import DevClearStorageFAB from "@/components/admin/DevClearStorageFAB";
 import ToastContainer from "@/components/ui/ToastContainer";
@@ -220,6 +223,7 @@ export default function HomePage() {
 							</AnimatePresence>
 
 							<StreaksAtRiskBanner />
+							<SeasonWrappedBanner />
 
 							{/* Player Selection or Player Name Display */}
 							<AnimatePresence mode='wait'>

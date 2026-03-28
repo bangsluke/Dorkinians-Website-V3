@@ -139,6 +139,21 @@ export interface PlayerData {
 	allTimeBestAppearanceStreak?: number;
 	allTimeBestCleanSheetStreak?: number;
 	allTimeBestWinStreak?: number;
+	/** Feature 7 — graph insights (full graph; not filter-dependent) */
+	bestPartnerName?: string | null;
+	bestPartnerWinRate?: number | null;
+	bestPartnerMatches?: number | null;
+	partnershipsTopJson?: string | null;
+	graphInsightsBestPartnerDisplay?: string | null;
+	impactDelta?: number | null;
+	impactWinRateWith?: number | null;
+	impactWinRateWithout?: number | null;
+	impactRatesDisplay?: string | null;
+	impactSampleWith?: number | null;
+	impactSampleWithout?: number | null;
+	squadInfluence?: number | null;
+	squadInfluenceRank?: number | null;
+	communityId?: number | null;
 }
 
 // Cached player data with date validation

@@ -4,7 +4,7 @@
 
 **Last updated:** 2026-03-28
 
-**Current milestone:** ✅ Feature 6 records wall shipped (re-seed required for `ClubRecord` data)
+**Current milestone:** ✅ Feature 8 Season Wrapped (first cut) shipped — routes, JSON API, OG images, `html-to-image` share, homepage banner; set `NEXT_PUBLIC_SITE_URL` in production for correct `wrappedUrl`
 
 **Database repo:** When this website repo sits next to the seeding service, paths below use **`../database-dorkinians/`**. If you only have the database clone, open the copy of this file from the website repo or maintain a short pointer there.
 
@@ -101,6 +101,29 @@
 | **Website** | `GET /api/club-records`; `components/club-info/RecordsSection.tsx` under awards; page title **Club Awards and Records** (sidebar, settings, `ClubAwards` h2). |
 | **Tests (site)** | Playwright `5.29`–`5.30` — Records section + optional holder → Player Stats navigation when data exists. |
 
+### Graph insights (Feature 7)
+
+| Area | Notes |
+|------|--------|
+| **Data layer (`../database-dorkinians/`)** | `services/graphInsightsComputation.js` — partnership win rates (≥5 shared games), impact delta on `mostPlayedForTeam`; optional `gds.pageRank` + `gds.louvain` when `RETURN gds.version()` succeeds; `relationshipManager.applyGraphInsights()` after `applyClubRecords()`; `Player` schema fields per `NEW-FEATURES.md`. |
+| **Tests (DB)** | `npm run test:graph-insights` — adjacency / top-partner sorting helpers. |
+| **Website** | `player-data` + `player-data-filtered` return graph fields; Player Stats **Partnerships** + **Impact** after Streaks; data table rows (`PlayerGraph*` stats in `config.ts`); `GET /api/club-squad-backbone`; Club Stats **Squad backbone** (PageRank top 10, empty without GDS). |
+| **Tests (site)** | Playwright `3.25` — headings for Partnerships / Impact; section ids in desktop sweep lists. |
+| **GDS** | PageRank / Louvain / squad rank skipped when `gds.version()` fails (e.g. Free tier or plugin off); logs `ℹ️ GRAPH_INSIGHTS: GDS not available`. |
+
+**Deferred for later (owner):** **GDS is not set up yet** on your Neo4j Aura instance (Graph Analytics / Professional tier as per `NEW-FEATURES.md`). No action required for **7a/7b** (partnerships + impact). **Save for when you want 7c/7d:** enable GDS on Aura, then run a **full re-seed** so `squadInfluence`, `squadInfluenceRank`, `communityId`, and Club Stats **Squad backbone** populate.
+
+### Season Wrapped (Feature 8)
+
+| Area | Notes |
+|------|--------|
+| **Routes** | `app/wrapped/[playerSlug]/page.tsx` — Framer Motion slides, dots, share via `html-to-image`, WhatsApp copy block. |
+| **API** | `GET /api/wrapped/[playerSlug]` — optional `?season=`; slug = base64url of `playerName` (`lib/wrapped/slug.ts`). |
+| **OG** | `GET /api/wrapped/[playerSlug]/og/[slideNumber]` — `next/og` ImageResponse (slides 1–9). |
+| **Data** | `lib/wrapped/computeWrappedData.ts` — season-scoped stats, club percentiles, best month, peak match, streaks (season-best fields on `Player`), partner fields, `classifyPlayerType`. |
+| **Home** | `SeasonWrappedBanner` after streaks banner; hide with `NEXT_PUBLIC_SEASON_WRAPPED_ACTIVE=false`. |
+| **Tests** | Jest: `__tests__/unit/wrapped/*`, `wrapped-api.integration.test.ts`; Playwright: `__tests__/e2e/10-wrapped/wrapped.spec.ts`. |
+
 ### Optional foundation gap (non-blocking)
 
 - **Chatbot** patterns for “how many times have I started?” (listed in plan; not necessarily done).
@@ -117,11 +140,7 @@
 
 ### Records & graph
 
-- **Feature 7:** Graph insights 7a/7b; GDS-gated 7c/7d if/when Aura GDS is enabled.
-
-### Season Wrapped
-
-- Wrapped routes, API, OG image pipeline, `html-to-image`, homepage entry, tests.
+- **Feature 7:** ✅ Initial delivery (7a/7b in use after re-seed). **7c/7d (GDS):** code paths exist; **Aura GDS not configured yet** — treat as a later infra task (see Completed → Graph insights). **Chatbot** questions for partners / impact / connectivity not done yet (spec lists them).
 
 ### Badges
 

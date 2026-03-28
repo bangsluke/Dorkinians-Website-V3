@@ -304,7 +304,20 @@ const schema = {
       allTimeBestScoringStreak: { type: 'integer', required: false },
       allTimeBestAppearanceStreak: { type: 'integer', required: false },
       allTimeBestCleanSheetStreak: { type: 'integer', required: false },
-      allTimeBestWinStreak: { type: 'integer', required: false }
+      allTimeBestWinStreak: { type: 'integer', required: false },
+      // Feature 7 — graph insights (computed after seeding; optional GDS fields)
+      bestPartnerName: { type: 'string', required: false },
+      bestPartnerWinRate: { type: 'number', required: false },
+      bestPartnerMatches: { type: 'integer', required: false },
+      partnershipsTopJson: { type: 'string', required: false },
+      impactDelta: { type: 'number', required: false },
+      impactWinRateWith: { type: 'number', required: false },
+      impactWinRateWithout: { type: 'number', required: false },
+      impactSampleWith: { type: 'integer', required: false },
+      impactSampleWithout: { type: 'integer', required: false },
+      squadInfluence: { type: 'number', required: false },
+      squadInfluenceRank: { type: 'integer', required: false },
+      communityId: { type: 'integer', required: false }
     },
     idPattern: 'player_{playerName}',
     constraints: ['CREATE CONSTRAINT player_id IF NOT EXISTS FOR (p:Player) REQUIRE p.id IS UNIQUE'],

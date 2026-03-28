@@ -16,6 +16,8 @@ const PLAYER_SECTION_IDS = [
 	"key-performance-stats",
 	"form-section",
 	"streaks-section",
+	"partnerships-section",
+	"impact-section",
 	"all-games",
 	"seasonal-performance",
 	"team-performance",
@@ -51,6 +53,7 @@ const CLUB_SECTION_IDS = [
 	"club-key-performance-stats",
 	"club-team-comparison",
 	"club-top-players",
+	"club-squad-backbone",
 	"club-seasonal-performance",
 	"club-player-distribution",
 	"club-player-tenure",
@@ -621,7 +624,21 @@ test.describe("Stats Page Tests", () => {
 		await expect(streaks.getByText(/Season bests/i)).toBeVisible({ timeout: 8000 });
 	});
 
-	test("3.25. Team formations subtitle and recommendation", async ({ page }) => {
+	test("3.25. Player partnerships and impact sections render", async ({ page }) => {
+		await openStatsFromHome(page);
+		if (await page.getByRole("heading", { name: /No player data available/i }).first().isVisible({ timeout: 2500 }).catch(() => false)) {
+			test.skip(true, "No player data — skipping graph insight sections.");
+			return;
+		}
+		const partnerships = page.locator("#partnerships-section");
+		const impact = page.locator("#impact-section");
+		await expect(partnerships).toBeVisible({ timeout: 12000 });
+		await expect(impact).toBeVisible({ timeout: 12000 });
+		await expect(page.getByRole("heading", { name: /^Partnerships$/i })).toBeVisible({ timeout: 8000 });
+		await expect(page.getByRole("heading", { name: /^Impact$/i })).toBeVisible({ timeout: 8000 });
+	});
+
+	test("3.26. Team formations subtitle and recommendation", async ({ page }) => {
 		await openStatsFromHome(page);
 		if (!(await clickStatsSubPage(page, "team-stats"))) {
 			test.skip(true, "Could not open Team Stats.");

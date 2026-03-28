@@ -126,6 +126,21 @@ export const PLAYER_STREAK_PROPERTY_RETURN = `
 			coalesce(p.allTimeBestCleanSheetStreak, 0) as allTimeBestCleanSheetStreak,
 			coalesce(p.allTimeBestWinStreak, 0) as allTimeBestWinStreak`;
 
+/** Neo4j RETURN fragment: Feature 7 graph insights on `p` (independent of stat filters). */
+export const PLAYER_GRAPH_INSIGHT_PROPERTY_RETURN = `
+			p.bestPartnerName as bestPartnerName,
+			p.bestPartnerWinRate as bestPartnerWinRate,
+			p.bestPartnerMatches as bestPartnerMatches,
+			p.partnershipsTopJson as partnershipsTopJson,
+			p.impactDelta as impactDelta,
+			p.impactWinRateWith as impactWinRateWith,
+			p.impactWinRateWithout as impactWinRateWithout,
+			p.impactSampleWith as impactSampleWith,
+			p.impactSampleWithout as impactSampleWithout,
+			p.squadInfluence as squadInfluence,
+			p.squadInfluenceRank as squadInfluenceRank,
+			p.communityId as communityId`;
+
 export function mapPlayerStreakFieldsFromRecord(record: { get: (key: string) => unknown }, toNumber: (value: any) => number) {
 	return {
 		currentScoringStreak: toNumber(record.get("currentScoringStreak")),
@@ -148,6 +163,53 @@ export function mapPlayerStreakFieldsFromRecord(record: { get: (key: string) => 
 		allTimeBestAppearanceStreak: toNumber(record.get("allTimeBestAppearanceStreak")),
 		allTimeBestCleanSheetStreak: toNumber(record.get("allTimeBestCleanSheetStreak")),
 		allTimeBestWinStreak: toNumber(record.get("allTimeBestWinStreak")),
+	};
+}
+
+export function mapPlayerGraphInsightFieldsFromRecord(record: { get: (key: string) => unknown }, toNumber: (value: any) => number) {
+	const nullableNum = (key: string): number | null => {
+		const v = record.get(key);
+		if (v === null || v === undefined) return null;
+		const n = typeof v === "number" ? v : toNumber(v);
+		return Number.isNaN(n) ? null : n;
+	};
+	const name = record.get("bestPartnerName");
+	const bestPartnerName = name != null && String(name).trim() !== "" ? String(name) : null;
+	const wr = nullableNum("bestPartnerWinRate");
+	const bm = nullableNum("bestPartnerMatches");
+	const jsonRaw = record.get("partnershipsTopJson");
+	const partnershipsTopJson = jsonRaw != null && String(jsonRaw).trim() !== "" ? String(jsonRaw) : null;
+	const graphInsightsBestPartnerDisplay =
+		bestPartnerName != null && wr != null && bm != null
+			? `${bestPartnerName} (${Math.round(wr * 10) / 10}% in ${Math.round(bm)} games)`
+			: bestPartnerName != null
+				? bestPartnerName
+				: null;
+	const sw = nullableNum("impactSampleWith");
+	const swo = nullableNum("impactSampleWithout");
+	const irWith = nullableNum("impactWinRateWith");
+	const irWithout = nullableNum("impactWinRateWithout");
+	const rank = nullableNum("squadInfluenceRank");
+	const comm = nullableNum("communityId");
+	const impactRatesDisplay =
+		irWith != null && irWithout != null && sw != null && swo != null
+			? `${Math.round(irWith * 10) / 10}% with (${Math.round(sw)} games) · ${Math.round(irWithout * 10) / 10}% without (${Math.round(swo)} games)`
+			: null;
+	return {
+		bestPartnerName,
+		bestPartnerWinRate: wr,
+		bestPartnerMatches: bm != null ? Math.round(bm) : null,
+		partnershipsTopJson,
+		graphInsightsBestPartnerDisplay,
+		impactDelta: nullableNum("impactDelta"),
+		impactWinRateWith: irWith,
+		impactWinRateWithout: irWithout,
+		impactRatesDisplay,
+		impactSampleWith: sw != null ? Math.round(sw) : null,
+		impactSampleWithout: swo != null ? Math.round(swo) : null,
+		squadInfluence: nullableNum("squadInfluence"),
+		squadInfluenceRank: rank != null ? Math.round(rank) : null,
+		communityId: comm != null ? Math.round(comm) : null,
 	};
 }
 
@@ -496,6 +558,7 @@ export function buildPlayerStatsQuery(playerName: string, filters: any = null): 
 			averageMatchRating as averageMatchRating,
 			highestMatchRating as highestMatchRating,
 			coalesce(matchesRated8Plus, 0) as matchesRated8Plus,
+${PLAYER_GRAPH_INSIGHT_PROPERTY_RETURN},
 ${PLAYER_STREAK_PROPERTY_RETURN}
 	`;
 
@@ -688,6 +751,7 @@ export async function GET(request: NextRequest) {
 				return Math.round(n * 10) / 10;
 			})(),
 			matchesRated8Plus: toNumber(record.get("matchesRated8Plus")),
+			...mapPlayerGraphInsightFieldsFromRecord(record, toNumber),
 			...mapPlayerStreakFieldsFromRecord(record, toNumber),
 		};
 

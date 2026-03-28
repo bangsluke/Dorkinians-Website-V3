@@ -367,6 +367,9 @@ export default function ClubStats() {
 		setCachedPageData,
 		hasUnsavedFilters,
 		isFilterSidebarOpen,
+		selectPlayer,
+		setMainPage,
+		setStatsSubPage,
 	} = useNavigationStore();
 
 	const [teamData, setTeamData] = useState<TeamData | null>(null);
@@ -385,6 +388,16 @@ export default function ClubStats() {
 	});
 	const [topPlayers, setTopPlayers] = useState<TopPlayer[]>([]);
 	const [isLoadingTopPlayers, setIsLoadingTopPlayers] = useState(false);
+
+	const [squadBackbone, setSquadBackbone] = useState<
+		Array<{
+			playerName: string;
+			squadInfluence: number | null;
+			squadInfluenceRank: number | null;
+			communityId: number | null;
+		}>
+	>([]);
+	const [isLoadingSquadBackbone, setIsLoadingSquadBackbone] = useState(false);
 
 	// State for view mode toggle - initialize from localStorage
 	const [isDataTableMode, setIsDataTableMode] = useState<boolean>(() => {
@@ -629,6 +642,38 @@ export default function ClubStats() {
 
 		fetchTopPlayers();
 	}, [filtersKey, selectedStatType, playerFilters, hasUnsavedFilters, isFilterSidebarOpen]);
+
+	// Feature 7: PageRank backbone (GDS only — may return empty)
+	useEffect(() => {
+		let cancelled = false;
+		const run = async () => {
+			setIsLoadingSquadBackbone(true);
+			try {
+				const cacheKey = generatePageCacheKey("stats", "club-stats", "club-squad-backbone", {});
+				const data = await cachedFetch<{
+					players: Array<{
+						playerName: string;
+						squadInfluence: number | null;
+						squadInfluenceRank: number | null;
+						communityId: number | null;
+					}>;
+				}>("/api/club-squad-backbone", {
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
+				});
+				if (!cancelled) setSquadBackbone(Array.isArray(data.players) ? data.players : []);
+			} catch {
+				if (!cancelled) setSquadBackbone([]);
+			} finally {
+				if (!cancelled) setIsLoadingSquadBackbone(false);
+			}
+		};
+		run();
+		return () => {
+			cancelled = true;
+		};
+	}, [getCachedPageData, setCachedPageData]);
 
 	// Priority 2: Above fold on desktop - Stats Distribution section
 	// Fetch position stats data
@@ -1884,6 +1929,54 @@ export default function ClubStats() {
 										)}
 									</div>
 								</div>
+								)}
+
+								{!isDataTableMode && (
+									<div id='club-squad-backbone' className='flex-shrink-0 md:break-inside-avoid md:mb-4'>
+										<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+											<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Squad backbone</h3>
+											<p className='text-white/55 text-[11px] md:text-xs mb-3'>
+												Most &quot;connected&quot; players by PageRank on PLAYED_WITH (Neo4j GDS). Requires Graph Analytics on Aura; otherwise this
+												list stays empty.
+											</p>
+											{isLoadingSquadBackbone ? (
+												<SkeletonTheme baseColor='var(--skeleton-base)' highlightColor='var(--skeleton-highlight)'>
+													<Skeleton height={16} count={4} className='my-1' />
+												</SkeletonTheme>
+											) : squadBackbone.length === 0 ? (
+												<p className='text-white/60 text-xs'>
+													No PageRank rankings in the graph yet. Enable GDS on Aura Professional and re-seed, or ignore if you stay on Free tier.
+												</p>
+											) : (
+												<ol className='list-decimal list-inside space-y-2 text-white text-xs md:text-sm'>
+													{squadBackbone.map((row) => (
+														<li key={row.playerName} className='marker:text-dorkinians-yellow'>
+															<button
+																type='button'
+																onClick={() => {
+																	trackEvent(UmamiEvents.PlayerSelected, {
+																		source: "club-squad-backbone",
+																		playerName: row.playerName,
+																	});
+																	selectPlayer(row.playerName, "picker");
+																	setMainPage("stats");
+																	setStatsSubPage("player-stats");
+																}}
+																className='text-[#E8C547] font-medium hover:underline text-left align-middle'>
+																{row.playerName}
+															</button>
+															<span className='text-white/50 text-[11px] ml-2'>
+																rank {row.squadInfluenceRank ?? "—"}
+																{row.squadInfluence != null
+																	? ` · ${row.squadInfluence < 0.0001 ? row.squadInfluence.toExponential(2) : row.squadInfluence.toFixed(4)}`
+																	: ""}
+															</span>
+														</li>
+													))}
+												</ol>
+											)}
+										</div>
+									</div>
 								)}
 
 								{/* Seasonal Performance Section */}
