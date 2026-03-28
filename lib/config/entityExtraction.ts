@@ -252,6 +252,17 @@ export const STAT_TYPE_PSEUDONYMS = {
 	"Co Players": ["co players", "teammates", "played with", "team mates"],
 	Opponents: ["opponents", "played against", "faced", "versus"],
 	"Fantasy Points": ["fantasy points", "fantasy score", "fantasy point", "points", "ftp", "fp"],
+	"Current Form": [
+		"current form",
+		"my form",
+		"playing form",
+		"form score",
+		"how is my form",
+		"how's my form",
+		"what is my form",
+		"what's my form",
+		"whats my form",
+	],
 	"Goals Per Appearance": ["goal per game ratio", "goal-per-game ratio", "goals per game", "goals per match", "goals on average scored", "average goals scored", "goals on average.*scored per appearance", "goals.*average.*per appearance"],
 	"Conceded Per Appearance": [
 		"goals on average does.*concede per match",

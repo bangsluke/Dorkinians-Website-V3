@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
 		const body = await request.json();
 		const { filters, statType } = body;
 
-		const validStatTypes = ["appearances", "goals", "assists", "cleanSheets", "mom", "saves", "yellowCards", "redCards", "penaltiesScored", "fantasyPoints", "goalInvolvements", "minutes", "ownGoals", "conceded", "penaltiesMissed", "penaltiesConceded", "penaltiesSaved", "distance", "starts", "avgMatchRating", "matchesRated8Plus"];
+		const validStatTypes = ["appearances", "goals", "assists", "cleanSheets", "mom", "saves", "yellowCards", "redCards", "penaltiesScored", "fantasyPoints", "goalInvolvements", "minutes", "ownGoals", "conceded", "penaltiesMissed", "penaltiesConceded", "penaltiesSaved", "distance", "starts", "avgMatchRating", "matchesRated8Plus", "goalsPer90", "assistsPer90", "goalInvolvementsPer90", "ftpPer90", "cleanSheetsPer90", "concededPer90", "savesPer90", "cardsPer90", "momPer90", "bestCurrentForm"];
 		if (!statType || !validStatTypes.includes(statType)) {
 			return NextResponse.json({ error: `Valid statType is required. Options: ${validStatTypes.join(", ")}` }, { status: 400, headers: corsHeaders });
 		}
@@ -75,10 +75,21 @@ export async function POST(request: NextRequest) {
 			starts: "starts",
 			avgMatchRating: "averageMatchRating",
 			matchesRated8Plus: "matchesRated8Plus",
+			goalsPer90: "goalsPer90",
+			assistsPer90: "assistsPer90",
+			goalInvolvementsPer90: "goalInvolvementsPer90",
+			ftpPer90: "ftpPer90",
+			cleanSheetsPer90: "cleanSheetsPer90",
+			concededPer90: "concededPer90",
+			savesPer90: "savesPer90",
+			cardsPer90: "cardsPer90",
+			momPer90: "momPer90",
+			bestCurrentForm: "currentFormEwma",
 		};
 
 		const statField = statFieldMap[statType];
 		const sortField = statType === "goals" ? "totalGoals" : statField;
+		const sortDirection = ["concededPer90", "cardsPer90"].includes(statType) ? "ASC" : "DESC";
 
 		// Aggregate stats per player
 		// cleanSheets is stored as integer on MatchDetail, sum it directly like goals/assists
@@ -109,7 +120,17 @@ export async function POST(request: NextRequest) {
 				sum(CASE WHEN f.homeOrAway = "Away" THEN 1 ELSE 0 END) as awayGames,
 				sum(CASE WHEN md.started = true THEN 1 ELSE 0 END) as starts,
 				avg(md.matchRating) as averageMatchRating,
-				sum(CASE WHEN coalesce(md.matchRating, 0) >= 8.0 THEN 1 ELSE 0 END) as matchesRated8Plus
+				sum(CASE WHEN coalesce(md.matchRating, 0) >= 8.0 THEN 1 ELSE 0 END) as matchesRated8Plus,
+				CASE WHEN sum(coalesce(md.minutes, 0)) >= 360 THEN round((toFloat(sum(coalesce(md.goals, 0)) + sum(coalesce(md.penaltiesScored, 0))) / sum(coalesce(md.minutes, 0))) * 90 * 100) / 100 ELSE null END as goalsPer90,
+				CASE WHEN sum(coalesce(md.minutes, 0)) >= 360 THEN round((toFloat(sum(coalesce(md.assists, 0))) / sum(coalesce(md.minutes, 0))) * 90 * 100) / 100 ELSE null END as assistsPer90,
+				CASE WHEN sum(coalesce(md.minutes, 0)) >= 360 THEN round((toFloat((sum(coalesce(md.goals, 0)) + sum(coalesce(md.penaltiesScored, 0))) + sum(coalesce(md.assists, 0))) / sum(coalesce(md.minutes, 0))) * 90 * 100) / 100 ELSE null END as goalInvolvementsPer90,
+				CASE WHEN sum(coalesce(md.minutes, 0)) >= 360 THEN round((toFloat(sum(coalesce(md.fantasyPoints, 0))) / sum(coalesce(md.minutes, 0))) * 90 * 100) / 100 ELSE null END as ftpPer90,
+				CASE WHEN sum(coalesce(md.minutes, 0)) >= 360 THEN round((toFloat(sum(coalesce(md.cleanSheets, 0))) / sum(coalesce(md.minutes, 0))) * 90 * 100) / 100 ELSE null END as cleanSheetsPer90,
+				CASE WHEN sum(coalesce(md.minutes, 0)) >= 360 THEN round((toFloat(sum(coalesce(md.conceded, 0))) / sum(coalesce(md.minutes, 0))) * 90 * 100) / 100 ELSE null END as concededPer90,
+				CASE WHEN sum(coalesce(md.minutes, 0)) >= 360 THEN round((toFloat(sum(coalesce(md.saves, 0))) / sum(coalesce(md.minutes, 0))) * 90 * 100) / 100 ELSE null END as savesPer90,
+				CASE WHEN sum(coalesce(md.minutes, 0)) >= 360 THEN round((toFloat(sum(coalesce(md.yellowCards, 0)) + sum(coalesce(md.redCards, 0))) / sum(coalesce(md.minutes, 0))) * 90 * 100) / 100 ELSE null END as cardsPer90,
+				CASE WHEN sum(coalesce(md.minutes, 0)) >= 360 THEN round((toFloat(sum(coalesce(md.mom, 0))) / sum(coalesce(md.minutes, 0))) * 90 * 100) / 100 ELSE null END as momPer90,
+				p.formCurrent as currentFormEwma
 		`;
 		
 		// Handle WHERE clause based on stat type
@@ -124,6 +145,8 @@ export async function POST(request: NextRequest) {
 			query += ` WHERE appearances > 0 AND averageMatchRating IS NOT NULL`;
 		} else if (statType === "matchesRated8Plus") {
 			query += ` WHERE matchesRated8Plus > 0`;
+		} else if (["goalsPer90", "assistsPer90", "goalInvolvementsPer90", "ftpPer90", "cleanSheetsPer90", "concededPer90", "savesPer90", "cardsPer90", "momPer90", "bestCurrentForm"].includes(statType)) {
+			query += ` WHERE ${sortField} IS NOT NULL`;
 		} else {
 			query += ` WHERE ${sortField} > 0`;
 		}
@@ -152,8 +175,18 @@ export async function POST(request: NextRequest) {
 				coalesce(awayGames, 0) as awayGames,
 				coalesce(starts, 0) as starts,
 				averageMatchRating as averageMatchRating,
-				coalesce(matchesRated8Plus, 0) as matchesRated8Plus
-			ORDER BY ${sortField} DESC, appearances ASC
+				coalesce(matchesRated8Plus, 0) as matchesRated8Plus,
+				goalsPer90 as goalsPer90,
+				assistsPer90 as assistsPer90,
+				goalInvolvementsPer90 as goalInvolvementsPer90,
+				ftpPer90 as ftpPer90,
+				cleanSheetsPer90 as cleanSheetsPer90,
+				concededPer90 as concededPer90,
+				savesPer90 as savesPer90,
+				cardsPer90 as cardsPer90,
+				momPer90 as momPer90,
+				currentFormEwma as currentFormEwma
+			ORDER BY ${sortField} ${sortDirection}, appearances ASC
 			LIMIT 5
 		`;
 
@@ -225,6 +258,56 @@ export async function POST(request: NextRequest) {
 				penaltiesSaved: toNumber(record.get("penaltiesSaved")),
 				distance: toNumber(record.get("distance")),
 				starts: toNumber(record.get("starts")),
+				goalsPer90: (() => {
+					const v = record.get("goalsPer90");
+					if (v === null || v === undefined) return null;
+					return Math.round(toNumber(v) * 100) / 100;
+				})(),
+				assistsPer90: (() => {
+					const v = record.get("assistsPer90");
+					if (v === null || v === undefined) return null;
+					return Math.round(toNumber(v) * 100) / 100;
+				})(),
+				goalInvolvementsPer90: (() => {
+					const v = record.get("goalInvolvementsPer90");
+					if (v === null || v === undefined) return null;
+					return Math.round(toNumber(v) * 100) / 100;
+				})(),
+				ftpPer90: (() => {
+					const v = record.get("ftpPer90");
+					if (v === null || v === undefined) return null;
+					return Math.round(toNumber(v) * 100) / 100;
+				})(),
+				cleanSheetsPer90: (() => {
+					const v = record.get("cleanSheetsPer90");
+					if (v === null || v === undefined) return null;
+					return Math.round(toNumber(v) * 100) / 100;
+				})(),
+				concededPer90: (() => {
+					const v = record.get("concededPer90");
+					if (v === null || v === undefined) return null;
+					return Math.round(toNumber(v) * 100) / 100;
+				})(),
+				savesPer90: (() => {
+					const v = record.get("savesPer90");
+					if (v === null || v === undefined) return null;
+					return Math.round(toNumber(v) * 100) / 100;
+				})(),
+				cardsPer90: (() => {
+					const v = record.get("cardsPer90");
+					if (v === null || v === undefined) return null;
+					return Math.round(toNumber(v) * 100) / 100;
+				})(),
+				momPer90: (() => {
+					const v = record.get("momPer90");
+					if (v === null || v === undefined) return null;
+					return Math.round(toNumber(v) * 100) / 100;
+				})(),
+				currentFormEwma: (() => {
+					const v = record.get("currentFormEwma");
+					if (v === null || v === undefined) return null;
+					return Math.round(toNumber(v) * 10) / 10;
+				})(),
 				averageMatchRating: (() => {
 					const v = record.get("averageMatchRating");
 					if (v === null || v === undefined) return null as number | null;

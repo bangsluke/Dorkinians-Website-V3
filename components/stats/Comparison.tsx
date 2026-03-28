@@ -578,6 +578,17 @@ export default function Comparison() {
 			{ displayName: "Conceded", statKey: "C", statName: "conceded" },
 			{ displayName: "Penalties Saved", statKey: "PSV", statName: "penaltiesSaved" },
 			{ displayName: "Penalties Saved in a Penalty Shootout", statKey: "PS-PSV", statName: "penaltyShootoutPenaltiesSaved" }
+		],
+		"Per 90 Stats": [
+			{ displayName: "Goals per 90", statKey: "PlayerGoalsPer90", statName: "goalsPer90" },
+			{ displayName: "Assists per 90", statKey: "PlayerAssistsPer90", statName: "assistsPer90" },
+			{ displayName: "Goal involvements per 90", statKey: "PlayerGI90", statName: "goalInvolvementsPer90" },
+			{ displayName: "Fantasy points per 90", statKey: "PlayerFTP90", statName: "ftpPer90" },
+			{ displayName: "Cards per 90", statKey: "PlayerCards90", statName: "cardsPer90" },
+			{ displayName: "Clean sheets per 90", statKey: "PlayerCleanSheets90", statName: "cleanSheetsPer90" },
+			{ displayName: "Conceded per 90", statKey: "PlayerConceded90", statName: "concededPer90" },
+			{ displayName: "Saves per 90", statKey: "PlayerSaves90", statName: "savesPer90" },
+			{ displayName: "MoM per 90", statKey: "PlayerMoM90", statName: "momPer90" },
 		]
 	};
 
@@ -985,7 +996,7 @@ export default function Comparison() {
 													</span>
 												</Listbox.Button>
 												<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-sm md:text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
-													{["Appearance Stats", "Performance Stats", "Attacking Stats", "Defensive Stats", "Penalty Stats", "Goalkeeping Stats"].map((category) => (
+													{["Appearance Stats", "Performance Stats", "Attacking Stats", "Defensive Stats", "Penalty Stats", "Goalkeeping Stats", "Per 90 Stats"].map((category) => (
 														<Listbox.Option
 															key={category}
 															className={({ active }) =>
@@ -1002,6 +1013,9 @@ export default function Comparison() {
 												</Listbox.Options>
 											</div>
 										</Listbox>
+										{selectedStatCategory === "Per 90 Stats" && (
+											<p className='mt-2 text-xs text-white/70'>Per-90 metrics require a minimum of 360 minutes and show as 0 below threshold.</p>
+										)}
 									</div>
 
 									{/* Legend */}

@@ -1771,6 +1771,7 @@ export class EnhancedQuestionAnalyzer {
 			"Penalty Conversion Rate", // More specific than general penalty stats - must be before "Penalties Scored"
 			"Distance Travelled", // More specific - distance/travel queries (HIGH PRIORITY)
 			"Fantasy Points", // More specific - fantasy points queries (HIGH PRIORITY)
+			"Current Form", // EWMA form — before generic Apps/Goals
 			"Home Games % Won",
 			"Away Games % Won",
 			"Games % Won",
@@ -1865,6 +1866,7 @@ export class EnhancedQuestionAnalyzer {
 			"Own Goals": "OG",
 			"Goals Conceded": "C",
 			"Fantasy Points": "FTP",
+			"Current Form": "FORM_CURRENT",
 			"Distance Travelled": "DIST",
 
 			// Penalty stats

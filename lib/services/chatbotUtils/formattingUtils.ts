@@ -25,6 +25,10 @@ export class FormattingUtils {
 			return value.toString();
 		}
 
+		if (metric.toUpperCase() === "FORM_CURRENT") {
+			return Number(value).toFixed(1);
+		}
+
 		// Handle Neo4j Integer objects (e.g., {low: 445, high: 0})
 		if (value && typeof value === "object" && "low" in value && "high" in value) {
 			const neo4jInt = value as { low: number; high: number };

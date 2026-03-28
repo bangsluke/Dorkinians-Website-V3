@@ -50,9 +50,19 @@ interface TopPlayer {
 	starts: number;
 	averageMatchRating: number | null;
 	matchesRated8Plus: number;
+	goalsPer90: number | null;
+	assistsPer90: number | null;
+	goalInvolvementsPer90: number | null;
+	ftpPer90: number | null;
+	cleanSheetsPer90: number | null;
+	concededPer90: number | null;
+	savesPer90: number | null;
+	cardsPer90: number | null;
+	momPer90: number | null;
+	currentFormEwma: number | null;
 }
 
-type StatType = "appearances" | "starts" | "goals" | "assists" | "cleanSheets" | "mom" | "saves" | "yellowCards" | "redCards" | "penaltiesScored" | "fantasyPoints" | "goalInvolvements" | "minutes" | "ownGoals" | "conceded" | "penaltiesMissed" | "penaltiesConceded" | "penaltiesSaved" | "distance" | "avgMatchRating" | "matchesRated8Plus";
+type StatType = "appearances" | "starts" | "goals" | "assists" | "cleanSheets" | "mom" | "saves" | "yellowCards" | "redCards" | "penaltiesScored" | "fantasyPoints" | "goalInvolvements" | "minutes" | "ownGoals" | "conceded" | "penaltiesMissed" | "penaltiesConceded" | "penaltiesSaved" | "distance" | "avgMatchRating" | "matchesRated8Plus" | "goalsPer90" | "assistsPer90" | "goalInvolvementsPer90" | "ftpPer90" | "cleanSheetsPer90" | "concededPer90" | "savesPer90" | "cardsPer90" | "momPer90" | "bestCurrentForm";
 
 function StatRow({ stat, value, teamData }: { stat: any; value: any; teamData: TeamData }) {
 	const [showTooltip, setShowTooltip] = useState(false);
@@ -400,7 +410,7 @@ export default function TeamStats() {
 	const [selectedStatType, setSelectedStatType] = useState<StatType>(() => {
 		if (typeof window !== "undefined") {
 			const saved = safeLocalStorageGet("team-stats-top-players-stat-type");
-			const validStatTypes: StatType[] = ["appearances", "starts", "goals", "assists", "cleanSheets", "mom", "saves", "yellowCards", "redCards", "penaltiesScored", "fantasyPoints", "goalInvolvements", "minutes", "ownGoals", "conceded", "penaltiesMissed", "penaltiesConceded", "penaltiesSaved", "distance", "avgMatchRating", "matchesRated8Plus"];
+			const validStatTypes: StatType[] = ["appearances", "starts", "goals", "assists", "cleanSheets", "mom", "saves", "yellowCards", "redCards", "penaltiesScored", "fantasyPoints", "goalInvolvements", "minutes", "ownGoals", "conceded", "penaltiesMissed", "penaltiesConceded", "penaltiesSaved", "distance", "avgMatchRating", "matchesRated8Plus", "goalsPer90", "assistsPer90", "goalInvolvementsPer90", "ftpPer90", "cleanSheetsPer90", "concededPer90", "savesPer90", "cardsPer90", "momPer90", "bestCurrentForm"];
 			if (saved && validStatTypes.includes(saved as StatType)) {
 				return saved as StatType;
 			}
@@ -680,6 +690,16 @@ export default function TeamStats() {
 						starts: typeof p.starts === "number" ? p.starts : 0,
 						averageMatchRating: p.averageMatchRating ?? null,
 						matchesRated8Plus: typeof p.matchesRated8Plus === "number" ? p.matchesRated8Plus : 0,
+						goalsPer90: typeof p.goalsPer90 === "number" ? p.goalsPer90 : null,
+						assistsPer90: typeof p.assistsPer90 === "number" ? p.assistsPer90 : null,
+						goalInvolvementsPer90: typeof p.goalInvolvementsPer90 === "number" ? p.goalInvolvementsPer90 : null,
+						ftpPer90: typeof p.ftpPer90 === "number" ? p.ftpPer90 : null,
+						cleanSheetsPer90: typeof p.cleanSheetsPer90 === "number" ? p.cleanSheetsPer90 : null,
+						concededPer90: typeof p.concededPer90 === "number" ? p.concededPer90 : null,
+						savesPer90: typeof p.savesPer90 === "number" ? p.savesPer90 : null,
+						cardsPer90: typeof p.cardsPer90 === "number" ? p.cardsPer90 : null,
+						momPer90: typeof p.momPer90 === "number" ? p.momPer90 : null,
+						currentFormEwma: typeof p.currentFormEwma === "number" ? p.currentFormEwma : null,
 					}))
 				);
 			} catch (error) {
@@ -968,6 +988,26 @@ export default function TeamStats() {
 				return player.averageMatchRating ?? 0;
 			case "matchesRated8Plus":
 				return player.matchesRated8Plus;
+			case "goalsPer90":
+				return player.goalsPer90 ?? 0;
+			case "assistsPer90":
+				return player.assistsPer90 ?? 0;
+			case "goalInvolvementsPer90":
+				return player.goalInvolvementsPer90 ?? 0;
+			case "ftpPer90":
+				return player.ftpPer90 ?? 0;
+			case "cleanSheetsPer90":
+				return player.cleanSheetsPer90 ?? 0;
+			case "concededPer90":
+				return player.concededPer90 ?? 0;
+			case "savesPer90":
+				return player.savesPer90 ?? 0;
+			case "cardsPer90":
+				return player.cardsPer90 ?? 0;
+			case "momPer90":
+				return player.momPer90 ?? 0;
+			case "bestCurrentForm":
+				return player.currentFormEwma ?? 0;
 			default:
 				return 0;
 		}
@@ -1030,6 +1070,26 @@ export default function TeamStats() {
 				return ar != null ? `Average rating ${ar.toFixed(1)} in ${apps}` : apps;
 			case "matchesRated8Plus":
 				return `${player.matchesRated8Plus} ${player.matchesRated8Plus === 1 ? "game" : "games"} rated 8+ in ${apps}`;
+			case "goalsPer90":
+				return player.goalsPer90 != null ? `${player.goalsPer90.toFixed(2)} goals per 90 (${apps})` : `Needs 360+ minutes`;
+			case "assistsPer90":
+				return player.assistsPer90 != null ? `${player.assistsPer90.toFixed(2)} assists per 90 (${apps})` : `Needs 360+ minutes`;
+			case "goalInvolvementsPer90":
+				return player.goalInvolvementsPer90 != null ? `${player.goalInvolvementsPer90.toFixed(2)} GI per 90 (${apps})` : `Needs 360+ minutes`;
+			case "ftpPer90":
+				return player.ftpPer90 != null ? `${player.ftpPer90.toFixed(2)} FTP per 90 (${apps})` : `Needs 360+ minutes`;
+			case "cleanSheetsPer90":
+				return player.cleanSheetsPer90 != null ? `${player.cleanSheetsPer90.toFixed(2)} clean sheets per 90 (${apps})` : `Needs 360+ minutes`;
+			case "concededPer90":
+				return player.concededPer90 != null ? `${player.concededPer90.toFixed(2)} conceded per 90 (${apps})` : `Needs 360+ minutes`;
+			case "savesPer90":
+				return player.savesPer90 != null ? `${player.savesPer90.toFixed(2)} saves per 90 (${apps})` : `Needs 360+ minutes`;
+			case "cardsPer90":
+				return player.cardsPer90 != null ? `${player.cardsPer90.toFixed(2)} cards per 90 (${apps})` : `Needs 360+ minutes`;
+			case "momPer90":
+				return player.momPer90 != null ? `${player.momPer90.toFixed(2)} MoM per 90 (${apps})` : `Needs 360+ minutes`;
+			case "bestCurrentForm":
+				return player.currentFormEwma != null ? `Current form ${player.currentFormEwma.toFixed(1)} (${apps})` : apps;
 			default:
 				return apps;
 		}
@@ -1080,6 +1140,26 @@ export default function TeamStats() {
 				return "Avg match rating";
 			case "matchesRated8Plus":
 				return "Matches rated 8+";
+			case "goalsPer90":
+				return "Goals per 90";
+			case "assistsPer90":
+				return "Assists per 90";
+			case "goalInvolvementsPer90":
+				return "Goal involvements per 90";
+			case "ftpPer90":
+				return "FTP per 90";
+			case "cleanSheetsPer90":
+				return "Clean sheets per 90";
+			case "concededPer90":
+				return "Conceded per 90";
+			case "savesPer90":
+				return "Saves per 90";
+			case "cardsPer90":
+				return "Cards per 90";
+			case "momPer90":
+				return "MoM per 90";
+			case "bestCurrentForm":
+				return "Best current form";
 			default:
 				return "Appearances";
 		}
@@ -1139,6 +1219,23 @@ export default function TeamStats() {
 			{ name: "Clean Sheets", value: toNumber(teamData.cleanSheets) },
 			{ name: "Points/Game", value: Number(toNumber(teamData.pointsPerGame).toFixed(2)) },
 		];
+	}, [teamData]);
+
+	const formationRecommendation = useMemo(() => {
+		const rows = teamData?.formationBreakdown;
+		if (!rows || rows.length === 0) return null;
+		const sorted = [...rows].sort((a, b) => {
+			const wp = toNumber(b.winPercentage) - toNumber(a.winPercentage);
+			if (wp !== 0) return wp;
+			const g = toNumber(b.games) - toNumber(a.games);
+			if (g !== 0) return g;
+			return toNumber(b.wins) - toNumber(a.wins);
+		});
+		const top = sorted[0];
+		if (!top?.formation) return null;
+		const games = toNumber(top.games);
+		const lowSample = games < 5;
+		return { formation: top.formation, winPercentage: toNumber(top.winPercentage), games, wins: toNumber(top.wins), lowSample };
 	}, [teamData]);
 
 	const tooltipStyle = {
@@ -1413,7 +1510,24 @@ export default function TeamStats() {
 									<div id='team-formation-breakdown' className='md:break-inside-avoid md:mb-4'>
 										<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 											<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Formations used</h3>
-											<p className='text-white/60 text-xs mb-3'>Games and win % by inferred formation (from starting XI)</p>
+											<p className='text-white/60 text-xs mb-3'>Games and win % by formation (from starting XI)</p>
+											{formationRecommendation ? (
+												<div
+													data-testid='formation-recommendation'
+													className='mb-3 rounded-md border border-dorkinians-yellow/40 bg-yellow-400/10 px-3 py-2 text-xs text-white'
+												>
+													<p className='font-semibold text-dorkinians-yellow'>Suggested setup</p>
+													<p className='mt-1'>
+														<strong>{formationRecommendation.formation}</strong> — best win rate in this sample (
+														{formationRecommendation.winPercentage.toFixed(1)}% over {formationRecommendation.games} game
+														{formationRecommendation.games === 1 ? "" : "s"}, {formationRecommendation.wins} win
+														{formationRecommendation.wins === 1 ? "" : "s"}).
+													</p>
+													{formationRecommendation.lowSample ? (
+														<p className='mt-1 text-white/70'>Low sample size — treat as a hint, not a rule.</p>
+													) : null}
+												</div>
+											) : null}
 											<div className='chart-container -my-2' style={{ touchAction: 'pan-y' }}>
 												<ResponsiveContainer width='100%' height={280}>
 													<BarChart
@@ -1497,6 +1611,16 @@ export default function TeamStats() {
 															"distance",
 															"avgMatchRating",
 															"matchesRated8Plus",
+															"goalsPer90",
+															"assistsPer90",
+															"goalInvolvementsPer90",
+															"ftpPer90",
+															"cleanSheetsPer90",
+															"concededPer90",
+															"savesPer90",
+															"cardsPer90",
+															"momPer90",
+															"bestCurrentForm",
 														] as StatType[]).map((statType) => (
 															<Listbox.Option
 																key={statType}
@@ -1544,6 +1668,20 @@ export default function TeamStats() {
 															formattedStatValue = (Math.round(statValue * 10) / 10).toFixed(1);
 														} else if (selectedStatType === "avgMatchRating") {
 															formattedStatValue = player.averageMatchRating != null ? player.averageMatchRating.toFixed(1) : "—";
+														} else if (["goalsPer90", "assistsPer90", "goalInvolvementsPer90", "ftpPer90", "cleanSheetsPer90", "concededPer90", "savesPer90", "cardsPer90", "momPer90"].includes(selectedStatType)) {
+															const per90Value =
+																selectedStatType === "goalsPer90" ? player.goalsPer90 :
+																selectedStatType === "assistsPer90" ? player.assistsPer90 :
+																selectedStatType === "goalInvolvementsPer90" ? player.goalInvolvementsPer90 :
+																selectedStatType === "ftpPer90" ? player.ftpPer90 :
+																selectedStatType === "cleanSheetsPer90" ? player.cleanSheetsPer90 :
+																selectedStatType === "concededPer90" ? player.concededPer90 :
+																selectedStatType === "savesPer90" ? player.savesPer90 :
+																selectedStatType === "cardsPer90" ? player.cardsPer90 :
+																player.momPer90;
+															formattedStatValue = per90Value != null ? per90Value.toFixed(2) : "—";
+														} else if (selectedStatType === "bestCurrentForm") {
+															formattedStatValue = player.currentFormEwma != null ? player.currentFormEwma.toFixed(1) : "—";
 														} else {
 															formattedStatValue = statValue;
 														}
