@@ -2571,7 +2571,8 @@ export class PlayerDataQueryHandler {
 				originalMetric.toUpperCase() === "GK" ||
 				originalMetric.toUpperCase() === "DEF" ||
 				originalMetric.toUpperCase() === "MID" ||
-				originalMetric.toUpperCase() === "FWD"
+				originalMetric.toUpperCase() === "FWD" ||
+				originalMetric.toUpperCase() === "FORM_CURRENT"
 			);
 			
 			// CRITICAL: If question explicitly mentions assists/goals/yellow cards/red cards, prioritize that over team-specific metrics

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neo4jService } from "@/lib/neo4j";
-import { buildPlayerStatsQuery } from "../player-data/route";
+import { buildPlayerStatsQuery, mapPlayerStreakFieldsFromRecord, PLAYER_STREAK_PROPERTY_RETURN } from "../player-data/route";
 import { getCorsHeadersWithSecurity } from "@/lib/utils/securityHeaders";
 import { dataApiRateLimiter } from "@/lib/middleware/rateLimiter";
 import { sanitizeError } from "@/lib/utils/errorSanitizer";
@@ -112,7 +112,8 @@ export async function POST(request: NextRequest) {
 		// Check if player exists first
 		const playerCheckQuery = `
 			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
-			RETURN p.id as id, p.playerName as playerName, p.allowOnSite as allowOnSite, p.graphLabel as graphLabel
+			RETURN p.id as id, p.playerName as playerName, p.allowOnSite as allowOnSite, p.graphLabel as graphLabel,
+${PLAYER_STREAK_PROPERTY_RETURN}
 			LIMIT 1
 		`;
 		const playerCheckResult = await neo4jService.runQuery(playerCheckQuery, { graphLabel: params.graphLabel, playerName: params.playerName });
@@ -120,6 +121,30 @@ export async function POST(request: NextRequest) {
 		if (playerCheckResult.records.length === 0) {
 			return NextResponse.json({ error: "Player not found" }, { status: 404, headers: corsHeaders });
 		}
+
+		const toNumber = (value: any): number => {
+			if (value === null || value === undefined) return 0;
+			if (typeof value === "number") {
+				if (isNaN(value)) return 0;
+				return value;
+			}
+			if (typeof value === "object") {
+				if ("toNumber" in value && typeof value.toNumber === "function") {
+					return value.toNumber();
+				}
+				if ("low" in value && "high" in value) {
+					const low = value.low || 0;
+					const high = value.high || 0;
+					return low + high * 4294967296;
+				}
+				if ("toString" in value) {
+					const num = Number(value.toString());
+					return isNaN(num) ? 0 : num;
+				}
+			}
+			const num = Number(value);
+			return isNaN(num) ? 0 : num;
+		};
 
 		// If player exists but no matches for filters, return zero stats
 		if (result.records.length === 0) {
@@ -196,9 +221,19 @@ export async function POST(request: NextRequest) {
 				winRateWhenStarting: 0,
 				winRateFromBench: 0,
 				startRatePercent: 0,
+				goalsPer90: null as number | null,
+				assistsPer90: null as number | null,
+				goalInvolvementsPer90: null as number | null,
+				ftpPer90: null as number | null,
+				cleanSheetsPer90: null as number | null,
+				concededPer90: null as number | null,
+				savesPer90: null as number | null,
+				cardsPer90: null as number | null,
+				momPer90: null as number | null,
 				averageMatchRating: null as number | null,
 				highestMatchRating: null as number | null,
 				matchesRated8Plus: 0,
+				...mapPlayerStreakFieldsFromRecord(playerRecord, toNumber),
 			};
 
 			return NextResponse.json({
@@ -208,33 +243,6 @@ export async function POST(request: NextRequest) {
 				},
 			}, { headers: corsHeaders });
 		}
-
-		// Helper function to convert Neo4j Integer/Float to JavaScript number
-		const toNumber = (value: any): number => {
-			if (value === null || value === undefined) return 0;
-			if (typeof value === "number") {
-				if (isNaN(value)) return 0;
-				return value;
-			}
-			// Handle Neo4j Integer objects
-			if (typeof value === "object") {
-				if ("toNumber" in value && typeof value.toNumber === "function") {
-					return value.toNumber();
-				}
-				if ("low" in value && "high" in value) {
-					// Neo4j Integer format: low + high * 2^32
-					const low = value.low || 0;
-					const high = value.high || 0;
-					return low + high * 4294967296;
-				}
-				if ("toString" in value) {
-					const num = Number(value.toString());
-					return isNaN(num) ? 0 : num;
-				}
-			}
-			const num = Number(value);
-			return isNaN(num) ? 0 : num;
-		};
 
 		// Extract aggregated stats from result
 		const record = result.records[0];
@@ -331,6 +339,51 @@ export async function POST(request: NextRequest) {
 			winRateWhenStarting: toNumber(record.get("winRateWhenStarting")),
 			winRateFromBench: toNumber(record.get("winRateFromBench")),
 			startRatePercent: toNumber(record.get("startRatePercent")),
+			goalsPer90: (() => {
+				const v = record.get("goalsPer90");
+				if (v === null || v === undefined) return null;
+				return Math.round(toNumber(v) * 100) / 100;
+			})(),
+			assistsPer90: (() => {
+				const v = record.get("assistsPer90");
+				if (v === null || v === undefined) return null;
+				return Math.round(toNumber(v) * 100) / 100;
+			})(),
+			goalInvolvementsPer90: (() => {
+				const v = record.get("goalInvolvementsPer90");
+				if (v === null || v === undefined) return null;
+				return Math.round(toNumber(v) * 100) / 100;
+			})(),
+			ftpPer90: (() => {
+				const v = record.get("ftpPer90");
+				if (v === null || v === undefined) return null;
+				return Math.round(toNumber(v) * 100) / 100;
+			})(),
+			cleanSheetsPer90: (() => {
+				const v = record.get("cleanSheetsPer90");
+				if (v === null || v === undefined) return null;
+				return Math.round(toNumber(v) * 100) / 100;
+			})(),
+			concededPer90: (() => {
+				const v = record.get("concededPer90");
+				if (v === null || v === undefined) return null;
+				return Math.round(toNumber(v) * 100) / 100;
+			})(),
+			savesPer90: (() => {
+				const v = record.get("savesPer90");
+				if (v === null || v === undefined) return null;
+				return Math.round(toNumber(v) * 100) / 100;
+			})(),
+			cardsPer90: (() => {
+				const v = record.get("cardsPer90");
+				if (v === null || v === undefined) return null;
+				return Math.round(toNumber(v) * 100) / 100;
+			})(),
+			momPer90: (() => {
+				const v = record.get("momPer90");
+				if (v === null || v === undefined) return null;
+				return Math.round(toNumber(v) * 100) / 100;
+			})(),
 			averageMatchRating: (() => {
 				const v = record.get("averageMatchRating");
 				if (v === null || v === undefined) return null;
@@ -344,6 +397,7 @@ export async function POST(request: NextRequest) {
 				return Math.round(n * 10) / 10;
 			})(),
 			matchesRated8Plus: toNumber(record.get("matchesRated8Plus")),
+			...mapPlayerStreakFieldsFromRecord(record, toNumber),
 		};
 
 		// Include copyable query in response for debugging

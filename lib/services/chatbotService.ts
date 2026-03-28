@@ -4740,7 +4740,20 @@ export class ChatbotService {
 					
 					// Show initial limit in answer (for worst/best penalty record, show actual count up to 5)
 					const displayCount = isPenaltyRecord ? Math.min(rankingData.length, 5) : Math.min(rankingData.length, requestedLimit);
-					answer = `Here are the top ${displayCount} players${teamText}:`;
+					const qLowerForm = question.toLowerCase();
+					const formRankingAscending =
+						metric.toUpperCase() === "FORM_CURRENT" &&
+						!qLowerForm.includes("best") &&
+						(qLowerForm.includes("worst") ||
+							qLowerForm.includes("poor") ||
+							qLowerForm.includes("lowest") ||
+							(/\bbad\b/.test(qLowerForm) && /\bform\b/.test(qLowerForm)));
+					answer =
+						metric.toUpperCase() === "FORM_CURRENT"
+							? formRankingAscending
+								? `Here are the ${displayCount} players with the lowest current form (reactive EWMA)${teamText}:`
+								: `Here are the top ${displayCount} players by current form (reactive EWMA)${teamText}:`
+							: `Here are the top ${displayCount} players${teamText}:`;
 					answerValue = topRanking.playerName || topRanking.teamName || "";
 					
 					// Create table visualization with full data (for expansion), but mark initial display limit
@@ -7531,8 +7544,36 @@ export class ChatbotService {
 					const hasCompetitionTypeFilter = competitionTypes.length > 0;
 
 					if (value !== undefined && value !== null) {
-						// Special handling for NumberTeamsPlayedFor - format as "X of the clubs Y teams"
-						if (metric && (metric === "NUMBERTEAMSPLAYEDFOR" || metric === "NumberTeamsPlayedFor")) {
+						if (metric && metric.toUpperCase() === "FORM_CURRENT") {
+							const row = playerData[0] as { value?: number; formBaseline?: number; formTrend?: string };
+							const v = typeof row.value === "number" ? row.value : Number(row.value ?? 0);
+							const baseline =
+								typeof row.formBaseline === "number" && !Number.isNaN(row.formBaseline)
+									? row.formBaseline.toFixed(1)
+									: null;
+							const trend = (row.formTrend || "stable").toLowerCase();
+							const arrow = trend === "rising" ? "↑" : trend === "declining" ? "↓" : "→";
+							answer = `${playerName}'s current form is ${v.toFixed(1)} ${arrow}${
+								baseline != null ? ` (baseline ${baseline}, from club-wide match history).` : "."
+							}`;
+							answerValue = v;
+							visualization = {
+								type: "NumberCard",
+								data: [
+									{
+										name: "Current form",
+										value: parseFloat(v.toFixed(1)),
+										wordedText: "current form (EWMA)",
+										iconName: "FantasyPoints-Icon",
+									},
+								],
+								config: {
+									title: `${playerName} — current form`,
+									type: "bar",
+								},
+							};
+						} else if (metric && (metric === "NUMBERTEAMSPLAYEDFOR" || metric === "NumberTeamsPlayedFor")) {
+							// Special handling for NumberTeamsPlayedFor - format as "X of the clubs Y teams"
 							const playerTeamCount = typeof value === "number" ? value : 0;
 							const totalTeamCount = (playerData[0] as any)?.totalTeamCount || 9; // Default to 9 if not provided
 							answer = `${playerName} has played for ${playerTeamCount} of the clubs ${totalTeamCount} teams.`;

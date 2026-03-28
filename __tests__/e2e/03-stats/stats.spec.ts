@@ -14,6 +14,8 @@ const DEFAULT_PLAYER = process.env.E2E_PLAYER_NAME || "Luke Bangs";
 // Section DOM ids used for scroll-visibility sweeps (desktop-only where noted in tests).
 const PLAYER_SECTION_IDS = [
 	"key-performance-stats",
+	"form-section",
+	"streaks-section",
 	"all-games",
 	"seasonal-performance",
 	"team-performance",
@@ -516,10 +518,10 @@ test.describe("Stats Page Tests", () => {
 		}
 	});
 
-	test("3.19. Phase 1: Starting impact and optional Tactical Overview (formations)", async ({ page }) => {
+	test("3.19. Starting impact and optional Tactical Overview (formations)", async ({ page }) => {
 		await openStatsFromHome(page);
 		if (await page.getByRole("heading", { name: /No player data available/i }).first().isVisible({ timeout: 2500 }).catch(() => false)) {
-			test.skip(true, "No player data — skipping Phase 1 UI checks.");
+			test.skip(true, "No player data — skipping starting impact / formations UI checks.");
 			return;
 		}
 		await page.waitForTimeout(800);
@@ -534,5 +536,108 @@ test.describe("Stats Page Tests", () => {
 		if (await formBlock.isVisible({ timeout: 8000 }).catch(() => false)) {
 			await expect(page.getByRole("heading", { name: /Formations used/i })).toBeVisible();
 		}
+	});
+
+	test("3.20. Player Stats per-90 table mode and messaging", async ({ page }) => {
+		await openStatsFromHome(page);
+		if (await page.getByRole("heading", { name: /No player data available/i }).first().isVisible({ timeout: 2500 }).catch(() => false)) {
+			test.skip(true, "No player data - skipping per-90 table checks.");
+			return;
+		}
+		await toggleDataTable(page, "table");
+		const per90Button = page.getByRole("button", { name: /^Per 90$/ }).first();
+		if (!(await per90Button.isVisible({ timeout: 8000 }).catch(() => false))) {
+			test.skip(true, "Per 90 table tab not rendered in current data/layout.");
+			return;
+		}
+		await per90Button.click({ timeout: 15000 });
+		await expect(page.getByText(/min\. 360 minutes required/i).first()).toBeVisible({ timeout: 10000 });
+		const per90RowVisible = await page.getByRole("cell", { name: /per 90/i }).first().isVisible({ timeout: 6000 }).catch(() => false);
+		if (!per90RowVisible) {
+			test.skip(true, "Per-90 rows not visible for selected player/filter sample.");
+		}
+	});
+
+	test("3.21. Player form section renders chart or fallback", async ({ page }) => {
+		await openStatsFromHome(page);
+		if (await page.getByRole("heading", { name: /No player data available/i }).first().isVisible({ timeout: 2500 }).catch(() => false)) {
+			test.skip(true, "No player data - skipping form section checks.");
+			return;
+		}
+		const formSection = page.locator("#form-section");
+		await expect(formSection).toBeVisible({ timeout: 12000 });
+		await expect(page.getByRole("heading", { name: /^Form$/i })).toBeVisible({ timeout: 12000 });
+		const hasSummary = await page.getByText(/Current form/i).first().isVisible({ timeout: 4000 }).catch(() => false);
+		const hasFallback = await page.getByText(/No form data available/i).first().isVisible({ timeout: 2000 }).catch(() => false);
+		if (!(hasSummary || hasFallback)) {
+			test.skip(true, "Form section rendered without summary cards or fallback message.");
+		}
+	});
+
+	test("3.22. Player form: no form-only season dropdown; recent boxes tooltip", async ({ page }) => {
+		await openStatsFromHome(page);
+		if (await page.getByRole("heading", { name: /No player data available/i }).first().isVisible({ timeout: 2500 }).catch(() => false)) {
+			test.skip(true, "No player data — skipping form UI checks.");
+			return;
+		}
+		const formSection = page.locator("#form-section");
+		await expect(formSection).toBeVisible({ timeout: 12000 });
+		await expect(formSection.getByRole("button", { name: /^All Seasons$/i })).toHaveCount(0);
+		const filledBox = formSection.locator('[data-testid="player-recent-form-box"]').first();
+		if (!(await filledBox.isVisible({ timeout: 6000 }).catch(() => false))) {
+			test.skip(true, "No recent form boxes — not enough matches for this filter.");
+			return;
+		}
+		await filledBox.hover({ timeout: 10000 });
+		await expect(page.locator('[data-testid="player-recent-form-tooltip"]')).toBeVisible({ timeout: 8000 });
+		await expect(page.getByText(/Match rating breakdown/i).first()).toBeVisible({ timeout: 5000 });
+	});
+
+	test("3.23. Starting impact uses 2-column grid (2×2 layout)", async ({ page }) => {
+		await openStatsFromHome(page);
+		if (await page.getByRole("heading", { name: /No player data available/i }).first().isVisible({ timeout: 2500 }).catch(() => false)) {
+			test.skip(true, "No player data — skipping starting impact.");
+			return;
+		}
+		const section = page.locator("#starting-impact");
+		await section.scrollIntoViewIfNeeded().catch(() => {});
+		const grid = page.locator('[data-testid="starting-impact-grid"]');
+		if (!(await grid.isVisible({ timeout: 12000 }).catch(() => false))) {
+			test.skip(true, "Starting impact block not visible for this player.");
+			return;
+		}
+		await expect(grid).toHaveClass(/grid-cols-2/);
+	});
+
+	test("3.24. Player streaks section renders", async ({ page }) => {
+		await openStatsFromHome(page);
+		if (await page.getByRole("heading", { name: /No player data available/i }).first().isVisible({ timeout: 2500 }).catch(() => false)) {
+			test.skip(true, "No player data — skipping streaks section.");
+			return;
+		}
+		const streaks = page.locator("#streaks-section");
+		await expect(streaks).toBeVisible({ timeout: 12000 });
+		await expect(page.getByRole("heading", { name: /^Streaks$/i })).toBeVisible({ timeout: 12000 });
+		await expect(streaks.getByText(/Season bests/i)).toBeVisible({ timeout: 8000 });
+	});
+
+	test("3.25. Team formations subtitle and recommendation", async ({ page }) => {
+		await openStatsFromHome(page);
+		if (!(await clickStatsSubPage(page, "team-stats"))) {
+			test.skip(true, "Could not open Team Stats.");
+			return;
+		}
+		if (await page.getByText(/No team data available/i).isVisible({ timeout: 2500 }).catch(() => false)) {
+			test.skip(true, "No team data — skipping formations.");
+			return;
+		}
+		const formBlock = page.locator("#team-formation-breakdown");
+		if (!(await formBlock.isVisible({ timeout: 12000 }).catch(() => false))) {
+			test.skip(true, "Formation breakdown not shown for this team/view.");
+			return;
+		}
+		await expect(formBlock.getByText(/inferred/i)).toHaveCount(0);
+		await expect(page.locator('[data-testid="formation-recommendation"]')).toBeVisible({ timeout: 8000 });
+		await expect(page.getByText(/Suggested setup/i).first()).toBeVisible({ timeout: 5000 });
 	});
 });

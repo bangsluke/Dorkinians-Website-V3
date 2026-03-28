@@ -764,6 +764,9 @@ The project uses a unified schema system where configuration files are synchroni
 
 ## Additional Documentation
 
+- **[NEW-FEATURES.md](./NEW-FEATURES.md)** — phased feature spec (database + website).
+- **[IMPLEMENTATION-STATUS.md](./IMPLEMENTATION-STATUS.md)** — what is done vs remaining for that plan (update after each implementation session).
+
 ## Testing Commands and Coverage
 
 - `npm run test` runs unit, integration, advanced, comprehensive, validation, performance, monitoring, security, ux, e2e, and report scripts as a strict all-pass pipeline (report emails suppressed).

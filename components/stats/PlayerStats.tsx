@@ -12,7 +12,7 @@ import PenOnPaperIcon from "@/components/icons/PenOnPaperIcon";
 import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
 import FilterPills from "@/components/filters/FilterPills";
-import { BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, XAxis, YAxis, CartesianGrid, Line, ComposedChart } from "recharts";
+import { BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, XAxis, YAxis, CartesianGrid, Line, ComposedChart, Scatter, ReferenceLine } from "recharts";
 import dynamic from "next/dynamic";
 
 // Dynamically import OppositionMap to reduce initial bundle size (includes Google Maps)
@@ -40,6 +40,33 @@ import { calculateFTPBreakdown } from "@/lib/utils/fantasyPoints";
 import { ErrorState, EmptyState } from "@/components/ui/StateComponents";
 import { useToast } from "@/lib/hooks/useToast";
 import AllGamesModal from "@/components/stats/AllGamesModal";
+import PlayerRecentFormBoxes, { type PlayerFormRecentMatch } from "@/components/stats/PlayerRecentFormBoxes";
+
+type PlayerStatsTableMode = "totals" | "perApp" | "per90";
+type PlayerStatsKeyMode = "totals" | "per90";
+type FormTrend = "rising" | "declining" | "stable";
+
+const PER90_STAT_NAMES = new Set([
+	"goalsPer90",
+	"assistsPer90",
+	"goalInvolvementsPer90",
+	"ftpPer90",
+	"cleanSheetsPer90",
+	"concededPer90",
+	"savesPer90",
+	"cardsPer90",
+	"momPer90",
+]);
+
+function formatFormWeekLabel(value: string | null | undefined): string {
+	if (!value) return "—";
+	const label = value.trim();
+	const seasonWeek = label.match(/^(.+)-(\d+)$/);
+	if (seasonWeek) {
+		return `${seasonWeek[1]} Week ${seasonWeek[2]}`;
+	}
+	return label;
+}
 
 // Page-specific skeleton components (Player Stats only)
 function PositionalStatsSkeleton() {
@@ -97,7 +124,17 @@ function FantasyPointsSkeleton() {
 	);
 }
 
-function StatRow({ stat, value, playerData }: { stat: any; value: any; playerData: PlayerData }) {
+function StatRow({
+	stat,
+	value,
+	playerData,
+	tableMode,
+}: {
+	stat: any;
+	value: any;
+	playerData: PlayerData;
+	tableMode: PlayerStatsTableMode;
+}) {
 	const [showTooltip, setShowTooltip] = useState(false);
 	const [tooltipPosition, setTooltipPosition] = useState<{ top: number; left: number; placement: 'above' | 'below' } | null>(null);
 	const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -265,11 +302,17 @@ function StatRow({ stat, value, playerData }: { stat: any; value: any; playerDat
 		setTooltipPosition(null);
 	};
 
+	const isPer90Stat = PER90_STAT_NAMES.has(stat.statName);
+	const isPer90ThresholdMet = toNumber(playerData.minutes) >= 360;
+	const showPer90ThresholdMessage = tableMode === "per90" && isPer90Stat && !isPer90ThresholdMet;
+
 	return (
 		<>
 			<tr
 				ref={rowRef}
-				className='border-b border-white/10 hover:bg-white/5 transition-colors relative group cursor-help'
+				className={`border-b border-white/10 transition-colors relative group cursor-help ${
+					showPer90ThresholdMessage ? "opacity-55" : "hover:bg-white/5"
+				}`}
 				onMouseEnter={handleMouseEnter}
 				onMouseLeave={handleMouseLeave}
 				onTouchStart={handleTouchStart}
@@ -291,6 +334,9 @@ function StatRow({ stat, value, playerData }: { stat: any; value: any; playerDat
 				<td className='px-3 md:px-4 py-2 md:py-3 text-right whitespace-nowrap'>
 					<span className='text-white font-mono text-xs md:text-sm'>
 						{(() => {
+							if (showPer90ThresholdMessage) {
+								return "Min. 360 mins";
+							}
 							const formatted = formatStatValue(value, stat.statFormat, stat.numberDecimalPlaces, (stat as any).statUnit);
 							if (stat.statName === "minutes") {
 								// Extract number and unit, format number with commas
@@ -321,7 +367,7 @@ function StatRow({ stat, value, playerData }: { stat: any; value: any; playerDat
 					) : (
 						<div className='absolute bottom-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent mb-1' style={{ borderBottomColor: '#0f0f0f' }}></div>
 					)}
-					{stat.description}
+					{showPer90ThresholdMessage ? "Min. 360 minutes required" : stat.description}
 				</div>,
 				document.body
 			)}
@@ -1677,6 +1723,11 @@ export default function PlayerStats() {
 	// State for game details data
 	const [gameDetails, setGameDetails] = useState<any>(null);
 	const [isLoadingGameDetails, setIsLoadingGameDetails] = useState(false);
+	const [formData, setFormData] = useState<Array<{ week: string; date: string; rawScore: number; ewmaReactive: number; ewmaBaseline: number }>>([]);
+	const [formSummary, setFormSummary] = useState<{ formCurrent: number | null; formBaseline: number | null; formTrend: FormTrend; formPeak: number | null; formPeakWeek: string | null; seasonAvg: number | null } | null>(null);
+	const [goldenCrosses, setGoldenCrosses] = useState<Array<{ week: string; date: string }>>([]);
+	const [isLoadingFormData, setIsLoadingFormData] = useState(false);
+	const [recentFormMatches, setRecentFormMatches] = useState<PlayerFormRecentMatch[]>([]);
 
 	// State for awards data
 	const [awardsData, setAwardsData] = useState<any>(null);
@@ -1705,6 +1756,16 @@ export default function PlayerStats() {
 		}
 		return false;
 	});
+	const [tableStatMode, setTableStatMode] = useState<PlayerStatsTableMode>(() => {
+		if (typeof window !== "undefined") {
+			const saved = safeLocalStorageGet("player-stats-table-mode");
+			if (saved === "totals" || saved === "perApp" || saved === "per90") {
+				return saved;
+			}
+		}
+		return "totals";
+	});
+	const [keyPerformanceMode, setKeyPerformanceMode] = useState<PlayerStatsKeyMode>("totals");
 
 	// Persist view mode to localStorage when it changes
 	useEffect(() => {
@@ -1712,6 +1773,11 @@ export default function PlayerStats() {
 			safeLocalStorageSet("player-stats-view-mode", isDataTableMode ? "true" : "false");
 		}
 	}, [isDataTableMode]);
+	useEffect(() => {
+		if (typeof window !== "undefined") {
+			safeLocalStorageSet("player-stats-table-mode", tableStatMode);
+		}
+	}, [tableStatMode]);
 
 	/* COMMENTED OUT: Share Stats functionality - will be re-added in the future */
 	// State for share functionality
@@ -1734,6 +1800,17 @@ export default function PlayerStats() {
 	const filteredStatEntries = useMemo(() => {
 		return Object.entries(statObject).filter(([key]) => statsToDisplay.includes(key as keyof typeof statObject));
 	}, [statsToDisplay]);
+	const displayedStatEntries = useMemo(() => {
+		return filteredStatEntries.filter(([, stat]) => {
+			const statName = String(stat?.statName || "");
+			const isPer90 = PER90_STAT_NAMES.has(statName);
+			const isPerApp = String(stat?.statCategory || "") === "Per App/Minute Stat";
+
+			if (tableStatMode === "per90") return isPer90;
+			if (tableStatMode === "perApp") return isPerApp && !isPer90;
+			return !isPer90 && !isPerApp;
+		});
+	}, [filteredStatEntries, tableStatMode]);
 
 	const playerData: PlayerData | null = cachedPlayerData?.playerData || null;
 
@@ -1766,17 +1843,31 @@ export default function PlayerStats() {
 		const totalSeasons = filterData?.seasons?.length || 0;
 		const seasonsPlayed = toNumber(playerData.numberSeasonsPlayedFor);
 		const seasonsDisplay = totalSeasons > 0 ? `${seasonsPlayed}/${totalSeasons}` : seasonsPlayed.toString();
+		if (keyPerformanceMode === "per90") {
+			return [
+				{ name: "G/90", value: playerData.goalsPer90, isPer90: true },
+				{ name: "A/90", value: playerData.assistsPer90, isPer90: true },
+				{ name: "GI/90", value: playerData.goalInvolvementsPer90, isPer90: true },
+				{ name: "FTP/90", value: playerData.ftpPer90, isPer90: true },
+				{ name: "Cards/90", value: playerData.cardsPer90, isPer90: true },
+				{ name: "MoM/90", value: playerData.momPer90, isPer90: true },
+				{ name: "Avg Rtg", value: playerData.averageMatchRating, isRating: true },
+				{ name: "Mins", value: toNumber(playerData.minutes) },
+				{ name: "Seasons", value: seasonsDisplay, isString: true },
+			];
+		}
 		return [
 			{ name: "Apps", value: toNumber(playerData.appearances) },
 			{ name: "Starts", value: toNumber(playerData.starts) },
 			{ name: "Mins", value: toNumber(playerData.minutes) },
 			{ name: "Seasons", value: seasonsDisplay, isString: true },
 			{ name: "MoM", value: toNumber(playerData.mom) },
+			{ name: "Form", value: formSummary?.formCurrent ?? null, isForm: true },
 			{ name: "Avg Rtg", value: playerData.averageMatchRating, isRating: true },
 			{ name: "Goals", value: toNumber(playerData.allGoalsScored) },
 			{ name: "Assists", value: toNumber(playerData.assists) },
 		];
-	}, [playerData, filterData]);
+	}, [playerData, filterData, keyPerformanceMode, formSummary]);
 
 	// Reset icon loading state when keyPerformanceData changes
 	useEffect(() => {
@@ -1868,7 +1959,6 @@ export default function PlayerStats() {
 		{ value: "Penalties Saved", label: "Penalties Saved", statKey: "penaltiesSaved" },
 		{ value: "Distance Travelled", label: "Distance Travelled", statKey: "distance" },
 	], []);
-
 	// Priority 1 & 2: Parallelized data fetching for above-the-fold content
 	// Fetch seasonal stats, team stats, opposition map, and opposition performance in parallel
 	useEffect(() => {
@@ -1877,6 +1967,10 @@ export default function PlayerStats() {
 			setTeamStats([]);
 			setOppositionMapData([]);
 			setOppositionPerformanceData([]);
+			setFormData([]);
+			setFormSummary(null);
+			setGoldenCrosses([]);
+			setRecentFormMatches([]);
 			return;
 		}
 		if (appConfig.forceSkeletonView) {
@@ -1890,6 +1984,7 @@ export default function PlayerStats() {
 			setIsLoadingTeamStats(allTeamsSelected);
 			setIsLoadingOppositionMap(true);
 			setIsLoadingOppositionPerformance(true);
+			setIsLoadingFormData(true);
 
 			try {
 				// Build parallel fetch promises
@@ -1995,6 +2090,38 @@ export default function PlayerStats() {
 							setOppositionPerformanceData([]);
 						})
 						.finally(() => setIsLoadingOppositionPerformance(false))
+				);
+
+				// Form curve data (always fetch; uses same filters as the rest of Player Stats)
+				const playerFormCacheKey = generatePageCacheKey("stats", "player-stats", "player-form", {
+					playerName: selectedPlayer,
+					filters: playerFilters,
+				});
+				fetchPromises.push(
+					cachedFetch("/api/player-form", {
+						method: "POST",
+						body: {
+							playerName: selectedPlayer,
+							filters: playerFilters,
+						},
+						cacheKey: playerFormCacheKey,
+						getCachedPageData,
+						setCachedPageData,
+					})
+						.then((data) => {
+							setFormData(data.history || []);
+							setFormSummary(data.summary || null);
+							setGoldenCrosses(data.goldenCrosses || []);
+							setRecentFormMatches(Array.isArray(data.recentFormMatches) ? data.recentFormMatches : []);
+						})
+						.catch((error) => {
+							log("error", "Error fetching player form data:", error);
+							setFormData([]);
+							setFormSummary(null);
+							setGoldenCrosses([]);
+							setRecentFormMatches([]);
+						})
+						.finally(() => setIsLoadingFormData(false))
 				);
 
 				// Execute all fetches in parallel
@@ -2804,7 +2931,25 @@ export default function PlayerStats() {
 					)}
 					{/* Actual content - always rendered so images can load */}
 					<div id='key-performance-stats' className={`bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 ${(isLoadingPlayerData || !allIconsLoaded) ? 'opacity-0' : 'opacity-100'}`}>
-						<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Key Performance Stats</h3>
+						<div className='flex items-center justify-between gap-2 mb-3'>
+							<h3 className='text-white font-semibold text-sm md:text-base'>Key Performance Stats</h3>
+							<div className='inline-flex rounded-md overflow-hidden border border-white/20'>
+								<button
+									type='button'
+									onClick={() => setKeyPerformanceMode("totals")}
+									className={`px-2 py-1 text-xs md:text-sm ${keyPerformanceMode === "totals" ? "bg-dorkinians-yellow text-black font-semibold" : "bg-transparent text-white"}`}
+								>
+									Totals
+								</button>
+								<button
+									type='button'
+									onClick={() => setKeyPerformanceMode("per90")}
+									className={`px-2 py-1 text-xs md:text-sm border-l border-white/20 ${keyPerformanceMode === "per90" ? "bg-dorkinians-yellow text-black font-semibold" : "bg-transparent text-white"}`}
+								>
+									Per 90
+								</button>
+							</div>
+						</div>
 						<div className='grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4'>
 							{keyPerformanceData.map((item, index) => {
 								let statKey = "APP";
@@ -2813,12 +2958,20 @@ export default function PlayerStats() {
 								else if (item.name === "Mins") statKey = "MIN";
 								else if (item.name === "Seasons") statKey = "NumberSeasonsPlayedFor";
 								else if (item.name === "MoM") statKey = "MOM";
+								else if (item.name === "Form") statKey = "PlayerAvgMatchRating";
 								else if (item.name === "Avg Rtg") statKey = "PlayerAvgMatchRating";
 								else if (item.name === "Goals") statKey = "AllGSC";
 								else if (item.name === "Assists") statKey = "A";
+								else if (item.name === "G/90") statKey = "PlayerGoalsPer90";
+								else if (item.name === "A/90") statKey = "PlayerAssistsPer90";
+								else if (item.name === "GI/90") statKey = "PlayerGI90";
+								else if (item.name === "FTP/90") statKey = "PlayerFTP90";
+								else if (item.name === "Cards/90") statKey = "PlayerCards90";
+								else if (item.name === "MoM/90") statKey = "PlayerMoM90";
 								const stat = statObject[statKey as keyof typeof statObject];
 								// Use Goals-Icon specifically for Goals stat
 								const iconName = item.name === "Goals" ? "Goals-Icon" : (stat?.iconName || "Appearance-Icon");
+								const iconLoadKey = `${item.name}-${index}`;
 								// Priority loading for first visible icons
 								const isPriority = index < 3;
 								return (
@@ -2833,11 +2986,11 @@ export default function PlayerStats() {
 												priority={isPriority}
 												loading="eager"
 												onLoad={() => {
-													setLoadedIcons(prev => new Set([...prev, iconName]));
+													setLoadedIcons(prev => new Set([...prev, iconLoadKey]));
 												}}
 												onError={() => {
 													// If icon fails to load, still mark it as "loaded" to prevent skeleton from showing forever
-													setLoadedIcons(prev => new Set([...prev, iconName]));
+													setLoadedIcons(prev => new Set([...prev, iconLoadKey]));
 												}}
 											/>
 										</div>
@@ -2847,6 +3000,16 @@ export default function PlayerStats() {
 											</div>
 											<div className='text-white font-bold text-xl md:text-2xl'>
 												{(item as any).isString ? item.value : (() => {
+													if ((item as any).isForm) {
+														const v = item.value as number | null | undefined;
+														if (v == null) return "—";
+														const trend = formSummary?.formTrend || "stable";
+														const arrow = trend === "rising" ? "↑" : trend === "declining" ? "↓" : "→";
+														return `${v.toFixed(1)} ${arrow}`;
+													}
+													if ((item as any).isPer90 && toNumber(playerData.minutes) < 360) {
+														return "Min. 360";
+													}
 													if (item.name === "Mins") {
 														// Format minutes with commas and without " mins" suffix
 														return Math.round(toNumber(item.value)).toLocaleString();
@@ -2865,6 +3028,189 @@ export default function PlayerStats() {
 							})}
 						</div>
 					</div>
+				</div>
+			) : null}
+
+			{/* Form Section */}
+			<div id='form-section' className='relative z-30 bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
+				<div className='flex items-center gap-2 mb-2'>
+					<h3 className='text-white font-semibold text-sm md:text-base'>Form</h3>
+					<div className='relative group'>
+						<span className='inline-flex items-center justify-center w-4 h-4 text-[10px] rounded-full border border-white/40 text-white/80 cursor-help'>
+							i
+						</span>
+						<div className='pointer-events-none absolute left-0 top-6 z-20 hidden w-72 rounded-md bg-black/90 p-2 text-[11px] text-white shadow-lg group-hover:block'>
+							White dots are each match raw performance score (match rating, with fantasy points fallback). Yellow is reactive form (short EWMA) and green is baseline trend (longer EWMA). Vertical dashed marks show a golden cross: reactive form moves above baseline after being at or below it on the previous match.
+						</div>
+					</div>
+				</div>
+				{isLoadingFormData ? (
+					<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+						<Skeleton height={48} className='rounded mb-3' />
+						<Skeleton height={220} className='rounded mb-3' />
+						<div className='grid grid-cols-2 md:grid-cols-3 gap-2'>
+							<Skeleton height={64} className='rounded' />
+							<Skeleton height={64} className='rounded' />
+							<Skeleton height={64} className='rounded col-span-2 md:col-span-1' />
+						</div>
+					</SkeletonTheme>
+				) : formData.length > 0 ? (
+					<>
+						{recentFormMatches.length > 0 ? <PlayerRecentFormBoxes matchesNewestFirst={recentFormMatches} /> : null}
+						<div className='chart-container -my-2' style={{ touchAction: 'pan-y' }}>
+							<ResponsiveContainer width='100%' height={220}>
+								<ComposedChart data={formData} margin={{ top: 10, right: 10, left: -28, bottom: 0 }}>
+									<CartesianGrid strokeDasharray='3 3' stroke='rgba(255,255,255,0.06)' vertical={false} />
+									<XAxis dataKey='week' tick={{ fill: 'rgba(255,255,255,0.6)', fontSize: 10 }} />
+									<YAxis
+										domain={[2, 10]}
+										width={32}
+										tick={{ fill: 'rgba(255,255,255,0.6)', fontSize: 10 }}
+										tickMargin={4}
+									/>
+									<Tooltip contentStyle={{ background: "rgba(0,0,0,0.85)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 8 }} />
+									<Scatter dataKey='rawScore' fill='rgba(255,255,255,0.35)' />
+									<Line type='monotone' dataKey='ewmaBaseline' stroke='#5DCAA5' strokeWidth={1.5} dot={false} opacity={0.75} />
+									<Line type='monotone' dataKey='ewmaReactive' stroke='#E8C547' strokeWidth={2.5} dot={false} />
+									{goldenCrosses.map((cross, crossIdx) => (
+										<ReferenceLine
+											key={`${cross.week}-${cross.date}`}
+											x={cross.week}
+											stroke='rgba(232,197,71,0.45)'
+											strokeDasharray='4 3'
+											label={
+												crossIdx === 0
+													? {
+															value: "Golden cross",
+															position: "top",
+															fill: "rgba(232,197,71,0.85)",
+															fontSize: 9,
+														}
+													: undefined
+											}
+										/>
+									))}
+								</ComposedChart>
+							</ResponsiveContainer>
+						</div>
+						{goldenCrosses.length > 0 ? (
+							<p className='text-white/55 text-[10px] mt-1 px-0.5'>
+								Dashed vertical lines mark golden crosses (reactive above baseline after being at or below it).
+							</p>
+						) : null}
+						<div className='grid grid-cols-2 md:grid-cols-3 gap-2 mt-3'>
+							<div className='bg-white/5 rounded-md p-2'>
+								<p className='text-white/70 text-xs'>Current form</p>
+								<p className='text-dorkinians-yellow font-semibold text-sm md:text-base'>
+									{formSummary?.formCurrent != null ? formSummary.formCurrent.toFixed(1) : "—"}{" "}
+									{formSummary?.formTrend === "rising" ? "↑" : formSummary?.formTrend === "declining" ? "↓" : "→"}
+								</p>
+							</div>
+							<div className='bg-white/5 rounded-md p-2'>
+								<p className='text-white/70 text-xs'>Season avg</p>
+								<p className='text-white font-semibold text-sm md:text-base'>
+									{formSummary?.seasonAvg != null ? formSummary.seasonAvg.toFixed(1) : "—"}
+								</p>
+							</div>
+							<div className='bg-white/5 rounded-md p-2 col-span-2 md:col-span-1'>
+								<p className='text-white/70 text-xs'>Peak form</p>
+								<p className='text-white font-semibold text-sm md:text-base'>
+									{formSummary?.formPeak != null ? `${formSummary.formPeak.toFixed(1)} (${formatFormWeekLabel(formSummary.formPeakWeek)})` : "—"}
+								</p>
+							</div>
+						</div>
+					</>
+				) : (
+					<p className='text-white/70 text-xs md:text-sm'>No form data available for the current filters.</p>
+				)}
+			</div>
+
+			{/* Streaks (Feature 5 — career counters from graph; not filter-dependent) */}
+			{playerData ? (
+				<div id='streaks-section' className='relative z-30 bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
+					<div className='flex items-center gap-2 mb-2'>
+						<h3 className='text-white font-semibold text-sm md:text-base'>Streaks</h3>
+						<div className='relative group'>
+							<span className='inline-flex items-center justify-center w-4 h-4 text-[10px] rounded-full border border-white/40 text-white/80 cursor-help'>
+								i
+							</span>
+							<div className='pointer-events-none absolute left-0 top-6 z-20 hidden w-72 rounded-md bg-black/90 p-2 text-[11px] text-white shadow-lg group-hover:block'>
+								Active runs are consecutive matches (by date) where the condition held. Appearance streak uses your most-played team: if the side played and you were not in the squad, the run ends. Values come from the database after each full seed.
+							</div>
+						</div>
+					</div>
+					{(() => {
+						const sn = (k: keyof PlayerData) => {
+							const v = playerData[k];
+							return typeof v === "number" && !Number.isNaN(v) ? v : 0;
+						};
+						const activeCards: { label: string; cur: keyof PlayerData; pb?: keyof PlayerData; pbSeason?: keyof PlayerData }[] = [
+							{ label: "Scoring", cur: "currentScoringStreak", pb: "allTimeBestScoringStreak" },
+							{ label: "Assists", cur: "currentAssistStreak", pbSeason: "seasonBestAssistStreak" },
+							{ label: "Goal involvement", cur: "currentGoalInvolvementStreak" },
+							{ label: "Clean sheet", cur: "currentCleanSheetStreak", pb: "allTimeBestCleanSheetStreak" },
+							{ label: "Appearances", cur: "currentAppearanceStreak", pb: "allTimeBestAppearanceStreak" },
+							{ label: "Starts", cur: "currentStartStreak" },
+							{ label: "85+ mins", cur: "currentFullMatchStreak" },
+							{ label: "MoM", cur: "currentMomStreak" },
+							{ label: "No cards", cur: "currentDisciplineStreak", pbSeason: "seasonBestDisciplineStreak" },
+							{ label: "Wins", cur: "currentWinStreak", pb: "allTimeBestWinStreak" },
+						];
+						const seasonRows: { label: string; season: keyof PlayerData; cur: keyof PlayerData }[] = [
+							{ label: "Scoring", season: "seasonBestScoringStreak", cur: "currentScoringStreak" },
+							{ label: "Assists", season: "seasonBestAssistStreak", cur: "currentAssistStreak" },
+							{ label: "Clean sheets", season: "seasonBestCleanSheetStreak", cur: "currentCleanSheetStreak" },
+							{ label: "Appearances", season: "seasonBestAppearanceStreak", cur: "currentAppearanceStreak" },
+							{ label: "Discipline", season: "seasonBestDisciplineStreak", cur: "currentDisciplineStreak" },
+							{ label: "Wins", season: "seasonBestWinStreak", cur: "currentWinStreak" },
+						];
+						return (
+							<>
+								<div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 mb-4'>
+									{activeCards.map(({ label, cur, pb, pbSeason }) => {
+										const c = sn(cur);
+										const best = pb ? sn(pb) : pbSeason ? sn(pbSeason) : 0;
+										const lit = c > 0;
+										return (
+											<div
+												key={String(cur)}
+												className={`rounded-md p-2 flex flex-col items-center text-center gap-1 ${lit ? "bg-white/12" : "bg-white/5 opacity-75"}`}
+											>
+												<div
+													className={`flex h-11 w-11 items-center justify-center rounded-full text-sm font-bold ${lit ? "bg-dorkinians-yellow text-black" : "bg-white/15 text-white/80"}`}
+												>
+													{c}
+												</div>
+												<p className='text-white/85 text-[11px] md:text-xs leading-tight'>{label}</p>
+												{best > 0 ? (
+													<p className='text-white/50 text-[10px]'>{pb ? `Best: ${best}` : `Season best: ${best}`}</p>
+												) : null}
+											</div>
+										);
+									})}
+								</div>
+								<p className='text-white/60 text-xs mb-2'>Season bests (latest season in your data)</p>
+								<div className='grid grid-cols-2 md:grid-cols-3 gap-2'>
+									{seasonRows.map(({ label, season, cur }) => {
+										const s = sn(season);
+										const c = sn(cur);
+										const onRun = c > 0 && s > 0 && c === s;
+										return (
+											<div key={String(season)} className='bg-white/5 rounded-md p-2 flex justify-between items-center gap-2'>
+												<div>
+													<p className='text-white/70 text-[11px]'>{label}</p>
+													<p className='text-white font-semibold text-sm'>{s}</p>
+												</div>
+												{onRun ? (
+													<span className='text-[10px] uppercase tracking-wide text-dorkinians-yellow shrink-0'>Active</span>
+												) : null}
+											</div>
+										);
+									})}
+								</div>
+							</>
+						);
+					})()}
 				</div>
 			) : null}
 
@@ -3161,7 +3507,7 @@ export default function PlayerStats() {
 			{toNumber(validPlayerData.appearances) > 0 && (
 				<div id='starting-impact' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 					<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Starting impact</h3>
-					<div className='grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm md:text-base text-white'>
+					<div className='grid grid-cols-2 gap-3 text-sm md:text-base text-white' data-testid='starting-impact-grid'>
 						<div className='bg-white/5 rounded-lg p-3'>
 							<div className='text-white/70 mb-1'>Starts / subs</div>
 							<div className='font-bold text-lg'>
@@ -3716,6 +4062,31 @@ export default function PlayerStats() {
 
 	const dataTableContent = (
 		<div className='mb-4'>
+			<div className='mb-3 flex flex-wrap items-center justify-between gap-2'>
+				<div className='inline-flex rounded-md overflow-hidden border border-white/20'>
+					{([
+						{ id: "totals", label: "Totals" },
+						{ id: "perApp", label: "Per App" },
+						{ id: "per90", label: "Per 90" },
+					] as Array<{ id: PlayerStatsTableMode; label: string }>).map((mode) => (
+						<button
+							key={mode.id}
+							type='button'
+							onClick={() => setTableStatMode(mode.id)}
+							className={`px-3 py-1 text-xs md:text-sm border-r border-white/20 last:border-r-0 ${
+								tableStatMode === mode.id ? "bg-dorkinians-yellow text-black font-semibold" : "bg-transparent text-white"
+							}`}
+						>
+							{mode.label}
+						</button>
+					))}
+				</div>
+				{tableStatMode === "per90" && (
+					<p className='text-xs md:text-sm text-white/80'>
+						Per-90 stats (Minutes: {Math.round(toNumber(validPlayerData.minutes)).toLocaleString()}) - min. 360 minutes required.
+					</p>
+				)}
+			</div>
 			<div className='overflow-x-auto'>
 				<table className='w-full bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden'>
 				<thead className='sticky top-0 z-10'>
@@ -3726,9 +4097,9 @@ export default function PlayerStats() {
 					</tr>
 				</thead>
 				<tbody>
-					{filteredStatEntries.map(([key, stat]) => {
+					{displayedStatEntries.map(([key, stat]) => {
 						const value = validPlayerData[stat.statName as keyof PlayerData];
-						return <StatRow key={key} stat={stat} value={value} playerData={validPlayerData} />;
+						return <StatRow key={key} stat={stat} value={value} playerData={validPlayerData} tableMode={tableStatMode} />;
 					})}
 				</tbody>
 			</table>

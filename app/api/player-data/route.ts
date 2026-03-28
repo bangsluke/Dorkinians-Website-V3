@@ -103,6 +103,54 @@ export function buildFilterConditions(filters: any, params: any): string[] {
 	return conditions;
 }
 
+/** Neo4j RETURN fragment: career streak counters on `p` (Feature 5; independent of stat filters). */
+export const PLAYER_STREAK_PROPERTY_RETURN = `
+			coalesce(p.currentScoringStreak, 0) as currentScoringStreak,
+			coalesce(p.currentAssistStreak, 0) as currentAssistStreak,
+			coalesce(p.currentGoalInvolvementStreak, 0) as currentGoalInvolvementStreak,
+			coalesce(p.currentCleanSheetStreak, 0) as currentCleanSheetStreak,
+			coalesce(p.currentAppearanceStreak, 0) as currentAppearanceStreak,
+			coalesce(p.currentStartStreak, 0) as currentStartStreak,
+			coalesce(p.currentFullMatchStreak, 0) as currentFullMatchStreak,
+			coalesce(p.currentMomStreak, 0) as currentMomStreak,
+			coalesce(p.currentDisciplineStreak, 0) as currentDisciplineStreak,
+			coalesce(p.currentWinStreak, 0) as currentWinStreak,
+			coalesce(p.seasonBestScoringStreak, 0) as seasonBestScoringStreak,
+			coalesce(p.seasonBestAssistStreak, 0) as seasonBestAssistStreak,
+			coalesce(p.seasonBestCleanSheetStreak, 0) as seasonBestCleanSheetStreak,
+			coalesce(p.seasonBestAppearanceStreak, 0) as seasonBestAppearanceStreak,
+			coalesce(p.seasonBestDisciplineStreak, 0) as seasonBestDisciplineStreak,
+			coalesce(p.seasonBestWinStreak, 0) as seasonBestWinStreak,
+			coalesce(p.allTimeBestScoringStreak, 0) as allTimeBestScoringStreak,
+			coalesce(p.allTimeBestAppearanceStreak, 0) as allTimeBestAppearanceStreak,
+			coalesce(p.allTimeBestCleanSheetStreak, 0) as allTimeBestCleanSheetStreak,
+			coalesce(p.allTimeBestWinStreak, 0) as allTimeBestWinStreak`;
+
+export function mapPlayerStreakFieldsFromRecord(record: { get: (key: string) => unknown }, toNumber: (value: any) => number) {
+	return {
+		currentScoringStreak: toNumber(record.get("currentScoringStreak")),
+		currentAssistStreak: toNumber(record.get("currentAssistStreak")),
+		currentGoalInvolvementStreak: toNumber(record.get("currentGoalInvolvementStreak")),
+		currentCleanSheetStreak: toNumber(record.get("currentCleanSheetStreak")),
+		currentAppearanceStreak: toNumber(record.get("currentAppearanceStreak")),
+		currentStartStreak: toNumber(record.get("currentStartStreak")),
+		currentFullMatchStreak: toNumber(record.get("currentFullMatchStreak")),
+		currentMomStreak: toNumber(record.get("currentMomStreak")),
+		currentDisciplineStreak: toNumber(record.get("currentDisciplineStreak")),
+		currentWinStreak: toNumber(record.get("currentWinStreak")),
+		seasonBestScoringStreak: toNumber(record.get("seasonBestScoringStreak")),
+		seasonBestAssistStreak: toNumber(record.get("seasonBestAssistStreak")),
+		seasonBestCleanSheetStreak: toNumber(record.get("seasonBestCleanSheetStreak")),
+		seasonBestAppearanceStreak: toNumber(record.get("seasonBestAppearanceStreak")),
+		seasonBestDisciplineStreak: toNumber(record.get("seasonBestDisciplineStreak")),
+		seasonBestWinStreak: toNumber(record.get("seasonBestWinStreak")),
+		allTimeBestScoringStreak: toNumber(record.get("allTimeBestScoringStreak")),
+		allTimeBestAppearanceStreak: toNumber(record.get("allTimeBestAppearanceStreak")),
+		allTimeBestCleanSheetStreak: toNumber(record.get("allTimeBestCleanSheetStreak")),
+		allTimeBestWinStreak: toNumber(record.get("allTimeBestWinStreak")),
+	};
+}
+
 // Build unified Cypher query with aggregation
 export function buildPlayerStatsQuery(playerName: string, filters: any = null): { query: string; params: any } {
 	const graphLabel = neo4jService.getGraphLabel();
@@ -345,7 +393,16 @@ export function buildPlayerStatsQuery(playerName: string, filters: any = null): 
 			CASE WHEN homeGames + awayGames > 0 THEN toFloat(wins * 3 + draws * 1 + losses * 0) / (homeGames + awayGames) ELSE 0.0 END as pointsPerGame,
 			CASE WHEN starts > 0 THEN toFloat(winsWhenStarting) / starts * 100 ELSE 0.0 END as winRateWhenStarting,
 			CASE WHEN subAppearances > 0 THEN toFloat(winsFromBench) / subAppearances * 100 ELSE 0.0 END as winRateFromBench,
-			CASE WHEN appearances > 0 THEN toFloat(starts) / appearances * 100 ELSE 0.0 END as startRatePercent
+			CASE WHEN appearances > 0 THEN toFloat(starts) / appearances * 100 ELSE 0.0 END as startRatePercent,
+			CASE WHEN minutes >= 360 THEN round((toFloat(goals + penaltiesScored) / minutes) * 90 * 100) / 100 ELSE null END as goalsPer90,
+			CASE WHEN minutes >= 360 THEN round((toFloat(assists) / minutes) * 90 * 100) / 100 ELSE null END as assistsPer90,
+			CASE WHEN minutes >= 360 THEN round((toFloat((goals + penaltiesScored) + assists) / minutes) * 90 * 100) / 100 ELSE null END as goalInvolvementsPer90,
+			CASE WHEN minutes >= 360 THEN round((toFloat(fantasyPoints) / minutes) * 90 * 100) / 100 ELSE null END as ftpPer90,
+			CASE WHEN minutes >= 360 THEN round((toFloat(cleanSheets) / minutes) * 90 * 100) / 100 ELSE null END as cleanSheetsPer90,
+			CASE WHEN minutes >= 360 THEN round((toFloat(conceded) / minutes) * 90 * 100) / 100 ELSE null END as concededPer90,
+			CASE WHEN minutes >= 360 THEN round((toFloat(saves) / minutes) * 90 * 100) / 100 ELSE null END as savesPer90,
+			CASE WHEN minutes >= 360 THEN round((toFloat(yellowCards + redCards) / minutes) * 90 * 100) / 100 ELSE null END as cardsPer90,
+			CASE WHEN minutes >= 360 THEN round((toFloat(mom) / minutes) * 90 * 100) / 100 ELSE null END as momPer90
 		RETURN p.id as id,
 			p.playerName as playerName,
 			p.allowOnSite as allowOnSite,
@@ -427,9 +484,19 @@ export function buildPlayerStatsQuery(playerName: string, filters: any = null): 
 			coalesce(winRateWhenStarting, 0.0) as winRateWhenStarting,
 			coalesce(winRateFromBench, 0.0) as winRateFromBench,
 			coalesce(startRatePercent, 0.0) as startRatePercent,
+			goalsPer90 as goalsPer90,
+			assistsPer90 as assistsPer90,
+			goalInvolvementsPer90 as goalInvolvementsPer90,
+			ftpPer90 as ftpPer90,
+			cleanSheetsPer90 as cleanSheetsPer90,
+			concededPer90 as concededPer90,
+			savesPer90 as savesPer90,
+			cardsPer90 as cardsPer90,
+			momPer90 as momPer90,
 			averageMatchRating as averageMatchRating,
 			highestMatchRating as highestMatchRating,
-			coalesce(matchesRated8Plus, 0) as matchesRated8Plus
+			coalesce(matchesRated8Plus, 0) as matchesRated8Plus,
+${PLAYER_STREAK_PROPERTY_RETURN}
 	`;
 
 	return { query, params };
@@ -563,6 +630,51 @@ export async function GET(request: NextRequest) {
 			winRateWhenStarting: toNumber(record.get("winRateWhenStarting")),
 			winRateFromBench: toNumber(record.get("winRateFromBench")),
 			startRatePercent: toNumber(record.get("startRatePercent")),
+			goalsPer90: (() => {
+				const v = record.get("goalsPer90");
+				if (v === null || v === undefined) return null;
+				return Math.round(toNumber(v) * 100) / 100;
+			})(),
+			assistsPer90: (() => {
+				const v = record.get("assistsPer90");
+				if (v === null || v === undefined) return null;
+				return Math.round(toNumber(v) * 100) / 100;
+			})(),
+			goalInvolvementsPer90: (() => {
+				const v = record.get("goalInvolvementsPer90");
+				if (v === null || v === undefined) return null;
+				return Math.round(toNumber(v) * 100) / 100;
+			})(),
+			ftpPer90: (() => {
+				const v = record.get("ftpPer90");
+				if (v === null || v === undefined) return null;
+				return Math.round(toNumber(v) * 100) / 100;
+			})(),
+			cleanSheetsPer90: (() => {
+				const v = record.get("cleanSheetsPer90");
+				if (v === null || v === undefined) return null;
+				return Math.round(toNumber(v) * 100) / 100;
+			})(),
+			concededPer90: (() => {
+				const v = record.get("concededPer90");
+				if (v === null || v === undefined) return null;
+				return Math.round(toNumber(v) * 100) / 100;
+			})(),
+			savesPer90: (() => {
+				const v = record.get("savesPer90");
+				if (v === null || v === undefined) return null;
+				return Math.round(toNumber(v) * 100) / 100;
+			})(),
+			cardsPer90: (() => {
+				const v = record.get("cardsPer90");
+				if (v === null || v === undefined) return null;
+				return Math.round(toNumber(v) * 100) / 100;
+			})(),
+			momPer90: (() => {
+				const v = record.get("momPer90");
+				if (v === null || v === undefined) return null;
+				return Math.round(toNumber(v) * 100) / 100;
+			})(),
 			averageMatchRating: (() => {
 				const v = record.get("averageMatchRating");
 				if (v === null || v === undefined) return null;
@@ -576,6 +688,7 @@ export async function GET(request: NextRequest) {
 				return Math.round(n * 10) / 10;
 			})(),
 			matchesRated8Plus: toNumber(record.get("matchesRated8Plus")),
+			...mapPlayerStreakFieldsFromRecord(record, toNumber),
 		};
 
 		return NextResponse.json({ playerData }, { headers: corsHeaders });

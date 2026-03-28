@@ -883,6 +883,16 @@ export class PlayerQueryBuilder {
 	static buildSpecialCaseQuery(_playerName: string, metric: string, analysis: EnhancedQuestionAnalysis): string | null {
 		// Normalize metric to uppercase for consistent comparison
 		const metricUpper = metric.toUpperCase();
+
+		if (metricUpper === "FORM_CURRENT") {
+			return `
+				MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
+				RETURN p.playerName as playerName,
+					p.formCurrent as value,
+					p.formBaseline as formBaseline,
+					p.formTrend as formTrend
+			`;
+		}
 		
 		if (metric === "MOSTCOMMONPOSITION" || metric === "MostCommonPosition") {
 			return `
