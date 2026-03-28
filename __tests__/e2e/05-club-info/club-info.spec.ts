@@ -10,7 +10,7 @@ const VISIBLE_USEFUL_LINK_CATEGORIES = ["official", "social", "other"] as const;
 
 /** Cycle season options until the awards table shows a clickable receiver, or Historical Awards with player rows. */
 async function ensureClubAwardsRegularSeason(page: import("@playwright/test").Page) {
-	const h = page.getByRole("heading", { name: "Club Awards" });
+	const h = page.getByRole("heading", { name: /Club Awards and Records/i });
 	await h.waitFor({ state: "visible", timeout: 25000 });
 	const seasonBtn = page.locator("div").filter({ has: h }).getByRole("button").first();
 	const receiverTable = page
@@ -434,10 +434,10 @@ test.describe("Club Info Page Tests", () => {
 		await expect(h).toBeVisible();
 	});
 
-	test("5.21. clicking the 'Club Awards' link should display the Club Awards page", async ({ page }) => {
+	test("5.21. clicking the 'Club Awards and Records' link should display that page", async ({ page }) => {
 		await navigateToMainPage(page, "club-info");
 		await goToClubInfoSubPage(page, "club-awards");
-		await expect(page.getByRole("heading", { name: "Club Awards" })).toBeVisible({ timeout: 20000 });
+		await expect(page.getByRole("heading", { name: /Club Awards and Records/i })).toBeVisible({ timeout: 20000 });
 	});
 
 	test("5.22. all club awards should be displayed on the Club Awards page for all teams including the Club Award", async ({
@@ -509,7 +509,7 @@ test.describe("Club Info Page Tests", () => {
 	test("5.25. changing the season filter should update the displayed club awards", async ({ page }) => {
 		await navigateToMainPage(page, "club-info");
 		await goToClubInfoSubPage(page, "club-awards");
-		const h = page.getByRole("heading", { name: "Club Awards" });
+		const h = page.getByRole("heading", { name: /Club Awards and Records/i });
 		await h.waitFor({ timeout: 20000 });
 		const seasonBtn = page.locator("div").filter({ has: h }).getByRole("button").first();
 		const before = (await seasonBtn.innerText()).trim();
@@ -527,7 +527,7 @@ test.describe("Club Info Page Tests", () => {
 		}
 		if (!picked) {
 			await page.keyboard.press("Escape");
-			test.skip(true, "No alternate Club Awards season in dropdown — skipping.");
+			test.skip(true, "No alternate Club Awards and Records season in dropdown — skipping.");
 			return;
 		}
 		await page.waitForTimeout(1500);
@@ -568,5 +568,28 @@ test.describe("Club Info Page Tests", () => {
 		await expect(first).toBeVisible({ timeout: 15000 });
 		expect(await first.getAttribute("target")).toBe("_blank");
 		expect(await first.getAttribute("rel")).toContain("noopener");
+	});
+
+	test("5.29. Records section is shown on Club Awards and Records", async ({ page }) => {
+		await navigateToMainPage(page, "club-info");
+		await goToClubInfoSubPage(page, "club-awards");
+		await expect(page.getByRole("heading", { name: /Club Awards and Records/i })).toBeVisible({ timeout: 20000 });
+		const section = page.getByTestId("records-section");
+		await section.scrollIntoViewIfNeeded();
+		await expect(page.getByRole("heading", { name: /^Records$/ })).toBeVisible({ timeout: 15000 });
+	});
+
+	test("5.30. record holder name navigates to Player Stats when ClubRecord data exists", async ({ page }) => {
+		await navigateToMainPage(page, "club-info");
+		await goToClubInfoSubPage(page, "club-awards");
+		await page.getByTestId("records-section").scrollIntoViewIfNeeded();
+		const holderBtn = page.locator("[data-testid^='record-holder-']").first();
+		if (!(await holderBtn.isVisible({ timeout: 10000 }).catch(() => false))) {
+			test.skip(true, "No record holder link — ClubRecord nodes may be missing until seed runs.");
+			return;
+		}
+		const name = (await holderBtn.innerText()).trim();
+		await holderBtn.click();
+		await expect(page.getByTestId("stats-page-heading")).toContainText(name, { timeout: 25000 });
 	});
 });

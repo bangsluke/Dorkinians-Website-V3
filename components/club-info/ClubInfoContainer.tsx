@@ -13,7 +13,7 @@ const clubInfoSubPages = [
 	{ id: "club-information" as ClubInfoSubPage, component: ClubInformation, label: "Club Information" },
 	{ id: "league-information" as ClubInfoSubPage, component: LeagueInformation, label: "League Information" },
 	{ id: "club-captains" as ClubInfoSubPage, component: ClubCaptains, label: "Club Captains" },
-	{ id: "club-awards" as ClubInfoSubPage, component: ClubAwards, label: "Club Awards" },
+	{ id: "club-awards" as ClubInfoSubPage, component: ClubAwards, label: "Club Awards and Records" },
 	{ id: "useful-links" as ClubInfoSubPage, component: UsefulLinks, label: "Useful Links" },
 ];
 

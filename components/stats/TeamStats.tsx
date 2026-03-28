@@ -1506,6 +1506,28 @@ export default function TeamStats() {
 									</div>
 								)}
 
+								{!isDataTableMode && teamData.streakLeaders && teamData.streakLeaders.length > 0 && (
+									<div id='team-streak-leaders' className='md:break-inside-avoid md:mb-4'>
+										<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+											<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Longest active streaks (this XI)</h3>
+											<p className='text-white/60 text-xs mb-3'>
+												Players listed by primary team; value is consecutive games for that streak type.
+											</p>
+											<div className='grid grid-cols-1 sm:grid-cols-2 gap-2'>
+												{teamData.streakLeaders.map((row) => (
+													<div
+														key={row.category}
+														className='bg-white/5 rounded-lg px-3 py-2 flex flex-col gap-0.5'>
+														<span className='text-white/70 text-xs'>{row.label}</span>
+														<span className='text-white font-semibold text-sm md:text-base'>{row.playerName}</span>
+														<span className='text-dorkinians-yellow text-xs md:text-sm'>{row.value} in a row</span>
+													</div>
+												))}
+											</div>
+										</div>
+									</div>
+								)}
+
 								{!isDataTableMode && teamData.formationBreakdown && teamData.formationBreakdown.length > 0 && (
 									<div id='team-formation-breakdown' className='md:break-inside-avoid md:mb-4'>
 										<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>

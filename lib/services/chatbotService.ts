@@ -1,5 +1,6 @@
 import { neo4jService } from "../../netlify/functions/lib/neo4j.js";
 import { findMetricByAlias, getMetricDisplayName } from "../config/chatbotMetrics";
+import { isStreakMetricKey } from "../config/streakMetrics";
 import { getZeroStatResponse } from "./zeroStatResponses";
 import { statObject, VisualizationType } from "../../config/config";
 import { getAppropriateVerb, getResponseTemplate, formatNaturalResponse } from "../config/naturalLanguageResponses";
@@ -4748,12 +4749,16 @@ export class ChatbotService {
 							qLowerForm.includes("poor") ||
 							qLowerForm.includes("lowest") ||
 							(/\bbad\b/.test(qLowerForm) && /\bform\b/.test(qLowerForm)));
+					const streakRankMetric = metric && isStreakMetricKey(metric.toUpperCase());
+					const streakRankLabel = streakRankMetric ? findMetricByAlias(metric)?.displayName : null;
 					answer =
 						metric.toUpperCase() === "FORM_CURRENT"
 							? formRankingAscending
 								? `Here are the ${displayCount} players with the lowest current form (reactive EWMA)${teamText}:`
 								: `Here are the top ${displayCount} players by current form (reactive EWMA)${teamText}:`
-							: `Here are the top ${displayCount} players${teamText}:`;
+							: streakRankMetric && streakRankLabel
+								? `Here are the top ${displayCount} players by ${streakRankLabel}${teamText}:`
+								: `Here are the top ${displayCount} players${teamText}:`;
 					answerValue = topRanking.playerName || topRanking.teamName || "";
 					
 					// Create table visualization with full data (for expansion), but mark initial display limit
@@ -7569,6 +7574,32 @@ export class ChatbotService {
 								],
 								config: {
 									title: `${playerName} — current form`,
+									type: "bar",
+								},
+							};
+						} else if (metric && isStreakMetricKey(metric.toUpperCase())) {
+							const v = Math.round(typeof value === "number" ? value : Number(value ?? 0));
+							const label =
+								findMetricByAlias(metric)?.displayName ||
+								metric.replace(/_/g, " ").toLowerCase();
+							const unit = v === 1 ? "game" : "games";
+							answer =
+								v > 0
+									? `${playerName}'s ${label} is ${v} ${unit} (primary XI streak data from club aggregates).`
+									: `${playerName} has no ${label} recorded (or streak is zero).`;
+							answerValue = v;
+							visualization = {
+								type: "NumberCard",
+								data: [
+									{
+										name: label,
+										value: v,
+										wordedText: label,
+										iconName: "TeamAppearance-Icon",
+									},
+								],
+								config: {
+									title: `${playerName} — ${label}`,
 									type: "bar",
 								},
 							};

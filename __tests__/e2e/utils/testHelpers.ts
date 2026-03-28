@@ -330,7 +330,7 @@ const CLUB_INFO_SUB_HEADING: Record<ClubInfoSubPageId, RegExp> = {
 	"club-information": /Club Information/i,
 	"league-information": /League Information/i,
 	"club-captains": /Club Captains/i,
-	"club-awards": /Club Awards/i,
+	"club-awards": /Club Awards and Records/i,
 	"useful-links": /Useful Links/i,
 };
 
@@ -338,7 +338,7 @@ const CLUB_INFO_SIDEBAR_LABEL: Record<ClubInfoSubPageId, string> = {
 	"club-information": "Club Information",
 	"league-information": "League Information",
 	"club-captains": "Club Captains",
-	"club-awards": "Club Awards",
+	"club-awards": "Club Awards and Records",
 	"useful-links": "Useful Links",
 };
 

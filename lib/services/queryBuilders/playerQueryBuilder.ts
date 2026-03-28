@@ -1,4 +1,5 @@
 import type { EnhancedQuestionAnalysis } from "../../config/enhancedQuestionAnalysis";
+import { playerPropForStreakMetric } from "../../config/streakMetrics";
 import { TeamMappingUtils } from "../chatbotUtils/teamMappingUtils";
 import { DateUtils } from "../chatbotUtils/dateUtils";
 import { neo4jService } from "../../../netlify/functions/lib/neo4j.js";
@@ -891,6 +892,14 @@ export class PlayerQueryBuilder {
 					p.formCurrent as value,
 					p.formBaseline as formBaseline,
 					p.formTrend as formTrend
+			`;
+		}
+
+		const streakProp = playerPropForStreakMetric(metricUpper);
+		if (streakProp) {
+			return `
+				MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
+				RETURN p.playerName as playerName, coalesce(p.${streakProp}, 0) as value
 			`;
 		}
 		

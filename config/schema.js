@@ -265,6 +265,46 @@ const schema = {
       mid: { type: 'integer', required: false },
       fwd: { type: 'integer', required: false },
       mostCommonPosition: { type: 'string', required: false },
+      starts: { type: 'integer', required: false },
+      subAppearances: { type: 'integer', required: false },
+      startRate: { type: 'number', required: false },
+      averageMatchRating: { type: 'number', required: false },
+      highestMatchRating: { type: 'number', required: false },
+      matchesRated8Plus: { type: 'integer', required: false },
+      goalsPer90: { type: 'number', required: false },
+      assistsPer90: { type: 'number', required: false },
+      goalInvolvementsPer90: { type: 'number', required: false },
+      ftpPer90: { type: 'number', required: false },
+      cleanSheetsPer90: { type: 'number', required: false },
+      concededPer90: { type: 'number', required: false },
+      savesPer90: { type: 'number', required: false },
+      cardsPer90: { type: 'number', required: false },
+      momPer90: { type: 'number', required: false },
+      formCurrent: { type: 'number', required: false },
+      formBaseline: { type: 'number', required: false },
+      formTrend: { type: 'string', required: false },
+      formPeak: { type: 'number', required: false },
+      formPeakWeek: { type: 'string', required: false },
+      currentScoringStreak: { type: 'integer', required: false },
+      currentAssistStreak: { type: 'integer', required: false },
+      currentGoalInvolvementStreak: { type: 'integer', required: false },
+      currentCleanSheetStreak: { type: 'integer', required: false },
+      currentAppearanceStreak: { type: 'integer', required: false },
+      currentStartStreak: { type: 'integer', required: false },
+      currentFullMatchStreak: { type: 'integer', required: false },
+      currentMomStreak: { type: 'integer', required: false },
+      currentDisciplineStreak: { type: 'integer', required: false },
+      currentWinStreak: { type: 'integer', required: false },
+      seasonBestScoringStreak: { type: 'integer', required: false },
+      seasonBestAssistStreak: { type: 'integer', required: false },
+      seasonBestCleanSheetStreak: { type: 'integer', required: false },
+      seasonBestAppearanceStreak: { type: 'integer', required: false },
+      seasonBestDisciplineStreak: { type: 'integer', required: false },
+      seasonBestWinStreak: { type: 'integer', required: false },
+      allTimeBestScoringStreak: { type: 'integer', required: false },
+      allTimeBestAppearanceStreak: { type: 'integer', required: false },
+      allTimeBestCleanSheetStreak: { type: 'integer', required: false },
+      allTimeBestWinStreak: { type: 'integer', required: false }
     },
     idPattern: 'player_{playerName}',
     constraints: ['CREATE CONSTRAINT player_id IF NOT EXISTS FOR (p:Player) REQUIRE p.id IS UNIQUE'],
@@ -318,7 +358,8 @@ const schema = {
       fullResult: { type: 'string', required: false },
       dorkiniansGoals: { type: 'integer', required: false },
       conceded: { type: 'integer', required: false },
-      extractedPicker: { type: 'string', required: false }
+      extractedPicker: { type: 'string', required: false },
+      inferredFormation: { type: 'string', required: false }
     },
     idPattern: 'fixture_{homeTeam}_{awayTeam}_{date}',
     constraints: ['CREATE CONSTRAINT fixture_id IF NOT EXISTS FOR (f:Fixture) REQUIRE f.id IS UNIQUE'],
@@ -392,7 +433,12 @@ const schema = {
       penaltyShootoutPenaltiesSaved: { type: 'integer', required: false },
       importedFixtureDetail: { type: 'string', required: false },
       fantasyPoints: { type: 'number', required: false },
-      distance: { type: 'number', required: false }
+      distance: { type: 'number', required: false },
+      started: { type: 'boolean', required: false },
+      playerOrder: { type: 'integer', required: false },
+      matchRating: { type: 'number', required: false },
+      ewmaReactive: { type: 'number', required: false },
+      ewmaBaseline: { type: 'number', required: false }
     },
     idPattern: 'match_{playerName}_{matchDate}',
     constraints: ['CREATE CONSTRAINT matchdetail_id IF NOT EXISTS FOR (md:MatchDetail) REQUIRE md.id IS UNIQUE']
@@ -617,6 +663,30 @@ const schema = {
     constraints: ['CREATE CONSTRAINT historicalaward_id IF NOT EXISTS FOR (ha:HistoricalAward) REQUIRE ha.id IS UNIQUE'],
     // Custom node creation logic - loaded from historicalAwardsObject, not CSV
     customNodeCreation: true
+  },
+
+  // ============================================================================
+  // ClubRecord - Computed records wall (Feature 6), written after seeding aggregates
+  // ============================================================================
+  ClubRecord: {
+    nodeType: 'ClubRecord',
+    properties: {
+      id: { type: 'string', required: true },
+      graphLabel: { type: 'string', required: true },
+      category: { type: 'string', required: true },
+      recordName: { type: 'string', required: true },
+      recordValue: { type: 'number', required: true },
+      recordValueDisplay: { type: 'string', required: false },
+      holderName: { type: 'string', required: false },
+      holderTeam: { type: 'string', required: false },
+      season: { type: 'string', required: false },
+      additionalContext: { type: 'string', required: false },
+      currentChallenger: { type: 'string', required: false },
+      challengerValue: { type: 'number', required: false },
+    },
+    idPattern: 'record_{category}_{recordNameSlug}',
+    constraints: ['CREATE CONSTRAINT clubrecord_id IF NOT EXISTS FOR (cr:ClubRecord) REQUIRE cr.id IS UNIQUE'],
+    customNodeCreation: true,
   },
 
   // ============================================================================

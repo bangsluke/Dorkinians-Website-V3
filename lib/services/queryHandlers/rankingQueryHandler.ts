@@ -1,6 +1,7 @@
 import type { EnhancedQuestionAnalysis } from "../../config/enhancedQuestionAnalysis";
 import { neo4jService } from "../../../netlify/functions/lib/neo4j.js";
 import { findMetricByAlias } from "../../config/chatbotMetrics";
+import { playerPropForStreakMetric } from "../../config/streakMetrics";
 import { loggingService } from "../loggingService";
 import { ChatbotService } from "../chatbotService";
 import { TeamMappingUtils } from "../chatbotUtils/teamMappingUtils";
@@ -155,13 +156,15 @@ export class RankingQueryHandler {
 		}
 
 		const isFormRankingMetric = metricConfig.key === "FORM_CURRENT";
+		const streakRankingProp = playerPropForStreakMetric(metricConfig.key);
+		const isStreakRankingMetric = streakRankingProp != null;
 
 		let query: string;
 		let returnClause: string;
 
 		// Build the appropriate query based on metric
 		// Special case: worst and best penalty record use conversion rate calculation
-		if (!isFormRankingMetric && (isWorstPenaltyRecord || isBestPenaltyRecord)) {
+		if (!isFormRankingMetric && !isStreakRankingMetric && (isWorstPenaltyRecord || isBestPenaltyRecord)) {
 			// For worst penalty record, we need to return conversion rate, penaltiesScored, and penaltiesMissed
 			returnClause = `sum(coalesce(md.penaltiesScored, 0)) as penaltiesScored,
 				sum(coalesce(md.penaltiesMissed, 0)) as penaltiesMissed,
@@ -170,13 +173,13 @@ export class RankingQueryHandler {
 					THEN toFloat(sum(coalesce(md.penaltiesScored, 0))) / (sum(coalesce(md.penaltiesScored, 0)) + sum(coalesce(md.penaltiesMissed, 0)))
 					ELSE NULL
 				END as value`;
-		} else if (!isFormRankingMetric && (isGperAPPQuestion || metric === "GPERAPP")) {
+		} else if (!isFormRankingMetric && !isStreakRankingMetric && (isGperAPPQuestion || metric === "GPERAPP")) {
 			// For GperAPP, we need to calculate (goals + penaltiesScored) / appearances
 			// This will be handled in a special query structure similar to penalty records
 			// Note: We calculate totalGoals and appearances, then use them in a second WITH clause for value calculation
 			returnClause = `sum(coalesce(md.goals, 0)) + sum(coalesce(md.penaltiesScored, 0)) as totalGoals,
 				count(md) as appearances`;
-		} else if (!isFormRankingMetric) {
+		} else if (!isFormRankingMetric && !isStreakRankingMetric) {
 			switch (metric) {
 				case "G":
 				case "goals":
@@ -351,6 +354,22 @@ export class RankingQueryHandler {
 				WHERE p.allowOnSite = true AND p.formCurrent IS NOT NULL ${teamExistsClause}
 				RETURN p.playerName as playerName, p.formCurrent as value, coalesce(p.appearances, 0) as appearances
 				${formOrderBy}
+				LIMIT ${maxLimit}
+			`;
+		} else if (isStreakRankingMetric) {
+			if (!isPlayerQuestion) {
+				return { type: "unsupported_metric", data: [], message: "Streak ranking supports player leaderboards only" };
+			}
+			const prop = streakRankingProp as string;
+			let teamExistsClause = "";
+			if (teamName) {
+				teamExistsClause = `AND EXISTS { MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel}) WHERE md.team = $teamName }`;
+			}
+			query = `
+				MATCH (p:Player {graphLabel: $graphLabel})
+				WHERE p.allowOnSite = true AND coalesce(p.${prop}, 0) > 0 ${teamExistsClause}
+				RETURN p.playerName as playerName, p.${prop} as value, coalesce(p.appearances, 0) as appearances
+				ORDER BY value DESC, appearances DESC
 				LIMIT ${maxLimit}
 			`;
 		} else if (isPlayerQuestion) {

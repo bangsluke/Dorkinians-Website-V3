@@ -1772,6 +1772,16 @@ export class EnhancedQuestionAnalyzer {
 			"Distance Travelled", // More specific - distance/travel queries (HIGH PRIORITY)
 			"Fantasy Points", // More specific - fantasy points queries (HIGH PRIORITY)
 			"Current Form", // EWMA form — before generic Apps/Goals
+			"All-Time Best Scoring Streak",
+			"All-Time Best Win Streak",
+			"All-Time Best Appearance Streak",
+			"All-Time Best Clean Sheet Streak",
+			"Current Scoring Streak",
+			"Current Win Streak",
+			"Current Appearance Streak",
+			"Current Assist Streak",
+			"Current Clean Sheet Streak",
+			"Current Goal Involvement Streak",
 			"Home Games % Won",
 			"Away Games % Won",
 			"Games % Won",
@@ -1867,6 +1877,16 @@ export class EnhancedQuestionAnalyzer {
 			"Goals Conceded": "C",
 			"Fantasy Points": "FTP",
 			"Current Form": "FORM_CURRENT",
+			"All-Time Best Scoring Streak": "ALL_TIME_BEST_SCORING_STREAK",
+			"All-Time Best Win Streak": "ALL_TIME_BEST_WIN_STREAK",
+			"All-Time Best Appearance Streak": "ALL_TIME_BEST_APPEARANCE_STREAK",
+			"All-Time Best Clean Sheet Streak": "ALL_TIME_BEST_CLEAN_SHEET_STREAK",
+			"Current Scoring Streak": "CURRENT_SCORING_STREAK",
+			"Current Win Streak": "CURRENT_WIN_STREAK",
+			"Current Appearance Streak": "CURRENT_APPEARANCE_STREAK",
+			"Current Assist Streak": "CURRENT_ASSIST_STREAK",
+			"Current Clean Sheet Streak": "CURRENT_CLEAN_SHEET_STREAK",
+			"Current Goal Involvement Streak": "CURRENT_GOAL_INVOLVEMENT_STREAK",
 			"Distance Travelled": "DIST",
 
 			// Penalty stats
