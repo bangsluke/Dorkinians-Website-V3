@@ -51,7 +51,7 @@ const SUBSECTION_LABELS = {
 	"club-information": "Club Information",
 	"league-information": "League Information",
 	"club-captains": "Club Captains",
-	"club-awards": "Club Awards",
+	"club-awards": "Club Awards and Records",
 	"useful-links": "Useful Links",
 };
 

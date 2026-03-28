@@ -4,7 +4,7 @@
 
 **Last updated:** 2026-03-28
 
-**Current milestone:** ✅ Foundation complete (starter/rating features + tests + website surface complete)
+**Current milestone:** ✅ Feature 6 records wall shipped (re-seed required for `ClubRecord` data)
 
 **Database repo:** When this website repo sits next to the seeding service, paths below use **`../database-dorkinians/`**. If you only have the database clone, open the copy of this file from the website repo or maintain a short pointer there.
 
@@ -92,6 +92,15 @@
 | **Chatbot** | Streak metrics in `chatbotMetrics` / entity extraction / `mapStatTypeToKey`; `playerQueryBuilder` + `rankingQueryHandler` Player-node streak queries; single-value + ranking answers in `chatbotService`; integer formatting in `formattingUtils`. |
 | **Tests (site)** | Playwright `3.24` — streaks section visible; section id in desktop sweep list. |
 
+### Records wall (Feature 6)
+
+| Area | Notes |
+|------|--------|
+| **Data layer (`../database-dorkinians/`)** | `config/schema.js` — `ClubRecord` node + constraint; `services/clubRecordsComputation.js` — individual + team records, 80% challenger flags (appearances, career goals, active scoring/appearance streaks); `relationshipManager.applyClubRecords()`; `seedingOrchestrator` runs it after `applyFoundationDerivedAggregates()`. |
+| **Tests (DB)** | `npm run test:club-records` — unit tests for slugify / team streak helper. |
+| **Website** | `GET /api/club-records`; `components/club-info/RecordsSection.tsx` under awards; page title **Club Awards and Records** (sidebar, settings, `ClubAwards` h2). |
+| **Tests (site)** | Playwright `5.29`–`5.30` — Records section + optional holder → Player Stats navigation when data exists. |
+
 ### Optional foundation gap (non-blocking)
 
 - **Chatbot** patterns for “how many times have I started?” (listed in plan; not necessarily done).
@@ -108,7 +117,6 @@
 
 ### Records & graph
 
-- **Feature 6:** `ClubRecord` nodes, seeding, nav **Club Awards and Records**, records UI.
 - **Feature 7:** Graph insights 7a/7b; GDS-gated 7c/7d if/when Aura GDS is enabled.
 
 ### Season Wrapped
