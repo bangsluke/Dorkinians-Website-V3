@@ -638,7 +638,22 @@ test.describe("Stats Page Tests", () => {
 		await expect(page.getByRole("heading", { name: /^Impact$/i })).toBeVisible({ timeout: 8000 });
 	});
 
-	test("3.26. Team formations subtitle and recommendation", async ({ page }) => {
+	test("3.26. Player milestone badges grid when badge data is available", async ({ page }) => {
+		await openStatsFromHome(page);
+		if (await page.getByRole("heading", { name: /No player data available/i }).first().isVisible({ timeout: 2500 }).catch(() => false)) {
+			test.skip(true, "No player data — skipping badge milestones.");
+			return;
+		}
+		await page.locator("#captaincies-awards-and-achievements").scrollIntoViewIfNeeded().catch(() => {});
+		const milestones = page.getByTestId("player-badge-milestones");
+		if (!(await milestones.isVisible({ timeout: 15000 }).catch(() => false))) {
+			test.skip(true, "Badge milestones not visible — run full seed with Feature 9 or check /api/player-badges.");
+			return;
+		}
+		await expect(milestones.getByText(/^Milestone badges$/i)).toBeVisible({ timeout: 8000 });
+	});
+
+	test("3.27. Team formations subtitle and recommendation", async ({ page }) => {
 		await openStatsFromHome(page);
 		if (!(await clickStatsSubPage(page, "team-stats"))) {
 			test.skip(true, "Could not open Team Stats.");

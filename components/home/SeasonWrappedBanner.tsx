@@ -8,20 +8,35 @@ import { playerNameToWrappedSlug } from "@/lib/wrapped/slug";
  * End-of-season callout linking to Season Wrapped for the selected player.
  * Set `NEXT_PUBLIC_SEASON_WRAPPED_ACTIVE=false` to hide without a deploy change (rebuild still required for env).
  */
+function safePlayerName(raw: unknown): string | null {
+	if (raw == null) return null;
+	if (typeof raw === "string") {
+		const t = raw.trim();
+		return t.length > 0 ? t : null;
+	}
+	return null;
+}
+
 export default function SeasonWrappedBanner() {
+	const rawName = useNavigationStore((s) => s.selectedPlayer);
+	const isPlayerSelected = useNavigationStore((s) => s.isPlayerSelected);
+
 	if (process.env.NEXT_PUBLIC_SEASON_WRAPPED_ACTIVE === "false") {
 		return null;
 	}
 
-	const selectedPlayer = useNavigationStore((s) => s.selectedPlayer);
-	const isPlayerSelected = useNavigationStore((s) => s.isPlayerSelected);
-
-	if (!isPlayerSelected || !selectedPlayer) {
+	const playerName = safePlayerName(rawName);
+	if (!isPlayerSelected || !playerName) {
 		return null;
 	}
 
-	const slug = playerNameToWrappedSlug(selectedPlayer);
+	const slug = playerNameToWrappedSlug(playerName);
+	if (!slug) {
+		return null;
+	}
+
 	const href = `/wrapped/${slug}`;
+	const firstName = playerName.split(/\s+/).find((part) => part.length > 0) ?? playerName;
 
 	return (
 		<div
@@ -33,7 +48,7 @@ export default function SeasonWrappedBanner() {
 				href={href}
 				className='inline-block mt-2 text-sm font-medium text-[#5DCAA5] hover:underline'
 				data-testid='season-wrapped-banner-link'>
-				Open {selectedPlayer.split(" ")[0]}&apos;s Wrapped →
+				Open {firstName}&apos;s Wrapped →
 			</Link>
 		</div>
 	);
