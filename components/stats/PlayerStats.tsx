@@ -3,6 +3,7 @@
 import { useNavigationStore, type PlayerData } from "@/lib/stores/navigation";
 import { statObject, statsPageConfig, appConfig } from "@/config/config";
 import Image from "next/image";
+import Link from "next/link";
 import { useState, useMemo, useRef, useEffect } from "react";
 import { cachedFetch, generatePageCacheKey } from "@/lib/utils/pageCache";
 import { createPortal } from "react-dom";
@@ -35,8 +36,9 @@ import { useToast } from "@/lib/hooks/useToast";
 import AllGamesModal from "@/components/stats/AllGamesModal";
 import PlayerRecentFormBoxes, { type PlayerFormRecentMatch } from "@/components/stats/PlayerRecentFormBoxes";
 import BadgeDot from "@/components/stats/BadgeDot";
-import PlayerBadgeMilestoneGrid, { type EarnedBadgeRow, type ProgressRow } from "@/components/stats/PlayerBadgeMilestoneGrid";
+import { type EarnedBadgeRow, type ProgressRow } from "@/components/stats/PlayerBadgeMilestoneGrid";
 import { selectBadgesForBar } from "@/lib/badges/evaluate";
+import { getPlayerProfileHref } from "@/lib/profile/slug";
 
 // Dynamically import OppositionMap to reduce initial bundle size (includes Google Maps)
 const OppositionMap = dynamic(() => import("@/components/maps/OppositionMap"), {
@@ -2495,6 +2497,10 @@ export default function PlayerStats() {
 		if (!badgePayload?.earned?.length) return [];
 		return selectBadgesForBar(badgePayload.earned, 5);
 	}, [badgePayload]);
+	const profileHref = useMemo(() => {
+		if (!selectedPlayer) return null;
+		return getPlayerProfileHref(selectedPlayer);
+	}, [selectedPlayer]);
 
 	/* COMMENTED OUT: Share Stats functionality - will be re-added in the future */
 	// Get available visualizations (must be before early returns)
@@ -4133,7 +4139,17 @@ export default function PlayerStats() {
 							{badgePayload && (
 								<div className='pt-2 border-t border-white/10'>
 									<p className='text-white text-xs md:text-sm mb-1'>
-										<span className='text-white/70'>Milestone badges earned: </span>
+										{profileHref ? (
+											<Link
+												href={profileHref}
+												className='text-white/70 underline underline-offset-2 hover:text-white'
+												data-testid='milestone-badges-profile-link'>
+												Milestone badges earned:
+											</Link>
+										) : (
+											<span className='text-white/70'>Milestone badges earned: </span>
+										)}
+										{" "}
 										<span className='font-bold text-dorkinians-yellow'>{badgePayload.totalBadges}</span>
 										{badgePayload.highestBadgeTier ? (
 											<span className='text-white/70'>
@@ -4142,7 +4158,6 @@ export default function PlayerStats() {
 											</span>
 										) : null}
 									</p>
-									<PlayerBadgeMilestoneGrid earned={badgePayload.earned} progress={badgePayload.progress} />
 								</div>
 							)}
 						</div>

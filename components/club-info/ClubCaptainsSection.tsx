@@ -21,7 +21,7 @@ interface CaptainData {
 
 const CAPTAINS_SELECTED_SEASON_KEY = "dorkinians-captains-selected-season";
 
-export default function ClubCaptains() {
+export default function ClubCaptainsSection({ embedded = false }: { embedded?: boolean }) {
 	const { getCachedPageData, setCachedPageData } = useNavigationStore();
 	const [seasons, setSeasons] = useState<string[]>([]);
 	const [selectedSeason, setSelectedSeason] = useState<string>("");
@@ -30,14 +30,12 @@ export default function ClubCaptains() {
 	const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null);
 	const [showPopup, setShowPopup] = useState(false);
 
-	// Helper function to compare seasons (e.g., "2022/23" vs "2023/24")
 	const compareSeasons = (season1: string, season2: string): number => {
 		const year1 = parseInt(season1.split("/")[0]);
 		const year2 = parseInt(season2.split("/")[0]);
 		return year1 - year2;
 	};
 
-	// Fetch seasons on mount and set default season
 	useEffect(() => {
 		const fetchSeasons = async () => {
 			try {
@@ -49,10 +47,9 @@ export default function ClubCaptains() {
 					setCachedPageData,
 				});
 				if (data.seasons && data.seasons.length > 0) {
-					// Filter out seasons later than current season
 					const currentSeason = getCurrentSeasonFromStorage();
 					let filteredSeasons = data.seasons;
-					
+
 					if (currentSeason) {
 						filteredSeasons = data.seasons.filter((season: string) => {
 							return compareSeasons(season, currentSeason) <= 0;
@@ -61,12 +58,10 @@ export default function ClubCaptains() {
 
 					setSeasons(filteredSeasons);
 
-					// Try to restore selected season from localStorage
 					const cachedSeason = typeof window !== "undefined" ? localStorage.getItem(CAPTAINS_SELECTED_SEASON_KEY) : null;
 					if (cachedSeason && filteredSeasons.includes(cachedSeason)) {
 						setSelectedSeason(cachedSeason);
 					} else {
-						// Default to currentSeason from localStorage, or first season
 						if (currentSeason && filteredSeasons.includes(currentSeason)) {
 							setSelectedSeason(currentSeason);
 						} else if (filteredSeasons.length > 0) {
@@ -82,14 +77,12 @@ export default function ClubCaptains() {
 		fetchSeasons();
 	}, []);
 
-	// Fetch captain data when season changes
 	useEffect(() => {
 		if (!selectedSeason) return;
 
 		const fetchCaptainsData = async () => {
 			setLoading(true);
-			
-			// Check page cache first (with 10-minute TTL)
+
 			const cacheKey = generatePageCacheKey("club-info", "club-captains", "captains-data", { season: selectedSeason });
 			const cached = getCachedPageData(cacheKey);
 			if (cached) {
@@ -98,7 +91,6 @@ export default function ClubCaptains() {
 				return;
 			}
 
-			// If not in cache, fetch from API
 			try {
 				const data = await cachedFetch(`/api/captains/data?season=${encodeURIComponent(selectedSeason)}`, {
 					method: "GET",
@@ -116,9 +108,8 @@ export default function ClubCaptains() {
 		};
 
 		fetchCaptainsData();
-	}, [selectedSeason]);
+	}, [selectedSeason, getCachedPageData, setCachedPageData]);
 
-	// Handle captain name click/hover
 	const handleCaptainClick = (captainName: string) => {
 		trackEvent(UmamiEvents.CaptainHistoryOpened, { playerName: captainName, source: "click" });
 		setSelectedPlayer(captainName);
@@ -126,7 +117,6 @@ export default function ClubCaptains() {
 	};
 
 	const handleCaptainHover = (captainName: string) => {
-		// Only show on hover for desktop (screen width >= 768px)
 		if (typeof window !== "undefined" && window.innerWidth >= 768) {
 			trackEvent(UmamiEvents.CaptainHistoryOpened, { playerName: captainName, source: "hover" });
 			setSelectedPlayer(captainName);
@@ -134,20 +124,16 @@ export default function ClubCaptains() {
 		}
 	};
 
-	const handleCaptainHoverEnd = () => {
-		// Don't close on hover end - let user click to close or use close button
-	};
+	const handleCaptainHoverEnd = () => {};
 
 	const handleClosePopup = () => {
 		setShowPopup(false);
 		setSelectedPlayer(null);
 	};
 
-	// Parse captain string to extract individual player names
 	const parseCaptains = (captainString: string | null): string[] => {
 		if (!captainString) return [];
-		
-		// Split by comma and ampersand, then trim each name
+
 		return captainString
 			.split(/[,&]/)
 			.map((name) => name.trim())
@@ -155,15 +141,18 @@ export default function ClubCaptains() {
 	};
 
 	return (
-		<div className='h-full flex flex-col overflow-hidden'>
-			<div className='flex-shrink-0 p-2 md:p-4 md:max-w-2xl md:mx-auto w-full'>
-				<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-4 text-center'>Club Captains</h2>
+		<div className={embedded ? "rounded-lg bg-white/10 backdrop-blur-sm p-3 md:p-4" : "h-full flex flex-col overflow-hidden"}>
+			<div className={embedded ? "md:max-w-2xl md:mx-auto w-full" : "flex-shrink-0 p-2 md:p-4 md:max-w-2xl md:mx-auto w-full"}>
+				{embedded ? (
+					<h3 className='text-lg md:text-xl font-semibold text-white mb-3 text-center'>Club Captains</h3>
+				) : (
+					<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-4 text-center'>Club Captains</h2>
+				)}
 
-				{/* Season Dropdown */}
 				<div className='mb-2'>
-					{(loading || seasons.length === 0) ? (
+					{loading || seasons.length === 0 ? (
 						<div className='w-[60%] md:w-full mx-auto'>
-							<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+							<SkeletonTheme baseColor='var(--skeleton-base)' highlightColor='var(--skeleton-highlight)'>
 								<Skeleton height={48} className='rounded-md' />
 							</SkeletonTheme>
 						</div>
@@ -172,7 +161,6 @@ export default function ClubCaptains() {
 							value={selectedSeason}
 							onChange={(newSeason) => {
 								setSelectedSeason(newSeason);
-								// Cache selected season to localStorage
 								if (typeof window !== "undefined") {
 									localStorage.setItem(CAPTAINS_SELECTED_SEASON_KEY, newSeason);
 								}
@@ -208,19 +196,14 @@ export default function ClubCaptains() {
 				</div>
 			</div>
 
-			{/* Scrollable Content Area */}
-			<div 
-				className='flex-1 overflow-y-auto px-6 pb-6 min-h-0'
-				style={{ WebkitOverflowScrolling: 'touch' }}>
-				{/* Loading State */}
+			<div className={embedded ? "px-0 pb-0" : "flex-1 overflow-y-auto px-6 pb-6 min-h-0"} style={{ WebkitOverflowScrolling: "touch" }}>
 				{(loading || appConfig.forceSkeletonView) && (
-					<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+					<SkeletonTheme baseColor='var(--skeleton-base)' highlightColor='var(--skeleton-highlight)'>
 						<CaptainsTableSkeleton />
 					</SkeletonTheme>
 				)}
 
-				{/* Captains Table */}
-				{!loading && !appConfig.forceSkeletonView && captainsData.filter(item => item.captain).length > 0 && (
+				{!loading && !appConfig.forceSkeletonView && captainsData.filter((item) => item.captain).length > 0 && (
 					<div className='overflow-x-auto'>
 						<table className='w-full bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden'>
 							<thead className='sticky top-0 z-10'>
@@ -230,43 +213,43 @@ export default function ClubCaptains() {
 								</tr>
 							</thead>
 							<tbody>
-								{captainsData.filter(item => item.captain).map((item, index) => (
-									<tr key={index} className='border-b border-white/10 hover:bg-white/5 transition-colors'>
-										<td className='px-2 md:px-4 py-2 md:py-3 text-white text-xs md:text-sm'>{item.team}</td>
-										<td className='px-2 md:px-4 py-2 md:py-3'>
-											{item.captain ? (
-												<div className='flex flex-wrap gap-1 md:gap-2'>
-													{parseCaptains(item.captain).map((playerName, playerIndex, players) => (
-														<span key={playerIndex} className='inline-flex items-center'>
-															<button
-																onClick={() => handleCaptainClick(playerName)}
-																onMouseEnter={() => handleCaptainHover(playerName)}
-																onMouseLeave={handleCaptainHoverEnd}
-																onTouchStart={() => handleCaptainClick(playerName)}
-																className='text-white text-xs md:text-sm underline hover:text-dorkinians-yellow transition-colors cursor-pointer'
-															>
-																{playerName}
-															</button>
-															{playerIndex < players.length - 1 && (
-																<span className='text-white/70 text-xs md:text-sm pl-1'>
-																	{playerIndex === players.length - 2 ? " & " : ", "}
-																</span>
-															)}
-														</span>
-													))}
-												</div>
-											) : (
-												<span className='text-white/50 text-xs md:text-sm'>-</span>
-											)}
-										</td>
-									</tr>
-								))}
+								{captainsData
+									.filter((item) => item.captain)
+									.map((item, index) => (
+										<tr key={index} className='border-b border-white/10 hover:bg-white/5 transition-colors'>
+											<td className='px-2 md:px-4 py-2 md:py-3 text-white text-xs md:text-sm'>{item.team}</td>
+											<td className='px-2 md:px-4 py-2 md:py-3'>
+												{item.captain ? (
+													<div className='flex flex-wrap gap-1 md:gap-2'>
+														{parseCaptains(item.captain).map((playerName, playerIndex, players) => (
+															<span key={playerIndex} className='inline-flex items-center'>
+																<button
+																	onClick={() => handleCaptainClick(playerName)}
+																	onMouseEnter={() => handleCaptainHover(playerName)}
+																	onMouseLeave={handleCaptainHoverEnd}
+																	onTouchStart={() => handleCaptainClick(playerName)}
+																	className='text-white text-xs md:text-sm underline hover:text-dorkinians-yellow transition-colors cursor-pointer'>
+																	{playerName}
+																</button>
+																{playerIndex < players.length - 1 && (
+																	<span className='text-white/70 text-xs md:text-sm pl-1'>
+																		{playerIndex === players.length - 2 ? " & " : ", "}
+																	</span>
+																)}
+															</span>
+														))}
+													</div>
+												) : (
+													<span className='text-white/50 text-xs md:text-sm'>-</span>
+												)}
+											</td>
+										</tr>
+									))}
 							</tbody>
 						</table>
 					</div>
 				)}
 
-				{/* No Data Message */}
 				{!loading && !appConfig.forceSkeletonView && captainsData.length === 0 && selectedSeason && (
 					<div className='text-center mt-8'>
 						<p className='text-sm md:text-base text-gray-300'>No captain data available for {selectedSeason}.</p>
@@ -274,7 +257,6 @@ export default function ClubCaptains() {
 				)}
 			</div>
 
-			{/* Captain History Popup */}
 			{showPopup && selectedPlayer && <CaptainHistoryPopup playerName={selectedPlayer} onClose={handleClosePopup} />}
 		</div>
 	);

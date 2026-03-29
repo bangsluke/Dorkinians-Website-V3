@@ -2,9 +2,9 @@
 
 **Purpose:** Running log of what is implemented vs still to do for the plan in **`NEW-FEATURES.md`** (same folder). Use this when resuming work across sessions. The plan file remains the detailed spec; this file is the checklist.
 
-**Last updated:** 2026-03-28
+**Last updated:** 2026-03-29
 
-**Current milestone:** ✅ Feature 9 Achievement badges (first cut) — DB seed writes `PlayerBadge` + Player fields; site APIs + Player Stats bar/grid + Club Awards leaderboard; run **full re-seed** so badges exist in Neo4j
+**Current milestone:** ✅ Feature 12 Records on Club Information (website first cut) — Records moved above Milestones on Club Information and removed from merged Club Captains and Awards page; focused E2E coverage updated
 
 **Database repo:** When this website repo sits next to the seeding service, paths below use **`../database-dorkinians/`**. If you only have the database clone, open the copy of this file from the website repo or maintain a short pointer there.
 
@@ -98,7 +98,7 @@
 |------|--------|
 | **Data layer (`../database-dorkinians/`)** | `config/schema.js` — `ClubRecord` node + constraint; `services/clubRecordsComputation.js` — individual + team records, 80% challenger flags (appearances, career goals, active scoring/appearance streaks); `relationshipManager.applyClubRecords()`; `seedingOrchestrator` runs it after `applyFoundationDerivedAggregates()`. |
 | **Tests (DB)** | `npm run test:club-records` — unit tests for slugify / team streak helper. |
-| **Website** | `GET /api/club-records`; `components/club-info/RecordsSection.tsx` under awards; page title **Club Awards and Records** (sidebar, settings, `ClubAwards` h2). |
+| **Website** | `GET /api/club-records`; `components/club-info/RecordsSection.tsx` (initially under awards, moved in Feature 12 to Club Information above Milestones). |
 | **Tests (site)** | Playwright `5.29`–`5.30` — Records section + optional holder → Player Stats navigation when data exists. |
 
 ### Graph insights (Feature 7)
@@ -130,8 +130,36 @@
 |------|--------|
 | **Data layer (`../database-dorkinians/`)** | `config/schema.js` — `PlayerBadge`, `HAS_BADGE`, extra `Player` fields; `services/badgeDefinitions.js`, `badgeComputation.js`, `playerBadgesComputation.js`; `relationshipManager.applyPlayerBadges()`; `seedingOrchestrator` runs it after `applyGraphInsights()`. |
 | **Tests (DB)** | `npm run test:badges` — `services/badgeComputation.test.js`. |
-| **Website** | `GET /api/player-badges?playerName=` — earned badges + progress; `GET /api/club-badge-leaderboard` — most badges / diamond / gold; `lib/badges/catalog.ts` (keep in sync with DB catalogue), `evaluate.ts`, `neo4jProps.ts`; `PlayerStats` — badge bar (`data-testid="player-badge-bar"`), milestone grid under Captaincies (`player-badge-milestones`); `BadgeLeaderboardSection` on Club Awards and Records. |
+| **Website** | `GET /api/player-badges?playerName=` — earned badges + progress; `GET /api/club-badge-leaderboard` — most badges / diamond / gold; `lib/badges/catalog.ts` (keep in sync with DB catalogue), `evaluate.ts`, `neo4jProps.ts`; `PlayerStats` — badge bar (`data-testid="player-badge-bar"`); milestone grid now lives on Player Profile (Feature 10); `BadgeLeaderboardSection` on Club Captains and Awards. |
 | **Tests (site)** | Jest: `__tests__/unit/badges/parseBadgeId.test.ts`; Playwright: `5.31` (club badge leaderboard), `3.26` (player milestones, skips until seed). |
+
+### Player Profile + Captaincies link (Feature 10)
+
+| Area | Notes |
+|------|--------|
+| **Routes / UI** | Added `app/profile/[playerSlug]/page.tsx` + `components/profile/PlayerProfileView.tsx`; profile shows player header + badge bar, **Season Wrapped** section first, **Milestone badges** section second, then headline stat cards. |
+| **Linking / slug** | Added `lib/profile/slug.ts`; Player Stats Captaincies/Awards section now renders underlined link `data-testid="milestone-badges-profile-link"` for **Milestone badges earned** to the current player profile. |
+| **Player Stats change** | Removed in-place milestone grid from Player Stats achievements section (moved to Player Profile per plan). |
+| **Tests** | Jest unit: `__tests__/unit/profile/slug.test.ts`; Playwright `3.26` updated to verify link navigation + profile section order. |
+
+### Club Captains and Awards (Feature 11)
+
+| Area | Notes |
+|------|--------|
+| **Merged page** | Added `components/club-info/ClubCaptainsAndAwards.tsx` and switched Club Info subpage `club-awards` to render a single merged screen titled **Club Captains and Awards**. |
+| **Content preservation** | `ClubCaptains` and `ClubAwards` now support `embedded` mode and are rendered together on the merged page, preserving captains table/history popup + awards/badge leaderboard content (Records moved in Feature 12). |
+| **Navigation updates** | Removed separate Club Captains entry from sidebar + settings navigation trees (`app/settings` and in-app `components/pages/Settings`) and renamed the remaining entry to **Club Captains and Awards**. |
+| **Compatibility mapping** | Added canonical mapping in `lib/stores/navigation.ts` and E2E helper aliasing so persisted/legacy `club-captains` state resolves to merged `club-awards` subpage. |
+| **Tests** | Updated Club Info E2E expectations/helpers to target merged heading and new subpage indexing; no new route-level redirects needed because Club Info subpages are state-driven, not separate URLs. |
+
+### Records on Club Information (Feature 12)
+
+| Area | Notes |
+|------|--------|
+| **UI placement** | Moved `RecordsSection` from the awards section component (renamed to `components/club-info/ClubAwardsSection.tsx`) into `components/club-info/ClubInformation.tsx`, inserted directly above the Milestones block. |
+| **Merged page cleanup** | Club Captains and Awards no longer renders the Records block; awards + badge leaderboard remain in place. |
+| **Tests** | Updated Club Info E2E: `5.29` now verifies Records on Club Information and checks Records appears above Milestones; `5.31` asserts Records is absent from Club Captains and Awards. Also tightened Club Captains heading selectors (`^Club Captains$`) to avoid strict-mode ambiguity after merged-page heading changes. |
+| **Verification run** | Focused Chromium Playwright run for `5.16`, `5.20`, `5.21`, `5.29`, `5.30`, `5.31`: 4 passed, 2 skipped (data-dependent skips retained in test logic). |
 
 ### Optional foundation gap (non-blocking)
 
@@ -154,6 +182,25 @@
 ### Badges
 
 - ✅ Feature 9 initial delivery (see **Completed → Achievement badges**). Optional later: chatbot badge phrasing, “recently unlocked” spotlight, richer badge icons.
+
+### New Requests Round 2 (in progress)
+
+Spec source: **`NEW-FEATURES.md` Phase 6 (Features 10-19)** (migrated from `New-Features-2.md`). Implement in order there; each item below lists **required tests** to add or extend when building.
+
+**CI / merge policy (Feature 17):** Gate merges to **`main`** on **≥ 90% automated test pass rate** in CI (`passed / (passed + failed)`, excluding skipped — align with workflow definition in repo). Dev pipeline: run **E2E on push to Dev** as specified in Phase 6.
+
+| Feature | Summary | Tests to add or update |
+|--------|---------|-------------------------|
+| **10** — Player Profile + Captaincies link | ✅ Website first cut done: profile route + section order + stats link migration | Follow-up: add/confirm integration coverage if dedicated profile API is introduced later |
+| **11** — Club Captains and Awards | ✅ Website first cut done: merged page + single nav entry + legacy subpage-state mapping | Follow-up: run full Club Info Playwright flow against seeded env and decide if route-level redirects are required in any future URL-based routing |
+| **12** — Records on Club Information | ✅ Website first cut done: Records moved to Club Information above Milestones; removed from merged captains/awards page | Follow-up: run full Club Info Playwright suite on seeded env to convert remaining data-dependent skips into hard assertions where possible |
+| **13** — Home header profile icon | Profile icon left of settings when player selected on home → Player Profile | Playwright: icon visibility + navigation |
+| **14** — Most Connected | Player Stats: top 5 connections to selected player | Jest: sort/limit; integration: API; Playwright: section + data when seeded |
+| **15** — TOTW previous 10 weeks | 10 score boxes + week labels; click → that week’s TOTW | Playwright: strip + navigation |
+| **16** — TOTW Share | Share/download WhatsApp-friendly image of current TOTW | Playwright: control present, no crash; Jest: constants if extracted |
+| **17** — Dev branding + CI | `dev-icon-192x192`, “Dev” in homepage header on dev deploy; E2E on Dev push; **≥90% pass rate** for `main` | Playwright (dev env smoke): Dev label + icon; document/verify workflow YAML |
+| **18** — VEO LINK on fixtures | Sheets column **VEO LINK** → DB `Fixture` (or agreed) → website APIs | DB: import/integration test; website: API integration test for `veoLink` |
+| **19** — League Latest Result + modal parity | Per-team Latest Result card, formation dots + rating tooltips, Veo button, full player table; same expansion in Show Results modal | Jest: formatters; integration: combined fixture API; Playwright: league + modal flows |
 
 ---
 

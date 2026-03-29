@@ -53,8 +53,7 @@ const navigationItems = [
 		subPages: [
 			{ id: "club-information", label: "Club Information" },
 			{ id: "league-information", label: "League Information" },
-			{ id: "club-captains", label: "Club Captains" },
-			{ id: "club-awards", label: "Club Awards and Records" },
+			{ id: "club-awards", label: "Club Captains and Awards" },
 			{ id: "useful-links", label: "Useful Links" },
 		],
 	},

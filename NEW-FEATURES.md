@@ -37,6 +37,8 @@
 - Club Info page with sub-pages: Club Information, League Information, Club Captains, Club Awards, Useful Links
 - Settings page
 
+**Planned (Phase 6 — New Requests Round 2):** Dedicated **Player Profile** page; **Club Captains and Awards** (merged captains + awards pages); **Records** moved to Club Information above Milestones; fixtures **VEO LINK**; TOTW history strip + share; dev branding and CI gates — see Phase 6 below.
+
 **Design system:** Dark olive-to-warm-gold gradient background. Semi-transparent card sections (`background: rgba(30,35,25,0.7)`) with subtle white borders (`border: 1px solid rgba(255,255,255,0.08)`). White bold section headers. Muted secondary text (`rgba(255,255,255,0.4-0.5)`). Yellow `#E8C547` as primary accent colour. Green `#5DCAA5` for positive indicators. The site is mobile-first.
 
 **Existing stat calculations already in the system:** goals per appearance, conceded per appearance, minutes per goal, minutes per clean sheet, FTP per appearance, games % won, home/away win splits, most common position, most played for team, most prolific season.
@@ -1365,6 +1367,169 @@ multiTeamSeasons: // COUNT of seasons where player appeared for 2+ teams with 10
 
 ---
 
+## Phase 6: New Requests Round 2
+
+These items come from `New-Features-2.md`. Implement after Phase 5 (Feature 9) unless a dependency note says otherwise. Run the full test suite after each feature.
+
+---
+
+### Feature 10: Player Profile page and Captaincies link
+
+**What:**
+
+1. New **Player Profile** route (dedicated page, not only Player Stats) showing a career summary: achievement badges, all-time headline stats (goals, assists, cards, appearances, and other relevant aggregates already on `Player` or easy to derive).
+2. **Section order on Player Profile:** (1) **Season Wrapped** entry point / banner first; (2) **Milestone badges** second (content moved from Player Stats — see below).
+3. On **Player Stats** → Captaincies, Awards and Achievements: **remove** the milestone badges block from that section. Keep the text **“Milestone badges earned”** in place, **underlined**, as a **link** to the Player Profile page for the current player (same player context as stats).
+
+**Where to change (V3-dorkinians-website):** New `app/...` route for profile (align URL pattern with existing player slug/name usage, e.g. mirror `/wrapped/[playerSlug]` or stats deep links). Reuse badge APIs/components (`player-badges`, badge bar/grid patterns). Move or extract milestone UI so it lives on the profile page first.
+
+**Dependencies:** Feature 9 (badges data). Season Wrapped route/banner component from Feature 8.
+
+**Tests to write:**
+
+- **Unit tests (Jest):** URL/slug helper for profile link matches player selected on Stats (if shared util).
+- **Integration test (Jest):** Profile page data fetch returns expected shape for a known player (if using a dedicated API route).
+- **E2E (Playwright):** Open Player Stats → click “Milestone badges earned” → lands on Player Profile with milestones visible. On Player Profile, Season Wrapped appears above milestone section. Player Profile shows badges + headline stats.
+
+---
+
+### Feature 11: Merge Club Captains and Club Awards into “Club Captains and Awards”
+
+**What:** Combine the **Club Captains** and **Club Awards and Records** sub-pages into one page titled **Club Captains and Awards**. Single nav entry; preserve existing content sections (captains + awards) in a sensible order (e.g. captains then awards, or as designed).
+
+**Where to change (V3-dorkinians-website):** Club Info routing, sidebar/tabs, Settings navigation tree, any deep links to old paths (redirects from old URLs if bookmarked).
+
+**Dependencies:** Feature 6/9 UI that lived under Club Awards (records leaderboard, etc.) — ensure merged page still hosts awards + badge leaderboard until Feature 12 moves Records.
+
+**Tests to write:**
+
+- **E2E (Playwright):** Navigate Club Info → single “Club Captains and Awards” entry; both captains and awards content reachable; old routes redirect or 404 as agreed.
+
+---
+
+### Feature 12: Move Records to Club Information (above Milestones)
+
+**What:** Remove the **Records** section from the merged Club Captains and Awards page (after Feature 11). Add **Records** on **Club Information** **above** the **Milestones** section.
+
+**Where to change (V3-dorkinians-website):** `RecordsSection` (or equivalent) placement; Club Information page layout order.
+
+**Dependencies:** Feature 11 (merged captains/awards page must no longer be the sole home for records).
+
+**Tests to write:**
+
+- **E2E (Playwright):** Club Information shows Records above Milestones; Club Captains and Awards page has no Records block (awards/badge leaderboard remain as specified).
+
+---
+
+### Feature 13: Home header profile icon → Player Profile
+
+**What:** When a player is selected on the **home** page, show a **profile icon** in the header **to the left of** the settings icon. Clicking it navigates to the **Player Profile** page for that player.
+
+**Where to change (V3-dorkinians-website):** Header/layout component used on home; home player selection state (Zustand or existing store).
+
+**Dependencies:** Feature 10 (Player Profile route).
+
+**Tests to write:**
+
+- **E2E (Playwright):** Select player on home → icon visible → click → Player Profile for that player. No selection → icon hidden or disabled per UX decision (document in implementation).
+
+---
+
+### Feature 14: Player Stats — “Most Connected” (top 5)
+
+**What:** New **Most Connected** section on **Player Stats**: top **5** players with the strongest connection to the selected player (use existing `PLAYED_WITH` / `timesPlayed` or graph fields from Feature 7; define sort: e.g. by `timesPlayed` descending).
+
+**Where to change (V3-dorkinians-website):** Extend `player-data` / `player-data-filtered` or add a small API if query is heavy; `PlayerStats` UI section with stable section id for E2E.
+
+**Dependencies:** Feature 7 partnership data (or equivalent Cypher) available for the selected player.
+
+**Tests to write:**
+
+- **Unit tests (Jest):** Sort/limit helper returns at most 5, stable ordering tie-break.
+- **Integration test (Jest):** API returns 5 or fewer names with connection counts for a fixture player.
+- **E2E (Playwright):** Most Connected section visible; names/counts match seeded scenario if test DB available.
+
+---
+
+### Feature 15: Team of the Week — previous 10 weeks score strip
+
+**What:** Below the current TOTW graphic, render **10** boxes: **previous 10** teams-of-the-week **total scores**, **week number** under each. Clicking a box navigates to the TOTW view for **that week**.
+
+**Where to change (V3-dorkinians-website):** TOTW page/components; API or query for weekly totals and week identifiers (align with `WeeklyTOTW` / existing week routing).
+
+**Tests to write:**
+
+- **E2E (Playwright):** 10 boxes render; click week N → URL or content reflects week N; current week excluded from “previous 10” as specified.
+
+---
+
+### Feature 16: Team of the Week — Share (WhatsApp-friendly image)
+
+**What:** **Share** control at the **bottom** of the TOTW page: generate a **graphic** of the **current** team of the week and share via **Web Share API** where available; optimise for **WhatsApp** (PNG dimensions/compression, readable text). Fallback: download image (same pattern as Season Wrapped `html-to-image`).
+
+**Where to change (V3-dorkinians-website):** TOTW page; optional shared util with wrapped share.
+
+**Tests to write:**
+
+- **Unit tests (Jest):** Filename / MIME / dimensions constants if extracted.
+- **E2E (Playwright):** Share button present; triggering does not error (do not assert native share dialog); optional: verify download attribute in fallback path.
+
+---
+
+### Feature 17: Dev deploy branding and CI gates
+
+**What:**
+
+1. **Dev** deployment uses a distinct **iOS / PWA icon** — asset **`dev-icon-192x192`** (path under `public/` as implemented).
+2. **Dev** build shows **“Dev”** in the **homepage header** bar (environment-based, e.g. `NEXT_PUBLIC_*` or Netlify `CONTEXT`).
+3. **E2E tests run on push** to the **Dev** branch/deploy pipeline (same suite as main or Dev subset — document which).
+4. **Merge/push to `main` gated:** CI must report **≥ 90% automated test pass rate** before merge is allowed (pass-rate gate, not coverage threshold).
+
+**Where to change:** `V3-dorkinians-website` — `next.config`, `app/manifest` or metadata icons, header component, GitHub Actions / Netlify config (whichever applies in repo). Document exact job names and pass-rate calculation (e.g. `passed / (passed + failed)` excluding skipped).
+
+**Tests to write:**
+
+- **E2E (Playwright):** On Dev-like env, header contains “Dev” and favicon/manifest link includes dev icon (smoke). CI: workflow YAML validated by dry-run or documented checklist.
+
+---
+
+### Feature 18: Fixtures — “VEO LINK” from Google Sheets
+
+**What:** New Google Sheets column **VEO LINK** on fixtures data: ingest in **`database-dorkinians`** (schema + CSV mapping), persist on **`Fixture`** (or equivalent), expose via website API for any consumer (League Info, Show Results, etc.).
+
+**Where to change:** `database-dorkinians/config/schema.js`, fixture import pipeline; website fixture APIs and types.
+
+**Dependencies:** None for schema; required before Feature 19 Veo button.
+
+**Tests to write:**
+
+- **Unit/integration (DB repo):** Import row with `VEO LINK` → property stored after seed.
+- **Integration (Jest, website):** Fixture API returns `veoLink` (or agreed field name) when present.
+
+---
+
+### Feature 19: League Information — Latest Result + formation + Show Results parity
+
+**What:**
+
+1. **League Information:** Below **each** team’s **league table**, add subheading **Latest Result**. Under it: a **card** with match details — **date, score, goalscorers, MoM** (match collapsed-card style from **Show Results** modal).
+2. Below the card: **formation** as **dots** with **player names** and **match ratings**; **click dot** → **tooltip** with **match rating** and **rating breakdown** (reuse match-rating decomposition rules from foundation).
+3. If **VEO LINK** exists: **“Watch on Veo”** opens link in **new tab**.
+4. **“Show full player details”** expands to the **per-player match table** (same as Show Results modal).
+5. **Show Results modal:** Same behaviour — expandable cards with formation, optional Veo link, and **“Show full player details”** toggling full table.
+
+**Where to change (V3-dorkinians-website):** League Information components, Show Results modal + shared subcomponents; may need `fixture-lineup` or new API combining `Fixture`, `MatchDetail`, `veoLink`.
+
+**Dependencies:** Feature 18 (`veoLink`); Phase 1 match ratings / formation inference on fixtures.
+
+**Tests to write:**
+
+- **Unit tests (Jest):** Tooltip payload shape; breakdown text formatter.
+- **Integration test (Jest):** API returns lineup + ratings + veoLink for latest fixture per team.
+- **E2E (Playwright):** League page shows Latest Result + formation; Veo button when link present; expand full details; modal parity smoke.
+
+---
+
 ## Implementation order summary
 
 | Phase | Features | Repo | Depends on |
@@ -1374,5 +1539,6 @@ multiTeamSeasons: // COUNT of seasons where player appeared for 2+ teams with 10
 | 3 | Feature 6 (records wall), Feature 7 (graph insights) | Both repos | Phase 2 (streak records feed into records wall) |
 | 4 | Feature 8 (Season Wrapped) | V3-dorkinians-website | Phases 1-3 (uses per-90, streaks, partnerships, match ratings) |
 | 5 | Feature 9 (achievement badges) | Both repos | Phases 1-3 (uses streaks, per-90, match ratings) |
+| 6 | Features 10-19 (New Requests Round 2) | Both repos (18 + seeding) | Phase 5 for 10; Phase 7 data for 14; Phase 1 + 18 for 19 |
 
 Within each phase, implement features in the order listed. Run the full test suite after each feature before moving to the next.

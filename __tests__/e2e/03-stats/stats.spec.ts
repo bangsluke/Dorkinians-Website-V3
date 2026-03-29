@@ -638,19 +638,29 @@ test.describe("Stats Page Tests", () => {
 		await expect(page.getByRole("heading", { name: /^Impact$/i })).toBeVisible({ timeout: 8000 });
 	});
 
-	test("3.26. Player milestone badges grid when badge data is available", async ({ page }) => {
+	test("3.26. Milestone badges link opens Player Profile with required section order", async ({ page }) => {
 		await openStatsFromHome(page);
 		if (await page.getByRole("heading", { name: /No player data available/i }).first().isVisible({ timeout: 2500 }).catch(() => false)) {
-			test.skip(true, "No player data — skipping badge milestones.");
+			test.skip(true, "No player data — skipping profile milestone navigation.");
 			return;
 		}
 		await page.locator("#captaincies-awards-and-achievements").scrollIntoViewIfNeeded().catch(() => {});
-		const milestones = page.getByTestId("player-badge-milestones");
-		if (!(await milestones.isVisible({ timeout: 15000 }).catch(() => false))) {
-			test.skip(true, "Badge milestones not visible — run full seed with Feature 9 or check /api/player-badges.");
+		const profileLink = page.getByTestId("milestone-badges-profile-link");
+		if (!(await profileLink.isVisible({ timeout: 15000 }).catch(() => false))) {
+			test.skip(true, "Milestone profile link not visible — run full seed with Feature 9 or check /api/player-badges.");
 			return;
 		}
-		await expect(milestones.getByText(/^Milestone badges$/i)).toBeVisible({ timeout: 8000 });
+		await profileLink.click();
+		await expect(page.getByTestId("player-profile-page")).toBeVisible({ timeout: 15000 });
+
+		const wrapped = page.getByTestId("player-profile-season-wrapped");
+		const milestones = page.getByTestId("player-profile-milestones");
+		await expect(wrapped).toBeVisible({ timeout: 8000 });
+		await expect(milestones).toBeVisible({ timeout: 8000 });
+
+		const wrappedTop = await wrapped.evaluate((el) => el.getBoundingClientRect().top);
+		const milestonesTop = await milestones.evaluate((el) => el.getBoundingClientRect().top);
+		expect(wrappedTop).toBeLessThan(milestonesTop);
 	});
 
 	test("3.27. Team formations subtitle and recommendation", async ({ page }) => {
