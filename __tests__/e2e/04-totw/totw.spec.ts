@@ -336,4 +336,57 @@ test.describe("TOTW Page Tests", () => {
 		const seasonSection = page.locator("div").filter({ has: page.getByRole("heading", { name: "This Season FTP Ranking" }) }).first();
 		await expect(seasonSection.getByRole("cell", { name: topName })).toBeVisible({ timeout: 15000 });
 	});
+
+	test("4.14. previous 10 week strip renders and box click changes TOTW week", async ({ page }, testInfo) => {
+		const mobile = isMobileProject(testInfo);
+		if (mobile) test.skip(true, "Mobile TOTW UI/data is not stable enough for deterministic strip assertions.");
+
+		await navigateToMainPage(page, "totw");
+		await waitForTotwSkeletonsGone(page);
+
+		const strip = page.getByTestId("totw-previous-weeks-strip");
+		if (!(await strip.isVisible({ timeout: 15000 }).catch(() => false))) {
+			test.skip(true, "Previous 10 strip not visible (insufficient week history or non-week view).");
+			return;
+		}
+
+		const boxes = strip.getByTestId("totw-previous-week-box");
+		const count = await boxes.count();
+		if (count === 0) {
+			test.skip(true, "Previous 10 strip has no week boxes.");
+			return;
+		}
+		expect(count).toBeLessThanOrEqual(10);
+
+		const firstBox = boxes.first();
+		const targetWeek = await firstBox.getAttribute("data-week-target");
+		if (!targetWeek) {
+			test.skip(true, "Week target attribute missing on previous-week box.");
+			return;
+		}
+
+		await firstBox.click({ timeout: 10000 });
+		await waitForTotwSkeletonsGone(page);
+		await expect(page.getByTestId("totw-week-selector")).toContainText(`Week ${targetWeek}`, { timeout: 20000 });
+	});
+
+	test("4.15. TOTW share button is visible and can be triggered safely", async ({ page }, testInfo) => {
+		const mobile = isMobileProject(testInfo);
+		if (mobile) test.skip(true, "Mobile TOTW UI/data is not stable enough for deterministic share assertions.");
+
+		await navigateToMainPage(page, "totw");
+		await waitForTotwSkeletonsGone(page);
+
+		const shareButton = page.getByTestId("totw-share-button");
+		if (!(await shareButton.isVisible({ timeout: 15000 }).catch(() => false))) {
+			test.skip(true, "Share button not visible (no active TOTW payload available).");
+			return;
+		}
+
+		await shareButton.click({ timeout: 10000 });
+		await expect(page.getByRole("heading", { name: /Team of the Week|Team of the Season|Team of All Time/i })).toBeVisible({
+			timeout: 15000,
+		});
+		await expect(shareButton).toBeVisible({ timeout: 5000 });
+	});
 });

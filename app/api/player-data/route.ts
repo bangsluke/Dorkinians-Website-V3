@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neo4jService } from "@/lib/neo4j";
 import { getCorsHeadersWithSecurity } from "@/lib/utils/securityHeaders";
+import { buildMostConnectedListFromPartnershipsJson } from "@/lib/stats/mostConnected";
 
 const corsHeaders = getCorsHeadersWithSecurity();
 
@@ -179,6 +180,7 @@ export function mapPlayerGraphInsightFieldsFromRecord(record: { get: (key: strin
 	const bm = nullableNum("bestPartnerMatches");
 	const jsonRaw = record.get("partnershipsTopJson");
 	const partnershipsTopJson = jsonRaw != null && String(jsonRaw).trim() !== "" ? String(jsonRaw) : null;
+	const mostConnected = buildMostConnectedListFromPartnershipsJson(partnershipsTopJson, 5);
 	const graphInsightsBestPartnerDisplay =
 		bestPartnerName != null && wr != null && bm != null
 			? `${bestPartnerName} (${Math.round(wr * 10) / 10}% in ${Math.round(bm)} games)`
@@ -200,6 +202,7 @@ export function mapPlayerGraphInsightFieldsFromRecord(record: { get: (key: strin
 		bestPartnerWinRate: wr,
 		bestPartnerMatches: bm != null ? Math.round(bm) : null,
 		partnershipsTopJson,
+		mostConnected,
 		graphInsightsBestPartnerDisplay,
 		impactDelta: nullableNum("impactDelta"),
 		impactWinRateWith: irWith,

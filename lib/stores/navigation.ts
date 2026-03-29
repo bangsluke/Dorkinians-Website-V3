@@ -149,6 +149,7 @@ export interface PlayerData {
 	bestPartnerWinRate?: number | null;
 	bestPartnerMatches?: number | null;
 	partnershipsTopJson?: string | null;
+	mostConnected?: Array<{ name: string; timesPlayed: number; winRate: number | null }>;
 	graphInsightsBestPartnerDisplay?: string | null;
 	impactDelta?: number | null;
 	impactWinRateWith?: number | null;

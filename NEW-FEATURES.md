@@ -68,6 +68,7 @@ playerOrder: { type: 'integer', required: false }  // 1-based position in the ca
 ```
 
 **Edge cases to handle:**
+
 - If a fixture has exactly 11 players, all are starters (no subs)
 - If a fixture has fewer than 11 players, all listed players are starters
 - The `playerOrder` field preserves the original ordering for debugging
@@ -100,26 +101,26 @@ inferredFormation: { type: 'string', required: false }
 
 ```js
 function inferFormation(starterClasses) {
-  // starterClasses is an array of 'class' values for the 11 starters
-  const counts = { DEF: 0, MID: 0, FWD: 0 };
-  starterClasses.forEach(cls => {
-    if (cls !== 'GK' && counts[cls] !== undefined) counts[cls]++;
-  });
-  return `${counts.DEF}-${counts.MID}-${counts.FWD}`;
+	// starterClasses is an array of 'class' values for the 11 starters
+	const counts = { DEF: 0, MID: 0, FWD: 0 };
+	starterClasses.forEach((cls) => {
+		if (cls !== "GK" && counts[cls] !== undefined) counts[cls]++;
+	});
+	return `${counts.DEF}-${counts.MID}-${counts.FWD}`;
 }
 ```
 
 **Where to display (V3-dorkinians-website):**
 
-| New stat | Display location | Section |
-|---|---|---|
-| Starts count, sub count, start rate | Player Stats page | Key Performance Stats cards (add "Starts: 187/235 (80%)" card) |
-| Win rate when starting vs from bench | Player Stats page | New "Starting Impact" section after Match Results |
-| Most starts (per team) | Team Stats page | Add as option in Top Players dropdown |
-| Formation frequency + win rate per formation | Team Stats page | New "Tactical Overview" section after Key Performance Stats |
-| Formation usage over seasons | Team Stats page | Add "Formation" as metric option in Seasonal Performance chart dropdown |
-| started, startRate | Player Stats data table | New rows |
-| "How many times have I started?" | Chatbot | New question pattern |
+| New stat                                     | Display location        | Section                                                                 |
+| -------------------------------------------- | ----------------------- | ----------------------------------------------------------------------- |
+| Starts count, sub count, start rate          | Player Stats page       | Key Performance Stats cards (add "Starts: 187/235 (80%)" card)          |
+| Win rate when starting vs from bench         | Player Stats page       | New "Starting Impact" section after Match Results                       |
+| Most starts (per team)                       | Team Stats page         | Add as option in Top Players dropdown                                   |
+| Formation frequency + win rate per formation | Team Stats page         | New "Tactical Overview" section after Key Performance Stats             |
+| Formation usage over seasons                 | Team Stats page         | Add "Formation" as metric option in Seasonal Performance chart dropdown |
+| started, startRate                           | Player Stats data table | New rows                                                                |
+| "How many times have I started?"             | Chatbot                 | New question pattern                                                    |
 
 **Tests to write:**
 
@@ -156,60 +157,74 @@ matchesRated8Plus: { type: 'integer', required: false }
 
 ```js
 function calculateMatchRating(matchDetail) {
-  const { minutes, goals, assists, mom, cleanSheets, saves, yellowCards, redCards, ownGoals, conceded, penaltiesScored, penaltiesMissed, penaltiesSaved } = matchDetail;
-  const pos = matchDetail.class; // 'GK', 'DEF', 'MID', 'FWD'
-  
-  let rating = 6.0;
-  
-  // Minutes bonus
-  if (minutes >= 60) rating += 0.5;
-  else if (minutes > 0) rating += 0.2;
-  
-  // Goals (position-weighted - rarer positions get higher bonus)
-  const goalBonus = { GK: 1.5, DEF: 1.8, MID: 1.5, FWD: 1.2 };
-  rating += (goals || 0) * (goalBonus[pos] || 1.2);
-  
-  // Assists
-  rating += (assists || 0) * 1.0;
-  
-  // Man of the Match
-  rating += (mom || 0) * 1.0;
-  
-  // Clean sheet (only GK and DEF get significant bonus)
-  const csBonus = { GK: 1.5, DEF: 1.2, MID: 0.3, FWD: 0 };
-  rating += (cleanSheets || 0) * (csBonus[pos] || 0);
-  
-  // Saves (GK only)
-  if (pos === 'GK') rating += (saves || 0) * 0.3;
-  
-  // Penalty saved (GK only)
-  if (pos === 'GK') rating += (penaltiesSaved || 0) * 2.0;
-  
-  // Negative events
-  rating -= (yellowCards || 0) * 0.5;
-  rating -= (redCards || 0) * 1.5;
-  rating -= (ownGoals || 0) * 1.0;
-  rating -= (penaltiesMissed || 0) * 0.8;
-  
-  // Goals conceded penalty (GK and DEF only, per 2 conceded)
-  if (pos === 'GK' || pos === 'DEF') {
-    rating -= Math.floor((conceded || 0) / 2) * 0.5;
-  }
-  
-  // Clamp to [1.0, 10.0]
-  return Math.round(Math.max(1.0, Math.min(10.0, rating)) * 10) / 10;
+	const {
+		minutes,
+		goals,
+		assists,
+		mom,
+		cleanSheets,
+		saves,
+		yellowCards,
+		redCards,
+		ownGoals,
+		conceded,
+		penaltiesScored,
+		penaltiesMissed,
+		penaltiesSaved,
+	} = matchDetail;
+	const pos = matchDetail.class; // 'GK', 'DEF', 'MID', 'FWD'
+
+	let rating = 6.0;
+
+	// Minutes bonus
+	if (minutes >= 60) rating += 0.5;
+	else if (minutes > 0) rating += 0.2;
+
+	// Goals (position-weighted - rarer positions get higher bonus)
+	const goalBonus = { GK: 1.5, DEF: 1.8, MID: 1.5, FWD: 1.2 };
+	rating += (goals || 0) * (goalBonus[pos] || 1.2);
+
+	// Assists
+	rating += (assists || 0) * 1.0;
+
+	// Man of the Match
+	rating += (mom || 0) * 1.0;
+
+	// Clean sheet (only GK and DEF get significant bonus)
+	const csBonus = { GK: 1.5, DEF: 1.2, MID: 0.3, FWD: 0 };
+	rating += (cleanSheets || 0) * (csBonus[pos] || 0);
+
+	// Saves (GK only)
+	if (pos === "GK") rating += (saves || 0) * 0.3;
+
+	// Penalty saved (GK only)
+	if (pos === "GK") rating += (penaltiesSaved || 0) * 2.0;
+
+	// Negative events
+	rating -= (yellowCards || 0) * 0.5;
+	rating -= (redCards || 0) * 1.5;
+	rating -= (ownGoals || 0) * 1.0;
+	rating -= (penaltiesMissed || 0) * 0.8;
+
+	// Goals conceded penalty (GK and DEF only, per 2 conceded)
+	if (pos === "GK" || pos === "DEF") {
+		rating -= Math.floor((conceded || 0) / 2) * 0.5;
+	}
+
+	// Clamp to [1.0, 10.0]
+	return Math.round(Math.max(1.0, Math.min(10.0, rating)) * 10) / 10;
 }
 ```
 
 **Where to display (V3-dorkinians-website):**
 
-| Display location | What to show |
-|---|---|
+| Display location                       | What to show                                                                                                                                                          |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Player Stats → All Games expanded view | Colour-coded rating badge (1.0-10.0) next to each match row. Colours: 8.5-10 gold (#C9A42A), 7.0-8.4 green (#5DCAA5), 6.0-6.9 muted green, 4.0-5.9 amber, 1.0-3.9 red |
-| Player Stats → Key Performance Stats | New "Avg Rating" card showing average match rating |
-| Player Stats → data table | New rows: "Average match rating", "Highest match rating", "Matches rated 8+" |
-| Team Stats → Top Players dropdown | Add "Highest avg rating" and "Most 8+ rated matches" options |
-| TOTW → player detail modal | Show match rating alongside FTP score |
+| Player Stats → Key Performance Stats   | New "Avg Rating" card showing average match rating                                                                                                                    |
+| Player Stats → data table              | New rows: "Average match rating", "Highest match rating", "Matches rated 8+"                                                                                          |
+| Team Stats → Top Players dropdown      | Add "Highest avg rating" and "Most 8+ rated matches" options                                                                                                          |
+| TOTW → player detail modal             | Show match rating alongside FTP score                                                                                                                                 |
 
 **Tests to write:**
 
@@ -255,8 +270,8 @@ momPer90: { type: 'number', required: false }
 
 ```js
 function calculatePer90(stat, minutes) {
-  if (!minutes || minutes < 360) return null;  // minimum threshold
-  return Math.round(((stat || 0) / minutes) * 90 * 100) / 100;  // 2 decimal places
+	if (!minutes || minutes < 360) return null; // minimum threshold
+	return Math.round(((stat || 0) / minutes) * 90 * 100) / 100; // 2 decimal places
 }
 ```
 
@@ -264,16 +279,16 @@ Apply to: goals, assists, (goals+assists), fantasyPoints, cleanSheets, conceded,
 
 **Where to display (V3-dorkinians-website):**
 
-| Display location | Implementation |
-|---|---|
-| Player Stats → data table | Add toggle/tabs: "Totals \| Per App \| Per 90". Per-90 view shows per-90 values with minutes context. Grey out stats where minutes < 360 with tooltip "Min. 360 minutes required" |
-| Player Stats → Key Performance Stats | Add small toggle beneath cards to flip between totals and per-90 |
-| Player Comparison → radar chart | Add "Per 90" as a stat category option in the dropdown |
-| Team Stats → Top Players | Add per-90 metrics as dropdown options |
+| Display location                     | Implementation                                                                                                                                                                    |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Player Stats → data table            | Add toggle/tabs: "Totals \| Per App \| Per 90". Per-90 view shows per-90 values with minutes context. Grey out stats where minutes < 360 with tooltip "Min. 360 minutes required" |
+| Player Stats → Key Performance Stats | Add small toggle beneath cards to flip between totals and per-90                                                                                                                  |
+| Player Comparison → radar chart      | Add "Per 90" as a stat category option in the dropdown                                                                                                                            |
+| Team Stats → Top Players             | Add per-90 metrics as dropdown options                                                                                                                                            |
 
 **Tests to write:**
 
-- **Unit tests (Jest):** 
+- **Unit tests (Jest):**
   - `calculatePer90(10, 900)` → `1.0` (10 goals in 900 mins = 1.0 per 90)
   - `calculatePer90(5, 450)` → `1.0`
   - `calculatePer90(3, 200)` → `null` (below 360 min threshold)
@@ -317,67 +332,67 @@ Option B is preferred as it keeps data on the individual match nodes and avoids 
 **EWMA calculation logic:**
 
 ```js
-const ALPHA_REACTIVE = 0.30;   // ~5-match window
-const ALPHA_BASELINE = 0.12;   // ~15-match window
-const SQUAD_AVG_FTP = 5.5;     // initialisation value - adjust to actual squad average
+const ALPHA_REACTIVE = 0.3; // ~5-match window
+const ALPHA_BASELINE = 0.12; // ~15-match window
+const SQUAD_AVG_FTP = 5.5; // initialisation value - adjust to actual squad average
 
 function computeEWMA(matchesOrderedByDate) {
-  let ewmaReactive = SQUAD_AVG_FTP;
-  let ewmaBaseline = SQUAD_AVG_FTP;
-  
-  return matchesOrderedByDate.map(match => {
-    const score = match.matchRating || match.fantasyPoints || SQUAD_AVG_FTP;
-    ewmaReactive = ALPHA_REACTIVE * score + (1 - ALPHA_REACTIVE) * ewmaReactive;
-    ewmaBaseline = ALPHA_BASELINE * score + (1 - ALPHA_BASELINE) * ewmaBaseline;
-    return {
-      matchId: match.id,
-      rawScore: score,
-      ewmaReactive: Math.round(ewmaReactive * 10) / 10,
-      ewmaBaseline: Math.round(ewmaBaseline * 10) / 10
-    };
-  });
+	let ewmaReactive = SQUAD_AVG_FTP;
+	let ewmaBaseline = SQUAD_AVG_FTP;
+
+	return matchesOrderedByDate.map((match) => {
+		const score = match.matchRating || match.fantasyPoints || SQUAD_AVG_FTP;
+		ewmaReactive = ALPHA_REACTIVE * score + (1 - ALPHA_REACTIVE) * ewmaReactive;
+		ewmaBaseline = ALPHA_BASELINE * score + (1 - ALPHA_BASELINE) * ewmaBaseline;
+		return {
+			matchId: match.id,
+			rawScore: score,
+			ewmaReactive: Math.round(ewmaReactive * 10) / 10,
+			ewmaBaseline: Math.round(ewmaBaseline * 10) / 10,
+		};
+	});
 }
 
 function determineTrend(formHistory) {
-  if (formHistory.length < 4) return 'stable';
-  const current = formHistory[formHistory.length - 1].ewmaReactive;
-  const threeAgo = formHistory[formHistory.length - 4].ewmaReactive;
-  const diff = current - threeAgo;
-  if (diff > 0.3) return 'rising';
-  if (diff < -0.3) return 'declining';
-  return 'stable';
+	if (formHistory.length < 4) return "stable";
+	const current = formHistory[formHistory.length - 1].ewmaReactive;
+	const threeAgo = formHistory[formHistory.length - 4].ewmaReactive;
+	const diff = current - threeAgo;
+	if (diff > 0.3) return "rising";
+	if (diff < -0.3) return "declining";
+	return "stable";
 }
 ```
 
 **Where to display (V3-dorkinians-website):**
 
-| Display location | Implementation |
-|---|---|
-| Player Stats → new "Form" section | Place immediately after Key Performance Stats. Contains: (1) dual-line Recharts `ComposedChart` with reactive line (yellow #E8C547), baseline line (green #5DCAA5), and raw score scatter dots (grey). (2) Three summary cards below: "Current form" (reactive EWMA value + trend arrow), "Season avg" (mean FTP), "Peak form" (highest reactive + week). Annotate "golden cross" where reactive crosses above baseline. |
-| Player Stats → Key Performance Stats | Add compact "Form: 7.8 ↑" indicator card alongside existing App/Mins/Goals cards |
-| Team Stats → Top Players | Add "Best current form" as dropdown option |
-| Chatbot | Support "Who's in the best form?" and "What's my current form?" |
+| Display location                     | Implementation                                                                                                                                                                                                                                                                                                                                                                                                           |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Player Stats → new "Form" section    | Place immediately after Key Performance Stats. Contains: (1) dual-line Recharts `ComposedChart` with reactive line (yellow #E8C547), baseline line (green #5DCAA5), and raw score scatter dots (grey). (2) Three summary cards below: "Current form" (reactive EWMA value + trend arrow), "Season avg" (mean FTP), "Peak form" (highest reactive + week). Annotate "golden cross" where reactive crosses above baseline. |
+| Player Stats → Key Performance Stats | Add compact "Form: 7.8 ↑" indicator card alongside existing App/Mins/Goals cards                                                                                                                                                                                                                                                                                                                                         |
+| Team Stats → Top Players             | Add "Best current form" as dropdown option                                                                                                                                                                                                                                                                                                                                                                               |
+| Chatbot                              | Support "Who's in the best form?" and "What's my current form?"                                                                                                                                                                                                                                                                                                                                                          |
 
 **Recharts implementation pattern for the form curve chart:**
 
 ```tsx
-'use client';
-import { ComposedChart, Line, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
+"use client";
+import { ComposedChart, Line, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 
 // data shape: { week: string, rawScore: number, ewmaReactive: number, ewmaBaseline: number }
 // Find golden cross points: where ewmaReactive crosses above ewmaBaseline
 
-<ResponsiveContainer width="100%" height={220}>
-  <ComposedChart data={formData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-    <XAxis dataKey="week" tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10 }} />
-    <YAxis domain={[2, 10]} tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10 }} />
-    <Tooltip />
-    <Scatter dataKey="rawScore" fill="rgba(255,255,255,0.2)" r={3} />
-    <Line type="monotone" dataKey="ewmaBaseline" stroke="#5DCAA5" strokeWidth={1.5} dot={false} opacity={0.5} />
-    <Line type="monotone" dataKey="ewmaReactive" stroke="#E8C547" strokeWidth={2.5} dot={false} />
-  </ComposedChart>
-</ResponsiveContainer>
+<ResponsiveContainer width='100%' height={220}>
+	<ComposedChart data={formData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+		<CartesianGrid strokeDasharray='3 3' stroke='rgba(255,255,255,0.05)' vertical={false} />
+		<XAxis dataKey='week' tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} />
+		<YAxis domain={[2, 10]} tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} />
+		<Tooltip />
+		<Scatter dataKey='rawScore' fill='rgba(255,255,255,0.2)' r={3} />
+		<Line type='monotone' dataKey='ewmaBaseline' stroke='#5DCAA5' strokeWidth={1.5} dot={false} opacity={0.5} />
+		<Line type='monotone' dataKey='ewmaReactive' stroke='#E8C547' strokeWidth={2.5} dot={false} />
+	</ComposedChart>
+</ResponsiveContainer>;
 ```
 
 **Tests to write:**
@@ -433,33 +448,33 @@ allTimeBestWinStreak: { type: 'integer', required: false }
 
 ```js
 function detectStreaks(matchesOrderedByDate, conditionFn) {
-  let currentStreak = 0;
-  let longestStreak = 0;
-  
-  for (const match of matchesOrderedByDate) {
-    if (conditionFn(match)) {
-      currentStreak++;
-      longestStreak = Math.max(longestStreak, currentStreak);
-    } else {
-      currentStreak = 0;
-    }
-  }
-  
-  return { current: currentStreak, longest: longestStreak };
+	let currentStreak = 0;
+	let longestStreak = 0;
+
+	for (const match of matchesOrderedByDate) {
+		if (conditionFn(match)) {
+			currentStreak++;
+			longestStreak = Math.max(longestStreak, currentStreak);
+		} else {
+			currentStreak = 0;
+		}
+	}
+
+	return { current: currentStreak, longest: longestStreak };
 }
 
 // Streak conditions:
 const streakConditions = {
-  scoring:         (m) => (m.goals || 0) >= 1,
-  assists:         (m) => (m.assists || 0) >= 1,
-  goalInvolvement: (m) => ((m.goals || 0) + (m.assists || 0)) >= 1,
-  cleanSheet:      (m) => (m.cleanSheets || 0) >= 1 && (m.class === 'GK' || m.class === 'DEF'),
-  appearance:      (m) => (m.minutes || 0) > 0,  // for this one, iterate ALL fixture dates and check if player was present
-  start:           (m) => m.started === true,
-  fullMatch:       (m) => (m.minutes || 0) >= 85,
-  mom:             (m) => (m.mom || 0) >= 1,
-  discipline:      (m) => (m.yellowCards || 0) === 0 && (m.redCards || 0) === 0,
-  win:             (m) => m.fixtureResult === 'W'  // need to join with Fixture node to get result
+	scoring: (m) => (m.goals || 0) >= 1,
+	assists: (m) => (m.assists || 0) >= 1,
+	goalInvolvement: (m) => (m.goals || 0) + (m.assists || 0) >= 1,
+	cleanSheet: (m) => (m.cleanSheets || 0) >= 1 && (m.class === "GK" || m.class === "DEF"),
+	appearance: (m) => (m.minutes || 0) > 0, // for this one, iterate ALL fixture dates and check if player was present
+	start: (m) => m.started === true,
+	fullMatch: (m) => (m.minutes || 0) >= 85,
+	mom: (m) => (m.mom || 0) >= 1,
+	discipline: (m) => (m.yellowCards || 0) === 0 && (m.redCards || 0) === 0,
+	win: (m) => m.fixtureResult === "W", // need to join with Fixture node to get result
 };
 ```
 
@@ -467,12 +482,12 @@ const streakConditions = {
 
 **Where to display (V3-dorkinians-website):**
 
-| Display location | Implementation |
-|---|---|
+| Display location                     | Implementation                                                                                                                                                                                                                                                                                                                                                                     |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Player Stats → new "Streaks" section | Place after Form section. Show active streaks as prominent cards with streak count in a coloured circle. When a streak is approaching a club/personal record, show a progress bar and "X more to beat the record" text. Show inactive streaks (count=0) greyed out with personal best. Below, show a 2x2 grid of season-best streaks with "Active now" indicator for ongoing ones. |
-| Homepage | Pre-matchday "Streaks at risk" banner showing active streaks that could be extended |
-| Team Stats | "Longest current streak" per category per team |
-| Chatbot | Support "What's my longest scoring streak?" and "Who has the longest appearance streak?" |
+| Homepage                             | Pre-matchday "Streaks at risk" banner showing active streaks that could be extended                                                                                                                                                                                                                                                                                                |
+| Team Stats                           | "Longest current streak" per category per team                                                                                                                                                                                                                                                                                                                                     |
+| Chatbot                              | Support "What's my longest scoring streak?" and "Who has the longest appearance streak?"                                                                                                                                                                                                                                                                                           |
 
 **Tests to write:**
 
@@ -531,23 +546,23 @@ ClubRecord: {
 
 ```js
 const individualRecords = [
-  { name: 'Most appearances', query: 'ORDER BY p.appearances DESC LIMIT 1' },
-  { name: 'Most career goals', query: 'ORDER BY p.goals DESC LIMIT 1' },
-  { name: 'Most career assists', query: 'ORDER BY p.assists DESC LIMIT 1' },
-  { name: 'Most MoM awards', query: 'ORDER BY p.mom DESC LIMIT 1' },
-  { name: 'Most clean sheets', query: 'WHERE p.mostCommonPosition IN ["GK","DEF"] ORDER BY p.cleanSheets DESC LIMIT 1' },
-  { name: 'Most seasons played', query: 'ORDER BY p.numberSeasonsPlayedFor DESC LIMIT 1' },
-  { name: 'Most teams played for', query: 'ORDER BY p.numberTeamsPlayedFor DESC LIMIT 1' },
-  { name: 'Highest single-match FTP', source: 'MatchDetail', query: 'ORDER BY md.fantasyPoints DESC LIMIT 1' },
-  { name: 'Most goals in a single match', source: 'MatchDetail', query: 'ORDER BY md.goals DESC LIMIT 1' },
-  // Season records require grouping MatchDetails by season per player:
-  { name: 'Most goals in a season', computed: true },
-  { name: 'Most assists in a season', computed: true },
-  { name: 'Most appearances in a season', computed: true },
-  // Streak records (from Phase 2):
-  { name: 'Longest scoring streak', source: 'Player', query: 'ORDER BY p.allTimeBestScoringStreak DESC LIMIT 1' },
-  { name: 'Longest appearance streak', source: 'Player', query: 'ORDER BY p.allTimeBestAppearanceStreak DESC LIMIT 1' },
-  { name: 'Longest clean sheet streak', source: 'Player', query: 'ORDER BY p.allTimeBestCleanSheetStreak DESC LIMIT 1' },
+	{ name: "Most appearances", query: "ORDER BY p.appearances DESC LIMIT 1" },
+	{ name: "Most career goals", query: "ORDER BY p.goals DESC LIMIT 1" },
+	{ name: "Most career assists", query: "ORDER BY p.assists DESC LIMIT 1" },
+	{ name: "Most MoM awards", query: "ORDER BY p.mom DESC LIMIT 1" },
+	{ name: "Most clean sheets", query: 'WHERE p.mostCommonPosition IN ["GK","DEF"] ORDER BY p.cleanSheets DESC LIMIT 1' },
+	{ name: "Most seasons played", query: "ORDER BY p.numberSeasonsPlayedFor DESC LIMIT 1" },
+	{ name: "Most teams played for", query: "ORDER BY p.numberTeamsPlayedFor DESC LIMIT 1" },
+	{ name: "Highest single-match FTP", source: "MatchDetail", query: "ORDER BY md.fantasyPoints DESC LIMIT 1" },
+	{ name: "Most goals in a single match", source: "MatchDetail", query: "ORDER BY md.goals DESC LIMIT 1" },
+	// Season records require grouping MatchDetails by season per player:
+	{ name: "Most goals in a season", computed: true },
+	{ name: "Most assists in a season", computed: true },
+	{ name: "Most appearances in a season", computed: true },
+	// Streak records (from Phase 2):
+	{ name: "Longest scoring streak", source: "Player", query: "ORDER BY p.allTimeBestScoringStreak DESC LIMIT 1" },
+	{ name: "Longest appearance streak", source: "Player", query: "ORDER BY p.allTimeBestAppearanceStreak DESC LIMIT 1" },
+	{ name: "Longest clean sheet streak", source: "Player", query: "ORDER BY p.allTimeBestCleanSheetStreak DESC LIMIT 1" },
 ];
 ```
 
@@ -555,12 +570,12 @@ const individualRecords = [
 
 ```js
 const teamRecords = [
-  { name: 'Biggest win', computed: true },                // highest goal difference in a single fixture
-  { name: 'Most goals in a match', computed: true },      // highest dorkiniansGoals
-  { name: 'Longest winning streak', computed: true },     // consecutive W results per team
-  { name: 'Longest unbeaten run', computed: true },       // consecutive W or D per team
-  { name: 'Most goals in a season (team)', computed: true },
-  { name: 'Best defensive season', computed: true },      // fewest conceded
+	{ name: "Biggest win", computed: true }, // highest goal difference in a single fixture
+	{ name: "Most goals in a match", computed: true }, // highest dorkiniansGoals
+	{ name: "Longest winning streak", computed: true }, // consecutive W results per team
+	{ name: "Longest unbeaten run", computed: true }, // consecutive W or D per team
+	{ name: "Most goals in a season (team)", computed: true },
+	{ name: "Best defensive season", computed: true }, // fewest conceded
 ];
 ```
 
@@ -569,6 +584,7 @@ const teamRecords = [
 **Frontend implementation (V3-dorkinians-website):**
 
 Create a `RecordsSection` component that renders below the existing Club Awards content. Structure:
+
 - Section header: "Records" (white bold, matching existing section header style)
 - Two card groups: "Individual Records" and "Team Records"
 - Each record is a row with: record name (white), holder name (yellow #E8C547, clickable → navigates to player stats), value (white bold, right-aligned)
@@ -677,8 +693,8 @@ If this errors, skip 7c and 7d. The partnership and impact features (7a, 7b) wor
 ```js
 // In compute-graph-insights.js
 async function computePageRank(session) {
-  // Project the graph
-  await session.run(`
+	// Project the graph
+	await session.run(`
     MATCH (p1:Player)-[r:PLAYED_WITH]->(p2:Player)
     WHERE r.timesPlayed IS NOT NULL
     WITH gds.graph.project('squad-network', p1, p2, {
@@ -687,8 +703,8 @@ async function computePageRank(session) {
     RETURN g.graphName, g.nodeCount, g.relationshipCount
   `);
 
-  // Run PageRank and write back
-  await session.run(`
+	// Run PageRank and write back
+	await session.run(`
     CALL gds.pageRank.write('squad-network', {
       writeProperty: 'squadInfluence',
       relationshipWeightProperty: 'timesPlayed',
@@ -697,8 +713,8 @@ async function computePageRank(session) {
     })
   `);
 
-  // Clean up
-  await session.run(`CALL gds.graph.drop('squad-network')`);
+	// Clean up
+	await session.run(`CALL gds.graph.drop('squad-network')`);
 }
 ```
 
@@ -706,7 +722,7 @@ async function computePageRank(session) {
 
 ```js
 async function computeCommunities(session) {
-  await session.run(`
+	await session.run(`
     MATCH (p1:Player)-[r:PLAYED_WITH]->(p2:Player)
     WITH gds.graph.project('squad-communities', p1, p2, {
       relationshipProperties: r { .timesPlayed }
@@ -714,14 +730,14 @@ async function computeCommunities(session) {
     RETURN g.graphName
   `);
 
-  await session.run(`
+	await session.run(`
     CALL gds.louvain.write('squad-communities', {
       writeProperty: 'communityId',
       relationshipWeightProperty: 'timesPlayed'
     })
   `);
 
-  await session.run(`CALL gds.graph.drop('squad-communities')`);
+	await session.run(`CALL gds.graph.drop('squad-communities')`);
 }
 ```
 
@@ -735,13 +751,13 @@ communityId: { type: 'integer', required: false }            // Louvain communit
 
 **Where to display (V3-dorkinians-website):**
 
-| Display location | What to show |
-|---|---|
-| Player Stats → new "Partnerships" section (after Streaks) | Top 5 partners by win rate. "With [Name]: X% win rate in Y matches". Show chemistry delta if positive. |
-| Player Stats → new "Impact" section (after Partnerships) | Hero stat: "The [Team] win X% more when [Player] plays". Show with/without comparison. Display sample sizes. Add caveat text when "without" sample < 10. |
-| Player Stats → data table | Add rows: "Best partner", "Impact delta", "Squad influence rank" (if GDS available) |
-| Club Stats → new "Squad Backbone" section | Top 10 most connected players by PageRank (if GDS available) |
-| Chatbot | "Who's my best partner?", "What's my impact on the team?", "Who's the most connected player?" |
+| Display location                                          | What to show                                                                                                                                             |
+| --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Player Stats → new "Partnerships" section (after Streaks) | Top 5 partners by win rate. "With [Name]: X% win rate in Y matches". Show chemistry delta if positive.                                                   |
+| Player Stats → new "Impact" section (after Partnerships)  | Hero stat: "The [Team] win X% more when [Player] plays". Show with/without comparison. Display sample sizes. Add caveat text when "without" sample < 10. |
+| Player Stats → data table                                 | Add rows: "Best partner", "Impact delta", "Squad influence rank" (if GDS available)                                                                      |
+| Club Stats → new "Squad Backbone" section                 | Top 10 most connected players by PageRank (if GDS available)                                                                                             |
+| Chatbot                                                   | "Who's my best partner?", "What's my impact on the team?", "Who's the most connected player?"                                                            |
 
 **Tests to write:**
 
@@ -770,39 +786,39 @@ communityId: { type: 'integer', required: false }            // Louvain communit
 
 ```ts
 interface WrappedData {
-  playerName: string;
-  season: string;
-  // Slide 1: Season overview
-  totalMatches: number;
-  totalGoals: number;
-  totalAssists: number;
-  totalMom: number;
-  // Slide 2: Percentile
-  matchesPercentile: number;  // "more matches than X% of the club"
-  // Slide 3: Best month
-  bestMonth: string;
-  bestMonthGoals: number;
-  bestMonthAssists: number;
-  // Slide 4: Teammate
-  topPartnerName: string;
-  topPartnerMatches: number;
-  topPartnerWinRate: number;
-  // Slide 5: Player type
-  playerType: string;  // e.g. "The Creator", "The Ironman"
-  playerTypeReason: string;
-  // Slide 6: Peak match
-  peakMatchRating: number;
-  peakMatchOpposition: string;
-  peakMatchGoals: number;
-  peakMatchAssists: number;
-  // Slide 7: Streak (conditional - only if longestStreak >= 3)
-  longestStreakType: string | null;
-  longestStreakValue: number | null;
-  // Slide 8: Distance
-  totalDistance: number;
-  distanceEquivalent: string;  // "that's London to Edinburgh"
-  // Slide 9: Summary card (always last)
-  wrappedUrl: string;
+	playerName: string;
+	season: string;
+	// Slide 1: Season overview
+	totalMatches: number;
+	totalGoals: number;
+	totalAssists: number;
+	totalMom: number;
+	// Slide 2: Percentile
+	matchesPercentile: number; // "more matches than X% of the club"
+	// Slide 3: Best month
+	bestMonth: string;
+	bestMonthGoals: number;
+	bestMonthAssists: number;
+	// Slide 4: Teammate
+	topPartnerName: string;
+	topPartnerMatches: number;
+	topPartnerWinRate: number;
+	// Slide 5: Player type
+	playerType: string; // e.g. "The Creator", "The Ironman"
+	playerTypeReason: string;
+	// Slide 6: Peak match
+	peakMatchRating: number;
+	peakMatchOpposition: string;
+	peakMatchGoals: number;
+	peakMatchAssists: number;
+	// Slide 7: Streak (conditional - only if longestStreak >= 3)
+	longestStreakType: string | null;
+	longestStreakValue: number | null;
+	// Slide 8: Distance
+	totalDistance: number;
+	distanceEquivalent: string; // "that's London to Edinburgh"
+	// Slide 9: Summary card (always last)
+	wrappedUrl: string;
 }
 ```
 
@@ -810,15 +826,19 @@ interface WrappedData {
 
 ```ts
 function classifyPlayerType(player: WrappedData, percentiles: Record<string, number>): { type: string; reason: string } {
-  // Check in priority order
-  if (percentiles.goalsPer90 >= 80) return { type: 'The Sharpshooter', reason: `Top ${100 - percentiles.goalsPer90}% for goals per 90` };
-  if (percentiles.assistsPer90 >= 80) return { type: 'The Creator', reason: `Top ${100 - percentiles.assistsPer90}% for assists per 90` };
-  if (percentiles.appearances >= 90 && percentiles.minutes >= 90) return { type: 'The Ironman', reason: 'Top 10% for both appearances and minutes' };
-  if (percentiles.cleanSheetsPer90 >= 80) return { type: 'The Brick Wall', reason: `Top ${100 - percentiles.cleanSheetsPer90}% for clean sheets per 90` };
-  if (percentiles.goalsPer90 >= 70 && percentiles.assistsPer90 >= 70) return { type: 'The All-Rounder', reason: 'Top 30% for both goals and assists per 90' };
-  if (player.numberTeamsPlayedFor >= 4) return { type: 'The Journeyman', reason: `Played for ${player.numberTeamsPlayedFor} different teams` };
-  // Default
-  return { type: 'The Squad Player', reason: 'A reliable member of the squad' };
+	// Check in priority order
+	if (percentiles.goalsPer90 >= 80) return { type: "The Sharpshooter", reason: `Top ${100 - percentiles.goalsPer90}% for goals per 90` };
+	if (percentiles.assistsPer90 >= 80) return { type: "The Creator", reason: `Top ${100 - percentiles.assistsPer90}% for assists per 90` };
+	if (percentiles.appearances >= 90 && percentiles.minutes >= 90)
+		return { type: "The Ironman", reason: "Top 10% for both appearances and minutes" };
+	if (percentiles.cleanSheetsPer90 >= 80)
+		return { type: "The Brick Wall", reason: `Top ${100 - percentiles.cleanSheetsPer90}% for clean sheets per 90` };
+	if (percentiles.goalsPer90 >= 70 && percentiles.assistsPer90 >= 70)
+		return { type: "The All-Rounder", reason: "Top 30% for both goals and assists per 90" };
+	if (player.numberTeamsPlayedFor >= 4)
+		return { type: "The Journeyman", reason: `Played for ${player.numberTeamsPlayedFor} different teams` };
+	// Default
+	return { type: "The Squad Player", reason: "A reliable member of the squad" };
 }
 ```
 
@@ -835,29 +855,29 @@ function classifyPlayerType(player: WrappedData, percentiles: Record<string, num
 **Sharing implementation:**
 
 ```ts
-import { toBlob } from 'html-to-image';
+import { toBlob } from "html-to-image";
 
 async function shareSlide(slideRef: HTMLDivElement, playerName: string, slideNumber: number) {
-  const blob = await toBlob(slideRef, { pixelRatio: 2, backgroundColor: '#1c2418' });
-  if (!blob) return;
-  
-  const file = new File([blob], `${playerName}-wrapped-${slideNumber}.png`, { type: 'image/png' });
-  
-  if (navigator.canShare?.({ files: [file] })) {
-    await navigator.share({
-      files: [file],
-      title: `${playerName} - Dorkinians Wrapped`,
-      text: `Check out my season stats! dorkiniansfcstats.co.uk/wrapped/${playerSlug}`
-    });
-  } else {
-    // Fallback: download
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = file.name;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
+	const blob = await toBlob(slideRef, { pixelRatio: 2, backgroundColor: "#1c2418" });
+	if (!blob) return;
+
+	const file = new File([blob], `${playerName}-wrapped-${slideNumber}.png`, { type: "image/png" });
+
+	if (navigator.canShare?.({ files: [file] })) {
+		await navigator.share({
+			files: [file],
+			title: `${playerName} - Dorkinians Wrapped`,
+			text: `Check out my season stats! dorkiniansfcstats.co.uk/wrapped/${playerSlug}`,
+		});
+	} else {
+		// Fallback: download
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement("a");
+		a.href = url;
+		a.download = file.name;
+		a.click();
+		URL.revokeObjectURL(url);
+	}
 }
 ```
 
@@ -921,6 +941,7 @@ PlayerBadge: {
 ```
 
 **Relationship:**
+
 ```js
 HAS_BADGE: {
   from: 'Player',
@@ -934,316 +955,316 @@ HAS_BADGE: {
 
 ```js
 const BADGE_DEFINITIONS = {
-  // ==================== APPEARANCE BADGES ====================
-  club_stalwart: {
-    name: 'Club Stalwart',
-    category: 'appearances',
-    tiers: {
-      bronze:  { threshold: 25,  description: 'Make 25 appearances' },
-      silver:  { threshold: 50,  description: 'Make 50 appearances' },
-      gold:    { threshold: 100, description: 'Make 100 appearances' },
-      diamond: { threshold: 200, description: 'Make 200 appearances' },
-    },
-    evaluate: (player) => player.appearances || 0
-  },
-  season_regular: {
-    name: 'Season Regular',
-    category: 'appearances',
-    tiers: {
-      bronze:  { threshold: 15, description: 'Play 15 matches in a season' },
-      silver:  { threshold: 20, description: 'Play 20 matches in a season' },
-      gold:    { threshold: 25, description: 'Play 25 matches in a season' },
-      diamond: { threshold: 30, description: 'Play 30+ matches in a season' },
-    },
-    evaluate: (player) => player.maxAppsInSeason || 0  // compute from per-season data
-  },
-  ever_present: {
-    name: 'Ever Present',
-    category: 'appearances',
-    tiers: {
-      bronze:  { threshold: 5,  description: '5 consecutive appearances' },
-      silver:  { threshold: 15, description: '15 consecutive appearances' },
-      gold:    { threshold: 25, description: '25 consecutive appearances' },
-      diamond: { threshold: 40, description: '40+ consecutive appearances' },
-    },
-    evaluate: (player) => player.allTimeBestAppearanceStreak || 0
-  },
-  multi_team: {
-    name: 'Multi-Team Player',
-    category: 'appearances',
-    tiers: {
-      bronze:  { threshold: 2, description: 'Play for 2 different XIs' },
-      silver:  { threshold: 3, description: 'Play for 3 different XIs' },
-      gold:    { threshold: 5, description: 'Play for 5 different XIs' },
-      diamond: { threshold: 7, description: 'Play for all 7 XIs' },
-    },
-    evaluate: (player) => player.numberTeamsPlayedFor || 0
-  },
-  veteran: {
-    name: 'Veteran',
-    category: 'appearances',
-    tiers: {
-      bronze:  { threshold: 3, description: 'Play for 3 seasons' },
-      silver:  { threshold: 5, description: 'Play for 5 seasons' },
-      gold:    { threshold: 7, description: 'Play for 7 seasons' },
-      diamond: { threshold: 10, description: 'Play for 10 seasons' },
-    },
-    evaluate: (player) => player.numberSeasonsPlayedFor || 0
-  },
+	// ==================== APPEARANCE BADGES ====================
+	club_stalwart: {
+		name: "Club Stalwart",
+		category: "appearances",
+		tiers: {
+			bronze: { threshold: 25, description: "Make 25 appearances" },
+			silver: { threshold: 50, description: "Make 50 appearances" },
+			gold: { threshold: 100, description: "Make 100 appearances" },
+			diamond: { threshold: 200, description: "Make 200 appearances" },
+		},
+		evaluate: (player) => player.appearances || 0,
+	},
+	season_regular: {
+		name: "Season Regular",
+		category: "appearances",
+		tiers: {
+			bronze: { threshold: 15, description: "Play 15 matches in a season" },
+			silver: { threshold: 20, description: "Play 20 matches in a season" },
+			gold: { threshold: 25, description: "Play 25 matches in a season" },
+			diamond: { threshold: 30, description: "Play 30+ matches in a season" },
+		},
+		evaluate: (player) => player.maxAppsInSeason || 0, // compute from per-season data
+	},
+	ever_present: {
+		name: "Ever Present",
+		category: "appearances",
+		tiers: {
+			bronze: { threshold: 5, description: "5 consecutive appearances" },
+			silver: { threshold: 15, description: "15 consecutive appearances" },
+			gold: { threshold: 25, description: "25 consecutive appearances" },
+			diamond: { threshold: 40, description: "40+ consecutive appearances" },
+		},
+		evaluate: (player) => player.allTimeBestAppearanceStreak || 0,
+	},
+	multi_team: {
+		name: "Multi-Team Player",
+		category: "appearances",
+		tiers: {
+			bronze: { threshold: 2, description: "Play for 2 different XIs" },
+			silver: { threshold: 3, description: "Play for 3 different XIs" },
+			gold: { threshold: 5, description: "Play for 5 different XIs" },
+			diamond: { threshold: 7, description: "Play for all 7 XIs" },
+		},
+		evaluate: (player) => player.numberTeamsPlayedFor || 0,
+	},
+	veteran: {
+		name: "Veteran",
+		category: "appearances",
+		tiers: {
+			bronze: { threshold: 3, description: "Play for 3 seasons" },
+			silver: { threshold: 5, description: "Play for 5 seasons" },
+			gold: { threshold: 7, description: "Play for 7 seasons" },
+			diamond: { threshold: 10, description: "Play for 10 seasons" },
+		},
+		evaluate: (player) => player.numberSeasonsPlayedFor || 0,
+	},
 
-  // ==================== GOAL-SCORING BADGES ====================
-  goalscorer: {
-    name: 'Goalscorer',
-    category: 'goals',
-    tiers: {
-      bronze:  { threshold: 5,   description: 'Score 5 goals' },
-      silver:  { threshold: 25,  description: 'Score 25 goals' },
-      gold:    { threshold: 50,  description: 'Score 50 goals' },
-      diamond: { threshold: 100, description: 'Score 100 goals' },
-    },
-    evaluate: (player) => player.goals || 0
-  },
-  season_scorer: {
-    name: 'Season Scorer',
-    category: 'goals',
-    tiers: {
-      bronze:  { threshold: 5,  description: 'Score 5 goals in a season' },
-      silver:  { threshold: 10, description: 'Score 10 goals in a season' },
-      gold:    { threshold: 15, description: 'Score 15 goals in a season' },
-      diamond: { threshold: 20, description: 'Score 20+ goals in a season' },
-    },
-    evaluate: (player) => player.maxGoalsInSeason || 0
-  },
-  hat_trick_hero: {
-    name: 'Hat-Trick Hero',
-    category: 'goals',
-    tiers: {
-      bronze:  { threshold: 1,  description: 'Score a hat-trick' },
-      silver:  { threshold: 3,  description: 'Score 3 hat-tricks' },
-      gold:    { threshold: 5,  description: 'Score 5 hat-tricks' },
-      diamond: { threshold: 10, description: 'Score 10 hat-tricks' },
-    },
-    evaluate: (player) => player.hatTrickCount || 0  // count MatchDetails where goals >= 3
-  },
-  hot_streak: {
-    name: 'Hot Streak',
-    category: 'goals',
-    tiers: {
-      bronze:  { threshold: 3,  description: 'Score in 3 consecutive matches' },
-      silver:  { threshold: 5,  description: 'Score in 5 consecutive matches' },
-      gold:    { threshold: 7,  description: 'Score in 7 consecutive matches' },
-      diamond: { threshold: 10, description: 'Score in 10 consecutive matches' },
-    },
-    evaluate: (player) => player.allTimeBestScoringStreak || 0
-  },
-  poacher: {
-    name: 'Poacher',
-    category: 'goals',
-    tiers: {
-      bronze:  { threshold: 0.3, description: '0.3+ goals per 90 (min 360 mins)' },
-      silver:  { threshold: 0.5, description: '0.5+ goals per 90' },
-      gold:    { threshold: 0.7, description: '0.7+ goals per 90' },
-      diamond: { threshold: 1.0, description: '1.0+ goals per 90' },
-    },
-    evaluate: (player) => (player.minutes >= 360) ? player.goalsPer90 : 0
-  },
+	// ==================== GOAL-SCORING BADGES ====================
+	goalscorer: {
+		name: "Goalscorer",
+		category: "goals",
+		tiers: {
+			bronze: { threshold: 5, description: "Score 5 goals" },
+			silver: { threshold: 25, description: "Score 25 goals" },
+			gold: { threshold: 50, description: "Score 50 goals" },
+			diamond: { threshold: 100, description: "Score 100 goals" },
+		},
+		evaluate: (player) => player.goals || 0,
+	},
+	season_scorer: {
+		name: "Season Scorer",
+		category: "goals",
+		tiers: {
+			bronze: { threshold: 5, description: "Score 5 goals in a season" },
+			silver: { threshold: 10, description: "Score 10 goals in a season" },
+			gold: { threshold: 15, description: "Score 15 goals in a season" },
+			diamond: { threshold: 20, description: "Score 20+ goals in a season" },
+		},
+		evaluate: (player) => player.maxGoalsInSeason || 0,
+	},
+	hat_trick_hero: {
+		name: "Hat-Trick Hero",
+		category: "goals",
+		tiers: {
+			bronze: { threshold: 1, description: "Score a hat-trick" },
+			silver: { threshold: 3, description: "Score 3 hat-tricks" },
+			gold: { threshold: 5, description: "Score 5 hat-tricks" },
+			diamond: { threshold: 10, description: "Score 10 hat-tricks" },
+		},
+		evaluate: (player) => player.hatTrickCount || 0, // count MatchDetails where goals >= 3
+	},
+	hot_streak: {
+		name: "Hot Streak",
+		category: "goals",
+		tiers: {
+			bronze: { threshold: 3, description: "Score in 3 consecutive matches" },
+			silver: { threshold: 5, description: "Score in 5 consecutive matches" },
+			gold: { threshold: 7, description: "Score in 7 consecutive matches" },
+			diamond: { threshold: 10, description: "Score in 10 consecutive matches" },
+		},
+		evaluate: (player) => player.allTimeBestScoringStreak || 0,
+	},
+	poacher: {
+		name: "Poacher",
+		category: "goals",
+		tiers: {
+			bronze: { threshold: 0.3, description: "0.3+ goals per 90 (min 360 mins)" },
+			silver: { threshold: 0.5, description: "0.5+ goals per 90" },
+			gold: { threshold: 0.7, description: "0.7+ goals per 90" },
+			diamond: { threshold: 1.0, description: "1.0+ goals per 90" },
+		},
+		evaluate: (player) => (player.minutes >= 360 ? player.goalsPer90 : 0),
+	},
 
-  // ==================== ASSIST BADGES ====================
-  provider: {
-    name: 'Provider',
-    category: 'assists',
-    tiers: {
-      bronze:  { threshold: 5,  description: 'Provide 5 assists' },
-      silver:  { threshold: 15, description: 'Provide 15 assists' },
-      gold:    { threshold: 30, description: 'Provide 30 assists' },
-      diamond: { threshold: 50, description: 'Provide 50 assists' },
-    },
-    evaluate: (player) => player.assists || 0
-  },
-  playmaker: {
-    name: 'Playmaker',
-    category: 'assists',
-    tiers: {
-      bronze:  { threshold: 0.2, description: '0.2+ assists per 90 (min 360 mins)' },
-      silver:  { threshold: 0.3, description: '0.3+ assists per 90' },
-      gold:    { threshold: 0.5, description: '0.5+ assists per 90' },
-      diamond: { threshold: 0.7, description: '0.7+ assists per 90' },
-    },
-    evaluate: (player) => (player.minutes >= 360) ? player.assistsPer90 : 0
-  },
+	// ==================== ASSIST BADGES ====================
+	provider: {
+		name: "Provider",
+		category: "assists",
+		tiers: {
+			bronze: { threshold: 5, description: "Provide 5 assists" },
+			silver: { threshold: 15, description: "Provide 15 assists" },
+			gold: { threshold: 30, description: "Provide 30 assists" },
+			diamond: { threshold: 50, description: "Provide 50 assists" },
+		},
+		evaluate: (player) => player.assists || 0,
+	},
+	playmaker: {
+		name: "Playmaker",
+		category: "assists",
+		tiers: {
+			bronze: { threshold: 0.2, description: "0.2+ assists per 90 (min 360 mins)" },
+			silver: { threshold: 0.3, description: "0.3+ assists per 90" },
+			gold: { threshold: 0.5, description: "0.5+ assists per 90" },
+			diamond: { threshold: 0.7, description: "0.7+ assists per 90" },
+		},
+		evaluate: (player) => (player.minutes >= 360 ? player.assistsPer90 : 0),
+	},
 
-  // ==================== DEFENSIVE BADGES ====================
-  clean_sheet_king: {
-    name: 'Clean Sheet King',
-    category: 'defence',
-    tiers: {
-      bronze:  { threshold: 5,  description: 'Keep 5 clean sheets' },
-      silver:  { threshold: 15, description: 'Keep 15 clean sheets' },
-      gold:    { threshold: 30, description: 'Keep 30 clean sheets' },
-      diamond: { threshold: 50, description: 'Keep 50 clean sheets' },
-    },
-    evaluate: (player) => player.cleanSheets || 0
-  },
-  brick_wall: {
-    name: 'Brick Wall',
-    category: 'defence',
-    tiers: {
-      bronze:  { threshold: 3,  description: '3 consecutive clean sheets' },
-      silver:  { threshold: 5,  description: '5 consecutive clean sheets' },
-      gold:    { threshold: 7,  description: '7 consecutive clean sheets' },
-      diamond: { threshold: 10, description: '10 consecutive clean sheets' },
-    },
-    evaluate: (player) => player.allTimeBestCleanSheetStreak || 0
-  },
-  shot_stopper: {
-    name: 'Shot Stopper',
-    category: 'defence',
-    tiers: {
-      bronze:  { threshold: 20,  description: 'Make 20 saves' },
-      silver:  { threshold: 50,  description: 'Make 50 saves' },
-      gold:    { threshold: 100, description: 'Make 100 saves' },
-      diamond: { threshold: 200, description: 'Make 200 saves' },
-    },
-    evaluate: (player) => player.saves || 0
-  },
-  penalty_saver: {
-    name: 'Penalty Saver',
-    category: 'defence',
-    tiers: {
-      bronze:  { threshold: 1,  description: 'Save 1 penalty' },
-      silver:  { threshold: 3,  description: 'Save 3 penalties' },
-      gold:    { threshold: 5,  description: 'Save 5 penalties' },
-      diamond: { threshold: 10, description: 'Save 10 penalties' },
-    },
-    evaluate: (player) => player.penaltiesSaved || 0
-  },
+	// ==================== DEFENSIVE BADGES ====================
+	clean_sheet_king: {
+		name: "Clean Sheet King",
+		category: "defence",
+		tiers: {
+			bronze: { threshold: 5, description: "Keep 5 clean sheets" },
+			silver: { threshold: 15, description: "Keep 15 clean sheets" },
+			gold: { threshold: 30, description: "Keep 30 clean sheets" },
+			diamond: { threshold: 50, description: "Keep 50 clean sheets" },
+		},
+		evaluate: (player) => player.cleanSheets || 0,
+	},
+	brick_wall: {
+		name: "Brick Wall",
+		category: "defence",
+		tiers: {
+			bronze: { threshold: 3, description: "3 consecutive clean sheets" },
+			silver: { threshold: 5, description: "5 consecutive clean sheets" },
+			gold: { threshold: 7, description: "7 consecutive clean sheets" },
+			diamond: { threshold: 10, description: "10 consecutive clean sheets" },
+		},
+		evaluate: (player) => player.allTimeBestCleanSheetStreak || 0,
+	},
+	shot_stopper: {
+		name: "Shot Stopper",
+		category: "defence",
+		tiers: {
+			bronze: { threshold: 20, description: "Make 20 saves" },
+			silver: { threshold: 50, description: "Make 50 saves" },
+			gold: { threshold: 100, description: "Make 100 saves" },
+			diamond: { threshold: 200, description: "Make 200 saves" },
+		},
+		evaluate: (player) => player.saves || 0,
+	},
+	penalty_saver: {
+		name: "Penalty Saver",
+		category: "defence",
+		tiers: {
+			bronze: { threshold: 1, description: "Save 1 penalty" },
+			silver: { threshold: 3, description: "Save 3 penalties" },
+			gold: { threshold: 5, description: "Save 5 penalties" },
+			diamond: { threshold: 10, description: "Save 10 penalties" },
+		},
+		evaluate: (player) => player.penaltiesSaved || 0,
+	},
 
-  // ==================== PERFORMANCE BADGES ====================
-  man_of_the_match: {
-    name: 'Man of the Match',
-    category: 'performance',
-    tiers: {
-      bronze:  { threshold: 3,  description: 'Win 3 MoM awards' },
-      silver:  { threshold: 8,  description: 'Win 8 MoM awards' },
-      gold:    { threshold: 15, description: 'Win 15 MoM awards' },
-      diamond: { threshold: 25, description: 'Win 25 MoM awards' },
-    },
-    evaluate: (player) => player.mom || 0
-  },
-  star_man: {
-    name: 'Star Man',
-    category: 'performance',
-    tiers: {
-      bronze:  { threshold: 2,  description: 'Earn 2 TOTW Star Man awards' },
-      silver:  { threshold: 5,  description: 'Earn 5 Star Man awards' },
-      gold:    { threshold: 10, description: 'Earn 10 Star Man awards' },
-      diamond: { threshold: 20, description: 'Earn 20 Star Man awards' },
-    },
-    evaluate: (player) => player.totwStarManCount || 0  // count from IN_WEEKLY_TOTW where isStarMan=true
-  },
-  totw_regular: {
-    name: 'TOTW Regular',
-    category: 'performance',
-    tiers: {
-      bronze:  { threshold: 5,  description: 'Appear in 5 TOTWs' },
-      silver:  { threshold: 15, description: 'Appear in 15 TOTWs' },
-      gold:    { threshold: 30, description: 'Appear in 30 TOTWs' },
-      diamond: { threshold: 50, description: 'Appear in 50 TOTWs' },
-    },
-    evaluate: (player) => player.totwAppearanceCount || 0  // count from IN_WEEKLY_TOTW
-  },
-  potm_winner: {
-    name: 'Player of the Month',
-    category: 'performance',
-    tiers: {
-      bronze:  { threshold: 1,  description: 'Win 1 Player of the Month' },
-      silver:  { threshold: 3,  description: 'Win 3 Player of the Month' },
-      gold:    { threshold: 6,  description: 'Win 6 Player of the Month' },
-      diamond: { threshold: 10, description: 'Win 10 Player of the Month' },
-    },
-    evaluate: (player) => player.potmCount || 0  // count from IN_PLAYER_OF_THE_MONTH
-  },
-  peak_performer: {
-    name: 'Peak Performer',
-    category: 'performance',
-    tiers: {
-      bronze:  { threshold: 1,  description: '1 match rated 8.5+' },
-      silver:  { threshold: 5,  description: '5 matches rated 8.5+' },
-      gold:    { threshold: 15, description: '15 matches rated 8.5+' },
-      diamond: { threshold: 30, description: '30 matches rated 8.5+' },
-    },
-    evaluate: (player) => player.matchesRated8Plus || 0
-  },
+	// ==================== PERFORMANCE BADGES ====================
+	man_of_the_match: {
+		name: "Man of the Match",
+		category: "performance",
+		tiers: {
+			bronze: { threshold: 3, description: "Win 3 MoM awards" },
+			silver: { threshold: 8, description: "Win 8 MoM awards" },
+			gold: { threshold: 15, description: "Win 15 MoM awards" },
+			diamond: { threshold: 25, description: "Win 25 MoM awards" },
+		},
+		evaluate: (player) => player.mom || 0,
+	},
+	star_man: {
+		name: "Star Man",
+		category: "performance",
+		tiers: {
+			bronze: { threshold: 2, description: "Earn 2 TOTW Star Man awards" },
+			silver: { threshold: 5, description: "Earn 5 Star Man awards" },
+			gold: { threshold: 10, description: "Earn 10 Star Man awards" },
+			diamond: { threshold: 20, description: "Earn 20 Star Man awards" },
+		},
+		evaluate: (player) => player.totwStarManCount || 0, // count from IN_WEEKLY_TOTW where isStarMan=true
+	},
+	totw_regular: {
+		name: "TOTW Regular",
+		category: "performance",
+		tiers: {
+			bronze: { threshold: 5, description: "Appear in 5 TOTWs" },
+			silver: { threshold: 15, description: "Appear in 15 TOTWs" },
+			gold: { threshold: 30, description: "Appear in 30 TOTWs" },
+			diamond: { threshold: 50, description: "Appear in 50 TOTWs" },
+		},
+		evaluate: (player) => player.totwAppearanceCount || 0, // count from IN_WEEKLY_TOTW
+	},
+	potm_winner: {
+		name: "Player of the Month",
+		category: "performance",
+		tiers: {
+			bronze: { threshold: 1, description: "Win 1 Player of the Month" },
+			silver: { threshold: 3, description: "Win 3 Player of the Month" },
+			gold: { threshold: 6, description: "Win 6 Player of the Month" },
+			diamond: { threshold: 10, description: "Win 10 Player of the Month" },
+		},
+		evaluate: (player) => player.potmCount || 0, // count from IN_PLAYER_OF_THE_MONTH
+	},
+	peak_performer: {
+		name: "Peak Performer",
+		category: "performance",
+		tiers: {
+			bronze: { threshold: 1, description: "1 match rated 8.5+" },
+			silver: { threshold: 5, description: "5 matches rated 8.5+" },
+			gold: { threshold: 15, description: "15 matches rated 8.5+" },
+			diamond: { threshold: 30, description: "30 matches rated 8.5+" },
+		},
+		evaluate: (player) => player.matchesRated8Plus || 0,
+	},
 
-  // ==================== SPECIAL BADGES ====================
-  debut_scorer: {
-    name: 'Debut Scorer',
-    category: 'special',
-    tiers: {
-      gold: { threshold: 1, description: 'Score on your first ever appearance' },
-    },
-    evaluate: (player) => player.scoredOnDebut ? 1 : 0  // check first MatchDetail by date
-  },
-  the_traveller: {
-    name: 'The Traveller',
-    category: 'special',
-    tiers: {
-      bronze:  { threshold: 10, description: 'Play at 10 different away grounds' },
-      silver:  { threshold: 15, description: 'Play at 15 different away grounds' },
-      gold:    { threshold: 20, description: 'Play at 20 different away grounds' },
-      diamond: { threshold: 30, description: 'Play at 30 different away grounds' },
-    },
-    evaluate: (player) => player.uniqueAwayGrounds || 0
-  },
-  globe_trotter: {
-    name: 'Globe Trotter',
-    category: 'special',
-    tiers: {
-      bronze:  { threshold: 200, description: 'Travel 200 miles to away matches' },
-      silver:  { threshold: 500, description: 'Travel 500 miles' },
-      gold:    { threshold: 1000, description: 'Travel 1,000 miles' },
-      diamond: { threshold: 2000, description: 'Travel 2,000 miles' },
-    },
-    evaluate: (player) => player.distance || 0
-  },
-  penalty_perfect: {
-    name: 'Penalty Perfect',
-    category: 'special',
-    tiers: {
-      gold: { threshold: 1, description: 'Score 5+ penalties with 100% conversion' },
-    },
-    evaluate: (player) => (player.penaltiesScored >= 5 && player.penaltiesMissed === 0) ? 1 : 0
-  },
-  swiss_army_knife: {
-    name: 'Swiss Army Knife',
-    category: 'special',
-    tiers: {
-      gold: { threshold: 1, description: 'Play all 4 positions across your career' },
-    },
-    evaluate: (player) => {
-      const positions = [player.gk, player.def, player.mid, player.fwd].filter(v => v && v > 0);
-      return positions.length >= 4 ? 1 : 0;
-    }
-  },
-  award_winner: {
-    name: 'Award Winner',
-    category: 'special',
-    tiers: {
-      bronze:  { threshold: 1, description: 'Win a club award' },
-      silver:  { threshold: 3, description: 'Win 3 club awards' },
-      gold:    { threshold: 5, description: 'Win 5 club awards' },
-      diamond: { threshold: 10, description: 'Win 10 club awards' },
-    },
-    evaluate: (player) => player.clubAwardCount || 0  // count from HAS_CAPTAIN_AWARDS
-  },
-  weekend_warrior: {
-    name: 'Weekend Warrior',
-    category: 'special',
-    tiers: {
-      gold: { threshold: 1, description: 'Play 10+ matches across 2+ different XIs in a single season' },
-    },
-    evaluate: (player) => player.multiTeamSeasons || 0  // compute: seasons where player appeared for 2+ teams with 10+ total apps
-  },
+	// ==================== SPECIAL BADGES ====================
+	debut_scorer: {
+		name: "Debut Scorer",
+		category: "special",
+		tiers: {
+			gold: { threshold: 1, description: "Score on your first ever appearance" },
+		},
+		evaluate: (player) => (player.scoredOnDebut ? 1 : 0), // check first MatchDetail by date
+	},
+	the_traveller: {
+		name: "The Traveller",
+		category: "special",
+		tiers: {
+			bronze: { threshold: 10, description: "Play at 10 different away grounds" },
+			silver: { threshold: 15, description: "Play at 15 different away grounds" },
+			gold: { threshold: 20, description: "Play at 20 different away grounds" },
+			diamond: { threshold: 30, description: "Play at 30 different away grounds" },
+		},
+		evaluate: (player) => player.uniqueAwayGrounds || 0,
+	},
+	globe_trotter: {
+		name: "Globe Trotter",
+		category: "special",
+		tiers: {
+			bronze: { threshold: 200, description: "Travel 200 miles to away matches" },
+			silver: { threshold: 500, description: "Travel 500 miles" },
+			gold: { threshold: 1000, description: "Travel 1,000 miles" },
+			diamond: { threshold: 2000, description: "Travel 2,000 miles" },
+		},
+		evaluate: (player) => player.distance || 0,
+	},
+	penalty_perfect: {
+		name: "Penalty Perfect",
+		category: "special",
+		tiers: {
+			gold: { threshold: 1, description: "Score 5+ penalties with 100% conversion" },
+		},
+		evaluate: (player) => (player.penaltiesScored >= 5 && player.penaltiesMissed === 0 ? 1 : 0),
+	},
+	swiss_army_knife: {
+		name: "Swiss Army Knife",
+		category: "special",
+		tiers: {
+			gold: { threshold: 1, description: "Play all 4 positions across your career" },
+		},
+		evaluate: (player) => {
+			const positions = [player.gk, player.def, player.mid, player.fwd].filter((v) => v && v > 0);
+			return positions.length >= 4 ? 1 : 0;
+		},
+	},
+	award_winner: {
+		name: "Award Winner",
+		category: "special",
+		tiers: {
+			bronze: { threshold: 1, description: "Win a club award" },
+			silver: { threshold: 3, description: "Win 3 club awards" },
+			gold: { threshold: 5, description: "Win 5 club awards" },
+			diamond: { threshold: 10, description: "Win 10 club awards" },
+		},
+		evaluate: (player) => player.clubAwardCount || 0, // count from HAS_CAPTAIN_AWARDS
+	},
+	weekend_warrior: {
+		name: "Weekend Warrior",
+		category: "special",
+		tiers: {
+			gold: { threshold: 1, description: "Play 10+ matches across 2+ different XIs in a single season" },
+		},
+		evaluate: (player) => player.multiTeamSeasons || 0, // compute: seasons where player appeared for 2+ teams with 10+ total apps
+	},
 };
 ```
 
@@ -1251,28 +1272,28 @@ const BADGE_DEFINITIONS = {
 
 ```js
 function evaluateAllBadges(player) {
-  const earnedBadges = [];
-  
-  for (const [badgeId, definition] of Object.entries(BADGE_DEFINITIONS)) {
-    const playerValue = definition.evaluate(player);
-    
-    // Find highest tier achieved
-    const tierOrder = ['diamond', 'gold', 'silver', 'bronze'];
-    for (const tier of tierOrder) {
-      if (definition.tiers[tier] && playerValue >= definition.tiers[tier].threshold) {
-        earnedBadges.push({
-          badgeId: `${badgeId}_${tier}`,
-          badgeName: definition.name,
-          badgeCategory: definition.category,
-          tier: tier,
-          description: definition.tiers[tier].description
-        });
-        break;  // only award highest tier per badge
-      }
-    }
-  }
-  
-  return earnedBadges;
+	const earnedBadges = [];
+
+	for (const [badgeId, definition] of Object.entries(BADGE_DEFINITIONS)) {
+		const playerValue = definition.evaluate(player);
+
+		// Find highest tier achieved
+		const tierOrder = ["diamond", "gold", "silver", "bronze"];
+		for (const tier of tierOrder) {
+			if (definition.tiers[tier] && playerValue >= definition.tiers[tier].threshold) {
+				earnedBadges.push({
+					badgeId: `${badgeId}_${tier}`,
+					badgeName: definition.name,
+					badgeCategory: definition.category,
+					tier: tier,
+					description: definition.tiers[tier].description,
+				});
+				break; // only award highest tier per badge
+			}
+		}
+	}
+
+	return earnedBadges;
 }
 ```
 
@@ -1280,42 +1301,44 @@ function evaluateAllBadges(player) {
 
 ```js
 function getBadgeProgress(player) {
-  const progress = [];
-  
-  for (const [badgeId, definition] of Object.entries(BADGE_DEFINITIONS)) {
-    const playerValue = definition.evaluate(player);
-    const tierOrder = ['bronze', 'silver', 'gold', 'diamond'];
-    
-    // Find the next unachieved tier
-    for (const tier of tierOrder) {
-      if (definition.tiers[tier] && playerValue < definition.tiers[tier].threshold) {
-        progress.push({
-          badgeId: badgeId,
-          badgeName: definition.name,
-          nextTier: tier,
-          currentValue: playerValue,
-          targetValue: definition.tiers[tier].threshold,
-          progressPercent: Math.round((playerValue / definition.tiers[tier].threshold) * 100),
-          remaining: definition.tiers[tier].threshold - playerValue
-        });
-        break;
-      }
-    }
-  }
-  
-  return progress;
+	const progress = [];
+
+	for (const [badgeId, definition] of Object.entries(BADGE_DEFINITIONS)) {
+		const playerValue = definition.evaluate(player);
+		const tierOrder = ["bronze", "silver", "gold", "diamond"];
+
+		// Find the next unachieved tier
+		for (const tier of tierOrder) {
+			if (definition.tiers[tier] && playerValue < definition.tiers[tier].threshold) {
+				progress.push({
+					badgeId: badgeId,
+					badgeName: definition.name,
+					nextTier: tier,
+					currentValue: playerValue,
+					targetValue: definition.tiers[tier].threshold,
+					progressPercent: Math.round((playerValue / definition.tiers[tier].threshold) * 100),
+					remaining: definition.tiers[tier].threshold - playerValue,
+				});
+				break;
+			}
+		}
+	}
+
+	return progress;
 }
 ```
 
 **Frontend implementation (V3-dorkinians-website):**
 
 **Badge display component:** Create a reusable `BadgeIcon` component that renders a circular badge with tier-specific colours:
+
 - Bronze: background gradient `#D88A63 → #99603A`
 - Silver: background gradient `#B4B2A9 → #73726c`
 - Gold: background gradient `#C9A42A → #8B7020`
 - Diamond: background gradient `#E8E6DE → #B4B2A9` with a subtle glow
 
 **Layout on Player Stats "Captaincies, Awards and Achievements" section:**
+
 1. "Badges" sub-header
 2. "X of Y unlocked" progress bar
 3. If recently earned badges exist, show "Recently unlocked" with the badge detail card (badge icon, name, description, date, tier label)
@@ -1324,6 +1347,7 @@ function getBadgeProgress(player) {
 **Badge bar near player name:** Show the 3-5 highest-tier earned badges as small (24px) coloured circles in a row next to the player name at the top of Player Stats. Gold/Diamond badges take priority.
 
 **Club Awards and Records - Badge Leaderboard:**
+
 - "Most badges earned" - top 10 players by total badge count
 - "Most diamond badges" - top 5 players
 - "Most gold badges" - top 5 players
@@ -1435,7 +1459,7 @@ These items come from `New-Features-2.md`. Implement after Phase 5 (Feature 9) u
 
 ---
 
-### Feature 14: Player Stats — “Most Connected” (top 5)
+### Feature 14: Player Stats — “Most Connected” (top 5) _(website first cut done)_
 
 **What:** New **Most Connected** section on **Player Stats**: top **5** players with the strongest connection to the selected player (use existing `PLAYED_WITH` / `timesPlayed` or graph fields from Feature 7; define sort: e.g. by `timesPlayed` descending).
 
@@ -1451,7 +1475,7 @@ These items come from `New-Features-2.md`. Implement after Phase 5 (Feature 9) u
 
 ---
 
-### Feature 15: Team of the Week — previous 10 weeks score strip
+### Feature 15: Team of the Week — previous 10 weeks score strip _(website first cut done)_
 
 **What:** Below the current TOTW graphic, render **10** boxes: **previous 10** teams-of-the-week **total scores**, **week number** under each. Clicking a box navigates to the TOTW view for **that week**.
 
@@ -1463,7 +1487,7 @@ These items come from `New-Features-2.md`. Implement after Phase 5 (Feature 9) u
 
 ---
 
-### Feature 16: Team of the Week — Share (WhatsApp-friendly image)
+### Feature 16: Team of the Week — Share (WhatsApp-friendly image) _(website first cut done)_
 
 **What:** **Share** control at the **bottom** of the TOTW page: generate a **graphic** of the **current** team of the week and share via **Web Share API** where available; optimise for **WhatsApp** (PNG dimensions/compression, readable text). Fallback: download image (same pattern as Season Wrapped `html-to-image`).
 
@@ -1476,7 +1500,7 @@ These items come from `New-Features-2.md`. Implement after Phase 5 (Feature 9) u
 
 ---
 
-### Feature 17: Dev deploy branding and CI gates
+### Feature 17: Dev deploy branding and CI gates _(website/devops first cut done)_
 
 **What:**
 
@@ -1493,7 +1517,7 @@ These items come from `New-Features-2.md`. Implement after Phase 5 (Feature 9) u
 
 ---
 
-### Feature 18: Fixtures — “VEO LINK” from Google Sheets
+### Feature 18: Fixtures — “VEO LINK” from Google Sheets _(website first cut done)_
 
 **What:** New Google Sheets column **VEO LINK** on fixtures data: ingest in **`database-dorkinians`** (schema + CSV mapping), persist on **`Fixture`** (or equivalent), expose via website API for any consumer (League Info, Show Results, etc.).
 
@@ -1508,7 +1532,7 @@ These items come from `New-Features-2.md`. Implement after Phase 5 (Feature 9) u
 
 ---
 
-### Feature 19: League Information — Latest Result + formation + Show Results parity
+### Feature 19: League Information — Latest Result + formation + Show Results parity _(website first cut done)_
 
 **What:**
 
@@ -1532,13 +1556,13 @@ These items come from `New-Features-2.md`. Implement after Phase 5 (Feature 9) u
 
 ## Implementation order summary
 
-| Phase | Features | Repo | Depends on |
-|---|---|---|---|
-| 1 | Feature 1 (inferred data), Feature 4 (match ratings) | database-dorkinians | Nothing |
-| 2 | Feature 2 (per-90), Feature 3 (EWMA), Feature 5 (streaks) | database-dorkinians | Phase 1 (match ratings feed into EWMA; started feeds into streaks) |
-| 3 | Feature 6 (records wall), Feature 7 (graph insights) | Both repos | Phase 2 (streak records feed into records wall) |
-| 4 | Feature 8 (Season Wrapped) | V3-dorkinians-website | Phases 1-3 (uses per-90, streaks, partnerships, match ratings) |
-| 5 | Feature 9 (achievement badges) | Both repos | Phases 1-3 (uses streaks, per-90, match ratings) |
-| 6 | Features 10-19 (New Requests Round 2) | Both repos (18 + seeding) | Phase 5 for 10; Phase 7 data for 14; Phase 1 + 18 for 19 |
+| Phase | Features                                                  | Repo                      | Depends on                                                         |
+| ----- | --------------------------------------------------------- | ------------------------- | ------------------------------------------------------------------ |
+| 1     | Feature 1 (inferred data), Feature 4 (match ratings)      | database-dorkinians       | Nothing                                                            |
+| 2     | Feature 2 (per-90), Feature 3 (EWMA), Feature 5 (streaks) | database-dorkinians       | Phase 1 (match ratings feed into EWMA; started feeds into streaks) |
+| 3     | Feature 6 (records wall), Feature 7 (graph insights)      | Both repos                | Phase 2 (streak records feed into records wall)                    |
+| 4     | Feature 8 (Season Wrapped)                                | V3-dorkinians-website     | Phases 1-3 (uses per-90, streaks, partnerships, match ratings)     |
+| 5     | Feature 9 (achievement badges)                            | Both repos                | Phases 1-3 (uses streaks, per-90, match ratings)                   |
+| 6     | Features 10-19 (New Requests Round 2)                     | Both repos (18 + seeding) | Phase 5 for 10; Phase 7 data for 14; Phase 1 + 18 for 19           |
 
 Within each phase, implement features in the order listed. Run the full test suite after each feature before moving to the next.
