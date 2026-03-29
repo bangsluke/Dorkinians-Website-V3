@@ -1,4 +1,3 @@
-import nlp from "compromise";
 import { EntityNameResolver } from "../services/entityNameResolver";
 
 export interface EntityExtractionResult {
@@ -1107,27 +1106,38 @@ export const RESULT_PSEUDONYMS = {
 export class EntityExtractor {
 	private question: string;
 	private lowerQuestion: string;
-	private nlpDoc: any;
+	private nlpDoc: any | null = null;
+	private nlpLoadPromise: Promise<void> | null = null;
 	private entityResolver: EntityNameResolver;
 
 	constructor(question: string) {
 		this.question = question;
 		this.lowerQuestion = question.toLowerCase();
-		try {
-			this.nlpDoc = nlp(question);
-		} catch (error) {
-			console.error("❌ NLP Error:", error);
-			// Fallback to basic text processing if NLP fails
-			this.nlpDoc = { match: () => ({ out: () => [] }) };
-		}
 		this.entityResolver = EntityNameResolver.getInstance();
 	}
 
+	/** Loads `compromise` only when player-name NLP is needed (saves large sync parse on most questions). */
+	private async ensureNlpDoc(): Promise<void> {
+		if (this.nlpDoc) return;
+		if (!this.nlpLoadPromise) {
+			this.nlpLoadPromise = (async () => {
+				try {
+					const { default: nlp } = await import("compromise");
+					this.nlpDoc = nlp(this.question);
+				} catch (error) {
+					console.error("❌ NLP Error:", error);
+					this.nlpDoc = { match: () => ({ out: () => [] }) };
+				}
+			})();
+		}
+		await this.nlpLoadPromise;
+	}
+
 	async extractEntities(): Promise<EntityExtractionResult> {
-		// Extract independent entity types in parallel for better performance
-		// Synchronous extractions can run in parallel using Promise.all
+		// Entities first (may lazy-load compromise for player-name NLP); others parallelise after.
+		const entities = await this.extractEntityInfo();
+
 		const [
-			entities,
 			statTypes,
 			statIndicators,
 			questionTypes,
@@ -1138,15 +1148,14 @@ export class EntityExtractor {
 			competitions,
 			results,
 		] = await Promise.all([
-			Promise.resolve(this.extractEntityInfo()),
-			this.extractStatTypes(),
+			this.extractStatTypes(entities),
 			Promise.resolve(this.extractStatIndicators()),
 			Promise.resolve(this.extractQuestionTypes()),
 			Promise.resolve(this.extractNegativeClauses()),
 			Promise.resolve(this.extractLocations()),
 			Promise.resolve(this.extractTimeFrames()),
 			Promise.resolve(this.extractCompetitionTypes()),
-			Promise.resolve(this.extractCompetitions()),
+			Promise.resolve(this.extractCompetitions(entities)),
 			Promise.resolve(this.extractResults()),
 		]);
 
@@ -1172,7 +1181,7 @@ export class EntityExtractor {
 		};
 	}
 
-	private extractEntityInfo(): EntityInfo[] {
+	private async extractEntityInfo(): Promise<EntityInfo[]> {
 		const entities: EntityInfo[] = [];
 		let position = 0;
 
@@ -1238,6 +1247,7 @@ export class EntityExtractor {
 		// Also check for simpler capitalized name patterns (e.g., "Ahmad Farooq")
 		const hasCapitalizedNamePattern = /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+\b)/.test(this.question);
 		if (hasPlayerContext || extractedTeamNames.size === 0 || hasClearPlayerNamePattern || hasCapitalizedNamePattern) {
+			await this.ensureNlpDoc();
 			const playerNames = this.extractPlayerNamesWithNLP(extractedTeamNames);
 			const addedPlayers = new Set<string>();
 			playerNames.forEach((player) => {
@@ -1446,11 +1456,11 @@ export class EntityExtractor {
 		return entities;
 	}
 
-	private async extractStatTypes(): Promise<StatTypeInfo[]> {
+	private async extractStatTypes(entities: EntityInfo[]): Promise<StatTypeInfo[]> {
 		const statTypes: StatTypeInfo[] = [];
 
 		// CRITICAL FIX: Get player entities to filter out matches that are part of player names
-		const playerEntities = this.extractEntityInfo().filter(e => e.type === "player");
+		const playerEntities = entities.filter((e) => e.type === "player");
 		const playerNameWords = new Set<string>();
 		playerEntities.forEach(entity => {
 			// Split player names into individual words for checking
@@ -1512,12 +1522,12 @@ export class EntityExtractor {
 		});
 
 		// Add fuzzy matching for stat types
-		await this.addFuzzyStatTypeMatches(statTypes);
+		await this.addFuzzyStatTypeMatches(statTypes, entities);
 
 		return statTypes;
 	}
 
-	private async addFuzzyStatTypeMatches(existingStatTypes: StatTypeInfo[]): Promise<void> {
+	private async addFuzzyStatTypeMatches(existingStatTypes: StatTypeInfo[], entities: EntityInfo[]): Promise<void> {
 		// Get all potential stat type words from the question
 		const words = this.question
 			.toLowerCase()
@@ -1526,13 +1536,16 @@ export class EntityExtractor {
 			.filter((word) => word.length > 0);
 
 		// Get extracted player entities to check against
-		const playerEntities = this.extractEntityInfo().filter(e => e.type === "player");
+		const playerEntities = entities.filter((e) => e.type === "player");
 		const playerNameWords = new Set<string>();
-		playerEntities.forEach(entity => {
+		playerEntities.forEach((entity) => {
 			// Split player names into individual words for checking
-			entity.value.toLowerCase().split(/\s+/).forEach(word => {
-				playerNameWords.add(word);
-			});
+			entity.value
+				.toLowerCase()
+				.split(/\s+/)
+				.forEach((word) => {
+					playerNameWords.add(word);
+				});
 		});
 
 		// Check each word for potential stat type matches
@@ -2093,11 +2106,11 @@ export class EntityExtractor {
 		return competitionTypes;
 	}
 
-	private extractCompetitions(): CompetitionInfo[] {
+	private extractCompetitions(entities: EntityInfo[]): CompetitionInfo[] {
 		const competitions: CompetitionInfo[] = [];
 		
 		// Get team entities to check for conflicts
-		const teamEntities = this.extractEntityInfo().filter(e => e.type === "team");
+		const teamEntities = entities.filter((e) => e.type === "team");
 		const teamValues = new Set(teamEntities.map(e => e.value.toLowerCase()));
 		
 		// Patterns that indicate team context (not competition context)
@@ -2198,6 +2211,10 @@ export class EntityExtractor {
 	 */
 	private extractPlayerNamesWithNLP(extractedTeamNames: Set<string> = new Set()): Array<{ text: string; position: number }> {
 		const players: Array<{ text: string; position: number }> = [];
+
+		if (!this.nlpDoc) {
+			return players;
+		}
 
 		try {
 			// Get all proper nouns (potential player names)
