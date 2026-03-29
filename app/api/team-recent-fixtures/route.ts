@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
 
 		// Build filter conditions
 		const filterConditions = buildFilterConditions(filters, params);
-		
+
 		// Filter out position conditions (md.class) since this query doesn't match MatchDetail nodes
 		const fixtureConditions = filterConditions.filter((cond) => !cond.includes("md.class"));
 
@@ -58,9 +58,10 @@ export async function POST(request: NextRequest) {
 		}
 
 		// Keep team filter from filterConditions if present (filters.teams)
-		const conditions = hasTeamFilter || teamName === "Whole Club" || !teamName
-			? fixtureConditions
-			: fixtureConditions.filter((cond) => !cond.includes("f.team IN $teams"));
+		const conditions =
+			hasTeamFilter || teamName === "Whole Club" || !teamName
+				? fixtureConditions
+				: fixtureConditions.filter((cond) => !cond.includes("f.team IN $teams"));
 
 		if (conditions.length > 0) {
 			const hasWhereClause = query.includes("WHERE");
@@ -71,7 +72,7 @@ export async function POST(request: NextRequest) {
 		query += `
 			RETURN f.result as result, f.date as date, f.opposition as opposition, 
 			       f.homeOrAway as homeOrAway, f.dorkiniansGoals as goalsScored, 
-			       f.conceded as goalsConceded, f.compType as compType
+			       f.conceded as goalsConceded, f.compType as compType, f.veoLink as veoLink
 			ORDER BY f.date DESC
 			LIMIT 10
 		`;
@@ -87,6 +88,7 @@ export async function POST(request: NextRequest) {
 			const goalsScored = record.get("goalsScored");
 			const goalsConceded = record.get("goalsConceded");
 			const compType = record.get("compType");
+			const veoLink = record.get("veoLink");
 
 			return {
 				result: resultValue ? String(resultValue) : "",
@@ -96,6 +98,7 @@ export async function POST(request: NextRequest) {
 				goalsScored: typeof goalsScored === "number" ? goalsScored : Number(goalsScored) || 0,
 				goalsConceded: typeof goalsConceded === "number" ? goalsConceded : Number(goalsConceded) || 0,
 				compType: compType ? String(compType) : "",
+				veoLink: veoLink != null && String(veoLink).trim() !== "" ? String(veoLink) : null,
 			};
 		});
 

@@ -5,6 +5,7 @@ import { WeeklyTOTW, MatchDetail } from "@/types";
 import { formationCoordinateObject } from "@/lib/formations/formationCoordinates";
 import PlayerDetailModal from "./PlayerDetailModal";
 import Image from "next/image";
+import { toBlob } from "html-to-image";
 import { useNavigationStore } from "@/lib/stores/navigation";
 import { getCurrentSeasonFromStorage } from "@/lib/services/currentSeasonService";
 import { Listbox } from "@headlessui/react";
@@ -27,6 +28,7 @@ interface Week {
 	week: number;
 	dateLookup: string;
 	weekAdjusted: string;
+	totwScore?: number;
 }
 
 interface TOTWPlayer {
@@ -63,6 +65,7 @@ export default function TeamOfTheWeek() {
 	const [showModal, setShowModal] = useState(false);
 	const [showInfoTooltip, setShowInfoTooltip] = useState(false);
 	const [loadingPlayerDetails, setLoadingPlayerDetails] = useState(false);
+	const [isSharingTOTW, setIsSharingTOTW] = useState(false);
 	const [containerWidth, setContainerWidth] = useState(800);
 	const [isAllTimeSelected, setIsAllTimeSelected] = useState(false);
 	const [isSeasonTOTWSelected, setIsSeasonTOTWSelected] = useState(false);
@@ -752,6 +755,50 @@ export default function TeamOfTheWeek() {
 	const playersInFormation = getPlayersInFormation();
 	const formation = totwData?.bestFormation || "";
 	const pitchContainerRef = useRef<HTMLDivElement>(null);
+	const shareCaptureRef = useRef<HTMLDivElement>(null);
+	const previousTenWeeks = useMemo(() => {
+		if (!weeks || weeks.length === 0 || selectedWeek <= 0) return [] as Week[];
+		return weeks
+			.filter((w) => w.week > 0 && w.week < selectedWeek)
+			.sort((a, b) => b.week - a.week)
+			.slice(0, 10);
+	}, [weeks, selectedWeek]);
+
+	const handleShareTOTW = async () => {
+		if (!shareCaptureRef.current || !totwData || isSharingTOTW) return;
+		setIsSharingTOTW(true);
+		try {
+			const blob = await toBlob(shareCaptureRef.current, {
+				pixelRatio: 2,
+				backgroundColor: "#0f0f0f",
+			});
+			if (!blob) return;
+
+			const modeLabel = isAllTimeSelected ? "all-time" : isSeasonTOTWSelected ? "season" : `week-${selectedWeek}`;
+			const seasonLabel = (selectedSeason || "season").replace(/[^\w\-]+/g, "-");
+			const file = new File([blob], `dorkinians-totw-${seasonLabel}-${modeLabel}.png`, { type: "image/png" });
+
+			if (typeof navigator !== "undefined" && navigator.canShare?.({ files: [file] })) {
+				await navigator.share({
+					files: [file],
+					title: "Dorkinians Team of the Week",
+					text: "Check out this Dorkinians Team of the Week.",
+				});
+				return;
+			}
+
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement("a");
+			a.href = url;
+			a.download = file.name;
+			a.click();
+			URL.revokeObjectURL(url);
+		} catch (error) {
+			console.warn("TOTW share failed", error);
+		} finally {
+			setIsSharingTOTW(false);
+		}
+	};
 
 	// Track row player counts and positions for 4-player row adjustments
 	const rowPlayerData = useMemo(() => {
@@ -1086,45 +1133,46 @@ export default function TeamOfTheWeek() {
 				</div>
 			) : (
 				<>
-					{/* Summary Statistics */}
-					<div className='flex flex-row flex-nowrap gap-8 md:gap-20 mb-6 justify-center'>
-						<div className='text-center flex flex-col md:w-auto'>
-							<div className='h-5 mb-2 flex items-center justify-center'>
-								<p className='text-gray-300 font-bold text-xs md:text-sm'>TOTW TOTAL POINTS</p>
+					<div ref={shareCaptureRef} data-testid='totw-share-capture'>
+						{/* Summary Statistics */}
+						<div className='flex flex-row flex-nowrap gap-8 md:gap-20 mb-6 justify-center'>
+							<div className='text-center flex flex-col md:w-auto'>
+								<div className='h-5 mb-2 flex items-center justify-center'>
+									<p className='text-gray-300 font-bold text-xs md:text-sm'>TOTW TOTAL POINTS</p>
+								</div>
+								<div className='flex-1 md:flex-none flex items-end md:items-center justify-center'>
+									<p className='text-7xl md:text-8xl font-bold text-gray-300 leading-none'>{Math.round(totwData?.totwScore || 0)}</p>
+								</div>
+								<p className='text-gray-300 mt-2 text-[0.65rem] md:text-xs whitespace-nowrap'>Number Players Played: {totwData?.playerCount || 0}</p>
 							</div>
-							<div className='flex-1 md:flex-none flex items-end md:items-center justify-center'>
-								<p className='text-7xl md:text-8xl font-bold text-gray-300 leading-none'>{Math.round(totwData?.totwScore || 0)}</p>
+							<div className='flex flex-col items-center flex-shrink-0'>
+								{totwData?.starMan && (
+									<>
+										<div className='h-5 mb-2 flex items-center justify-center'>
+											<p className='text-gray-300 font-bold text-xs md:text-sm'>STAR MAN</p>
+										</div>
+										<div className='flex flex-col items-center gap-2 cursor-pointer hover:scale-105 transition-transform' onClick={() => handlePlayerClick(totwData.starMan)}>
+											<div className='relative w-12 h-12 md:w-14 md:h-14'>
+												<Image
+													src='/totw-images/Kit.svg'
+													alt='Star Man Kit'
+													fill
+													className='object-contain'
+													priority
+												/>
+											</div>
+											<div className='text-white px-4 py-1 rounded text-center' style={{ background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05))' }}>
+												<div className='text-xs md:text-sm'>{totwData.starMan}</div>
+												<div className='font-bold mt-1 text-xs md:text-sm'>{Math.round(totwData.starManScore)}</div>
+											</div>
+										</div>
+									</>
+								)}
 							</div>
-							<p className='text-gray-300 mt-2 text-[0.65rem] md:text-xs whitespace-nowrap'>Number Players Played: {totwData?.playerCount || 0}</p>
 						</div>
-						<div className='flex flex-col items-center flex-shrink-0'>
-							{totwData?.starMan && (
-								<>
-									<div className='h-5 mb-2 flex items-center justify-center'>
-										<p className='text-gray-300 font-bold text-xs md:text-sm'>STAR MAN</p>
-									</div>
-									<div className='flex flex-col items-center gap-2 cursor-pointer hover:scale-105 transition-transform' onClick={() => handlePlayerClick(totwData.starMan)}>
-										<div className='relative w-12 h-12 md:w-14 md:h-14'>
-											<Image
-												src='/totw-images/Kit.svg'
-												alt='Star Man Kit'
-												fill
-												className='object-contain'
-												priority
-											/>
-										</div>
-										<div className='text-white px-4 py-1 rounded text-center' style={{ background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05))' }}>
-											<div className='text-xs md:text-sm'>{totwData.starMan}</div>
-											<div className='font-bold mt-1 text-xs md:text-sm'>{Math.round(totwData.starManScore)}</div>
-										</div>
-									</div>
-								</>
-							)}
-						</div>
-					</div>
 
-					{/* Pitch Visualization */}
-					<div ref={pitchContainerRef} className='relative w-full mb-4 overflow-hidden' style={{ minHeight: '450px', aspectRatio: '16/9.6' }}>
+						{/* Pitch Visualization */}
+						<div ref={pitchContainerRef} className='relative w-full mb-4 overflow-hidden' style={{ minHeight: '450px', aspectRatio: '16/9.6' }}>
 						{/* Pitch Background */}
 						<div className='absolute inset-0 w-full h-[110%]'>
 							<Image
@@ -1138,7 +1186,7 @@ export default function TeamOfTheWeek() {
 						</div>
 
 						{/* Players */}
-						{playersInFormation.map((player, index) => {
+							{playersInFormation.map((player, index) => {
 							const position = getPlayerPosition(formation, player.posKey);
 							if (!position) return null;
 
@@ -1235,7 +1283,55 @@ export default function TeamOfTheWeek() {
 									</div>
 								</div>
 							);
-						})}
+							})}
+						</div>
+					</div>
+
+					{/* Previous 10 weeks score strip (Feature 15) */}
+					{!isAllTimeSelected && !isSeasonTOTWSelected && selectedWeek > 0 && previousTenWeeks.length > 0 && (
+						<div id='totw-previous-weeks-strip' data-testid='totw-previous-weeks-strip' className='mb-6'>
+							<h3 className='text-center text-gray-200 font-semibold text-xs md:text-sm mb-2'>Previous 10 Weeks</h3>
+							<div className='grid grid-cols-5 md:grid-cols-10 gap-2'>
+								{previousTenWeeks.map((weekItem) => (
+									<button
+										key={weekItem.week}
+										type='button'
+										data-testid='totw-previous-week-box'
+										data-week-target={String(weekItem.week)}
+										onClick={() => {
+											if (weekItem.week !== selectedWeek) {
+												trackEvent(UmamiEvents.TotwWeekChanged, {
+													fromWeek: selectedWeek,
+													toWeek: weekItem.week,
+													season: selectedSeason,
+													totwSubPage: "totw",
+													source: "previous-10-strip",
+												});
+											}
+											setSelectedWeek(weekItem.week);
+										}}
+										className='rounded-md border border-white/20 bg-white/5 hover:bg-white/10 transition-colors px-1 py-1.5 text-center'
+										aria-label={`Open Team of the Week for week ${weekItem.week}`}>
+										<p className='text-[10px] md:text-xs text-white/80'>W{weekItem.week}</p>
+										<p className='text-xs md:text-sm font-semibold text-dorkinians-yellow leading-tight'>
+											{Math.round(Number(weekItem.totwScore || 0))}
+										</p>
+										<p className='text-[9px] md:text-[10px] text-white/60 truncate'>{weekItem.dateLookup || ""}</p>
+									</button>
+								))}
+							</div>
+						</div>
+					)}
+
+					<div className='flex justify-center mb-2'>
+						<button
+							type='button'
+							data-testid='totw-share-button'
+							onClick={() => void handleShareTOTW()}
+							disabled={isSharingTOTW}
+							className='text-sm font-medium px-4 py-2 rounded-lg bg-[#E8C547] text-black hover:opacity-90 disabled:opacity-60'>
+							{isSharingTOTW ? "Preparing..." : "Share TOTW"}
+						</button>
 					</div>
 				</>
 			)}

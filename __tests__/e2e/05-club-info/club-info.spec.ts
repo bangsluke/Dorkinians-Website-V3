@@ -10,18 +10,20 @@ const VISIBLE_USEFUL_LINK_CATEGORIES = ["official", "social", "other"] as const;
 
 /** Cycle season options until the awards table shows a clickable receiver, or Historical Awards with player rows. */
 async function ensureClubAwardsRegularSeason(page: import("@playwright/test").Page) {
-	const h = page.getByRole("heading", { name: /Club Awards and Records/i });
+	const h = page.getByRole("heading", { name: /Club Awards/i });
 	await h.waitFor({ state: "visible", timeout: 25000 });
 	const seasonBtn = page.locator("div").filter({ has: h }).getByRole("button").first();
-	const receiverTable = page
-		.locator("table")
-		.filter({ has: page.getByRole("columnheader", { name: "Receiver" }) });
+	const receiverTable = page.locator("table").filter({ has: page.getByRole("columnheader", { name: "Receiver" }) });
 	const nameBtn = receiverTable.locator("tbody button").first();
 
 	async function tableReady(): Promise<boolean> {
 		const col = page.getByRole("columnheader", { name: "Award Name" });
 		const empty = page.getByText(/No award data available|No historical award data available/i);
-		return await col.or(empty).first().isVisible({ timeout: 25000 }).catch(() => false);
+		return await col
+			.or(empty)
+			.first()
+			.isVisible({ timeout: 25000 })
+			.catch(() => false);
 	}
 
 	if (!(await tableReady())) return;
@@ -103,9 +105,7 @@ test.describe("Club Info Page Tests", () => {
 		}
 	});
 
-	test("5.5. clicking the 'Show squad' text below a trophy should open a modal with the squad that won the trophy", async ({
-		page,
-	}) => {
+	test("5.5. clicking the 'Show squad' text below a trophy should open a modal with the squad that won the trophy", async ({ page }) => {
 		await navigateToMainPage(page, "club-info");
 		await page.keyboard.press("Escape").catch(() => {});
 		const showSquad = page.getByRole("button", { name: "Show squad" }).first();
@@ -117,7 +117,9 @@ test.describe("Club Info Page Tests", () => {
 		const dialog = page.getByRole("dialog", { name: /squad players/i }).first();
 		await expect(dialog).toBeVisible({ timeout: 15000 });
 		await dialog.getByRole("button", { name: /Close .* squad players modal/i }).click({ force: true });
-		await expect(dialog).toBeHidden({ timeout: 8000 }).catch(() => {});
+		await expect(dialog)
+			.toBeHidden({ timeout: 8000 })
+			.catch(() => {});
 	});
 
 	test("5.6. clicking 'Close' or 'X' should close the squad modal on the Club Info page", async ({ page }) => {
@@ -141,7 +143,10 @@ test.describe("Club Info Page Tests", () => {
 
 		const dialog2 = await openDialog();
 		await expect(dialog2).toBeVisible({ timeout: 10000 });
-		await dialog2.getByRole("button", { name: /Close .* squad players modal/i }).first().click({ force: true });
+		await dialog2
+			.getByRole("button", { name: /Close .* squad players modal/i })
+			.first()
+			.click({ force: true });
 		await expect(dialog2).toBeHidden({ timeout: 8000 });
 	});
 
@@ -240,7 +245,12 @@ test.describe("Club Info Page Tests", () => {
 		// Some seasons render the bar before every `team-*` anchor is mounted — use the first jump whose `#team-${key}` exists.
 		const main = page.locator("main").first();
 		const jumpButtons = main.getByRole("button", { name: /^[1-8]s$/ });
-		if (!(await jumpButtons.first().isVisible({ timeout: 30000 }).catch(() => false))) {
+		if (
+			!(await jumpButtons
+				.first()
+				.isVisible({ timeout: 30000 })
+				.catch(() => false))
+		) {
 			test.skip(true, "League quick-jump buttons not visible — skipping scroll test.");
 			return;
 		}
@@ -286,9 +296,7 @@ test.describe("Club Info Page Tests", () => {
 		await popup.close();
 	});
 
-	test("5.14. clicking the 'Show results' button should open a modal with the results of the team in the league", async ({
-		page,
-	}) => {
+	test("5.14. clicking the 'Show results' button should open a modal with the results of the team in the league", async ({ page }) => {
 		await navigateToMainPage(page, "club-info");
 		await goToClubInfoSubPage(page, "league-information");
 		await ensureLeagueSeasonWithQuickJump(page);
@@ -303,9 +311,36 @@ test.describe("Club Info Page Tests", () => {
 		await expect(page.getByRole("button", { name: /Close .* league results modal/i })).toBeHidden({ timeout: 8000 });
 	});
 
-	test("5.15. clicking the 'Back to top' button should scroll to the top of the page on the League Information page", async ({
-		page,
-	}) => {
+	test("5.14a. latest result panel renders formation, optional Veo link, and full player details toggle", async ({ page }) => {
+		await navigateToMainPage(page, "club-info");
+		await goToClubInfoSubPage(page, "league-information");
+		await ensureLeagueSeasonWithQuickJump(page);
+
+		const latestPanel = page.locator("[data-testid^='latest-result-']").first();
+		if (!(await latestPanel.isVisible({ timeout: 30000 }).catch(() => false))) {
+			test.skip(true, "Latest Result panel not visible for this season/data — skipping.");
+			return;
+		}
+
+		await expect(latestPanel.getByRole("heading", { name: "Latest Result" })).toBeVisible({ timeout: 15000 });
+
+		const toggleDetails = latestPanel.getByRole("button", { name: /Show full player details/i }).first();
+		if (!(await toggleDetails.isVisible({ timeout: 8000 }).catch(() => false))) {
+			test.skip(true, "No lineup/full-details toggle visible in Latest Result panel.");
+			return;
+		}
+
+		await toggleDetails.click();
+		await expect(latestPanel.locator("[data-testid$='-full-details-table']").first()).toBeVisible({ timeout: 10000 });
+
+		const veoLink = latestPanel.getByRole("link", { name: /Watch on Veo/i }).first();
+		if (await veoLink.isVisible({ timeout: 2000 }).catch(() => false)) {
+			expect(await veoLink.getAttribute("target")).toBe("_blank");
+			expect((await veoLink.getAttribute("rel")) || "").toContain("noopener");
+		}
+	});
+
+	test("5.15. clicking the 'Back to top' button should scroll to the top of the page on the League Information page", async ({ page }) => {
 		await navigateToMainPage(page, "club-info");
 		await goToClubInfoSubPage(page, "league-information");
 		await ensureLeagueSeasonWithQuickJump(page);
@@ -324,7 +359,7 @@ test.describe("Club Info Page Tests", () => {
 	test("5.16. clicking the 'Club Captains' link should display the Club Captains page", async ({ page }) => {
 		await navigateToMainPage(page, "club-info");
 		await goToClubInfoSubPage(page, "club-captains");
-		await expect(page.getByRole("heading", { name: "Club Captains" })).toBeVisible({ timeout: 20000 });
+		await expect(page.getByRole("heading", { name: /^Club Captains$/ })).toBeVisible({ timeout: 20000 });
 	});
 
 	test("5.17. all club captains should be displayed on the Club Captains page for all teams including the Club Captain", async ({
@@ -353,7 +388,12 @@ test.describe("Club Info Page Tests", () => {
 		await navigateToMainPage(page, "club-info");
 		await goToClubInfoSubPage(page, "club-captains");
 		const tbl = page.locator("table").filter({ has: page.getByRole("columnheader", { name: "Captain" }) });
-		if (!(await tbl.first().isVisible({ timeout: 35000 }).catch(() => false))) {
+		if (
+			!(await tbl
+				.first()
+				.isVisible({ timeout: 35000 })
+				.catch(() => false))
+		) {
 			test.skip(true, "Captains table not visible — skipping captain history modal.");
 			return;
 		}
@@ -374,7 +414,12 @@ test.describe("Club Info Page Tests", () => {
 		await navigateToMainPage(page, "club-info");
 		await goToClubInfoSubPage(page, "club-captains");
 		const tbl = page.locator("table").filter({ has: page.getByRole("columnheader", { name: "Captain" }) });
-		if (!(await tbl.first().isVisible({ timeout: 35000 }).catch(() => false))) {
+		if (
+			!(await tbl
+				.first()
+				.isVisible({ timeout: 35000 })
+				.catch(() => false))
+		) {
 			test.skip(true, "Captains table not visible — skipping captain modal close test.");
 			return;
 		}
@@ -409,7 +454,7 @@ test.describe("Club Info Page Tests", () => {
 	test("5.20. changing the season filter should update the displayed club captains", async ({ page }) => {
 		await navigateToMainPage(page, "club-info");
 		await goToClubInfoSubPage(page, "club-captains");
-		const h = page.getByRole("heading", { name: "Club Captains" });
+		const h = page.getByRole("heading", { name: /^Club Captains$/ });
 		await h.waitFor({ timeout: 20000 });
 		const seasonBtn = page.locator("div").filter({ has: h }).getByRole("button").first();
 		const before = (await seasonBtn.innerText()).trim();
@@ -434,15 +479,13 @@ test.describe("Club Info Page Tests", () => {
 		await expect(h).toBeVisible();
 	});
 
-	test("5.21. clicking the 'Club Awards and Records' link should display that page", async ({ page }) => {
+	test("5.21. clicking the 'Club Captains and Awards' link should display that page", async ({ page }) => {
 		await navigateToMainPage(page, "club-info");
 		await goToClubInfoSubPage(page, "club-awards");
-		await expect(page.getByRole("heading", { name: /Club Awards and Records/i })).toBeVisible({ timeout: 20000 });
+		await expect(page.getByRole("heading", { name: /Club Captains and Awards/i })).toBeVisible({ timeout: 20000 });
 	});
 
-	test("5.22. all club awards should be displayed on the Club Awards page for all teams including the Club Award", async ({
-		page,
-	}) => {
+	test("5.22. all club awards should be displayed on the Club Awards page for all teams including the Club Award", async ({ page }) => {
 		await navigateToMainPage(page, "club-info");
 		const awardsData = page.waitForResponse((r) => r.url().includes("/api/awards/") && r.ok(), { timeout: 45000 });
 		await goToClubInfoSubPage(page, "club-awards");
@@ -458,9 +501,7 @@ test.describe("Club Info Page Tests", () => {
 		expect(n).toBeGreaterThan(0);
 	});
 
-	test("5.23. clicking a player's name on the Club Awards page should display a modal with the award's history", async ({
-		page,
-	}) => {
+	test("5.23. clicking a player's name on the Club Awards page should display a modal with the award's history", async ({ page }) => {
 		await navigateToMainPage(page, "club-info");
 		await goToClubInfoSubPage(page, "club-awards");
 		await ensureClubAwardsRegularSeason(page);
@@ -478,7 +519,9 @@ test.describe("Club Info Page Tests", () => {
 		await expect(dialog).toBeVisible({ timeout: 20000 });
 		await expect(dialog.getByText(/Total Awards/i)).toBeVisible({ timeout: 20000 });
 		await dialog.getByRole("button", { name: /^Close$/ }).click({ force: true });
-		await expect(dialog).toBeHidden({ timeout: 8000 }).catch(() => {});
+		await expect(dialog)
+			.toBeHidden({ timeout: 8000 })
+			.catch(() => {});
 	});
 
 	test("5.24. clicking 'Close' or 'X' should close the award's history modal", async ({ page }) => {
@@ -509,7 +552,7 @@ test.describe("Club Info Page Tests", () => {
 	test("5.25. changing the season filter should update the displayed club awards", async ({ page }) => {
 		await navigateToMainPage(page, "club-info");
 		await goToClubInfoSubPage(page, "club-awards");
-		const h = page.getByRole("heading", { name: /Club Awards and Records/i });
+		const h = page.getByRole("heading", { name: /Club Captains and Awards/i });
 		await h.waitFor({ timeout: 20000 });
 		const seasonBtn = page.locator("div").filter({ has: h }).getByRole("button").first();
 		const before = (await seasonBtn.innerText()).trim();
@@ -527,7 +570,7 @@ test.describe("Club Info Page Tests", () => {
 		}
 		if (!picked) {
 			await page.keyboard.press("Escape");
-			test.skip(true, "No alternate Club Awards and Records season in dropdown — skipping.");
+			test.skip(true, "No alternate Club Captains and Awards season in dropdown — skipping.");
 			return;
 		}
 		await page.waitForTimeout(1500);
@@ -564,24 +607,33 @@ test.describe("Club Info Page Tests", () => {
 	test("5.28. clicking a link should open the link in a new tab", async ({ page }) => {
 		await navigateToMainPage(page, "club-info");
 		await goToClubInfoSubPage(page, "useful-links");
-		const first = page.locator("a[target='_blank']").filter({ has: page.locator("h4") }).first();
+		const first = page
+			.locator("a[target='_blank']")
+			.filter({ has: page.locator("h4") })
+			.first();
 		await expect(first).toBeVisible({ timeout: 15000 });
 		expect(await first.getAttribute("target")).toBe("_blank");
 		expect(await first.getAttribute("rel")).toContain("noopener");
 	});
 
-	test("5.29. Records section is shown on Club Awards and Records", async ({ page }) => {
+	test("5.29. Records section is shown on Club Information above Milestones", async ({ page }) => {
 		await navigateToMainPage(page, "club-info");
-		await goToClubInfoSubPage(page, "club-awards");
-		await expect(page.getByRole("heading", { name: /Club Awards and Records/i })).toBeVisible({ timeout: 20000 });
+		await goToClubInfoSubPage(page, "club-information");
+		await expect(page.getByRole("heading", { name: /Club Information/i })).toBeVisible({ timeout: 20000 });
 		const section = page.getByTestId("records-section");
 		await section.scrollIntoViewIfNeeded();
-		await expect(page.getByRole("heading", { name: /^Records$/ })).toBeVisible({ timeout: 15000 });
+		const recordsHeading = page.getByRole("heading", { name: /^Records$/ });
+		const milestonesHeading = page.getByRole("heading", { name: /^Milestones$/i }).first();
+		await expect(recordsHeading).toBeVisible({ timeout: 15000 });
+		await expect(milestonesHeading).toBeVisible({ timeout: 15000 });
+		const recordsTop = await recordsHeading.first().evaluate((el) => el.getBoundingClientRect().top);
+		const milestonesTop = await milestonesHeading.first().evaluate((el) => el.getBoundingClientRect().top);
+		expect(recordsTop).toBeLessThan(milestonesTop);
 	});
 
 	test("5.30. record holder name navigates to Player Stats when ClubRecord data exists", async ({ page }) => {
 		await navigateToMainPage(page, "club-info");
-		await goToClubInfoSubPage(page, "club-awards");
+		await goToClubInfoSubPage(page, "club-information");
 		await page.getByTestId("records-section").scrollIntoViewIfNeeded();
 		const holderBtn = page.locator("[data-testid^='record-holder-']").first();
 		if (!(await holderBtn.isVisible({ timeout: 10000 }).catch(() => false))) {
@@ -593,12 +645,22 @@ test.describe("Club Info Page Tests", () => {
 		await expect(page.getByTestId("stats-page-heading")).toContainText(name, { timeout: 25000 });
 	});
 
-	test("5.31. Badge leaderboard section is shown on Club Awards and Records", async ({ page }) => {
+	test("5.31. Badge leaderboard is below Records on Club Information and absent on Club Captains and Awards", async ({ page }) => {
 		await navigateToMainPage(page, "club-info");
+		await goToClubInfoSubPage(page, "club-information");
+		const recordsSection = page.getByTestId("records-section");
+		const badgeSection = page.getByTestId("badge-leaderboard-section");
+		await recordsSection.scrollIntoViewIfNeeded();
+		await expect(recordsSection).toBeVisible({ timeout: 15000 });
+		await badgeSection.scrollIntoViewIfNeeded();
+		await expect(badgeSection.getByRole("heading", { name: /^Badge leaderboard$/i })).toBeVisible({ timeout: 15000 });
+		const recordsTop = await recordsSection.first().evaluate((el) => el.getBoundingClientRect().top);
+		const badgeTop = await badgeSection.first().evaluate((el) => el.getBoundingClientRect().top);
+		expect(recordsTop).toBeLessThan(badgeTop);
+
 		await goToClubInfoSubPage(page, "club-awards");
-		await expect(page.getByRole("heading", { name: /Club Awards and Records/i })).toBeVisible({ timeout: 20000 });
-		const section = page.getByTestId("badge-leaderboard-section");
-		await section.scrollIntoViewIfNeeded();
-		await expect(section.getByRole("heading", { name: /^Badge leaderboard$/i })).toBeVisible({ timeout: 15000 });
+		await expect(page.getByRole("heading", { name: /Club Captains and Awards/i })).toBeVisible({ timeout: 20000 });
+		await expect(page.getByTestId("records-section")).toHaveCount(0);
+		await expect(page.getByTestId("badge-leaderboard-section")).toHaveCount(0);
 	});
 });

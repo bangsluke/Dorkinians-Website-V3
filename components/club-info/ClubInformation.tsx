@@ -9,6 +9,8 @@ import "react-loading-skeleton/dist/skeleton.css";
 import { MilestonesTableSkeleton } from "@/components/skeletons";
 import { appConfig } from "@/config/config";
 import SquadPlayersModal from "./SquadPlayersModal";
+import RecordsSection from "./RecordsSection";
+import BadgeLeaderboardSection from "./BadgeLeaderboardSection";
 import { log } from "@/lib/utils/logger";
 
 interface MilestoneEntry {
@@ -338,6 +340,12 @@ export default function ClubInformation() {
 					<p className='text-sm text-gray-400 text-center py-4'>No league championships to display</p>
 				)}
 			</div>
+
+			{/* Records Section (Feature 12) */}
+			<RecordsSection />
+
+			{/* Badge Leaderboard (requested below Records) */}
+			<BadgeLeaderboardSection />
 
 			{/* Milestones Section */}
 			<div className='mb-8'>

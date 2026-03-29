@@ -3,6 +3,7 @@
 import { useNavigationStore, type PlayerData } from "@/lib/stores/navigation";
 import { statObject, statsPageConfig, appConfig } from "@/config/config";
 import Image from "next/image";
+import Link from "next/link";
 import { useState, useMemo, useRef, useEffect } from "react";
 import { cachedFetch, generatePageCacheKey } from "@/lib/utils/pageCache";
 import { createPortal } from "react-dom";
@@ -35,8 +36,10 @@ import { useToast } from "@/lib/hooks/useToast";
 import AllGamesModal from "@/components/stats/AllGamesModal";
 import PlayerRecentFormBoxes, { type PlayerFormRecentMatch } from "@/components/stats/PlayerRecentFormBoxes";
 import BadgeDot from "@/components/stats/BadgeDot";
-import PlayerBadgeMilestoneGrid, { type EarnedBadgeRow, type ProgressRow } from "@/components/stats/PlayerBadgeMilestoneGrid";
+import { type EarnedBadgeRow, type ProgressRow } from "@/components/stats/PlayerBadgeMilestoneGrid";
 import { selectBadgesForBar } from "@/lib/badges/evaluate";
+import { getPlayerProfileHref } from "@/lib/profile/slug";
+import { buildMostConnectedListFromPartnershipsJson } from "@/lib/stats/mostConnected";
 
 // Dynamically import OppositionMap to reduce initial bundle size (includes Google Maps)
 const OppositionMap = dynamic(() => import("@/components/maps/OppositionMap"), {
@@ -1886,6 +1889,13 @@ export default function PlayerStats() {
 		}
 	}, [playerData?.partnershipsTopJson]);
 
+	const mostConnectedList = useMemo(() => {
+		if (Array.isArray(playerData?.mostConnected) && playerData!.mostConnected.length > 0) {
+			return playerData!.mostConnected;
+		}
+		return buildMostConnectedListFromPartnershipsJson(playerData?.partnershipsTopJson, 5);
+	}, [playerData?.mostConnected, playerData?.partnershipsTopJson]);
+
 	// Debug log for position counts (must be before early returns)
 	useEffect(() => {
 		if (playerData && selectedPlayer) {
@@ -2495,6 +2505,10 @@ export default function PlayerStats() {
 		if (!badgePayload?.earned?.length) return [];
 		return selectBadgesForBar(badgePayload.earned, 5);
 	}, [badgePayload]);
+	const profileHref = useMemo(() => {
+		if (!selectedPlayer) return null;
+		return getPlayerProfileHref(selectedPlayer);
+	}, [selectedPlayer]);
 
 	/* COMMENTED OUT: Share Stats functionality - will be re-added in the future */
 	// Get available visualizations (must be before early returns)
@@ -3288,6 +3302,45 @@ export default function PlayerStats() {
 
 			{playerData ? (
 				<>
+					<div
+						id='most-connected-section'
+						className='relative z-30 bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
+						<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Most Connected</h3>
+						<p className='text-white/55 text-[11px] md:text-xs mb-3'>
+							Top teammates by shared matches with you (from graph insights after seeding). This section is not filter-dependent.
+						</p>
+						{mostConnectedList.length === 0 ? (
+							<p className='text-white/60 text-xs'>
+								No connection data yet. Run a full seed so graph insights (Feature 7) can populate this section.
+							</p>
+						) : (
+							<ul className='space-y-2'>
+								{mostConnectedList.slice(0, 5).map((item) => (
+									<li
+										key={item.name}
+										data-testid='most-connected-item'
+										className='flex flex-wrap items-baseline justify-between gap-2 bg-white/5 rounded-md px-3 py-2'>
+										<div className='min-w-0'>
+											<button
+												type='button'
+												onClick={() => {
+													trackEvent(UmamiEvents.PlayerSelected, { source: "player-most-connected", playerName: item.name });
+													selectPlayer(item.name, "picker");
+													setMainPage("stats");
+													setStatsSubPage("player-stats");
+												}}
+												className='text-[#E8C547] text-xs md:text-sm font-medium hover:underline text-left'>
+												{item.name}
+											</button>
+										</div>
+										<p className='text-white text-xs md:text-sm font-semibold tabular-nums shrink-0'>
+											{Math.round(item.timesPlayed)} shared games
+										</p>
+									</li>
+								))}
+							</ul>
+						)}
+					</div>
 					<div
 						id='partnerships-section'
 						className='relative z-30 bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
@@ -4133,7 +4186,17 @@ export default function PlayerStats() {
 							{badgePayload && (
 								<div className='pt-2 border-t border-white/10'>
 									<p className='text-white text-xs md:text-sm mb-1'>
-										<span className='text-white/70'>Milestone badges earned: </span>
+										{profileHref ? (
+											<Link
+												href={profileHref}
+												className='text-white/70 underline underline-offset-2 hover:text-white'
+												data-testid='milestone-badges-profile-link'>
+												Milestone badges earned:
+											</Link>
+										) : (
+											<span className='text-white/70'>Milestone badges earned: </span>
+										)}
+										{" "}
 										<span className='font-bold text-dorkinians-yellow'>{badgePayload.totalBadges}</span>
 										{badgePayload.highestBadgeTier ? (
 											<span className='text-white/70'>
@@ -4142,7 +4205,6 @@ export default function PlayerStats() {
 											</span>
 										) : null}
 									</p>
-									<PlayerBadgeMilestoneGrid earned={badgePayload.earned} progress={badgePayload.progress} />
 								</div>
 							)}
 						</div>

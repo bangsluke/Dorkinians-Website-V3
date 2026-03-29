@@ -36,7 +36,7 @@ export default function BadgeLeaderboardSection() {
 			setLoading(true);
 			setError(null);
 			try {
-				const cacheKey = generatePageCacheKey("club-info", "club-awards", "badge-leaderboard", {});
+				const cacheKey = generatePageCacheKey("club-info", "club-information", "badge-leaderboard", {});
 				const data = await cachedFetch("/api/club-badge-leaderboard", {
 					method: "GET",
 					cacheKey,

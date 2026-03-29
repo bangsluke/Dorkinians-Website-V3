@@ -50,8 +50,8 @@ const SUBSECTION_LABELS = {
 	"players-of-month": "Players of the Month",
 	"club-information": "Club Information",
 	"league-information": "League Information",
-	"club-captains": "Club Captains",
-	"club-awards": "Club Awards and Records",
+	"club-captains": "Club Captains and Awards",
+	"club-awards": "Club Captains and Awards",
 	"useful-links": "Useful Links",
 };
 

@@ -5,22 +5,22 @@ import { motion, PanInfo, AnimatePresence } from "framer-motion";
 import { useNavigationStore, type ClubInfoSubPage } from "@/lib/stores/navigation";
 import ClubInformation from "./ClubInformation";
 import LeagueInformation from "./LeagueInformation";
-import ClubCaptains from "./ClubCaptains";
-import ClubAwards from "./ClubAwards";
+import ClubCaptainsAndAwards from "./ClubCaptainsAndAwards";
 import UsefulLinks from "./UsefulLinks";
 
 const clubInfoSubPages = [
 	{ id: "club-information" as ClubInfoSubPage, component: ClubInformation, label: "Club Information" },
 	{ id: "league-information" as ClubInfoSubPage, component: LeagueInformation, label: "League Information" },
-	{ id: "club-captains" as ClubInfoSubPage, component: ClubCaptains, label: "Club Captains" },
-	{ id: "club-awards" as ClubInfoSubPage, component: ClubAwards, label: "Club Awards and Records" },
+	{ id: "club-awards" as ClubInfoSubPage, component: ClubCaptainsAndAwards, label: "Club Captains and Awards" },
 	{ id: "useful-links" as ClubInfoSubPage, component: UsefulLinks, label: "Useful Links" },
 ];
 
 export default function ClubInfoContainer() {
 	const { currentClubInfoSubPage, setClubInfoSubPage, nextClubInfoSubPage, previousClubInfoSubPage } = useNavigationStore();
+	const effectiveClubInfoSubPage =
+		currentClubInfoSubPage === "club-captains" ? ("club-awards" as ClubInfoSubPage) : currentClubInfoSubPage;
 
-	const currentIndex = clubInfoSubPages.findIndex((page) => page.id === currentClubInfoSubPage);
+	const currentIndex = clubInfoSubPages.findIndex((page) => page.id === effectiveClubInfoSubPage);
 
 	const handleDragEnd = (event: any, info: PanInfo) => {
 		const swipeThreshold = 50;
@@ -45,7 +45,7 @@ export default function ClubInfoContainer() {
 			{/* Swipeable Content - Scrollable area */}
 			<AnimatePresence mode='wait'>
 				<motion.div
-					key={currentClubInfoSubPage}
+					key={effectiveClubInfoSubPage}
 					initial={{ opacity: 0 }}
 					animate={{ opacity: 1, x: 0 }}
 					exit={{ opacity: 0 }}
@@ -68,7 +68,7 @@ export default function ClubInfoContainer() {
 								data-testid={`club-info-subpage-indicator-${index}`}
 								onClick={() => setClubInfoSubPage(page.id)}
 								className={`w-[6.4px] h-[6.4px] rounded-full transition-all transition-normal ${
-									currentClubInfoSubPage === page.id
+									effectiveClubInfoSubPage === page.id
 										? "bg-dorkinians-yellow scale-125"
 										: "bg-gray-400 border-2 border-gray-400 hover:bg-gray-300 hover:border-gray-300"
 								}`}

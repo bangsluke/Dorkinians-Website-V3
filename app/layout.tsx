@@ -31,6 +31,7 @@ if (process.env.NODE_ENV !== "development") {
 const inter = Inter({ subsets: ["latin"] });
 
 const developDeploy = isDevelopBranchDeploy();
+const icon192 = developDeploy ? "/icons/dev-icon-192x192.png" : "/icons/icon-192x192.png";
 
 export const metadata: Metadata = {
 	title: developDeploy ? "Dorkinians FC Stats (Develop)" : "Dorkinians FC Stats",
@@ -82,10 +83,10 @@ export const viewport = {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
 	const umamiScriptUrl = process.env.NEXT_PUBLIC_UMAMI_SCRIPT_URL;
 	const umamiWebsiteId = process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID;
-	
+
 	// Read nonce from request headers set by middleware (async in Next.js 15+)
 	const headersList = await headers();
-	const nonce = headersList.get('x-csp-nonce') || '';
+	const nonce = headersList.get("x-csp-nonce") || "";
 
 	/* Body only: inline bg prevents white FOUC. Do not set html backgroundColor — WebKit
 	   paints html above body::before (z-index: -1), which hides the gradient. */
@@ -253,12 +254,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 				<meta name='color-scheme' content='dark' />
 				<meta name='apple-mobile-web-app-capable' content='yes' />
 				<meta name='apple-mobile-web-app-status-bar-style' content='default' />
-				<meta name='apple-mobile-web-app-title' content='Dorkinians Stats' />
+				<meta name='apple-mobile-web-app-title' content={developDeploy ? "Dorkinians Dev" : "Dorkinians Stats"} />
 				<meta name='mobile-web-app-capable' content='yes' />
-				<link rel='apple-touch-icon' href='/icons/icon-iOS-192x192.png' />
+				<link rel='apple-touch-icon' href={icon192} />
 				<link rel='icon' type='image/png' sizes='32x32' href='/icons/icon-32x32.png' />
 				<link rel='icon' type='image/png' sizes='16x16' href='/icons/icon-16x16.png' />
-				<link rel='icon' type='image/png' sizes='192x192' href='/icons/icon-192x192.png' />
+				<link rel='icon' type='image/png' sizes='192x192' href={icon192} />
 				<link rel='icon' type='image/png' sizes='512x512' href='/icons/icon-512x512.png' />
 			</head>
 			<body className={inter.className} suppressHydrationWarning={true} style={criticalBodyPaint}>
@@ -268,14 +269,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 					<PWAUpdateNotification />
 					<WebVitals />
 					{umamiScriptUrl && umamiWebsiteId && (
-						<Script
-							async
-							defer
-							data-website-id={umamiWebsiteId}
-							src={umamiScriptUrl}
-							strategy='lazyOnload'
-							nonce={nonce}
-						/>
+						<Script async defer data-website-id={umamiWebsiteId} src={umamiScriptUrl} strategy='lazyOnload' nonce={nonce} />
 					)}
 					<UmamiAnalytics />
 					{/* End of body: avoids blocking parse of children; same sanitizer as before (head was parse-blocking) */}

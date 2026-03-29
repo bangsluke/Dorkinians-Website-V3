@@ -40,7 +40,8 @@ export async function GET(request: NextRequest) {
 			WHERE wt.week IS NOT NULL
 			RETURN wt.week as week, 
 			       COALESCE(wt.dateLookup, '') as dateLookup, 
-			       COALESCE(wt.weekAdjusted, toString(wt.week)) as weekAdjusted
+			       COALESCE(wt.weekAdjusted, toString(wt.week)) as weekAdjusted,
+			       COALESCE(wt.totwScore, 0) as totwScore
 			ORDER BY wt.week ASC
 		`;
 
@@ -63,11 +64,13 @@ export async function GET(request: NextRequest) {
 			const week = Number(record.get("week") || 0);
 			const dateLookup = String(record.get("dateLookup") || "");
 			const weekAdjusted = String(record.get("weekAdjusted") || String(week));
+			const totwScore = Number(record.get("totwScore") || 0);
 			
 			return {
 				week,
 				dateLookup,
 				weekAdjusted,
+				totwScore,
 			};
 		});
 
@@ -77,6 +80,7 @@ export async function GET(request: NextRequest) {
 			week: 0,
 			dateLookup: "Team of the Season",
 			weekAdjusted: "Team of the Season",
+			totwScore: 0,
 		});
 
 		// Get latest gameweek from SiteDetail if available

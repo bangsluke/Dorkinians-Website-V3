@@ -3,6 +3,7 @@ import { isDevelopBranchDeploy } from "@/lib/utils/isDevelopBranchDeploy";
 
 export default function manifest(): MetadataRoute.Manifest {
 	const develop = isDevelopBranchDeploy();
+	const icon192 = develop ? "/icons/dev-icon-192x192.png" : "/icons/icon-192x192.png";
 
 	return {
 		name: develop ? "Dorkinians FC Stats (Develop)" : "Dorkinians FC Stats",
@@ -23,7 +24,7 @@ export default function manifest(): MetadataRoute.Manifest {
 			{ src: "/icons/icon-144x144.png", sizes: "144x144", type: "image/png", purpose: "any" },
 			{ src: "/icons/icon-152x152.png", sizes: "152x152", type: "image/png", purpose: "any" },
 			{
-				src: "/icons/icon-192x192.png",
+				src: icon192,
 				sizes: "192x192",
 				type: "image/png",
 				purpose: "any maskable",
@@ -42,7 +43,7 @@ export default function manifest(): MetadataRoute.Manifest {
 				short_name: "Stats",
 				description: "View team statistics",
 				url: "/",
-				icons: [{ src: "/icons/icon-192x192.png", sizes: "192x192" }],
+				icons: [{ src: icon192, sizes: "192x192" }],
 			},
 		],
 	};

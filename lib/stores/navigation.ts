@@ -10,6 +10,11 @@ export type StatsSubPage = "player-stats" | "team-stats" | "club-stats" | "compa
 export type TOTWSubPage = "totw" | "players-of-month";
 export type ClubInfoSubPage = "club-information" | "league-information" | "club-captains" | "club-awards" | "useful-links";
 
+function canonicalClubInfoSubPage(page: ClubInfoSubPage): ClubInfoSubPage {
+	// Feature 11 merge: old "club-captains" deep-links now map to merged page.
+	return page === "club-captains" ? "club-awards" : page;
+}
+
 // Player data interface matching TBL_Players schema
 export interface PlayerData {
 	id: string;
@@ -144,6 +149,7 @@ export interface PlayerData {
 	bestPartnerWinRate?: number | null;
 	bestPartnerMatches?: number | null;
 	partnershipsTopJson?: string | null;
+	mostConnected?: Array<{ name: string; timesPlayed: number; winRate: number | null }>;
 	graphInsightsBestPartnerDisplay?: string | null;
 	impactDelta?: number | null;
 	impactWinRateWith?: number | null;
@@ -647,7 +653,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 			} else if (restoredMainPage === "club-info") {
 				const savedClubInfoSubPage = localStorage.getItem("dorkinians-current-club-info-sub-page");
 				if (savedClubInfoSubPage && (savedClubInfoSubPage === "club-information" || savedClubInfoSubPage === "league-information" || savedClubInfoSubPage === "club-captains" || savedClubInfoSubPage === "club-awards" || savedClubInfoSubPage === "useful-links")) {
-					set({ currentClubInfoSubPage: savedClubInfoSubPage as ClubInfoSubPage });
+					set({ currentClubInfoSubPage: canonicalClubInfoSubPage(savedClubInfoSubPage as ClubInfoSubPage) });
 				}
 			}
 
@@ -850,17 +856,18 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 	},
 
 	setClubInfoSubPage: (page: ClubInfoSubPage) => {
+		const canonical = canonicalClubInfoSubPage(page);
 		const prev = get().currentClubInfoSubPage;
-		set({ currentClubInfoSubPage: page });
+		set({ currentClubInfoSubPage: canonical });
 		
 		// Persist to localStorage
 		if (typeof window !== "undefined") {
-			localStorage.setItem("dorkinians-current-club-info-sub-page", page);
+			localStorage.setItem("dorkinians-current-club-info-sub-page", canonical);
 		}
 
-		if (typeof window !== "undefined" && page !== prev) {
-			trackEvent(UmamiEvents.SubpageViewed, { section: "club-info", subSection: page });
-			trackEvent(UmamiEvents.ClubInfoSubpageViewed, { subSection: page });
+		if (typeof window !== "undefined" && canonical !== prev) {
+			trackEvent(UmamiEvents.SubpageViewed, { section: "club-info", subSection: canonical });
+			trackEvent(UmamiEvents.ClubInfoSubpageViewed, { subSection: canonical });
 		}
 	},
 
@@ -1092,8 +1099,8 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 	// Swipe navigation within Club Info
 	nextClubInfoSubPage: () => {
 		const { currentClubInfoSubPage } = get();
-		const subPages: ClubInfoSubPage[] = ["club-information", "league-information", "club-captains", "club-awards", "useful-links"];
-		const currentIndex = subPages.indexOf(currentClubInfoSubPage);
+		const subPages: ClubInfoSubPage[] = ["club-information", "league-information", "club-awards", "useful-links"];
+		const currentIndex = subPages.indexOf(canonicalClubInfoSubPage(currentClubInfoSubPage));
 		const nextIndex = (currentIndex + 1) % subPages.length;
 		const next = subPages[nextIndex];
 		set({ currentClubInfoSubPage: next });
@@ -1105,8 +1112,8 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 
 	previousClubInfoSubPage: () => {
 		const { currentClubInfoSubPage } = get();
-		const subPages: ClubInfoSubPage[] = ["club-information", "league-information", "club-captains", "club-awards", "useful-links"];
-		const currentIndex = subPages.indexOf(currentClubInfoSubPage);
+		const subPages: ClubInfoSubPage[] = ["club-information", "league-information", "club-awards", "useful-links"];
+		const currentIndex = subPages.indexOf(canonicalClubInfoSubPage(currentClubInfoSubPage));
 		const prevIndex = currentIndex === 0 ? subPages.length - 1 : currentIndex - 1;
 		const prev = subPages[prevIndex];
 		set({ currentClubInfoSubPage: prev });

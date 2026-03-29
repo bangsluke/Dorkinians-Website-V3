@@ -117,7 +117,7 @@ export default function RecordsSection() {
 	if (loading) {
 		return (
 			<div data-testid='records-section' className='flex-shrink-0 px-2 md:px-4 pb-6 md:max-w-2xl md:mx-auto w-full mt-6'>
-				<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Records</h3>
+				<h3 className='text-lg md:text-xl font-bold text-dorkinians-yellow mb-4'>Records</h3>
 				<SkeletonTheme baseColor='var(--skeleton-base)' highlightColor='var(--skeleton-highlight)'>
 					<Skeleton count={4} className='rounded-lg mb-2' height={56} />
 				</SkeletonTheme>
@@ -128,7 +128,7 @@ export default function RecordsSection() {
 	if (error) {
 		return (
 			<div data-testid='records-section' className='flex-shrink-0 px-2 md:px-4 pb-6 md:max-w-2xl md:mx-auto w-full mt-6'>
-				<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Records</h3>
+				<h3 className='text-lg md:text-xl font-bold text-dorkinians-yellow mb-4'>Records</h3>
 				<p className='text-white/60 text-xs md:text-sm'>{error}</p>
 			</div>
 		);
@@ -137,7 +137,7 @@ export default function RecordsSection() {
 	if (records.length === 0) {
 		return (
 			<div data-testid='records-section' className='flex-shrink-0 px-2 md:px-4 pb-6 md:max-w-2xl md:mx-auto w-full mt-6'>
-				<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Records</h3>
+				<h3 className='text-lg md:text-xl font-bold text-dorkinians-yellow mb-4'>Records</h3>
 				<p className='text-white/60 text-xs md:text-sm'>
 					No club records are stored yet. Run a full seed in database-dorkinians so ClubRecord nodes are built.
 				</p>
@@ -147,7 +147,7 @@ export default function RecordsSection() {
 
 	return (
 		<div data-testid='records-section' className='flex-shrink-0 px-2 md:px-4 pb-6 md:max-w-2xl md:mx-auto w-full mt-8 border-t border-white/10 pt-6'>
-			<h3 id='club-records-heading' className='text-white font-semibold text-sm md:text-base mb-4'>
+			<h3 id='club-records-heading' className='text-lg md:text-xl font-bold text-dorkinians-yellow mb-4'>
 				Records
 			</h3>
 
