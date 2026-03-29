@@ -87,7 +87,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 	const headersList = await headers();
 	const nonce = headersList.get('x-csp-nonce') || '';
 
-	const criticalPaint = {
+	/* Body only: inline bg prevents white FOUC. Do not set html backgroundColor — WebKit
+	   paints html above body::before (z-index: -1), which hides the gradient. */
+	const criticalBodyPaint = {
 		backgroundColor: "#0f0f0f",
 		color: "#f3f3f3",
 	} as const;
@@ -246,11 +248,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 						`;
 
 	return (
-		<html
-			lang='en'
-			nonce={nonce}
-			suppressHydrationWarning
-			style={criticalPaint}>
+		<html lang='en' nonce={nonce} suppressHydrationWarning>
 			<head>
 				<meta name='color-scheme' content='dark' />
 				<meta name='apple-mobile-web-app-capable' content='yes' />
@@ -263,7 +261,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 				<link rel='icon' type='image/png' sizes='192x192' href='/icons/icon-192x192.png' />
 				<link rel='icon' type='image/png' sizes='512x512' href='/icons/icon-512x512.png' />
 			</head>
-			<body className={inter.className} suppressHydrationWarning={true} style={criticalPaint}>
+			<body className={inter.className} suppressHydrationWarning={true} style={criticalBodyPaint}>
 				<ErrorBoundaryWrapper>
 					{children}
 					<DynamicChunksPrefetch />
