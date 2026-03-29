@@ -1,4 +1,3 @@
-import * as natural from "natural";
 import { EntityNameResolver } from "./entityNameResolver";
 import { neo4jService } from "../../netlify/functions/lib/neo4j.js";
 

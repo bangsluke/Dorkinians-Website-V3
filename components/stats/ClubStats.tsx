@@ -20,6 +20,8 @@ import { trackEvent } from "@/lib/utils/trackEvent";
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { StatCardSkeleton, ChartSkeleton, TopPlayersTableSkeleton, RadarChartSkeleton, SankeyChartSkeleton, GameDetailsTableSkeleton, DataTableSkeleton } from "@/components/skeletons";
+import { log } from "@/lib/utils/logger";
+import LazyWhenVisible from "@/components/perf/LazyWhenVisible";
 
 // Dynamically import ResponsiveSankey to reduce initial bundle size (151 KB -> only loads when needed)
 const ResponsiveSankey = dynamic(
@@ -33,7 +35,6 @@ const ResponsiveSankey = dynamic(
 		ssr: false,
 	}
 );
-import { log } from "@/lib/utils/logger";
 import Button from "@/components/ui/Button";
 
 
@@ -2182,34 +2183,44 @@ export default function ClubStats() {
 						<div id='club-player-distribution' className='md:break-inside-avoid md:mb-4'>
 										<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 											<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Player Distribution</h3>
-											<div className='chart-container' style={{ touchAction: 'pan-y', height: '320px' }}>
-												<ResponsiveSankey
-													data={{ nodes: sankeyData.nodes, links: validLinks }}
-													margin={{ top: 40, right: 20, bottom: 60, left: 20 }}
-													layout="vertical"
-													align="justify"
-													colors={{ scheme: 'set3' }}
-													nodeOpacity={0.8}
-													nodeThickness={18}
-													nodeSpacing={24}
-													nodeBorderWidth={0}
-													nodeBorderColor={{ from: 'color', modifiers: [['darker', 0.8]] }}
-													linkOpacity={0.4}
-													linkHoverOthersOpacity={0.1}
-													enableLinkGradient={true}
-													labelPosition="outside"
-													labelOrientation="horizontal"
-													labelPadding={8}
-													labelTextColor={{ from: 'color', modifiers: [['darker', 1]] }}
-													nodeTooltip={() => null}
-													linkTooltip={() => null}
-													isInteractive={false}
-													layers={['links', 'nodes', CustomLabelLayer as any, 'legends']}
-													theme={{
-														text: { fill: '#fff', fontSize: 12 },
-													}}
-												/>
-											</div>
+											<LazyWhenVisible
+												rootMargin="120px"
+												className="chart-container min-h-[320px]"
+												fallback={
+													<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+														<SankeyChartSkeleton />
+													</SkeletonTheme>
+												}
+											>
+												<div className="h-[320px]" style={{ touchAction: 'pan-y' }}>
+													<ResponsiveSankey
+														data={{ nodes: sankeyData.nodes, links: validLinks }}
+														margin={{ top: 40, right: 20, bottom: 60, left: 20 }}
+														layout="vertical"
+														align="justify"
+														colors={{ scheme: 'set3' }}
+														nodeOpacity={0.8}
+														nodeThickness={18}
+														nodeSpacing={24}
+														nodeBorderWidth={0}
+														nodeBorderColor={{ from: 'color', modifiers: [['darker', 0.8]] }}
+														linkOpacity={0.4}
+														linkHoverOthersOpacity={0.1}
+														enableLinkGradient={true}
+														labelPosition="outside"
+														labelOrientation="horizontal"
+														labelPadding={8}
+														labelTextColor={{ from: 'color', modifiers: [['darker', 1]] }}
+														nodeTooltip={() => null}
+														linkTooltip={() => null}
+														isInteractive={false}
+														layers={['links', 'nodes', CustomLabelLayer as any, 'legends']}
+														theme={{
+															text: { fill: '#fff', fontSize: 12 },
+														}}
+													/>
+												</div>
+											</LazyWhenVisible>
 										</div>
 									</div>
 									);

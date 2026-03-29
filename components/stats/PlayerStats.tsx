@@ -12,15 +12,8 @@ import PenOnPaperIcon from "@/components/icons/PenOnPaperIcon";
 import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
 import FilterPills from "@/components/filters/FilterPills";
-import { BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, XAxis, YAxis, CartesianGrid, Line, ComposedChart, Scatter, ReferenceLine } from "recharts";
 import dynamic from "next/dynamic";
-
-// Dynamically import OppositionMap to reduce initial bundle size (includes Google Maps)
-const OppositionMap = dynamic(() => import("@/components/maps/OppositionMap"), {
-	loading: () => <div className="text-white/60 text-sm p-4">Loading map...</div>,
-	ssr: false,
-});
-import OppositionPerformanceScatter from "@/components/stats/OppositionPerformanceScatter";
+import LazyWhenVisible from "@/components/perf/LazyWhenVisible";
 /* COMMENTED OUT: Share Stats functionality - will be re-added in the future */
 // import ShareableStatsCard from "@/components/stats/ShareableStatsCard";
 // import ShareVisualizationModal from "@/components/stats/ShareVisualizationModal";
@@ -44,6 +37,36 @@ import PlayerRecentFormBoxes, { type PlayerFormRecentMatch } from "@/components/
 import BadgeDot from "@/components/stats/BadgeDot";
 import PlayerBadgeMilestoneGrid, { type EarnedBadgeRow, type ProgressRow } from "@/components/stats/PlayerBadgeMilestoneGrid";
 import { selectBadgesForBar } from "@/lib/badges/evaluate";
+
+// Dynamically import OppositionMap to reduce initial bundle size (includes Google Maps)
+const OppositionMap = dynamic(() => import("@/components/maps/OppositionMap"), {
+	loading: () => <div className="text-white/60 text-sm p-4">Loading map...</div>,
+	ssr: false,
+});
+const OppositionPerformanceScatter = dynamic(
+	() => import("@/components/stats/OppositionPerformanceScatter"),
+	{ ssr: false, loading: () => <ChartSkeleton /> },
+);
+const FormComposedChart = dynamic(() => import("./player-stats/FormComposedChart"), {
+	ssr: false,
+	loading: () => <ChartSkeleton />,
+});
+const SeasonalPerformanceChart = dynamic(() => import("./player-stats/SeasonalPerformanceChart"), {
+	ssr: false,
+	loading: () => <ChartSkeleton />,
+});
+const TeamPerformanceChart = dynamic(() => import("./player-stats/TeamPerformanceChart"), {
+	ssr: false,
+	loading: () => <ChartSkeleton />,
+});
+const MatchResultsPieChart = dynamic(() => import("./player-stats/MatchResultsPieChart"), {
+	ssr: false,
+	loading: () => <ChartSkeleton />,
+});
+const MonthlyPerformanceChart = dynamic(() => import("./player-stats/MonthlyPerformanceChart"), {
+	ssr: false,
+	loading: () => <ChartSkeleton />,
+});
 
 type PlayerStatsTableMode = "totals" | "perApp" | "per90";
 type PlayerStatsKeyMode = "totals" | "per90";
@@ -495,7 +518,7 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 							transform: 'scale(4)',
 							transformOrigin: 'center top'
 						}}
-						priority
+						loading="lazy"
 					/>
 				</div>
 				
@@ -1241,7 +1264,7 @@ function DistanceTravelledSection({
 							objectPosition: 'center',
 							borderRadius: '0.5rem'
 						}}
-						priority
+						loading="lazy"
 					/>
 				</div>
 				
@@ -1322,7 +1345,7 @@ function DefensiveRecordSection({
 							transformOrigin: 'center',
 							borderRadius: '0.5rem'
 						}}
-						priority
+						loading="lazy"
 					/>
 				</div>
 				
@@ -1439,7 +1462,7 @@ function MinutesPerStatsSection({
 							transformOrigin: 'center',
 							borderRadius: '0.5rem'
 						}}
-						priority
+						loading="lazy"
 					/>
 				</div>
 				
@@ -1532,7 +1555,7 @@ function PositionalStatsVisualization({ gk, def, mid, fwd, appearances, gkMinute
 						alt='Football Pitch'
 						fill
 						className='object-contain w-full h-full'
-						priority
+						loading="lazy"
 					/>
 				</div>
 				
@@ -3139,42 +3162,9 @@ export default function PlayerStats() {
 				) : formData.length > 0 ? (
 					<>
 						{recentFormMatches.length > 0 ? <PlayerRecentFormBoxes matchesNewestFirst={recentFormMatches} /> : null}
-						<div className='chart-container -my-2' style={{ touchAction: 'pan-y' }}>
-							<ResponsiveContainer width='100%' height={220}>
-								<ComposedChart data={formData} margin={{ top: 10, right: 10, left: -28, bottom: 0 }}>
-									<CartesianGrid strokeDasharray='3 3' stroke='rgba(255,255,255,0.06)' vertical={false} />
-									<XAxis dataKey='week' tick={{ fill: 'rgba(255,255,255,0.6)', fontSize: 10 }} />
-									<YAxis
-										domain={[2, 10]}
-										width={32}
-										tick={{ fill: 'rgba(255,255,255,0.6)', fontSize: 10 }}
-										tickMargin={4}
-									/>
-									<Tooltip contentStyle={{ background: "rgba(0,0,0,0.85)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 8 }} />
-									<Scatter dataKey='rawScore' fill='rgba(255,255,255,0.35)' />
-									<Line type='monotone' dataKey='ewmaBaseline' stroke='#5DCAA5' strokeWidth={1.5} dot={false} opacity={0.75} />
-									<Line type='monotone' dataKey='ewmaReactive' stroke='#E8C547' strokeWidth={2.5} dot={false} />
-									{goldenCrosses.map((cross, crossIdx) => (
-										<ReferenceLine
-											key={`${cross.week}-${cross.date}`}
-											x={cross.week}
-											stroke='rgba(232,197,71,0.45)'
-											strokeDasharray='4 3'
-											label={
-												crossIdx === 0
-													? {
-															value: "Golden cross",
-															position: "top",
-															fill: "rgba(232,197,71,0.85)",
-															fontSize: 9,
-														}
-													: undefined
-											}
-										/>
-									))}
-								</ComposedChart>
-							</ResponsiveContainer>
-						</div>
+						<LazyWhenVisible rootMargin="120px" className="min-h-[220px] -my-2" fallback={<ChartSkeleton />}>
+							<FormComposedChart formData={formData} goldenCrosses={goldenCrosses} />
+						</LazyWhenVisible>
 						{goldenCrosses.length > 0 ? (
 							<p className='text-white/55 text-[10px] mt-1 px-0.5'>
 								Dashed vertical lines mark golden crosses (reactive above baseline after being at or below it).
@@ -3469,39 +3459,13 @@ export default function PlayerStats() {
 								<ChartSkeleton />
 							</SkeletonTheme>
 						) : seasonalChartData.length > 0 ? (
-							<div className='chart-container' style={{ touchAction: 'pan-y' }}>
-								<ResponsiveContainer width='100%' height={240}>
-									<ComposedChart 
-										data={seasonalChartData} 
-										margin={{ top: 5, right: 5, left: -20, bottom: 5 }}
-									>
-										<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
-										<XAxis dataKey='name' stroke='#fff' fontSize={12} />
-										<YAxis stroke='#fff' fontSize={12} domain={[0, 'auto']} allowDecimals={false} />
-										<Tooltip content={seasonalTooltip} />
-										<Bar 
-											dataKey='value' 
-											fill='#f9ed32' 
-											radius={[4, 4, 0, 0]} 
-											opacity={0.9} 
-											activeBar={{ fill: '#f9ed32', opacity: 1, stroke: 'none' }}
-										/>
-										{showTrend && (
-											<Line 
-												type='linear' 
-												dataKey='trendline' 
-												stroke='#ffffff' 
-												strokeWidth={2}
-												strokeDasharray='5 5'
-												dot={false}
-												activeDot={false}
-												isAnimationActive={false}
-												connectNulls={false}
-											/>
-										)}
-									</ComposedChart>
-								</ResponsiveContainer>
-							</div>
+							<LazyWhenVisible rootMargin="120px" className="min-h-[240px]" fallback={<ChartSkeleton />}>
+								<SeasonalPerformanceChart
+									data={seasonalChartData}
+									showTrend={showTrend}
+									tooltipContent={seasonalTooltip}
+								/>
+							</LazyWhenVisible>
 						) : (
 							<div className='flex items-center justify-center h-64'>
 								<p className='text-white text-sm'>No seasonal data available</p>
@@ -3564,26 +3528,9 @@ export default function PlayerStats() {
 								<ChartSkeleton />
 							</SkeletonTheme>
 						) : teamChartData.length > 0 ? (
-							<div className='chart-container' style={{ touchAction: 'pan-y' }}>
-								<ResponsiveContainer width='100%' height={240}>
-									<BarChart 
-										data={teamChartData} 
-										margin={{ top: 5, right: 5, left: -20, bottom: 5 }}
-									>
-									<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
-									<XAxis dataKey='name' stroke='#fff' fontSize={12} />
-									<YAxis stroke='#fff' fontSize={12} domain={[0, 'auto']} allowDecimals={false} />
-									<Tooltip content={teamTooltip} />
-										<Bar
-											dataKey='value' 
-											fill='#22c55e' 
-											radius={[4, 4, 0, 0]} 
-											opacity={0.9} 
-											activeBar={{ fill: '#22c55e', opacity: 1, stroke: 'none' }}
-										/>
-									</BarChart>
-								</ResponsiveContainer>
-							</div>
+							<LazyWhenVisible rootMargin="120px" className="min-h-[240px]" fallback={<ChartSkeleton />}>
+								<TeamPerformanceChart data={teamChartData} tooltipContent={teamTooltip} />
+							</LazyWhenVisible>
 						) : (
 							<div className='flex items-center justify-center h-64'>
 								<p className='text-white text-sm'>No team data available</p>
@@ -3638,46 +3585,9 @@ export default function PlayerStats() {
 					<div id='match-results' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 						<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Match Results</h3>
 						<p className='text-white text-sm mb-2 text-center'>Points per game: {pointsPerGameFormatted}</p>
-						<div className='chart-container -my-2' style={{ touchAction: 'pan-y' }}>
-							<ResponsiveContainer width='100%' height={220}>
-								<PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
-									<Pie
-										data={pieChartData}
-										cx='50%'
-										cy='50%'
-										labelLine={false}
-										label={({ cx, cy, midAngle, innerRadius, outerRadius, name, value }) => {
-											const RADIAN = Math.PI / 180;
-											const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-											const x = cx + radius * Math.cos(-midAngle * RADIAN);
-											const y = cy + radius * Math.sin(-midAngle * RADIAN);
-											
-											return (
-												<text
-													x={x}
-													y={y}
-													fill="#ffffff"
-													textAnchor={x > cx ? 'start' : 'end'}
-													dominantBaseline="central"
-													fontSize={14}
-													fontWeight='bold'
-												>
-													{`${name}: ${value}`}
-												</text>
-											);
-										}}
-										outerRadius={90}
-										fill='#8884d8'
-										dataKey='value'
-									>
-										{pieChartData.map((entry, index) => (
-											<Cell key={`cell-${index}`} fill={entry.color} />
-										))}
-									</Pie>
-									<Tooltip content={customTooltip} />
-								</PieChart>
-							</ResponsiveContainer>
-						</div>
+						<LazyWhenVisible rootMargin="120px" className="min-h-[220px] -my-2" fallback={<ChartSkeleton />}>
+							<MatchResultsPieChart data={pieChartData} tooltipContent={customTooltip} />
+						</LazyWhenVisible>
 					</div>
 				);
 			})()}
@@ -3885,26 +3795,9 @@ export default function PlayerStats() {
 						<ChartSkeleton />
 					</SkeletonTheme>
 				) : monthlyChartData.length > 0 ? (
-					<div className='chart-container' style={{ touchAction: 'pan-y' }}>
-						<ResponsiveContainer width='100%' height={240}>
-							<BarChart 
-								data={monthlyChartData} 
-								margin={{ top: 5, right: 5, left: -20, bottom: 5 }}
-							>
-								<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
-								<XAxis dataKey='name' stroke='#fff' fontSize={12} />
-								<YAxis stroke='#fff' fontSize={12} />
-								<Tooltip content={seasonalTooltip} />
-								<Bar 
-									dataKey='value' 
-									fill='#f9ed32' 
-									radius={[4, 4, 0, 0]} 
-									opacity={0.9} 
-									activeBar={{ fill: '#f9ed32', opacity: 1, stroke: 'none' }}
-								/>
-							</BarChart>
-						</ResponsiveContainer>
-					</div>
+					<LazyWhenVisible rootMargin="120px" className="min-h-[240px]" fallback={<ChartSkeleton />}>
+						<MonthlyPerformanceChart data={monthlyChartData} tooltipContent={seasonalTooltip} />
+					</LazyWhenVisible>
 				) : (
 					<div className='flex items-center justify-center h-64'>
 						<p className='text-white text-sm'>No monthly data available</p>
@@ -3952,7 +3845,13 @@ export default function PlayerStats() {
 			{/* Opposition Map */}
 			{oppositionMapData.length > 0 && (
 				<div id='opposition-locations' className='md:break-inside-avoid md:mb-4'>
-					<OppositionMap oppositions={oppositionMapData} isLoading={isLoadingOppositionMap} />
+					<LazyWhenVisible
+						rootMargin="180px"
+						className="min-h-[280px]"
+						fallback={<div className="text-white/60 text-sm p-4">Scroll for map…</div>}
+					>
+						<OppositionMap oppositions={oppositionMapData} isLoading={isLoadingOppositionMap} />
+					</LazyWhenVisible>
 				</div>
 			)}
 
@@ -3967,10 +3866,12 @@ export default function PlayerStats() {
 				}
 
 				return (
-					<OppositionPerformanceScatter
-						data={oppositionPerformanceData}
-						isLoading={isLoadingOppositionPerformance}
-					/>
+					<LazyWhenVisible rootMargin="160px" className="min-h-[240px]" fallback={<ChartSkeleton />}>
+						<OppositionPerformanceScatter
+							data={oppositionPerformanceData}
+							isLoading={isLoadingOppositionPerformance}
+						/>
+					</LazyWhenVisible>
 				);
 			})()}
 			</div>
