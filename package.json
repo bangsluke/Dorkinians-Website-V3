@@ -48,7 +48,7 @@
 		"test:chatbot-players-report:analyze-logs": "node __tests__/scripts/analyze-chatbot-logs.js",
 		"test:questions-report": "node __tests__/scripts/test-questions-email-report.js",
 		"test:questions-report:hide": "node __tests__/scripts/test-questions-email-report.js --hide-passed",
-		"analyze": "cross-env ANALYZE=true next build"
+		"analyze": "cross-env ANALYZE=true next build --webpack"
 	},
 	"dependencies": {
 		"@googlemaps/js-api-loader": "^1.16.6",
