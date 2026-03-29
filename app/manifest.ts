@@ -10,7 +10,7 @@ export default function manifest(): MetadataRoute.Manifest {
 		description: "Dorkinians FC Statistics Website",
 		start_url: "/",
 		display: "standalone",
-		background_color: "#000000",
+		background_color: "#0f0f0f",
 		theme_color: "#F9ED32",
 		orientation: "portrait-primary",
 		scope: "/",

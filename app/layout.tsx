@@ -10,6 +10,7 @@ import PWAUpdateNotification from "@/components/admin/PWAUpdateNotification";
 import UmamiAnalytics from "../components/admin/UmamiAnalytics";
 import WebVitals from "../components/admin/WebVitals";
 import ErrorBoundaryWrapper from "@/components/ErrorBoundaryWrapper";
+import DynamicChunksPrefetch from "@/components/perf/DynamicChunksPrefetch";
 import { validateEnv } from "@/lib/config/envValidation";
 import { isDevelopBranchDeploy } from "@/lib/utils/isDevelopBranchDeploy";
 import { logError } from "@/lib/utils/logger";
@@ -86,21 +87,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 	const headersList = await headers();
 	const nonce = headersList.get('x-csp-nonce') || '';
 
-	return (
-		<html lang='en' nonce={nonce} suppressHydrationWarning>
-			<head>
-				<meta name='apple-mobile-web-app-capable' content='yes' />
-				<meta name='apple-mobile-web-app-status-bar-style' content='default' />
-				<meta name='apple-mobile-web-app-title' content='Dorkinians Stats' />
-				<meta name='mobile-web-app-capable' content='yes' />
-				<link rel='apple-touch-icon' href='/icons/icon-iOS-192x192.png' />
-				<link rel='icon' type='image/png' sizes='32x32' href='/icons/icon-32x32.png' />
-				<link rel='icon' type='image/png' sizes='16x16' href='/icons/icon-16x16.png' />
-				<link rel='icon' type='image/png' sizes='192x192' href='/icons/icon-192x192.png' />
-				<link rel='icon' type='image/png' sizes='512x512' href='/icons/icon-512x512.png' />
-				<script
-					dangerouslySetInnerHTML={{
-						__html: `
+	const criticalPaint = {
+		backgroundColor: "#0f0f0f",
+		color: "#f3f3f3",
+	} as const;
+
+	const consoleSanitizeBootstrap = `
 							(function() {
 								if (typeof window === 'undefined') return;
 								const isProduction = window.__NEXT_DATA__?.env?.NODE_ENV === 'production';
@@ -251,13 +243,30 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 									originalConsole.error.apply(console, sanitizeArgs(Array.from(arguments)));
 								};
 							})();
-						`,
-					}}
-				/>
+						`;
+
+	return (
+		<html
+			lang='en'
+			nonce={nonce}
+			suppressHydrationWarning
+			style={criticalPaint}>
+			<head>
+				<meta name='color-scheme' content='dark' />
+				<meta name='apple-mobile-web-app-capable' content='yes' />
+				<meta name='apple-mobile-web-app-status-bar-style' content='default' />
+				<meta name='apple-mobile-web-app-title' content='Dorkinians Stats' />
+				<meta name='mobile-web-app-capable' content='yes' />
+				<link rel='apple-touch-icon' href='/icons/icon-iOS-192x192.png' />
+				<link rel='icon' type='image/png' sizes='32x32' href='/icons/icon-32x32.png' />
+				<link rel='icon' type='image/png' sizes='16x16' href='/icons/icon-16x16.png' />
+				<link rel='icon' type='image/png' sizes='192x192' href='/icons/icon-192x192.png' />
+				<link rel='icon' type='image/png' sizes='512x512' href='/icons/icon-512x512.png' />
 			</head>
-			<body className={inter.className} suppressHydrationWarning={true}>
+			<body className={inter.className} suppressHydrationWarning={true} style={criticalPaint}>
 				<ErrorBoundaryWrapper>
 					{children}
+					<DynamicChunksPrefetch />
 					<PWAUpdateNotification />
 					<WebVitals />
 					{umamiScriptUrl && umamiWebsiteId && (
@@ -271,6 +280,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 						/>
 					)}
 					<UmamiAnalytics />
+					{/* End of body: avoids blocking parse of children; same sanitizer as before (head was parse-blocking) */}
+					<script
+						nonce={nonce}
+						dangerouslySetInnerHTML={{
+							__html: consoleSanitizeBootstrap,
+						}}
+					/>
 				</ErrorBoundaryWrapper>
 			</body>
 		</html>
