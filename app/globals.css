@@ -103,6 +103,8 @@
 @layer base {
 	html {
 		font-family: "Inter", system-ui, sans-serif;
+		/* Let body::before (z-index: -1) show; opaque html bg hides it on WebKit/PWA */
+		background-color: transparent;
 	}
 
 	/* Desktop font size reduction (15% smaller) */
@@ -116,6 +118,8 @@
 		@apply bg-gray-50 text-gray-900;
 		background: var(--color-background);
 		color: var(--color-text-primary);
+		/* Keeps body::before behind page content but inside body's context (iOS/WebKit) */
+		isolation: isolate;
 	}
 
 	/* Mobile-first gradient background using Dorkinians brand colors */
