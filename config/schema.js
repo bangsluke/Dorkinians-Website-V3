@@ -317,7 +317,20 @@ const schema = {
       impactSampleWithout: { type: 'integer', required: false },
       squadInfluence: { type: 'number', required: false },
       squadInfluenceRank: { type: 'integer', required: false },
-      communityId: { type: 'integer', required: false }
+      communityId: { type: 'integer', required: false },
+      // Feature 9 — achievement badges (aggregates written during badge pass)
+      maxAppsInSeason: { type: 'integer', required: false },
+      maxGoalsInSeason: { type: 'integer', required: false },
+      hatTrickCount: { type: 'integer', required: false },
+      scoredOnDebut: { type: 'boolean', required: false },
+      uniqueAwayGrounds: { type: 'integer', required: false },
+      totwStarManCount: { type: 'integer', required: false },
+      totwAppearanceCount: { type: 'integer', required: false },
+      potmCount: { type: 'integer', required: false },
+      clubAwardCount: { type: 'integer', required: false },
+      multiTeamSeasons: { type: 'integer', required: false },
+      totalBadges: { type: 'integer', required: false },
+      highestBadgeTier: { type: 'string', required: false },
     },
     idPattern: 'player_{playerName}',
     constraints: ['CREATE CONSTRAINT player_id IF NOT EXISTS FOR (p:Player) REQUIRE p.id IS UNIQUE'],
@@ -348,6 +361,7 @@ const schema = {
       'FULL RESULT': 'fullResult',
       'DORKINIANS GOALS': 'dorkiniansGoals',
       'CONCEDED': 'conceded',
+      'VEO LINK': 'veoLink',
       'EXTRACTED PICKER': 'extractedPicker',
       'NODE_CREATION_LOGIC': 'nodeCreationLogic', // Used for filtering - not stored as node property
     },
@@ -371,6 +385,7 @@ const schema = {
       fullResult: { type: 'string', required: false },
       dorkiniansGoals: { type: 'integer', required: false },
       conceded: { type: 'integer', required: false },
+      veoLink: { type: 'string', required: false },
       extractedPicker: { type: 'string', required: false },
       inferredFormation: { type: 'string', required: false }
     },
@@ -589,14 +604,19 @@ const schema = {
       'DATE': 'date',
       '#1 Name': 'player1Name',
       '#1 Score': 'player1Score',
+      '#1 Points': 'player1Score',
       '#2 Name': 'player2Name',
       '#2 Score': 'player2Score',
+      '#2 Points': 'player2Score',
       '#3 Name': 'player3Name',
       '#3 Score': 'player3Score',
+      '#3 Points': 'player3Score',
       '#4 Name': 'player4Name',
       '#4 Score': 'player4Score',
+      '#4 Points': 'player4Score',
       '#5 Name': 'player5Name',
       '#5 Score': 'player5Score',
+      '#5 Points': 'player5Score',
       'NODE_CREATION_LOGIC': 'nodeCreationLogic', // Used for filtering - not stored as node property
     },
     requiredColumns: ['ID', 'SEASON', 'DATE', '#1 Name', '#2 Name', '#3 Name', '#4 Name', '#5 Name'],
@@ -699,6 +719,27 @@ const schema = {
     },
     idPattern: 'record_{category}_{recordNameSlug}',
     constraints: ['CREATE CONSTRAINT clubrecord_id IF NOT EXISTS FOR (cr:ClubRecord) REQUIRE cr.id IS UNIQUE'],
+    customNodeCreation: true,
+  },
+
+  // ============================================================================
+  // PlayerBadge — Feature 9 achievement badges (computed after seeding)
+  // ============================================================================
+  PlayerBadge: {
+    nodeType: 'PlayerBadge',
+    properties: {
+      id: { type: 'string', required: true },
+      graphLabel: { type: 'string', required: true },
+      playerName: { type: 'string', required: true },
+      badgeId: { type: 'string', required: true },
+      badgeName: { type: 'string', required: true },
+      badgeCategory: { type: 'string', required: true },
+      tier: { type: 'string', required: true },
+      earnedDate: { type: 'string', required: false },
+      description: { type: 'string', required: false },
+    },
+    idPattern: 'badge_{playerSlug}_{badgeKey}',
+    constraints: ['CREATE CONSTRAINT playerbadge_id IF NOT EXISTS FOR (pb:PlayerBadge) REQUIRE pb.id IS UNIQUE'],
     customNodeCreation: true,
   },
 
@@ -1075,6 +1116,13 @@ const relationships = {
       seasonWeek: { type: 'string', required: true }
     },
     conditions: 'wt.season + "-" + wt.week = md.seasonWeek'
+  },
+  HAS_BADGE: {
+    from: 'Player',
+    to: 'PlayerBadge',
+    type: 'HAS_BADGE',
+    properties: {},
+    conditions: 'p.playerName = pb.playerName AND p.graphLabel = pb.graphLabel'
   },
 };
 

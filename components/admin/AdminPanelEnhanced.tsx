@@ -76,7 +76,7 @@ export default function AdminPanelEnhanced() {
 	const [saveLogs, setSaveLogs] = useState(false);
 	/** When full rebuild is used, seed staging graph first then swap (default on). */
 	const [blueGreenCutover, setBlueGreenCutover] = useState(true);
-	const [fullRebuild, setFullRebuild] = useState(false);
+	const [fullRebuild, setFullRebuild] = useState(true);
 
 	// Chatbot test state
 	const [chatbotTestLoading, setChatbotTestLoading] = useState(false);
