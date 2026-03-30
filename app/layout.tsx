@@ -273,8 +273,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 					)}
 					<UmamiAnalytics />
 					{/* End of body: avoids blocking parse of children; same sanitizer as before (head was parse-blocking) */}
+					{/* suppressHydrationWarning: server may render nonce="" when x-csp-nonce is absent; dev/client can differ (see Next hydration docs). */}
 					<script
-						nonce={nonce}
+						nonce={nonce || undefined}
+						suppressHydrationWarning
 						dangerouslySetInnerHTML={{
 							__html: consoleSanitizeBootstrap,
 						}}
