@@ -1642,7 +1642,7 @@ export default function LeagueInformation() {
 				!error &&
 				leagueData &&
 				selectedSeason !== "2019-20" && (
-					<div className='space-y-8 md:space-y-0 player-stats-masonry'>
+					<div className='space-y-8'>
 						{/* Display tables for each team */}
 						{(() => {
 							// Priority: 1st XI (P1), 2nd XI (P2), then others in order (P3)
@@ -1764,7 +1764,7 @@ export default function LeagueInformation() {
 								);
 
 								return (
-									<div key={teamKey} className='w-full md:break-inside-avoid md:mb-4'>
+									<div key={teamKey} className='w-full'>
 										<div className='w-full'>
 											<h3 id={`team-${teamKey}`} className='text-lg md:text-xl font-bold text-dorkinians-yellow mb-2 text-center'>
 												{teamDisplayName}
@@ -1859,7 +1859,7 @@ export default function LeagueInformation() {
 												</div>
 											)}
 										</div>
-										{teamIndex < allTeams.length - 1 && <hr className='border-t border-white/20 my-8 md:hidden' />}
+										{teamIndex < allTeams.length - 1 && <hr className='border-t border-white/20 my-8' />}
 									</div>
 								);
 							});

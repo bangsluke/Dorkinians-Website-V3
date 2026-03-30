@@ -125,6 +125,12 @@ function clampRating(n: number): number {
 
 const FORMATION_ROW_ORDER = ["FWD", "MID", "DEF", "GK"] as const;
 
+/** Outfield starter counts only (GK excluded), e.g. 4-4-2. */
+function formatOutfieldFormation(def: number, mid: number, fwd: number): string {
+	if (def === 0 && mid === 0 && fwd === 0) return "—";
+	return `${def}-${mid}-${fwd}`;
+}
+
 export default function FixtureExpandedDetails({
 	lineup,
 	loading = false,
@@ -132,7 +138,7 @@ export default function FixtureExpandedDetails({
 	suppressVeoLink = false,
 	testIdPrefix,
 }: FixtureExpandedDetailsProps) {
-	const [showFullPlayerDetails, setShowFullPlayerDetails] = useState(false);
+	const [showLineupTable, setShowLineupTable] = useState(false);
 	const [activeTooltipPlayer, setActiveTooltipPlayer] = useState<string | null>(null);
 
 	const sortedLineup = useMemo(() => sortLineupByPositionAndMinutes(lineup || []), [lineup]);
@@ -158,6 +164,11 @@ export default function FixtureExpandedDetails({
 		return buckets;
 	}, [starters]);
 
+	const outfieldFormationLabel = useMemo(
+		() => formatOutfieldFormation(formationRows.DEF.length, formationRows.MID.length, formationRows.FWD.length),
+		[formationRows.DEF.length, formationRows.MID.length, formationRows.FWD.length],
+	);
+
 	const optionalCols = useMemo(() => getVisibleOptionalColumns(sortedLineup), [sortedLineup]);
 
 	if (loading) {
@@ -168,136 +179,141 @@ export default function FixtureExpandedDetails({
 		return <div className='text-gray-400 text-sm'>No lineup data</div>;
 	}
 
+	const lineupTable = (
+		<div className='overflow-x-auto' data-testid={`${testIdPrefix}-full-details-table`}>
+			<table className='w-full text-white text-[0.7rem]'>
+				<thead>
+					<tr className='border-b border-white/20 bg-white/5'>
+						<th className='sticky left-0 z-10 bg-gray-800 text-left py-2 px-2 shadow-[2px_0_4px_rgba(0,0,0,0.15)]'>Player</th>
+						<th className='text-left py-2 px-2'>POS</th>
+						<th className='text-right py-2 px-2'>Mins</th>
+						<th className='text-right py-2 px-2'>MoM</th>
+						<th className='text-right py-2 px-2'>G</th>
+						<th className='text-right py-2 px-2'>A</th>
+						<th className='text-right py-2 px-2'>Y</th>
+						<th className='text-right py-2 px-2'>R</th>
+						{optionalCols.map((key) => (
+							<th key={key} className='text-right py-2 px-2'>
+								{OPTIONAL_LINEUP_COLUMNS.find((c) => c.key === key)?.label ?? key}
+							</th>
+						))}
+					</tr>
+				</thead>
+				<tbody>
+					{sortedLineup.map((row, idx) => {
+						const badge = getPositionBadge(row.position);
+						return (
+							<tr key={idx} className='border-b border-white/10'>
+								<td className='sticky left-0 z-[1] py-2 px-2 shadow-[2px_0_4px_rgba(0,0,0,0.15)] bg-gray-800'>{row.playerName}</td>
+								<td className='py-2 px-2'>
+									<span className={badge.className}>{badge.label}</span>
+								</td>
+								<td className='py-2 px-2 text-right'>{row.minutes}</td>
+								<td className='py-2 px-2 text-right'>{row.mom ? "✓" : ""}</td>
+								<td className='py-2 px-2 text-right'>{row.goals > 0 ? row.goals : ""}</td>
+								<td className='py-2 px-2 text-right'>{row.assists > 0 ? row.assists : ""}</td>
+								<td className='py-2 px-2 text-right'>{row.yellowCards || ""}</td>
+								<td className='py-2 px-2 text-right'>{row.redCards || ""}</td>
+								{optionalCols.map((key) => (
+									<td key={key} className='py-2 px-2 text-right'>
+										{(row[key] as number) > 0 ? (row[key] as number) : ""}
+									</td>
+								))}
+							</tr>
+						);
+					})}
+				</tbody>
+			</table>
+		</div>
+	);
+
+	const formationGraphic = (
+		<div
+			className='mt-2 flex min-h-[160px] w-full flex-col gap-5 rounded-lg bg-emerald-950/25 px-2 py-5 sm:px-4'
+			data-testid={`${testIdPrefix}-formation`}>
+			{FORMATION_ROW_ORDER.map((rowKey) => {
+				const rowPlayers = formationRows[rowKey];
+				if (rowPlayers.length === 0) return null;
+				return (
+					<div key={rowKey} className='mx-auto flex w-full flex-wrap items-end justify-center gap-x-1 gap-y-4 sm:gap-x-2'>
+						{rowPlayers.map((player, pi) => {
+							const isActive = activeTooltipPlayer === player.playerName;
+							const breakdown = breakdownForPlayer(player);
+							const ratingText = displayRating(player);
+							const ratingNum = displayRatingValue(player);
+							const circleStyle = matchRatingCircleStyle(ratingNum);
+							const shortName = playerSurnameOrAfterFirstName(player.playerName);
+							return (
+								<div
+									key={`${rowKey}-${pi}-${player.playerName}`}
+									className='relative flex w-[18%] min-w-[3.1rem] max-w-[5.5rem] flex-shrink-0 flex-col items-center gap-1 sm:min-w-[3.5rem]'>
+									<button
+										type='button'
+										onClick={() => setActiveTooltipPlayer((prev) => (prev === player.playerName ? null : player.playerName))}
+										style={circleStyle}
+										className='flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 border-solid text-xs font-bold shadow-sm transition-opacity hover:opacity-90'
+										data-testid={`${testIdPrefix}-formation-player`}>
+										{ratingText}
+									</button>
+									<span
+										className='w-full text-center text-[10px] leading-snug text-white break-words hyphens-auto'
+										title={player.playerName}>
+										{shortName}
+									</span>
+									{isActive ? (
+										<div
+											className='absolute left-1/2 top-full z-20 mt-1 w-64 -translate-x-1/2 rounded-lg border border-white/15 bg-[#111] p-3 text-xs text-gray-200 shadow-lg'
+											data-testid={`${testIdPrefix}-rating-tooltip`}>
+											<p className='font-semibold text-white mb-1'>{player.playerName}</p>
+											<p className='mb-1'>
+												Rating: <span className='font-semibold'>{breakdown.final.toFixed(1)}</span>
+											</p>
+											<p className='mb-1 text-gray-400'>Position: {breakdown.position}</p>
+											<ul className='space-y-0.5 max-h-32 overflow-y-auto'>
+												{breakdown.lines.map((line, idx) => (
+													<li key={`${line.label}-${idx}`} className='flex justify-between gap-2'>
+														<span className='text-gray-300'>{line.label}</span>
+														<span className='font-medium'>
+															{line.delta > 0 ? "+" : ""}
+															{line.delta.toFixed(1)}
+														</span>
+													</li>
+												))}
+											</ul>
+										</div>
+									) : null}
+								</div>
+							);
+						})}
+					</div>
+				);
+			})}
+		</div>
+	);
+
 	return (
 		<div className='space-y-3' data-testid={`${testIdPrefix}-fixture-expanded`}>
 			<div className='mt-4'>
 				<p className='text-sm text-gray-300'>
-					<span className='text-gray-400'>Formation:</span>
+					<span className='text-gray-400'>Formation:</span> <span className='text-white'>{outfieldFormationLabel}</span>
 				</p>
-				<div
-					className='mt-2 flex min-h-[160px] w-full flex-col gap-5 rounded-lg bg-emerald-950/25 px-2 py-5 sm:px-4'
-					data-testid={`${testIdPrefix}-formation`}>
-					{FORMATION_ROW_ORDER.map((rowKey) => {
-						const rowPlayers = formationRows[rowKey];
-						if (rowPlayers.length === 0) return null;
-						return (
-							<div
-								key={rowKey}
-								className='mx-auto flex w-full flex-wrap items-end justify-center gap-x-1 gap-y-4 sm:gap-x-2'>
-								{rowPlayers.map((player, pi) => {
-									const isActive = activeTooltipPlayer === player.playerName;
-									const breakdown = breakdownForPlayer(player);
-									const ratingText = displayRating(player);
-									const ratingNum = displayRatingValue(player);
-									const circleStyle = matchRatingCircleStyle(ratingNum);
-									const shortName = playerSurnameOrAfterFirstName(player.playerName);
-									return (
-										<div
-											key={`${rowKey}-${pi}-${player.playerName}`}
-											className='relative flex w-[18%] min-w-[3.1rem] max-w-[5.5rem] flex-shrink-0 flex-col items-center gap-1 sm:min-w-[3.5rem]'>
-											<button
-												type='button'
-												onClick={() => setActiveTooltipPlayer((prev) => (prev === player.playerName ? null : player.playerName))}
-												style={circleStyle}
-												className='flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 border-solid text-xs font-bold shadow-sm transition-opacity hover:opacity-90'
-												data-testid={`${testIdPrefix}-formation-player`}>
-												{ratingText}
-											</button>
-											<span
-												className='w-full text-center text-[10px] leading-snug text-white break-words hyphens-auto'
-												title={player.playerName}>
-												{shortName}
-											</span>
-											{isActive ? (
-												<div
-													className='absolute left-1/2 top-full z-20 mt-1 w-64 -translate-x-1/2 rounded-lg border border-white/15 bg-[#111] p-3 text-xs text-gray-200 shadow-lg'
-													data-testid={`${testIdPrefix}-rating-tooltip`}>
-													<p className='font-semibold text-white mb-1'>{player.playerName}</p>
-													<p className='mb-1'>
-														Rating: <span className='font-semibold'>{breakdown.final.toFixed(1)}</span>
-													</p>
-													<p className='mb-1 text-gray-400'>Position: {breakdown.position}</p>
-													<ul className='space-y-0.5 max-h-32 overflow-y-auto'>
-														{breakdown.lines.map((line, idx) => (
-															<li key={`${line.label}-${idx}`} className='flex justify-between gap-2'>
-																<span className='text-gray-300'>{line.label}</span>
-																<span className='font-medium'>
-																	{line.delta > 0 ? "+" : ""}
-																	{line.delta.toFixed(1)}
-																</span>
-															</li>
-														))}
-													</ul>
-												</div>
-											) : null}
-										</div>
-									);
-								})}
-							</div>
-						);
-					})}
-				</div>
+				{showLineupTable ? lineupTable : formationGraphic}
 			</div>
-
-			{!suppressVeoLink ? <VeoWatchMatchButtons veoLink={veoLink} testIdPrefix={testIdPrefix} /> : null}
 
 			<div className='flex w-full justify-center pt-1'>
 				<button
 					type='button'
-					onClick={() => setShowFullPlayerDetails((prev) => !prev)}
+					onClick={() => {
+						setShowLineupTable((prev) => !prev);
+						setActiveTooltipPlayer(null);
+					}}
 					className='text-center text-xs text-dorkinians-yellow hover:text-yellow-400 underline'
 					data-testid={`${testIdPrefix}-toggle-full-details`}>
-					{showFullPlayerDetails ? "Hide full player details" : "Show full player details"}
+					{showLineupTable ? "Show formation" : "Show full player details"}
 				</button>
 			</div>
 
-			{showFullPlayerDetails ? (
-				<div className='overflow-x-auto' data-testid={`${testIdPrefix}-full-details-table`}>
-					<table className='w-full text-white text-[0.7rem]'>
-						<thead>
-							<tr className='border-b border-white/20 bg-white/5'>
-								<th className='sticky left-0 z-10 bg-gray-800 text-left py-2 px-2 shadow-[2px_0_4px_rgba(0,0,0,0.15)]'>Player</th>
-								<th className='text-left py-2 px-2'>POS</th>
-								<th className='text-right py-2 px-2'>Mins</th>
-								<th className='text-right py-2 px-2'>MoM</th>
-								<th className='text-right py-2 px-2'>G</th>
-								<th className='text-right py-2 px-2'>A</th>
-								<th className='text-right py-2 px-2'>Y</th>
-								<th className='text-right py-2 px-2'>R</th>
-								{optionalCols.map((key) => (
-									<th key={key} className='text-right py-2 px-2'>
-										{OPTIONAL_LINEUP_COLUMNS.find((c) => c.key === key)?.label ?? key}
-									</th>
-								))}
-							</tr>
-						</thead>
-						<tbody>
-							{sortedLineup.map((row, idx) => {
-								const badge = getPositionBadge(row.position);
-								return (
-									<tr key={idx} className='border-b border-white/10'>
-										<td className='sticky left-0 z-[1] py-2 px-2 shadow-[2px_0_4px_rgba(0,0,0,0.15)] bg-gray-800'>{row.playerName}</td>
-										<td className='py-2 px-2'>
-											<span className={badge.className}>{badge.label}</span>
-										</td>
-										<td className='py-2 px-2 text-right'>{row.minutes}</td>
-										<td className='py-2 px-2 text-right'>{row.mom ? "✓" : ""}</td>
-										<td className='py-2 px-2 text-right'>{row.goals > 0 ? row.goals : ""}</td>
-										<td className='py-2 px-2 text-right'>{row.assists > 0 ? row.assists : ""}</td>
-										<td className='py-2 px-2 text-right'>{row.yellowCards || ""}</td>
-										<td className='py-2 px-2 text-right'>{row.redCards || ""}</td>
-										{optionalCols.map((key) => (
-											<td key={key} className='py-2 px-2 text-right'>
-												{(row[key] as number) > 0 ? (row[key] as number) : ""}
-											</td>
-										))}
-									</tr>
-								);
-							})}
-						</tbody>
-					</table>
-				</div>
-			) : null}
+			{!suppressVeoLink ? <VeoWatchMatchButtons veoLink={veoLink} testIdPrefix={testIdPrefix} /> : null}
 		</div>
 	);
 }
