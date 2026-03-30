@@ -38,13 +38,13 @@ export default function RecordingsSection({ id, title, subtitle, fixtures, teamC
 			<div className='w-full overflow-x-auto'>
 				<table className='w-full table-fixed text-white text-[10px] sm:text-xs md:text-sm'>
 					<colgroup>
-						<col className={teamColumn ? "w-[16%] sm:w-[14%]" : "w-[22%] sm:w-[18%]"} />
-						{teamColumn ? <col className='w-[14%] sm:w-[12%]' /> : null}
-						<col className='w-[12%] sm:w-[10%]' />
-						<col className='w-[12%] sm:w-[10%]' />
-						<col className={teamColumn ? "w-[22%] sm:w-[24%]" : "w-[26%] sm:w-[28%]"} />
-						<col className='w-[12%] sm:w-[14%]' />
-						<col className='w-[10%] sm:w-[16%]' />
+						<col className={teamColumn ? "w-[14%] sm:w-[13%]" : "w-[16%] sm:w-[14%]"} />
+						{teamColumn ? <col className='w-[12%] sm:w-[11%]' /> : null}
+						<col className='w-[18%] sm:w-[9%]' />
+						<col className='w-[18%] sm:w-[9%]' />
+						<col className={teamColumn ? "w-[26%] sm:w-[28%]" : "w-[30%] sm:w-[30%]"} />
+						<col className='w-[12%] sm:w-[13%]' />
+						<col className='w-[12%] sm:w-[16%]' />
 					</colgroup>
 					<thead>
 						<tr className='border-b border-white/20 bg-white/5'>
@@ -52,8 +52,10 @@ export default function RecordingsSection({ id, title, subtitle, fixtures, teamC
 							{teamColumn ? (
 								<th className='text-left py-1.5 px-1 sm:py-2 sm:px-2 font-semibold'>Team</th>
 							) : null}
-							<th className='text-left py-1.5 px-1 sm:py-2 sm:px-2 font-semibold'>Loc</th>
-							<th className='text-left py-1.5 px-1 sm:py-2 sm:px-2 font-semibold'>Comp</th>
+							{/* Mobile only: headerless slot spanning Loc + Comp columns */}
+							<th colSpan={2} className='table-cell p-0 sm:hidden' aria-hidden='true' />
+							<th className='hidden text-left py-1.5 px-1 sm:table-cell sm:py-2 sm:px-2 font-semibold'>Loc</th>
+							<th className='hidden text-left py-1.5 px-1 sm:table-cell sm:py-2 sm:px-2 font-semibold'>Comp</th>
 							<th className='text-left py-1.5 px-1 sm:py-2 sm:px-2 font-semibold'>Opponent</th>
 							<th className='text-left py-1.5 px-1 sm:py-2 sm:px-2 font-semibold'>Result</th>
 							<th className='text-center py-1.5 px-0.5 sm:py-2 sm:px-2 font-semibold'>Match</th>
@@ -71,20 +73,35 @@ export default function RecordingsSection({ id, title, subtitle, fixtures, teamC
 										{fx.team || "—"}
 									</td>
 								) : null}
-								<td className='py-1.5 px-1 sm:py-2 sm:px-2'>
+								<td colSpan={2} className='py-1.5 px-0.5 sm:hidden'>
+									<span className='sr-only'>
+										Location {recordingLocLabelDesktop(fx.homeOrAway)}, competition {recordingCompLabelDesktop(fx.compType)}
+									</span>
+									<div className='flex flex-nowrap items-center justify-start gap-0.5'>
+										<span
+											className={`shrink-0 rounded px-1 py-0.5 text-[9px] font-medium leading-none ${recordingLocBadgeClass(fx.homeOrAway)}`}
+											title={fx.homeOrAway || ""}>
+											{recordingLocLabelMobile(fx.homeOrAway)}
+										</span>
+										<span
+											className={`shrink-0 rounded px-1 py-0.5 text-[9px] font-medium leading-none ${recordingCompBadgeClass(fx.compType)}`}
+											title={fx.compType || ""}>
+											{recordingCompLabelMobile(fx.compType)}
+										</span>
+									</div>
+								</td>
+								<td className='hidden py-1.5 px-1 sm:table-cell sm:py-2 sm:px-2'>
 									<span
 										className={`inline-block max-w-full rounded px-1.5 py-0.5 text-[9px] sm:text-xs font-medium ${recordingLocBadgeClass(fx.homeOrAway)}`}
 										title={fx.homeOrAway || ""}>
-										<span className='sm:hidden'>{recordingLocLabelMobile(fx.homeOrAway)}</span>
-										<span className='hidden sm:inline'>{recordingLocLabelDesktop(fx.homeOrAway)}</span>
+										{recordingLocLabelDesktop(fx.homeOrAway)}
 									</span>
 								</td>
-								<td className='py-1.5 px-1 sm:py-2 sm:px-2'>
+								<td className='hidden py-1.5 px-1 sm:table-cell sm:py-2 sm:px-2'>
 									<span
 										className={`inline-block max-w-full rounded px-1.5 py-0.5 text-[9px] sm:text-xs font-medium ${recordingCompBadgeClass(fx.compType)}`}
 										title={fx.compType || ""}>
-										<span className='sm:hidden'>{recordingCompLabelMobile(fx.compType)}</span>
-										<span className='hidden sm:inline'>{recordingCompLabelDesktop(fx.compType)}</span>
+										{recordingCompLabelDesktop(fx.compType)}
 									</span>
 								</td>
 								<td className='py-1.5 px-1 sm:py-2 sm:px-2 truncate' title={fx.opposition || ""}>
