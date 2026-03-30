@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { buildMatchRatingBreakdown } from "@/lib/utils/matchRatingBreakdown";
+import { matchRatingCircleClass, playerSurnameOrAfterFirstName } from "@/lib/utils/matchRatingDisplay";
 import VeoWatchMatchButtons from "./VeoWatchMatchButtons";
 
 export interface FixtureLineupPlayer {
@@ -106,11 +107,20 @@ function breakdownForPlayer(player: FixtureLineupPlayer) {
 }
 
 function displayRating(player: FixtureLineupPlayer): string {
+	return displayRatingValue(player).toFixed(1);
+}
+
+function displayRatingValue(player: FixtureLineupPlayer): number {
 	if (player.matchRating != null && player.matchRating !== undefined) {
 		const n = Number(player.matchRating);
-		if (!Number.isNaN(n)) return n.toFixed(1);
+		if (!Number.isNaN(n)) return clampRating(n);
 	}
-	return breakdownForPlayer(player).final.toFixed(1);
+	return clampRating(breakdownForPlayer(player).final);
+}
+
+function clampRating(n: number): number {
+	if (Number.isNaN(n)) return 6;
+	return Math.min(10, Math.max(1, n));
 }
 
 const FORMATION_ROW_ORDER = ["FWD", "MID", "DEF", "GK"] as const;
@@ -161,31 +171,41 @@ export default function FixtureExpandedDetails({
 	return (
 		<div className='space-y-3' data-testid={`${testIdPrefix}-fixture-expanded`}>
 			<div className='mt-4'>
-				<h5 className='text-sm font-semibold text-white'>Formation</h5>
-				<p className='text-xs text-gray-400 mt-1'>Click a player dot to view match rating and rating breakdown.</p>
+				<p className='text-sm text-gray-300'>
+					<span className='text-gray-400'>Formation:</span>
+				</p>
 				<div
-					className='mt-3 flex min-h-[140px] flex-col gap-5 rounded-lg bg-emerald-950/25 px-2 py-4'
+					className='mt-2 flex min-h-[160px] w-full max-w-[36rem] flex-col gap-5 rounded-lg bg-emerald-950/25 px-2 py-5 sm:max-w-[40rem] sm:px-4'
 					data-testid={`${testIdPrefix}-formation`}>
 					{FORMATION_ROW_ORDER.map((rowKey) => {
 						const rowPlayers = formationRows[rowKey];
 						if (rowPlayers.length === 0) return null;
 						return (
-							<div key={rowKey} className='flex w-full flex-wrap items-end justify-center gap-x-4 gap-y-3'>
+							<div
+								key={rowKey}
+								className='mx-auto flex w-full max-w-[34rem] flex-wrap items-end justify-center gap-x-1 gap-y-4 sm:max-w-[38rem] sm:gap-x-2'>
 								{rowPlayers.map((player, pi) => {
 									const isActive = activeTooltipPlayer === player.playerName;
 									const breakdown = breakdownForPlayer(player);
 									const ratingText = displayRating(player);
+									const ratingNum = displayRatingValue(player);
+									const circleClass = matchRatingCircleClass(ratingNum);
+									const shortName = playerSurnameOrAfterFirstName(player.playerName);
 									return (
-										<div key={`${rowKey}-${pi}-${player.playerName}`} className='relative flex flex-col items-center gap-1'>
+										<div
+											key={`${rowKey}-${pi}-${player.playerName}`}
+											className='relative flex w-[18%] min-w-[3.1rem] max-w-[5.5rem] flex-shrink-0 flex-col items-center gap-1 sm:min-w-[3.5rem]'>
 											<button
 												type='button'
 												onClick={() => setActiveTooltipPlayer((prev) => (prev === player.playerName ? null : player.playerName))}
-												className='flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 border-dorkinians-yellow/70 bg-dorkinians-yellow/15 text-xs font-bold text-dorkinians-yellow hover:bg-dorkinians-yellow/25'
+												className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-xs font-bold shadow-sm transition-opacity hover:opacity-90 ${circleClass}`}
 												data-testid={`${testIdPrefix}-formation-player`}>
 												{ratingText}
 											</button>
-											<span className='max-w-[4.5rem] truncate text-center text-[10px] leading-tight text-white' title={player.playerName}>
-												{player.playerName}
+											<span
+												className='w-full text-center text-[10px] leading-snug text-white break-words hyphens-auto'
+												title={player.playerName}>
+												{shortName}
 											</span>
 											{isActive ? (
 												<div

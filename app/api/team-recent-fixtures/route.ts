@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { neo4jService } from "@/lib/neo4j";
 import { Record } from "neo4j-driver";
 import { buildFilterConditions } from "../player-data/route";
+import { CYPHER_FIXTURE_VEOLINK_COALESCE } from "@/lib/utils/neo4jVeoLink";
 
 const corsHeaders = {
 	"Access-Control-Allow-Origin": "*",
@@ -72,7 +73,7 @@ export async function POST(request: NextRequest) {
 		query += `
 			RETURN f.result as result, f.date as date, f.opposition as opposition, 
 			       f.homeOrAway as homeOrAway, f.dorkiniansGoals as goalsScored, 
-			       f.conceded as goalsConceded, f.compType as compType, f.veoLink as veoLink
+			       f.conceded as goalsConceded, f.compType as compType, ${CYPHER_FIXTURE_VEOLINK_COALESCE} as veoLink
 			ORDER BY f.date DESC
 			LIMIT 10
 		`;
