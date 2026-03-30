@@ -49,6 +49,7 @@ const statsNavigationItems = [
 			{ id: "team-home-away-performance", label: "Home vs Away Performance" },
 			{ id: "team-key-team-stats", label: "Key Team Stats" },
 			{ id: "team-unique-player-stats", label: "Unique Player Stats" },
+			{ id: "team-recordings", label: "Team Recordings" },
 			{ id: "team-best-season-finish", label: "Best Season Finish" },
 		],
 	},
