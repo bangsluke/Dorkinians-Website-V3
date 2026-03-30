@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { Record } from "neo4j-driver";
 import { neo4jService } from "@/lib/neo4j";
+import { CYPHER_FIXTURE_VEOLINK_COALESCE } from "@/lib/utils/neo4jVeoLink";
 
 const corsHeaders = {
 	"Access-Control-Allow-Origin": "*",
@@ -86,7 +87,7 @@ export async function GET(request: NextRequest) {
 			RETURN f.id as fixtureId, f.date as date, f.opposition as opposition, f.homeOrAway as homeOrAway,
 			       f.result as result, f.homeScore as homeScore, f.awayScore as awayScore,
 			       f.dorkiniansGoals as dorkiniansGoals, f.conceded as conceded,
-			       f.compType as compType, f.oppoOwnGoals as oppoOwnGoals, f.veoLink as veoLink, goalscorers, momPlayers
+			       f.compType as compType, f.oppoOwnGoals as oppoOwnGoals, ${CYPHER_FIXTURE_VEOLINK_COALESCE} as veoLink, goalscorers, momPlayers
 		`;
 
 		const fixtureRes = await neo4jService.runQuery(fixtureQuery, {

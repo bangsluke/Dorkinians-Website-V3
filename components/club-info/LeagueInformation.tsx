@@ -1701,6 +1701,68 @@ export default function LeagueInformation() {
 									return false;
 								};
 
+								const latestResultCard = (
+									<div
+										className={
+											hasTableData
+												? "mt-6 rounded-lg border border-white/10 bg-white/5 p-4 lg:mt-0"
+												: "mt-6 rounded-lg border border-white/10 bg-white/5 p-4"
+										}
+										data-testid={`latest-result-${teamKey}`}>
+										<h4 className='text-base font-semibold text-dorkinians-yellow mb-3'>Latest Result</h4>
+										{loadingLatestResults ? (
+											<div className='text-sm text-gray-400'>Loading latest result...</div>
+										) : !latestFixture ? (
+											<div className='text-sm text-gray-400'>No latest result data available.</div>
+										) : (
+											<div className='space-y-3'>
+												<div className='mb-2 flex flex-wrap items-center justify-between gap-2'>
+													<span className='text-sm text-gray-400'>{formatDate(latestFixture.date)}</span>
+													<div className='flex items-center gap-2'>
+														{latestFixture.compType ? (
+															<span className='px-2 py-1 rounded text-xs font-medium bg-blue-600/30 text-blue-300'>{latestFixture.compType}</span>
+														) : null}
+														<span
+															className={`px-2 py-1 rounded text-xs font-medium ${
+																latestFixture.homeOrAway?.toLowerCase() === "home"
+																	? "bg-dorkinians-yellow/20 text-dorkinians-yellow"
+																	: "bg-gray-700 text-gray-300"
+															}`}>
+															{latestFixture.homeOrAway || "N/A"}
+														</span>
+													</div>
+												</div>
+												<div className='text-lg font-semibold text-white'>
+													{formatFixtureResult(latestFixture)}{" "}
+													<span className='text-base font-normal'>
+														vs <span className='font-medium'>{latestFixture.opposition || "Unknown"}</span>
+													</span>
+												</div>
+												{goalscorersText ? (
+													<div className='text-sm text-gray-300'>
+														<span className='text-gray-400'>Goalscorers: </span>
+														{goalscorersText}
+													</div>
+												) : null}
+												{latestFixture.momPlayerName ? (
+													<div className='text-sm text-gray-300'>
+														<span className='text-gray-400'>MoM: </span>
+														{latestFixture.momPlayerName}
+													</div>
+												) : null}
+												<VeoWatchMatchButtons veoLink={latestFixture.veoLink} testIdPrefix={`latest-result-${teamKey}`} />
+												<FixtureExpandedDetails
+													lineup={latestLineup}
+													loading={false}
+													veoLink={latestFixture.veoLink}
+													suppressVeoLink
+													testIdPrefix={`latest-result-${teamKey}`}
+												/>
+											</div>
+										)}
+									</div>
+								);
+
 								return (
 									<Fragment key={teamKey}>
 										<div className='w-full'>
@@ -1721,104 +1783,57 @@ export default function LeagueInformation() {
 											)}
 
 											{hasTableData ? (
-												<div className='overflow-x-auto -mx-3 md:-mx-6 px-3 md:px-6'>
-													<table className='w-full bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden'>
-														<thead className='sticky top-0 z-10'>
-															<tr className='bg-white/20'>
-																<th className='w-8 px-1.5 py-2 text-left text-white font-semibold text-[10px] md:text-xs'></th>
-																<th className='px-2 py-2 text-left text-white font-semibold text-xs md:text-sm'>Team</th>
-																<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>P</th>
-																<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>W</th>
-																<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>D</th>
-																<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>L</th>
-																<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>F</th>
-																<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>A</th>
-																<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>GD</th>
-																<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>Pts</th>
-															</tr>
-														</thead>
-														<tbody>
-															{teamData.table.map((entry, index) => {
-																// Only highlight the Dorkinians team that matches this teamKey
-																const isThisDorkiniansTeam = matchesThisTeam(entry.team);
-																return (
-																	<tr
-																		key={index}
-																		className={`border-b border-white/10 transition-colors ${
-																			isThisDorkiniansTeam ? "bg-dorkinians-yellow/20 font-semibold" : index % 2 === 0 ? "bg-gray-800/30" : ""
-																		} hover:bg-white/5`}>
-																		<td className='px-1.5 py-2 text-white text-[10px] md:text-xs'>{entry.position}</td>
-																		<td className='px-2 py-2 text-white text-xs md:text-sm'>{entry.team}</td>
-																		<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.played}</td>
-																		<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.won}</td>
-																		<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.drawn}</td>
-																		<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.lost}</td>
-																		<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.goalsFor}</td>
-																		<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.goalsAgainst}</td>
-																		<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.goalDifference}</td>
-																		<td className='px-2 py-2 text-center font-semibold text-dorkinians-yellow text-xs md:text-sm'>{entry.points}</td>
-																	</tr>
-																);
-															})}
-														</tbody>
-													</table>
+												<div className='lg:grid lg:grid-cols-2 lg:items-start lg:gap-6'>
+													<div className='min-w-0 overflow-x-auto -mx-3 md:-mx-6 px-3 md:px-6 lg:mx-0 lg:px-0'>
+														<table className='w-full bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden'>
+															<thead className='sticky top-0 z-10'>
+																<tr className='bg-white/20'>
+																	<th className='w-8 px-1.5 py-2 text-left text-white font-semibold text-[10px] md:text-xs'></th>
+																	<th className='px-2 py-2 text-left text-white font-semibold text-xs md:text-sm'>Team</th>
+																	<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>P</th>
+																	<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>W</th>
+																	<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>D</th>
+																	<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>L</th>
+																	<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>F</th>
+																	<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>A</th>
+																	<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>GD</th>
+																	<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>Pts</th>
+																</tr>
+															</thead>
+															<tbody>
+																{teamData.table.map((entry, index) => {
+																	// Only highlight the Dorkinians team that matches this teamKey
+																	const isThisDorkiniansTeam = matchesThisTeam(entry.team);
+																	return (
+																		<tr
+																			key={index}
+																			className={`border-b border-white/10 transition-colors ${
+																				isThisDorkiniansTeam ? "bg-dorkinians-yellow/20 font-semibold" : index % 2 === 0 ? "bg-gray-800/30" : ""
+																			} hover:bg-white/5`}>
+																			<td className='px-1.5 py-2 text-white text-[10px] md:text-xs'>{entry.position}</td>
+																			<td className='px-2 py-2 text-white text-xs md:text-sm'>{entry.team}</td>
+																			<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.played}</td>
+																			<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.won}</td>
+																			<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.drawn}</td>
+																			<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.lost}</td>
+																			<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.goalsFor}</td>
+																			<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.goalsAgainst}</td>
+																			<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.goalDifference}</td>
+																			<td className='px-2 py-2 text-center font-semibold text-dorkinians-yellow text-xs md:text-sm'>{entry.points}</td>
+																		</tr>
+																	);
+																})}
+															</tbody>
+														</table>
+													</div>
+													{latestResultCard}
 												</div>
 											) : (
-												<div className='text-center text-gray-300 py-4 mb-4'>No table data available. Team was removed from the league.</div>
+												<>
+													<div className='text-center text-gray-300 py-4 mb-4'>No table data available. Team was removed from the league.</div>
+													{latestResultCard}
+												</>
 											)}
-											<div className='mt-6 rounded-lg border border-white/10 bg-white/5 p-4' data-testid={`latest-result-${teamKey}`}>
-												<h4 className='text-base font-semibold text-dorkinians-yellow mb-3'>Latest Result</h4>
-												{loadingLatestResults ? (
-													<div className='text-sm text-gray-400'>Loading latest result...</div>
-												) : !latestFixture ? (
-													<div className='text-sm text-gray-400'>No latest result data available.</div>
-												) : (
-													<div className='space-y-3'>
-														<div className='mb-2 flex flex-wrap items-center justify-between gap-2'>
-															<span className='text-sm text-gray-400'>{formatDate(latestFixture.date)}</span>
-															<div className='flex items-center gap-2'>
-																{latestFixture.compType ? (
-																	<span className='px-2 py-1 rounded text-xs font-medium bg-blue-600/30 text-blue-300'>{latestFixture.compType}</span>
-																) : null}
-																<span
-																	className={`px-2 py-1 rounded text-xs font-medium ${
-																		latestFixture.homeOrAway?.toLowerCase() === "home"
-																			? "bg-dorkinians-yellow/20 text-dorkinians-yellow"
-																			: "bg-gray-700 text-gray-300"
-																	}`}>
-																	{latestFixture.homeOrAway || "N/A"}
-																</span>
-															</div>
-														</div>
-														<div className='text-lg font-semibold text-white'>
-															{formatFixtureResult(latestFixture)}{" "}
-															<span className='text-base font-normal'>
-																vs <span className='font-medium'>{latestFixture.opposition || "Unknown"}</span>
-															</span>
-														</div>
-														{goalscorersText ? (
-															<div className='text-sm text-gray-300'>
-																<span className='text-gray-400'>Goalscorers: </span>
-																{goalscorersText}
-															</div>
-														) : null}
-														{latestFixture.momPlayerName ? (
-															<div className='text-sm text-gray-300'>
-																<span className='text-gray-400'>MoM: </span>
-																{latestFixture.momPlayerName}
-															</div>
-														) : null}
-														<VeoWatchMatchButtons veoLink={latestFixture.veoLink} testIdPrefix={`latest-result-${teamKey}`} />
-														<FixtureExpandedDetails
-															lineup={latestLineup}
-															loading={false}
-															veoLink={latestFixture.veoLink}
-															suppressVeoLink
-															testIdPrefix={`latest-result-${teamKey}`}
-														/>
-													</div>
-												)}
-											</div>
 											{/* League Table Link and Show Results - shown per team */}
 											{((teamData.url && teamData.url.trim() !== "") || selectedSeason) && (
 												<div className='mt-4 text-center'>
