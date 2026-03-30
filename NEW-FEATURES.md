@@ -37,7 +37,7 @@
 - Club Info page with sub-pages: Club Information, League Information, Club Captains, Club Awards, Useful Links
 - Settings page
 
-**Planned (Phase 6 — New Requests Round 2):** Dedicated **Player Profile** page; **Club Captains and Awards** (merged captains + awards pages); **Records** moved to Club Information above Milestones; fixtures **VEO LINK**; TOTW history strip + share; dev branding and CI gates — see Phase 6 below.
+**Planned (Phase 6 — New Requests Round 2):** Dedicated **Player Profile** page; **Club Captains and Awards** (merged captains + awards pages); **Records** moved to Club Information above Milestones; fixtures **VEO LINK**; TOTW history strip + share; dev branding and CI gates; **Feature 20** navigation and Player Stats polish — see Phase 6 below.
 
 **Design system:** Dark olive-to-warm-gold gradient background. Semi-transparent card sections (`background: rgba(30,35,25,0.7)`) with subtle white borders (`border: 1px solid rgba(255,255,255,0.08)`). White bold section headers. Muted secondary text (`rgba(255,255,255,0.4-0.5)`). Yellow `#E8C547` as primary accent colour. Green `#5DCAA5` for positive indicators. The site is mobile-first.
 
@@ -883,8 +883,10 @@ async function shareSlide(slideRef: HTMLDivElement, playerName: string, slideNum
 
 **Homepage integration:**
 
-- At the end of the season, add a banner on the homepage: "Season Wrapped 2025/26 is live! See your season story →" linking to `/wrapped/[current-player-slug]`
-- Generate a WhatsApp-friendly text block on the wrapped page for easy copy-paste sharing
+- **Historical (superseded):** The first cut added a homepage banner (`SeasonWrappedBanner`) linking to `/wrapped/[current-player-slug]`. **Current spec:** do **not** show Season Wrapped on the **Homepage**; remove the banner from home. Primary discovery is the **Player Profile** page (Season Wrapped section) and direct `/wrapped/...` URLs. Env flag `NEXT_PUBLIC_SEASON_WRAPPED_ACTIVE` should no longer be used to surface wrapped on home once removal is implemented.
+- Generate a WhatsApp-friendly text block on the wrapped page for easy copy-paste sharing (unchanged).
+
+**Status:** Homepage banner removal and profile-only entry — **not implemented** (see **`IMPLEMENTATION-STATUS.md` → Phase 6 UX polish**).
 
 **Tests to write:**
 
@@ -1393,7 +1395,7 @@ multiTeamSeasons: // COUNT of seasons where player appeared for 2+ teams with 10
 
 ## Phase 6: New Requests Round 2
 
-These items come from `New-Features-2.md`. Implement after Phase 5 (Feature 9) unless a dependency note says otherwise. Run the full test suite after each feature.
+These items come from `New-Features-2.md`. Implement after Phase 5 (Feature 9) unless a dependency note says otherwise. Run the full test suite after each feature. **Feature 20** and amendments to Features **8**, **10**, and **13** (Season Wrapped on profile only, profile shell/order/styling, global profile icon) are specified at the end of this phase — see **`IMPLEMENTATION-STATUS.md` → Phase 6 UX polish** for a checklist.
 
 ---
 
@@ -1402,18 +1404,23 @@ These items come from `New-Features-2.md`. Implement after Phase 5 (Feature 9) u
 **What:**
 
 1. New **Player Profile** route (dedicated page, not only Player Stats) showing a career summary: achievement badges, all-time headline stats (goals, assists, cards, appearances, and other relevant aggregates already on `Player` or easy to derive).
-2. **Section order on Player Profile:** (1) **Season Wrapped** entry point / banner first; (2) **Milestone badges** second (content moved from Player Stats — see below).
-3. On **Player Stats** → Captaincies, Awards and Achievements: **remove** the milestone badges block from that section. Keep the text **“Milestone badges earned”** in place, **underlined**, as a **link** to the Player Profile page for the current player (same player context as stats).
+2. **App shell:** Player Profile must use the **same main-app layout as Settings** and other primary screens: **sidebar**, **header** (and footer/navigation pattern as on `app/page.tsx`), not a standalone full-bleed page without app chrome. Implementation may embed profile content in the SPA shell or share a layout wrapper — intent is UX parity with Settings.
+3. **Section order on Player Profile (canonical):** (1) **Headline Stats**; (2) **Milestone Badges**; (3) **Season Wrapped** (entry point / link to `/wrapped/...`). Use **title case** for section headings: “Headline Stats”, “Milestone Badges”, “Season Wrapped”.
+4. **Season Wrapped block styling:** Content **centre-aligned**; **Dorkinians club logo** alongside the heading or lead text; section styled with **yellow-forward** emphasis (accent `#E8C547` / `dorkinians-yellow`) to highlight it vs other cards.
+5. **Back navigation:** Place a **“Back to home”** control at the **bottom** of the page, styled like **dialog back buttons** used elsewhere in the app (not only a top-right text link). Remove or relocate any redundant top “back” link.
+6. On **Player Stats** → Captaincies, Awards and Achievements: **remove** the milestone badges block from that section. Keep the text **“Milestone badges earned”** in place, **underlined**, as a **link** to the Player Profile page for the current player (same player context as stats).
 
-**Where to change (V3-dorkinians-website):** New `app/...` route for profile (align URL pattern with existing player slug/name usage, e.g. mirror `/wrapped/[playerSlug]` or stats deep links). Reuse badge APIs/components (`player-badges`, badge bar/grid patterns). Move or extract milestone UI so it lives on the profile page first.
+**Where to change (V3-dorkinians-website):** `app/profile/[playerSlug]/page.tsx`, `components/profile/PlayerProfileView.tsx`, and main shell components (`Header`, `SidebarNavigation`, `app/page.tsx` or shared layout) as needed. Reuse badge APIs/components (`player-badges`, badge bar/grid patterns).
 
-**Dependencies:** Feature 9 (badges data). Season Wrapped route/banner component from Feature 8.
+**Dependencies:** Feature 9 (badges data). Season Wrapped route from Feature 8.
 
 **Tests to write:**
 
 - **Unit tests (Jest):** URL/slug helper for profile link matches player selected on Stats (if shared util).
 - **Integration test (Jest):** Profile page data fetch returns expected shape for a known player (if using a dedicated API route).
-- **E2E (Playwright):** Open Player Stats → click “Milestone badges earned” → lands on Player Profile with milestones visible. On Player Profile, Season Wrapped appears above milestone section. Player Profile shows badges + headline stats.
+- **E2E (Playwright):** Open Player Stats → click “Milestone badges earned” → lands on Player Profile with milestones visible. On Player Profile, sections appear in order **Headline Stats → Milestone Badges → Season Wrapped**; app chrome matches Settings; bottom **Back to home** matches dialog back-button styling.
+
+**Status:** Shell, section order, Season Wrapped styling, and bottom back control — **partially implemented** (first cut matches old order/layout); remaining work tracked in **`IMPLEMENTATION-STATUS.md` → Phase 6 UX polish** rows 2 and 4.
 
 ---
 
@@ -1447,15 +1454,17 @@ These items come from `New-Features-2.md`. Implement after Phase 5 (Feature 9) u
 
 ### Feature 13: Home header profile icon → Player Profile
 
-**What:** When a player is selected on the **home** page, show a **profile icon** in the header **to the left of** the settings icon. Clicking it navigates to the **Player Profile** page for that player.
+**What:** When a player is **selected** (selection originates from **Home** / chatbot flow as today), show a **profile icon** in the header **to the left of** the settings icon on **all main app pages** (Stats, TOTW, Club Info, Settings shell, etc.), not only when `currentMainPage === "home"`. Clicking it navigates to the **Player Profile** page for that player. **Reduce spacing slightly** between header icons (and the desktop sidebar header icon group if mirrored) so the extra icon fits without crowding.
 
-**Where to change (V3-dorkinians-website):** Header/layout component used on home; home player selection state (Zustand or existing store).
+**Where to change (V3-dorkinians-website):** `components/layout/Header.tsx`, `components/layout/SidebarNavigation.tsx` (or equivalent); Zustand `selectedPlayer` / `isPlayerSelected` (no change to selection source).
 
 **Dependencies:** Feature 10 (Player Profile route).
 
 **Tests to write:**
 
-- **E2E (Playwright):** Select player on home → icon visible → click → Player Profile for that player. No selection → icon hidden or disabled per UX decision (document in implementation).
+- **E2E (Playwright):** Select player on home → icon visible on home → click → Player Profile. Navigate to Player Stats (or another main page) → icon still visible → click → same player profile. No selection → icon hidden.
+
+**Status:** Icon-on-home-only behaviour — **implemented**; icon on all pages + tighter spacing — **not implemented** (see **`IMPLEMENTATION-STATUS.md` → Phase 6 UX polish** row 7).
 
 ---
 
@@ -1554,6 +1563,28 @@ These items come from `New-Features-2.md`. Implement after Phase 5 (Feature 9) u
 
 ---
 
+### Feature 20: Navigation and Player Stats polish _(not implemented)_
+
+**Purpose:** Small UX fixes that sit after Features 10–19. Track in **`IMPLEMENTATION-STATUS.md` → Phase 6 UX polish**.
+
+**What:**
+
+1. **Settings → Home:** In **Available Screens**, choosing **Home** must navigate the same way as other sidebar destinations when the user is on the standalone **`/settings`** route or in-app settings overlay: e.g. align with logo/home behaviour (`window.location.href = "/"` and/or `router.push('/')`) plus navigation store updates so the main shell shows Home. **Acceptance:** From `/settings`, tap Home → user lands on homepage with correct main page state.
+
+2. **Player Stats — Form chart Y-axis:** The **Form** section composed chart (`components/stats/player-stats/FormComposedChart.tsx` or parent) must show **readable Y-axis ticks** for the **rating scale** (adjust `margin`, `YAxis` width, `tickFormatter`, or domain padding as needed). **Acceptance:** Rating values (e.g. 2–10) are visible without clipping on typical mobile and desktop widths.
+
+3. **Player Stats — Data table toggles:** In **data table** view, align the **Totals | Per App | Per 90** segmented control to the **right** of the control row (keep per-90 threshold copy layout sensible — e.g. toggles `ml-auto` or flex `justify-end` for the toggle group).
+
+**Where to change (V3-dorkinians-website):** `components/pages/Settings.tsx` (and/or `app/settings/page.tsx` if route-specific); `FormComposedChart.tsx`; `components/stats/PlayerStats.tsx` (`dataTableContent` header row).
+
+**Tests to write:**
+
+- **E2E (Playwright):** Settings home navigation (see item 1); Form section axis ticks visible (extend `3.21` or dedicated check); data table mode — toggle group aligned right (layout assertion or stable `data-testid` + bounding box optional).
+
+**Status:** **Not implemented.**
+
+---
+
 ## Implementation order summary
 
 | Phase | Features                                                  | Repo                      | Depends on                                                         |
@@ -1563,6 +1594,6 @@ These items come from `New-Features-2.md`. Implement after Phase 5 (Feature 9) u
 | 3     | Feature 6 (records wall), Feature 7 (graph insights)      | Both repos                | Phase 2 (streak records feed into records wall)                    |
 | 4     | Feature 8 (Season Wrapped)                                | V3-dorkinians-website     | Phases 1-3 (uses per-90, streaks, partnerships, match ratings)     |
 | 5     | Feature 9 (achievement badges)                            | Both repos                | Phases 1-3 (uses streaks, per-90, match ratings)                   |
-| 6     | Features 10-19 (New Requests Round 2)                     | Both repos (18 + seeding) | Phase 5 for 10; Phase 7 data for 14; Phase 1 + 18 for 19           |
+| 6     | Features 10-19 (New Requests Round 2) + **Feature 20** (UX polish) | Both repos (18 + seeding) | Phase 5 for 10; Phase 1 + 18 for 19; Feature 20 after 10–19 or alongside profile/header work |
 
 Within each phase, implement features in the order listed. Run the full test suite after each feature before moving to the next.

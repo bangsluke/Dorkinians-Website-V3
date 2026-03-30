@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { buildMatchRatingBreakdown } from "@/lib/utils/matchRatingBreakdown";
+import VeoWatchMatchButtons from "./VeoWatchMatchButtons";
 
 export interface FixtureLineupPlayer {
 	playerName: string;
@@ -28,6 +29,8 @@ interface FixtureExpandedDetailsProps {
 	lineup: FixtureLineupPlayer[] | undefined;
 	loading?: boolean;
 	veoLink?: string | null;
+	/** When true, Veo links are rendered by the parent (e.g. below MoM on League Information). */
+	suppressVeoLink?: boolean;
 	testIdPrefix: string;
 }
 
@@ -84,7 +87,41 @@ function normalizePositionBucket(position: string): "GK" | "DEF" | "MID" | "FWD"
 	return "OTHER";
 }
 
-export default function FixtureExpandedDetails({ lineup, loading = false, veoLink, testIdPrefix }: FixtureExpandedDetailsProps) {
+function breakdownForPlayer(player: FixtureLineupPlayer) {
+	return buildMatchRatingBreakdown({
+		class: player.position,
+		minutes: player.minutes,
+		goals: player.goals,
+		assists: player.assists,
+		mom: player.mom,
+		cleanSheets: player.cleanSheets,
+		saves: player.saves,
+		yellowCards: player.yellowCards,
+		redCards: player.redCards,
+		ownGoals: player.ownGoals,
+		conceded: player.conceded,
+		penaltiesMissed: player.penaltiesMissed,
+		penaltiesSaved: player.penaltiesSaved,
+	});
+}
+
+function displayRating(player: FixtureLineupPlayer): string {
+	if (player.matchRating != null && player.matchRating !== undefined) {
+		const n = Number(player.matchRating);
+		if (!Number.isNaN(n)) return n.toFixed(1);
+	}
+	return breakdownForPlayer(player).final.toFixed(1);
+}
+
+const FORMATION_ROW_ORDER = ["FWD", "MID", "DEF", "GK"] as const;
+
+export default function FixtureExpandedDetails({
+	lineup,
+	loading = false,
+	veoLink,
+	suppressVeoLink = false,
+	testIdPrefix,
+}: FixtureExpandedDetailsProps) {
 	const [showFullPlayerDetails, setShowFullPlayerDetails] = useState(false);
 	const [activeTooltipPlayer, setActiveTooltipPlayer] = useState<string | null>(null);
 
@@ -114,100 +151,84 @@ export default function FixtureExpandedDetails({ lineup, loading = false, veoLin
 	const optionalCols = useMemo(() => getVisibleOptionalColumns(sortedLineup), [sortedLineup]);
 
 	if (loading) {
-		return <div className='p-4 text-gray-400 text-sm'>Loading lineup…</div>;
+		return <div className='text-gray-400 text-sm'>Loading lineup…</div>;
 	}
 
 	if (!lineup || lineup.length === 0) {
-		return <div className='p-4 text-gray-400 text-sm'>No lineup data</div>;
+		return <div className='text-gray-400 text-sm'>No lineup data</div>;
 	}
 
 	return (
-		<div className='space-y-3 p-4' data-testid={`${testIdPrefix}-fixture-expanded`}>
-			<h5 className='text-sm font-semibold text-white'>Formation</h5>
-			<p className='text-xs text-gray-400'>Click a player dot to view match rating and rating breakdown.</p>
-			<div className='space-y-2 rounded-lg border border-white/10 bg-black/20 p-3' data-testid={`${testIdPrefix}-formation`}>
-				{(["GK", "DEF", "MID", "FWD"] as const).map((rowKey) => (
-					<div key={rowKey} className='flex flex-wrap items-center gap-2'>
-						<span className='w-10 text-[10px] text-gray-400 font-semibold'>{rowKey}</span>
-						{formationRows[rowKey].length === 0 ? (
-							<span className='text-xs text-gray-500'>—</span>
-						) : (
-							formationRows[rowKey].map((player) => {
-								const isActive = activeTooltipPlayer === player.playerName;
-								const breakdown = buildMatchRatingBreakdown({
-									class: player.position,
-									minutes: player.minutes,
-									goals: player.goals,
-									assists: player.assists,
-									mom: player.mom,
-									cleanSheets: player.cleanSheets,
-									saves: player.saves,
-									yellowCards: player.yellowCards,
-									redCards: player.redCards,
-									ownGoals: player.ownGoals,
-									conceded: player.conceded,
-									penaltiesMissed: player.penaltiesMissed,
-									penaltiesSaved: player.penaltiesSaved,
-								});
-								return (
-									<div key={player.playerName} className='relative'>
-										<button
-											type='button'
-											onClick={() => setActiveTooltipPlayer((prev) => (prev === player.playerName ? null : player.playerName))}
-											className='rounded-full border border-dorkinians-yellow/60 bg-dorkinians-yellow/20 px-2 py-1 text-[10px] font-semibold text-dorkinians-yellow hover:bg-dorkinians-yellow/30'
-											data-testid={`${testIdPrefix}-formation-player`}>
-											{player.playerName}
-										</button>
-										{isActive ? (
-											<div
-												className='absolute left-0 top-8 z-20 w-64 rounded-lg border border-white/15 bg-[#111] p-3 text-xs text-gray-200 shadow-lg'
-												data-testid={`${testIdPrefix}-rating-tooltip`}>
-												<p className='font-semibold text-white mb-1'>{player.playerName}</p>
-												<p className='mb-1'>
-													Rating: <span className='font-semibold'>{breakdown.final.toFixed(1)}</span>
-												</p>
-												<p className='mb-1 text-gray-400'>Position: {breakdown.position}</p>
-												<ul className='space-y-0.5 max-h-32 overflow-y-auto'>
-													{breakdown.lines.map((line, idx) => (
-														<li key={`${line.label}-${idx}`} className='flex justify-between gap-2'>
-															<span className='text-gray-300'>{line.label}</span>
-															<span className='font-medium'>
-																{line.delta > 0 ? "+" : ""}
-																{line.delta.toFixed(1)}
-															</span>
-														</li>
-													))}
-												</ul>
-											</div>
-										) : null}
-									</div>
-								);
-							})
-						)}
-					</div>
-				))}
+		<div className='space-y-3' data-testid={`${testIdPrefix}-fixture-expanded`}>
+			<div className='mt-4'>
+				<h5 className='text-sm font-semibold text-white'>Formation</h5>
+				<p className='text-xs text-gray-400 mt-1'>Click a player dot to view match rating and rating breakdown.</p>
+				<div
+					className='mt-3 flex min-h-[140px] flex-col gap-5 rounded-lg bg-emerald-950/25 px-2 py-4'
+					data-testid={`${testIdPrefix}-formation`}>
+					{FORMATION_ROW_ORDER.map((rowKey) => {
+						const rowPlayers = formationRows[rowKey];
+						if (rowPlayers.length === 0) return null;
+						return (
+							<div key={rowKey} className='flex w-full flex-wrap items-end justify-center gap-x-4 gap-y-3'>
+								{rowPlayers.map((player, pi) => {
+									const isActive = activeTooltipPlayer === player.playerName;
+									const breakdown = breakdownForPlayer(player);
+									const ratingText = displayRating(player);
+									return (
+										<div key={`${rowKey}-${pi}-${player.playerName}`} className='relative flex flex-col items-center gap-1'>
+											<button
+												type='button'
+												onClick={() => setActiveTooltipPlayer((prev) => (prev === player.playerName ? null : player.playerName))}
+												className='flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 border-dorkinians-yellow/70 bg-dorkinians-yellow/15 text-xs font-bold text-dorkinians-yellow hover:bg-dorkinians-yellow/25'
+												data-testid={`${testIdPrefix}-formation-player`}>
+												{ratingText}
+											</button>
+											<span className='max-w-[4.5rem] truncate text-center text-[10px] leading-tight text-white' title={player.playerName}>
+												{player.playerName}
+											</span>
+											{isActive ? (
+												<div
+													className='absolute left-1/2 top-full z-20 mt-1 w-64 -translate-x-1/2 rounded-lg border border-white/15 bg-[#111] p-3 text-xs text-gray-200 shadow-lg'
+													data-testid={`${testIdPrefix}-rating-tooltip`}>
+													<p className='font-semibold text-white mb-1'>{player.playerName}</p>
+													<p className='mb-1'>
+														Rating: <span className='font-semibold'>{breakdown.final.toFixed(1)}</span>
+													</p>
+													<p className='mb-1 text-gray-400'>Position: {breakdown.position}</p>
+													<ul className='space-y-0.5 max-h-32 overflow-y-auto'>
+														{breakdown.lines.map((line, idx) => (
+															<li key={`${line.label}-${idx}`} className='flex justify-between gap-2'>
+																<span className='text-gray-300'>{line.label}</span>
+																<span className='font-medium'>
+																	{line.delta > 0 ? "+" : ""}
+																	{line.delta.toFixed(1)}
+																</span>
+															</li>
+														))}
+													</ul>
+												</div>
+											) : null}
+										</div>
+									);
+								})}
+							</div>
+						);
+					})}
+				</div>
 			</div>
 
-			{veoLink && veoLink.trim() !== "" ? (
-				<div>
-					<a
-						href={veoLink}
-						target='_blank'
-						rel='noopener noreferrer'
-						className='text-dorkinians-yellow hover:text-yellow-400 underline text-sm'
-						data-testid={`${testIdPrefix}-watch-veo`}>
-						Watch on Veo
-					</a>
-				</div>
-			) : null}
+			{!suppressVeoLink ? <VeoWatchMatchButtons veoLink={veoLink} testIdPrefix={testIdPrefix} /> : null}
 
-			<button
-				type='button'
-				onClick={() => setShowFullPlayerDetails((prev) => !prev)}
-				className='text-dorkinians-yellow hover:text-yellow-400 underline text-sm'
-				data-testid={`${testIdPrefix}-toggle-full-details`}>
-				{showFullPlayerDetails ? "Hide full player details" : "Show full player details"}
-			</button>
+			<div className='flex w-full justify-center pt-1'>
+				<button
+					type='button'
+					onClick={() => setShowFullPlayerDetails((prev) => !prev)}
+					className='text-center text-xs text-dorkinians-yellow hover:text-yellow-400 underline'
+					data-testid={`${testIdPrefix}-toggle-full-details`}>
+					{showFullPlayerDetails ? "Hide full player details" : "Show full player details"}
+				</button>
+			</div>
 
 			{showFullPlayerDetails ? (
 				<div className='overflow-x-auto' data-testid={`${testIdPrefix}-full-details-table`}>

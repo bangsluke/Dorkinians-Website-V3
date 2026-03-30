@@ -2,9 +2,11 @@
 
 **Purpose:** Running log of what is implemented vs still to do for the plan in **`NEW-FEATURES.md`** (same folder). Use this when resuming work across sessions. The plan file remains the detailed spec; this file is the checklist.
 
-**Last updated:** 2026-03-29
+**Last updated:** 2026-03-30
 
 **Current milestone:** ✅ Feature 19 League Latest Result + modal parity (website first cut) — League Information now shows per-team latest result with formation/rating details and Show Results modal now supports formation + Veo + full-details toggle parity
+
+**Next focus:** Phase 6 UX follow-ups — **`NEW-FEATURES.md` Feature 20** and related amendments to Features 8 / 10 / 13 (see **Not started → Phase 6 UX polish** below); spec is canonical, implementation not started.
 
 **Database repo:** When this website repo sits next to the seeding service, paths below use **`../database-dorkinians/`**. If you only have the database clone, open the copy of this file from the website repo or maintain a short pointer there.
 
@@ -124,6 +126,8 @@
 | **Home**   | `SeasonWrappedBanner` after streaks banner; hide with `NEXT_PUBLIC_SEASON_WRAPPED_ACTIVE=false`.                                                                                     |
 | **Tests**  | Jest: `__tests__/unit/wrapped/*`, `wrapped-api.integration.test.ts`; Playwright: `__tests__/e2e/10-wrapped/wrapped.spec.ts`.                                                         |
 
+**Follow-up (spec supersession, not implemented):** Remove homepage Season Wrapped banner; primary entry becomes **Player Profile** (and direct `/wrapped/...`). See **`NEW-FEATURES.md` Feature 8** (homepage integration) and **Feature 20** item 1.
+
 ### Achievement badges (Feature 9)
 
 | Area                                       | Notes                                                                                                                                                                                                                                                                                                                                                                                                      |
@@ -137,10 +141,12 @@
 
 | Area                    | Notes                                                                                                                                                                                                                             |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Routes / UI**         | Added `app/profile/[playerSlug]/page.tsx` + `components/profile/PlayerProfileView.tsx`; profile shows player header + badge bar, **Season Wrapped** section first, **Milestone badges** section second, then headline stat cards. |
+| **Routes / UI**         | Added `app/profile/[playerSlug]/page.tsx` + `components/profile/PlayerProfileView.tsx`; profile shows player header + badge bar, **Season Wrapped** section first, **Milestone badges** section second, then headline stat cards (standalone route, no main app sidebar). |
 | **Linking / slug**      | Added `lib/profile/slug.ts`; Player Stats Captaincies/Awards section now renders underlined link `data-testid="milestone-badges-profile-link"` for **Milestone badges earned** to the current player profile.                     |
 | **Player Stats change** | Removed in-place milestone grid from Player Stats achievements section (moved to Player Profile per plan).                                                                                                                        |
 | **Tests**               | Jest unit: `__tests__/unit/profile/slug.test.ts`; Playwright `3.26` updated to verify link navigation + profile section order.                                                                                                    |
+
+**Follow-up (spec change, not implemented):** Section order **Headline Stats → Milestone Badges → Season Wrapped** (title case headings); Season Wrapped block centred with logo + yellow emphasis; **Back to home** at bottom (dialog-style); profile must use **same app chrome as Settings** (sidebar/header). See **`NEW-FEATURES.md` Feature 10**.
 
 ### Club Captains and Awards (Feature 11)
 
@@ -164,11 +170,13 @@
 ### Home header profile icon (Feature 13)
 
 | Area                 | Notes                                                                                                                                                                                                            |
-| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
-| **Home header CTA**  | Added profile icon button left of settings on Home when a player is selected; hidden when no selected player. Implemented on mobile header and desktop sidebar header (`header-profile`, `nav-sidebar-profile`). |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Home header CTA**  | Added profile icon button left of settings on **Home** when a player is selected; hidden when no selected player. Implemented on mobile header and desktop sidebar header (`header-profile`, `nav-sidebar-profile`). |
 | **Navigation**       | Profile icon click navigates to current player route via `getPlayerProfileHref(...)` in `lib/profile/slug.ts`.                                                                                                   |
 | **Tests**            | Added Playwright coverage in Home suite: hidden state without selection (`2.0`) and click-through navigation with selection (`2.3a`).                                                                            |
-| **Verification run** | Focused Playwright run (`__tests__/e2e/02-home/home.spec.ts`, grep `2.0                                                                                                                                          | 2.3a`) passed on Chromium + Mobile Chrome (4 passed). |
+| **Verification run** | Focused Playwright run (`__tests__/e2e/02-home/home.spec.ts`, grep `2.0` or `2.3a`) passed on Chromium + Mobile Chrome (4 passed).                                                                                 |
+
+**Follow-up (spec change, not implemented):** Show profile icon on **all** main app pages when a player is selected (not only `currentMainPage === "home"`); slightly reduce spacing between header/sidebar header icons. See **`NEW-FEATURES.md` Feature 13** amendment.
 
 ### Most Connected (Feature 14)
 
@@ -247,22 +255,36 @@
 
 ### New Requests Round 2 (in progress)
 
-Spec source: **`NEW-FEATURES.md` Phase 6 (Features 10-19)** (migrated from `New-Features-2.md`). Implement in order there; each item below lists **required tests** to add or extend when building.
+Spec source: **`NEW-FEATURES.md` Phase 6 (Features 10-19, plus Feature 20 UX polish)** (migrated from `New-Features-2.md`). Implement in order there; each item below lists **required tests** to add or extend when building.
 
 **CI / merge policy (Feature 17):** Gate merges to **`main`** on **≥ 90% automated test pass rate** in CI (`passed / (passed + failed)`, excluding skipped — align with workflow definition in repo). Dev pipeline: run **E2E on push to Dev** as specified in Phase 6.
 
 | Feature                                      | Summary                                                                                                                                                 | Tests to add or update                                                                                                                               |
 | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **10** — Player Profile + Captaincies link   | ✅ Website first cut done: profile route + section order + stats link migration                                                                         | Follow-up: add/confirm integration coverage if dedicated profile API is introduced later                                                             |
+| **10** — Player Profile + Captaincies link   | ✅ Website first cut done: profile route + section order + stats link migration                                                                         | **Superseded UX backlog:** see **Phase 6 UX polish** rows 2 and 4; add/confirm integration coverage if dedicated profile API is introduced later   |
 | **11** — Club Captains and Awards            | ✅ Website first cut done: merged page + single nav entry + legacy subpage-state mapping                                                                | Follow-up: run full Club Info Playwright flow against seeded env and decide if route-level redirects are required in any future URL-based routing    |
 | **12** — Records on Club Information         | ✅ Website first cut done: Records moved to Club Information above Milestones; removed from merged captains/awards page                                 | Follow-up: run full Club Info Playwright suite on seeded env to convert remaining data-dependent skips into hard assertions where possible           |
-| **13** — Home header profile icon            | ✅ Website first cut done: profile icon shown on Home when player selected, left of settings, routes to selected player profile                         | Follow-up: optional visual polish pass for icon treatment consistency between mobile header and desktop sidebar                                      |
+| **13** — Home header profile icon            | ✅ Website first cut done: profile icon shown on Home when player selected, left of settings, routes to selected player profile                         | **Superseded UX backlog:** see **Phase 6 UX polish** row 7; optional polish for icon treatment consistency between mobile header and desktop sidebar   |
 | **14** — Most Connected                      | ✅ Website first cut done: Player Stats now has `#most-connected-section` top-5 list from graph insight partnership data                                | Follow-up: run full seeded Stats Playwright suite and harden `3.28` into strict name/count assertions for deterministic fixture data                 |
 | **15** — TOTW previous 10 weeks              | ✅ Website first cut done: previous-week score strip under TOTW pitch with week-label boxes and click navigation to that week                           | Follow-up: add seeded-env assertion for exact 10 boxes + exact score values for deterministic regression checks                                      |
 | **16** — TOTW Share                          | ✅ Website first cut done: TOTW share button added with native share (when supported) and download fallback PNG                                         | Follow-up: optional utility extraction + unit tests for TOTW share filename/metadata constants if/when shared across views                           |
 | **17** — Dev branding + CI                   | ✅ Website/devops first cut done: dev icon + homepage Dev badge + develop push E2E + main PR pass-rate gate script/workflow                             | Follow-up: optionally tighten gate to parse test-level pass metrics (not suite-level summary) once unified machine-readable reports are standardized |
 | **18** — VEO LINK on fixtures                | ✅ Website + DB first cut done: schema/import path persists `Fixture.veoLink`, and website fixture APIs return normalized `veoLink`                     | Follow-up: run full production seeding job and spot-check real fixture pages with populated Veo links across multiple teams/seasons                  |
 | **19** — League Latest Result + modal parity | ✅ Website first cut done: per-team Latest Result cards + shared formation/rating details + modal parity with full-details toggle and optional Veo link | Follow-up: add deterministic seeded assertions for tooltip line content and exact formation/player ordering across desktop/mobile snapshots          |
+
+### Phase 6 UX polish (not started)
+
+Spec source: **`NEW-FEATURES.md`** — amended Feature 8 / 10 / 13 plus **Feature 20: Navigation and Player Stats polish**. None of the rows below are implemented yet; use this checklist when building.
+
+| # | Item | Status | Tests to add or update |
+|---|------|--------|-------------------------|
+| 1 | Remove **Season Wrapped** from **Homepage** (`SeasonWrappedBanner` / `app/page.tsx`); discovery via **Player Profile** and `/wrapped/...` only | Not started | Playwright: home has no wrapped banner (when feature flag would otherwise show it); existing wrapped E2E still passes |
+| 2 | **Player Profile** uses same **app chrome** as Settings/main SPA (sidebar + header/footer), not a bare full-page view | Not started | E2E: open profile from stats link → sidebar/header visible; navigation matches other pages |
+| 3 | **Settings** → **Home** in “Available Screens” navigates like other destinations (e.g. `window.location.href = "/"` / `router.push` + store sync if on `/settings` route) | Not started | E2E: from `/settings`, click Home → lands on main app home |
+| 4 | **Player Profile** content/layout: order **Headline Stats → Milestone Badges → Season Wrapped**; title-case headings; Season Wrapped centred + club logo + yellow-forward styling; **Back to home** at bottom, dialog-style back button; remove top-right back link | Not started | Update Playwright `3.26` for new order, styling hooks, bottom back control |
+| 5 | **Player Stats** Form chart: **Y-axis** shows rating scale values (margins / `YAxis` width in `FormComposedChart` or parent) | Not started | Playwright visual or assertion on axis ticks in `3.21` / Form section |
+| 6 | **Player Stats** data table: **Totals \| Per App \| Per 90** toggle group **right-aligned** in the control row | Not started | Playwright: layout/selector check in data table mode |
+| 7 | **Header** (and desktop sidebar header if mirrored): profile icon when player selected on **all** main pages; slightly **tighter** icon spacing | Not started | Extend Home suite or Stats: select player on home → navigate to Stats → icon visible; spacing regression snapshot optional |
 
 ---
 

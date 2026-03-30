@@ -40,10 +40,16 @@ export async function POST(request: NextRequest) {
 			blueGreenCutover: true,
 			...(requestBody.seasonConfig || {}),
 		};
+		const debug =
+			requestBody.debug === true ||
+			requestBody.debug === "true" ||
+			seasonConfig.debug === true ||
+			seasonConfig.debug === "true";
 
 		logRequest("Seed request received", {
 			hasEmailConfig: !!emailConfig,
 			hasSeasonConfig: !!seasonConfig,
+			debugEnabled: debug,
 		});
 
 		// Trigger Heroku seeding service (fire-and-forget)
@@ -93,7 +99,8 @@ export async function POST(request: NextRequest) {
 					environment,
 					jobId,
 					emailConfig,
-					seasonConfig,
+					seasonConfig: { ...seasonConfig, debug },
+					debug,
 				}),
 				signal: controller.signal,
 			});
