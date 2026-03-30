@@ -10,6 +10,7 @@ import Image from "next/image";
 import Button from "@/components/ui/Button";
 import { getPlayerProfileHref } from "@/lib/profile/slug";
 import { isDevelopBranchDeploy } from "@/lib/utils/isDevelopBranchDeploy";
+import { usePathname } from "next/navigation";
 
 interface HeaderProps {
 	onSettingsClick: () => void;
@@ -29,6 +30,7 @@ export default function Header({
 	showMenuIcon = false,
 }: HeaderProps) {
 	const { setMainPage, playerFilters, filterData, currentMainPage, selectedPlayer, isPlayerSelected } = useNavigationStore();
+	const pathname = usePathname();
 	const [showMenuTooltip, setShowMenuTooltip] = useState(false);
 	const [showFilterTooltip, setShowFilterTooltip] = useState(false);
 	const [hasAnimated, setHasAnimated] = useState(false);
@@ -139,7 +141,8 @@ export default function Header({
 	};
 
 	const showAnyTooltip = showMenuTooltip || showFilterTooltip;
-	const showProfileIcon = currentMainPage === "home" && isPlayerSelected && !!selectedPlayer;
+	const isProfileRoute = pathname?.startsWith("/profile/") ?? false;
+	const showProfileIcon = isProfileRoute || (isPlayerSelected && !!selectedPlayer);
 	const showDevBadge = isDevelopBranchDeploy() && currentMainPage === "home";
 
 	const handleProfileClick = () => {
@@ -196,7 +199,7 @@ export default function Header({
 					</motion.button>
 
 					{/* Right side icons */}
-					<div className='flex items-center space-x-2 flex-shrink-0'>
+					<div className='flex items-center gap-1 flex-shrink-0'>
 						{/* Burger Menu Icon - only show on stats pages */}
 						{showMenuIcon && onMenuClick && (
 							<div className='relative'>
@@ -282,12 +285,16 @@ export default function Header({
 							<motion.button
 								data-testid='header-profile'
 								onClick={handleProfileClick}
-								className='p-2 rounded-full hover:bg-[var(--color-surface)] transition-colors flex items-center justify-center'
+								className={`p-2 rounded-full transition-colors flex items-center justify-center ${
+									isProfileRoute
+										? "bg-dorkinians-yellow/20"
+										: "hover:bg-[var(--color-surface)]"
+								}`}
 								whileHover={{ scale: 1.1 }}
 								whileTap={{ scale: 0.9 }}
 								title='Open player profile'
 								aria-label='Open player profile'>
-								<UserCircleIcon className='w-6 h-6 text-[var(--color-text-primary)]' />
+								<UserCircleIcon className={`w-6 h-6 ${isProfileRoute ? "text-dorkinians-yellow-text" : "text-[var(--color-text-primary)]"}`} />
 							</motion.button>
 						)}
 

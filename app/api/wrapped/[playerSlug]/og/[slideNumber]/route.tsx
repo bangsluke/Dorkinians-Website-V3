@@ -7,6 +7,16 @@ import type { WrappedData } from "@/lib/wrapped/types";
 
 export const runtime = "nodejs";
 
+function ordinalSuffix(n: number): string {
+	const abs = Math.floor(Math.abs(n));
+	const j = abs % 10;
+	const k = abs % 100;
+	if (j === 1 && k !== 11) return "st";
+	if (j === 2 && k !== 12) return "nd";
+	if (j === 3 && k !== 13) return "rd";
+	return "th";
+}
+
 function slideTitle(n: number, data: WrappedData): { title: string; subtitle: string } {
 	switch (n) {
 		case 1:
@@ -36,12 +46,35 @@ function slideTitle(n: number, data: WrappedData): { title: string; subtitle: st
 				title: "Peak performance",
 				subtitle: `${data.peakMatchRating} vs ${data.peakMatchOpposition} (${data.peakMatchGoals}G ${data.peakMatchAssists}A)`,
 			};
+		case 11: {
+			const pos = data.wrappedDominantTeamLeaguePosition;
+			const posBit =
+				pos != null && pos > 0 ?
+					` · ${data.wrappedDominantTeam || "XI"} ${pos}${ordinalSuffix(pos)}`
+				:	"";
+			return {
+				title: "Team season",
+				subtitle: `${data.wrappedLeaguePointsContributed} league pts · ${data.wrappedCupTiesAdvanced} cup ties advanced${posBit}`,
+			};
+		}
 		case 7:
 			return data.longestStreakType
 				? { title: "Streak spotlight", subtitle: `${data.longestStreakType}: ${data.longestStreakValue}` }
 				: { title: "Streak spotlight", subtitle: "No 3+ game season streak — room to start one next year" };
 		case 8:
 			return { title: "Distance", subtitle: data.distanceEquivalent };
+		case 10: {
+			const n = data.veoFixtures?.length ?? 0;
+			return {
+				title: "Match videos (Veo)",
+				subtitle:
+					n > 5
+						? `5 most recent of ${n} fixtures with recordings`
+						: n > 0
+							? `${n} fixture${n === 1 ? "" : "s"} with recordings`
+							: "No Veo links this season",
+			};
+		}
 		default:
 			return { title: "Dorkinians Wrapped", subtitle: data.wrappedUrl };
 	}
@@ -57,7 +90,7 @@ export async function GET(
 		return new Response("Invalid slug", { status: 400 });
 	}
 
-	const n = Math.min(9, Math.max(1, parseInt(slideNumber, 10) || 1));
+	const n = Math.min(11, Math.max(1, parseInt(slideNumber, 10) || 1));
 	const { searchParams } = new URL(request.url);
 	const season = searchParams.get("season")?.trim() || undefined;
 	const origin = getSitePublicOrigin(request);

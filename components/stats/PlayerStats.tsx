@@ -35,9 +35,7 @@ import { ErrorState, EmptyState } from "@/components/ui/StateComponents";
 import { useToast } from "@/lib/hooks/useToast";
 import AllGamesModal from "@/components/stats/AllGamesModal";
 import PlayerRecentFormBoxes, { type PlayerFormRecentMatch } from "@/components/stats/PlayerRecentFormBoxes";
-import BadgeDot from "@/components/stats/BadgeDot";
 import { type EarnedBadgeRow, type ProgressRow } from "@/components/stats/PlayerBadgeMilestoneGrid";
-import { selectBadgesForBar } from "@/lib/badges/evaluate";
 import { getPlayerProfileHref } from "@/lib/profile/slug";
 import { buildMostConnectedListFromPartnershipsJson } from "@/lib/stats/mostConnected";
 import RecordingsSection from "@/components/stats/RecordingsSection";
@@ -2539,10 +2537,6 @@ export default function PlayerStats() {
 		}));
 	}, [monthlyStats, monthlySelectedStat, statOptions]);
 
-	const badgeBarItems = useMemo(() => {
-		if (!badgePayload?.earned?.length) return [];
-		return selectBadgesForBar(badgePayload.earned, 5);
-	}, [badgePayload]);
 	const profileHref = useMemo(() => {
 		if (!selectedPlayer) return null;
 		return getPlayerProfileHref(selectedPlayer);
@@ -4268,8 +4262,17 @@ export default function PlayerStats() {
 
 	const dataTableContent = (
 		<div className='mb-4'>
-			<div className='mb-3 flex flex-wrap items-center justify-between gap-2'>
-				<div className='inline-flex rounded-md overflow-hidden border border-white/20'>
+			<div
+				data-testid='player-stats-table-controls'
+				className={`mb-3 flex flex-wrap items-center gap-2 w-full ${tableStatMode === "per90" ? "justify-between" : "justify-end"}`}>
+				{tableStatMode === "per90" && (
+					<p className='text-xs md:text-sm text-white/80 min-w-0 flex-1 pr-2'>
+						Per-90 stats (Minutes: {Math.round(toNumber(validPlayerData.minutes)).toLocaleString()}) - min. 360 minutes required.
+					</p>
+				)}
+				<div
+					className='inline-flex shrink-0 rounded-md overflow-hidden border border-white/20'
+					data-testid='player-stats-table-mode-tabs'>
 					{([
 						{ id: "totals", label: "Totals" },
 						{ id: "perApp", label: "Per App" },
@@ -4287,11 +4290,6 @@ export default function PlayerStats() {
 						</button>
 					))}
 				</div>
-				{tableStatMode === "per90" && (
-					<p className='text-xs md:text-sm text-white/80'>
-						Per-90 stats (Minutes: {Math.round(toNumber(validPlayerData.minutes)).toLocaleString()}) - min. 360 minutes required.
-					</p>
-				)}
 			</div>
 			<div className='overflow-x-auto'>
 				<table className='w-full bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden'>
@@ -4327,13 +4325,6 @@ export default function PlayerStats() {
 							className='absolute right-0 w-8 h-8 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10'
 							icon={<PenOnPaperIcon className='h-4 w-4 md:h-5 md:w-5' />} />
 					</div>
-					{badgeBarItems.length > 0 ? (
-						<div className='flex flex-wrap justify-center gap-1.5' data-testid='player-badge-bar' aria-label='Top milestone badges'>
-							{badgeBarItems.map((b) => (
-								<BadgeDot key={b.badgeId} tier={b.tier} title={`${b.badgeName} (${b.tier})`} size='sm' />
-							))}
-						</div>
-					) : null}
 				</div>
 				<div className='flex justify-center mb-2 md:mb-4'>
 					<Button

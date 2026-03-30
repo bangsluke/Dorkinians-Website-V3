@@ -32,10 +32,17 @@ export default function FormComposedChart({
 	return (
 		<div className="chart-container -my-2" style={{ touchAction: "pan-y" }}>
 			<ResponsiveContainer width="100%" height={220}>
-				<ComposedChart data={formData} margin={{ top: 10, right: 10, left: -28, bottom: 0 }}>
+				<ComposedChart data={formData} margin={{ top: 10, right: 12, left: 6, bottom: 0 }}>
 					<CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" vertical={false} />
 					<XAxis dataKey="week" tick={{ fill: "rgba(255,255,255,0.6)", fontSize: 10 }} />
-					<YAxis domain={[2, 10]} width={32} tick={{ fill: "rgba(255,255,255,0.6)", fontSize: 10 }} tickMargin={4} />
+					<YAxis
+						domain={[2, 10]}
+						ticks={[2, 4, 6, 8, 10]}
+						width={44}
+						tick={{ fill: "rgba(255,255,255,0.65)", fontSize: 10 }}
+						tickMargin={6}
+						allowDecimals={false}
+					/>
 					<Tooltip
 						contentStyle={{
 							background: "rgba(0,0,0,0.85)",

@@ -1,14 +1,17 @@
-import { playerNameToWrappedSlug, wrappedSlugToPlayerName } from "@/lib/wrapped/slug";
-
-/**
- * Profile slugs intentionally mirror wrapped slugs so links remain stable and reversible.
- */
 export function playerNameToProfileSlug(playerName: string): string {
-	return playerNameToWrappedSlug(playerName);
+	const trimmed = (playerName || "").trim();
+	if (!trimmed) return "";
+	// Human-readable URL segment while remaining reversible for names with hyphens/punctuation.
+	return encodeURIComponent(trimmed).replace(/-/g, "%2D").replace(/%20/g, "-");
 }
 
 export function profileSlugToPlayerName(slug: string): string | null {
-	return wrappedSlugToPlayerName(slug);
+	if (!slug) return null;
+	try {
+		return decodeURIComponent(slug.replace(/-/g, "%20"));
+	} catch {
+		return null;
+	}
 }
 
 export function getPlayerProfileHref(playerName: string): string {

@@ -16,4 +16,8 @@ describe("wrapped slug", () => {
 	it("returns null for invalid slug", () => {
 		expect(wrappedSlugToPlayerName("@@@")).toBeNull();
 	});
+
+	it("still resolves legacy base64url bookmarks", () => {
+		expect(wrappedSlugToPlayerName("THVrZSBCYW5ncw")).toBe("Luke Bangs");
+	});
 });

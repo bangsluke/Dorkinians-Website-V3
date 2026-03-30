@@ -1,8 +1,11 @@
 /**
- * URL-safe slug for `/wrapped/[playerSlug]` — base64url of UTF-8 player name (handles spaces and punctuation).
+ * `/wrapped/[playerSlug]` uses the same human-readable encoding as `/profile/[playerSlug]`
+ * (`lib/profile/slug.ts`). Legacy base64url slugs are still accepted for old links.
  */
 
-/** RFC 4648 base64url without relying on `Buffer` encoding `base64url` (unsupported in many browser polyfills). */
+import { playerNameToProfileSlug, profileSlugToPlayerName } from "@/lib/profile/slug";
+
+/** RFC 4648 base64url — used only to decode legacy bookmarks. */
 function bytesToBase64UrlFromStandardBase64(standardBase64: string): string {
 	return standardBase64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
@@ -34,16 +37,43 @@ function base64UrlToUtf8(slug: string): string {
 	return new TextDecoder().decode(bytes);
 }
 
+/** Human-readable segment, e.g. `George-Warne`, matching `/profile/...`. */
 export function playerNameToWrappedSlug(playerName: string): string {
-	return utf8ToBase64Url(playerName.trim());
+	return playerNameToProfileSlug(playerName);
 }
 
 export function wrappedSlugToPlayerName(slug: string): string | null {
-	try {
-		const t = slug.trim();
-		if (!t) return null;
-		return base64UrlToUtf8(t).trim() || null;
-	} catch {
+	const t = slug.trim();
+	if (!t) return null;
+
+	const looksProfileEncoded = t.includes("-") || t.includes("%");
+
+	const tryLegacy = (): string | null => {
+		try {
+			const legacy = base64UrlToUtf8(t).trim();
+			if (legacy && /[\p{L}]/u.test(legacy) && utf8ToBase64Url(legacy) === t) {
+				return legacy;
+			}
+		} catch {
+			/* not valid base64 */
+		}
 		return null;
+	};
+
+	/* Compact base64url bookmarks have no `-` (space) or `%` (encoded punctuation) — try those first. */
+	if (!looksProfileEncoded) {
+		const leg = tryLegacy();
+		if (leg) return leg;
 	}
+
+	const fromProfile = profileSlugToPlayerName(t);
+	if (fromProfile && /[\p{L}]/u.test(fromProfile) && playerNameToProfileSlug(fromProfile) === t) {
+		return fromProfile;
+	}
+
+	if (looksProfileEncoded) {
+		return tryLegacy();
+	}
+
+	return null;
 }

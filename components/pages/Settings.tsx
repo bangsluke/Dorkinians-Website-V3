@@ -69,8 +69,15 @@ export default function Settings() {
 		setSeedingStatus(seedingStatusService.getSeedingStatus());
 	}, []);
 
+	const navigateToRootIfNeeded = () => {
+		if (typeof window !== "undefined" && window.location.pathname !== "/") {
+			window.location.href = "/";
+		}
+	};
+
 	const handleNavigationClick = (pageId: string) => {
 		setMainPage(pageId as any);
+		navigateToRootIfNeeded();
 	};
 
 	const handleSubPageClick = (mainPageId: string, subPageId: string) => {
@@ -88,14 +95,17 @@ export default function Settings() {
 				setClubInfoSubPage(subPageId as any);
 				break;
 		}
+		navigateToRootIfNeeded();
 	};
 
 	const handleBackClick = () => {
 		setMainPage("home");
+		navigateToRootIfNeeded();
 	};
 
 	const handleCloseClick = () => {
 		setMainPage("home");
+		navigateToRootIfNeeded();
 	};
 
 	return (

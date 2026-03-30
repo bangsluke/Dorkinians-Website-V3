@@ -19,7 +19,7 @@ describe("profile slug", () => {
 
 	it("builds profile href for player", () => {
 		const href = getPlayerProfileHref("Luke Bangs");
-		expect(href.startsWith("/profile/")).toBe(true);
+		expect(href).toBe("/profile/Luke-Bangs");
 		expect(profileSlugToPlayerName(href.replace("/profile/", ""))).toBe("Luke Bangs");
 	});
 });

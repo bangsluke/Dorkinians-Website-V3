@@ -33,6 +33,24 @@
 	--color-warning-bg: rgba(245, 158, 11, 0.2);
 	--color-info: #3b82f6; /* blue-500 */
 	--color-info-bg: rgba(59, 130, 246, 0.2);
+
+	/* Match rating guide palette (1.0-10.0) */
+	/* 8.5-10, 7.0-8.4, 6.0-6.9, 4.0-5.9, 1.0-3.9 */
+	--match-rating-85-100-bg: #c9a42a;
+	--match-rating-85-100-text: #111827;
+	--match-rating-85-100-border: #e8d48b;
+	--match-rating-70-84-bg: #5dcaa5;
+	--match-rating-70-84-text: #111827;
+	--match-rating-70-84-border: #7fd4b8;
+	--match-rating-60-69-bg: #5a8f7b;
+	--match-rating-60-69-text: #ffffff;
+	--match-rating-60-69-border: #79a895;
+	--match-rating-40-59-bg: #d4a574;
+	--match-rating-40-59-text: #111827;
+	--match-rating-40-59-border: #c9a06b;
+	--match-rating-10-39-bg: #bc6a49;
+	--match-rating-10-39-text: #ffffff;
+	--match-rating-10-39-border: #d98a6a;
 	
 	/* Neutral Colors */
 	--color-background: #0f0f0f;

@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { isSeasonWrappedPromoMonth } from "../../../lib/wrapped/seasonWrappedPromo";
 import {
 	getVisibleNavButton,
 	isMobileProject,
@@ -416,6 +417,12 @@ test.describe("Stats Page Tests", () => {
 		}
 		// toggleDataTable drives the button twice and asserts table vs chart markers (see helper).
 		await toggleDataTable(page, "table");
+		const tableControls = page.getByTestId("player-stats-table-controls");
+		if (await tableControls.isVisible({ timeout: 4000 }).catch(() => false)) {
+			await expect(tableControls).toHaveClass(/justify-end/);
+			await page.getByRole("button", { name: "Per 90" }).click();
+			await expect(tableControls).toHaveClass(/justify-between/);
+		}
 		await toggleDataTable(page, "visualisation");
 	});
 
@@ -576,6 +583,10 @@ test.describe("Stats Page Tests", () => {
 		if (!(hasSummary || hasFallback)) {
 			test.skip(true, "Form section rendered without summary cards or fallback message.");
 		}
+		if (hasSummary) {
+			const ratingTick = formSection.locator(".recharts-yAxis .recharts-cartesian-axis-tick tspan").filter({ hasText: /^10$/ });
+			await expect(ratingTick.first()).toBeVisible({ timeout: 8000 });
+		}
 	});
 
 	test("3.22. Player form: no form-only season dropdown; recent boxes tooltip", async ({ page }) => {
@@ -654,14 +665,37 @@ test.describe("Stats Page Tests", () => {
 		await profileLink.click();
 		await expect(page.getByTestId("player-profile-page")).toBeVisible({ timeout: 15000 });
 
-		const wrapped = page.getByTestId("player-profile-season-wrapped");
+		const headline = page.getByTestId("player-profile-headline-stats");
 		const milestones = page.getByTestId("player-profile-milestones");
-		await expect(wrapped).toBeVisible({ timeout: 8000 });
+		const wrapped = page.getByTestId("player-profile-season-wrapped");
+		await expect(headline).toBeVisible({ timeout: 8000 });
 		await expect(milestones).toBeVisible({ timeout: 8000 });
 
-		const wrappedTop = await wrapped.evaluate((el) => el.getBoundingClientRect().top);
+		const headlineTop = await headline.evaluate((el) => el.getBoundingClientRect().top);
 		const milestonesTop = await milestones.evaluate((el) => el.getBoundingClientRect().top);
-		expect(wrappedTop).toBeLessThan(milestonesTop);
+		const promo = isSeasonWrappedPromoMonth(new Date());
+		if (promo) {
+			await expect(wrapped).toBeVisible({ timeout: 8000 });
+			const wrappedTop = await wrapped.evaluate((el) => el.getBoundingClientRect().top);
+			expect(wrappedTop).toBeLessThan(headlineTop);
+			expect(headlineTop).toBeLessThan(milestonesTop);
+		} else {
+			await expect(wrapped).toHaveCount(0);
+			const past = page.getByTestId("player-profile-see-past-seasons-wrapped");
+			await expect(past).toBeVisible({ timeout: 8000 });
+			expect(headlineTop).toBeLessThan(milestonesTop);
+		}
+	});
+
+	test("3.29. profile icon visible on Player Stats when player is selected", async ({ page }, testInfo) => {
+		await openStatsFromHome(page);
+		if (await page.getByRole("heading", { name: /No player data available/i }).first().isVisible({ timeout: 2500 }).catch(() => false)) {
+			test.skip(true, "No player data — skipping profile icon check.");
+			return;
+		}
+		const mobile = isMobileProject(testInfo);
+		const profileBtn = mobile ? page.getByTestId("header-profile") : page.getByTestId("nav-sidebar-profile");
+		await expect(profileBtn).toBeVisible({ timeout: 15000 });
 	});
 
 	test("3.27. Team formations subtitle and recommendation", async ({ page }) => {
