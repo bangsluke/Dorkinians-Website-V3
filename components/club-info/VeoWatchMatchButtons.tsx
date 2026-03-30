@@ -29,8 +29,12 @@ export default function VeoWatchMatchButtons({
 		? "inline-flex items-center justify-center rounded-md border border-dorkinians-yellow/50 bg-dorkinians-yellow/10 px-1.5 py-1 text-[9px] sm:text-[10px] font-semibold uppercase tracking-wide text-dorkinians-yellow hover:bg-dorkinians-yellow/20 transition-colors whitespace-nowrap"
 		: "inline-flex items-center gap-2 rounded-lg border border-dorkinians-yellow/50 bg-dorkinians-yellow/10 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-dorkinians-yellow hover:bg-dorkinians-yellow/20 transition-colors";
 
+	const layoutClass = compact
+		? "flex min-w-0 max-w-full flex-col items-stretch justify-center gap-1 max-sm:w-max sm:w-full sm:flex-row sm:flex-wrap sm:items-center"
+		: "flex w-full flex-wrap items-center justify-center gap-1 sm:gap-2";
+
 	return (
-		<div className={`flex w-full flex-wrap items-center justify-center gap-1 sm:gap-2 ${className}`.trim()}>
+		<div className={`${layoutClass} ${className}`.trim()}>
 			{urls.map((href, index) => (
 				<a
 					key={`${href}-${index}`}
