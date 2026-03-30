@@ -482,28 +482,12 @@ function ComparisonStatRow({
 export default function Comparison() {
 	const { selectedPlayer, enterEditMode, setMainPage, playerFilters, filterData, currentStatsSubPage, cachedPlayerData, getCachedPageData, setCachedPageData, hasUnsavedFilters, isFilterSidebarOpen } = useNavigationStore();
 	
-	const [secondPlayer, setSecondPlayer] = useState<string | null>(() => {
-		if (typeof window !== "undefined") {
-			return safeLocalStorageGet("comparison-second-player");
-		}
-		return null;
-	});
-	const [secondPlayerData, setSecondPlayerData] = useState<PlayerData | null>(() => {
-		if (typeof window !== "undefined") {
-			const storedPlayer = safeLocalStorageGet("comparison-second-player");
-			if (storedPlayer) {
-				const stored = safeLocalStorageGet("comparison-second-player-data");
-				if (stored) {
-					try {
-						return JSON.parse(stored);
-					} catch (e) {
-						return null;
-					}
-				}
-			}
-		}
-		return null;
-	});
+	const [secondPlayer, setSecondPlayer] = useState<string | null>(null);
+	const [secondPlayerData, setSecondPlayerData] = useState<PlayerData | null>(null);
+	/** After true, localStorage sync effects may run (avoids clearing stored prefs before hydrate). */
+	const [hasHydratedComparisonPrefs, setHasHydratedComparisonPrefs] = useState(false);
+	/** Radar axis labels: match SSR (false) then sync via matchMedia to avoid hydration mismatch. */
+	const [radarCompactLabels, setRadarCompactLabels] = useState(false);
 	const [isLoadingSecondPlayer, setIsLoadingSecondPlayer] = useState(false);
 	const [allPlayers, setAllPlayers] = useState<Player[]>([]);
 	const [isLoadingPlayers, setIsLoadingPlayers] = useState(false);
@@ -511,6 +495,33 @@ export default function Comparison() {
 	const [query, setQuery] = useState("");
 	const inputRef = useRef<HTMLInputElement>(null);
 	const [selectedStatCategory, setSelectedStatCategory] = useState<string>("Appearance Stats");
+
+	useEffect(() => {
+		const p = safeLocalStorageGet("comparison-second-player");
+		if (p) setSecondPlayer(p);
+		const raw = safeLocalStorageGet("comparison-second-player-data");
+		if (p && raw) {
+			try {
+				setSecondPlayerData(JSON.parse(raw) as PlayerData);
+			} catch {
+				/* ignore corrupt cache */
+			}
+		}
+		setHasHydratedComparisonPrefs(true);
+	}, []);
+
+	useEffect(() => {
+		if (typeof window === "undefined") return;
+		const mq = window.matchMedia("(max-width: 767px)");
+		const apply = () => setRadarCompactLabels(mq.matches);
+		apply();
+		if (typeof mq.addEventListener === "function") {
+			mq.addEventListener("change", apply);
+			return () => mq.removeEventListener("change", apply);
+		}
+		mq.addListener(apply);
+		return () => mq.removeListener(apply);
+	}, []);
 
 	const player1Data: PlayerData | null = cachedPlayerData?.playerData || null;
 
@@ -743,21 +754,23 @@ export default function Comparison() {
 	}, [playersLoaded, getCachedPageData, setCachedPageData]);
 
 	useEffect(() => {
+		if (!hasHydratedComparisonPrefs) return;
 		if (secondPlayer && typeof window !== "undefined") {
 			safeLocalStorageSet("comparison-second-player", secondPlayer);
 		} else if (!secondPlayer && typeof window !== "undefined") {
 			safeLocalStorageRemove("comparison-second-player");
 			safeLocalStorageRemove("comparison-second-player-data");
 		}
-	}, [secondPlayer]);
+	}, [secondPlayer, hasHydratedComparisonPrefs]);
 
 	useEffect(() => {
+		if (!hasHydratedComparisonPrefs) return;
 		if (secondPlayerData && typeof window !== "undefined") {
 			safeLocalStorageSet("comparison-second-player-data", JSON.stringify(secondPlayerData));
 		} else if (!secondPlayerData && typeof window !== "undefined") {
 			safeLocalStorageRemove("comparison-second-player-data");
 		}
-	}, [secondPlayerData]);
+	}, [secondPlayerData, hasHydratedComparisonPrefs]);
 
 	useEffect(() => {
 		const fetchSecondPlayerData = async () => {
@@ -1058,12 +1071,11 @@ export default function Comparison() {
 														dataKey='category' 
 														tick={(props: any) => {
 															const { x, y, payload } = props;
-															const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 															const text = payload.value;
 															
 															// Aggressive wrapping for mobile - split on spaces and limit characters per line
 															const splitText = (str: string, maxChars: number): string[] => {
-																if (!isMobile) return [str];
+																if (!radarCompactLabels) return [str];
 																const words = str.split(' ');
 																const lines: string[] = [];
 																let currentLine = '';
@@ -1083,8 +1095,8 @@ export default function Comparison() {
 																return lines.length > 0 ? lines : [str];
 															};
 															
-															const lines = splitText(text, isMobile ? 8 : 20);
-															const lineHeight = isMobile ? 10 : 12;
+															const lines = splitText(text, radarCompactLabels ? 8 : 20);
+															const lineHeight = radarCompactLabels ? 10 : 12;
 															const startY = -(lines.length - 1) * lineHeight / 2;
 															
 															return (
@@ -1095,7 +1107,7 @@ export default function Comparison() {
 																		dy={16}
 																		textAnchor="middle"
 																		fill="#fff"
-																		fontSize={isMobile ? 10 : 12}
+																		fontSize={radarCompactLabels ? 10 : 12}
 																	>
 																		{lines.map((line, index) => (
 																			<tspan

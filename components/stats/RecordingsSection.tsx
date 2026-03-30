@@ -36,44 +36,65 @@ export default function RecordingsSection({ id, title, subtitle, fixtures, teamC
 			<h3 className='text-white font-semibold text-sm md:text-base mb-2 pr-14'>{title}</h3>
 			<p className='text-white/70 text-xs md:text-sm mb-3 pr-14'>{subtitle}</p>
 			<div className='w-full overflow-x-auto'>
-				<table className='w-full table-fixed text-white text-[10px] sm:text-xs md:text-sm'>
+				<table className='w-full max-w-full text-white text-[10px] max-sm:table-auto sm:table-fixed sm:text-xs md:text-sm'>
 					<colgroup>
-						<col className={teamColumn ? "w-[14%] sm:w-[13%]" : "w-[16%] sm:w-[14%]"} />
-						{teamColumn ? <col className='w-[12%] sm:w-[11%]' /> : null}
-						<col className='w-[18%] sm:w-[9%]' />
-						<col className='w-[18%] sm:w-[9%]' />
-						<col className={teamColumn ? "w-[26%] sm:w-[28%]" : "w-[30%] sm:w-[30%]"} />
-						<col className='w-[12%] sm:w-[13%]' />
-						<col className='w-[12%] sm:w-[16%]' />
+						{/* max-sm: min-width hints for table-auto; sm+: % for table-fixed */}
+						<col
+							className={
+								teamColumn
+									? "max-sm:min-w-[4.25rem] sm:w-[13%]"
+									: "max-sm:min-w-[4.25rem] sm:w-[14%]"
+							}
+						/>
+						{teamColumn ? <col className='max-sm:min-w-[4rem] sm:w-[11%]' /> : null}
+						<col className='max-sm:min-w-[1.65rem] sm:w-[9%]' />
+						<col className='max-sm:min-w-[1.65rem] sm:w-[9%]' />
+						<col className={teamColumn ? "min-w-0 sm:w-[28%]" : "min-w-0 sm:w-[30%]"} />
+						<col className='max-sm:min-w-[3.1rem] sm:w-[13%]' />
+						<col className='max-sm:min-w-[4.75rem] sm:w-[16%]' />
 					</colgroup>
 					<thead>
 						<tr className='border-b border-white/20 bg-white/5'>
-							<th className='text-left py-1.5 px-1 sm:py-2 sm:px-2 font-semibold'>Date</th>
+							<th className='whitespace-nowrap py-1.5 pl-1 pr-0.5 text-left sm:py-2 sm:px-2 font-semibold'>
+								Date
+							</th>
 							{teamColumn ? (
-								<th className='text-left py-1.5 px-1 sm:py-2 sm:px-2 font-semibold'>Team</th>
+								<th className='whitespace-nowrap py-1.5 px-0.5 text-left sm:py-2 sm:px-2 font-semibold'>
+									Team
+								</th>
 							) : null}
 							{/* Mobile only: headerless slot spanning Loc + Comp columns */}
 							<th colSpan={2} className='table-cell p-0 sm:hidden' aria-hidden='true' />
-							<th className='hidden text-left py-1.5 px-1 sm:table-cell sm:py-2 sm:px-2 font-semibold'>Loc</th>
-							<th className='hidden text-left py-1.5 px-1 sm:table-cell sm:py-2 sm:px-2 font-semibold'>Comp</th>
-							<th className='text-left py-1.5 px-1 sm:py-2 sm:px-2 font-semibold'>Opponent</th>
-							<th className='text-left py-1.5 px-1 sm:py-2 sm:px-2 font-semibold'>Result</th>
-							<th className='text-center py-1.5 px-0.5 sm:py-2 sm:px-2 font-semibold'>Match</th>
+							<th className='hidden whitespace-nowrap py-1.5 px-1 text-left sm:table-cell sm:py-2 sm:px-2 font-semibold'>
+								Loc
+							</th>
+							<th className='hidden whitespace-nowrap py-1.5 px-1 text-left sm:table-cell sm:py-2 sm:px-2 font-semibold'>
+								Comp
+							</th>
+							<th className='min-w-0 whitespace-nowrap py-1.5 px-0.5 text-left sm:py-2 sm:px-2 font-semibold'>
+								Opponent
+							</th>
+							<th className='whitespace-nowrap py-1.5 px-0.5 text-left sm:py-2 sm:px-2 font-semibold'>
+								Result
+							</th>
+							<th className='whitespace-nowrap py-1.5 pr-1 pl-0.5 text-center sm:py-2 sm:px-2 font-semibold'>
+								Match
+							</th>
 						</tr>
 					</thead>
 					<tbody>
 						{fixtures.map((fx, idx) => (
 							<tr key={fx.fixtureId || `${fx.date}-${fx.opposition}-${idx}`} className='border-b border-white/10 align-middle'>
-								<td className='py-1.5 px-1 sm:py-2 sm:px-2 leading-tight'>
+								<td className='whitespace-nowrap py-1.5 pl-1 pr-0.5 align-middle tabular-nums leading-tight sm:py-2 sm:px-2'>
 									<span className='sm:hidden'>{formatRecordingDateMobile(fx.date)}</span>
 									<span className='hidden sm:inline'>{formatRecordingDateDesktop(fx.date)}</span>
 								</td>
 								{teamColumn ? (
-									<td className='py-1.5 px-1 sm:py-2 sm:px-2 truncate' title={fx.team || ""}>
-										{fx.team || "—"}
+									<td className='py-1.5 px-0.5 align-middle sm:py-2 sm:px-2' title={fx.team || ""}>
+										<div className='max-w-[4rem] truncate text-[9px] sm:max-w-none sm:text-xs'>{fx.team || "—"}</div>
 									</td>
 								) : null}
-								<td colSpan={2} className='py-1.5 px-0.5 sm:hidden'>
+								<td colSpan={2} className='py-1.5 px-0.5 align-middle sm:hidden'>
 									<span className='sr-only'>
 										Location {recordingLocLabelDesktop(fx.homeOrAway)}, competition {recordingCompLabelDesktop(fx.compType)}
 									</span>
@@ -104,20 +125,22 @@ export default function RecordingsSection({ id, title, subtitle, fixtures, teamC
 										{recordingCompLabelDesktop(fx.compType)}
 									</span>
 								</td>
-								<td className='py-1.5 px-1 sm:py-2 sm:px-2 truncate' title={fx.opposition || ""}>
-									{fx.opposition || "—"}
+								<td
+									className='max-w-0 min-w-0 py-1.5 px-0.5 align-middle sm:max-w-none sm:py-2 sm:px-2'
+									title={fx.opposition || ""}>
+									<div className='truncate'>{fx.opposition || "—"}</div>
 								</td>
-								<td className='py-1.5 px-1 sm:py-2 sm:px-2 font-mono whitespace-nowrap'>
+								<td className='whitespace-nowrap py-1.5 px-0.5 align-middle font-mono tabular-nums sm:py-2 sm:px-2'>
 									{formatRecordingScore(fx.result, fx.goalsScored, fx.goalsConceded)}
 								</td>
-								<td className='py-1 px-0.5 sm:py-2 sm:px-1 text-center'>
+								<td className='w-px max-sm:min-w-[4.5rem] whitespace-nowrap py-1 px-0.5 align-middle text-center sm:w-auto sm:min-w-0 sm:py-2 sm:px-1'>
 									<VeoWatchMatchButtons
 										veoLink={fx.veoLink}
 										testIdPrefix={`${testIdPrefix}-${fx.fixtureId || idx}`}
 										hideLogo
 										compact
 										shortLabel
-										className='!justify-center'
+										className='!justify-center max-sm:!items-center'
 									/>
 								</td>
 							</tr>
