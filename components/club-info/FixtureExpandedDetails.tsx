@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { buildMatchRatingBreakdown } from "@/lib/utils/matchRatingBreakdown";
-import { matchRatingCircleClass, playerSurnameOrAfterFirstName } from "@/lib/utils/matchRatingDisplay";
+import { matchRatingCircleStyle, playerSurnameOrAfterFirstName } from "@/lib/utils/matchRatingDisplay";
 import VeoWatchMatchButtons from "./VeoWatchMatchButtons";
 
 export interface FixtureLineupPlayer {
@@ -175,7 +175,7 @@ export default function FixtureExpandedDetails({
 					<span className='text-gray-400'>Formation:</span>
 				</p>
 				<div
-					className='mt-2 flex min-h-[160px] w-full max-w-[36rem] flex-col gap-5 rounded-lg bg-emerald-950/25 px-2 py-5 sm:max-w-[40rem] sm:px-4'
+					className='mt-2 flex min-h-[160px] w-full flex-col gap-5 rounded-lg bg-emerald-950/25 px-2 py-5 sm:px-4'
 					data-testid={`${testIdPrefix}-formation`}>
 					{FORMATION_ROW_ORDER.map((rowKey) => {
 						const rowPlayers = formationRows[rowKey];
@@ -183,13 +183,13 @@ export default function FixtureExpandedDetails({
 						return (
 							<div
 								key={rowKey}
-								className='mx-auto flex w-full max-w-[34rem] flex-wrap items-end justify-center gap-x-1 gap-y-4 sm:max-w-[38rem] sm:gap-x-2'>
+								className='mx-auto flex w-full flex-wrap items-end justify-center gap-x-1 gap-y-4 sm:gap-x-2'>
 								{rowPlayers.map((player, pi) => {
 									const isActive = activeTooltipPlayer === player.playerName;
 									const breakdown = breakdownForPlayer(player);
 									const ratingText = displayRating(player);
 									const ratingNum = displayRatingValue(player);
-									const circleClass = matchRatingCircleClass(ratingNum);
+									const circleStyle = matchRatingCircleStyle(ratingNum);
 									const shortName = playerSurnameOrAfterFirstName(player.playerName);
 									return (
 										<div
@@ -198,7 +198,8 @@ export default function FixtureExpandedDetails({
 											<button
 												type='button'
 												onClick={() => setActiveTooltipPlayer((prev) => (prev === player.playerName ? null : player.playerName))}
-												className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-xs font-bold shadow-sm transition-opacity hover:opacity-90 ${circleClass}`}
+												style={circleStyle}
+												className='flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 border-solid text-xs font-bold shadow-sm transition-opacity hover:opacity-90'
 												data-testid={`${testIdPrefix}-formation-player`}>
 												{ratingText}
 											</button>

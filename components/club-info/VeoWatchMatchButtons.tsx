@@ -13,7 +13,7 @@ export default function VeoWatchMatchButtons({ veoLink, testIdPrefix, className 
 	if (urls.length === 0) return null;
 
 	return (
-		<div className={`flex flex-wrap items-center gap-2 ${className}`.trim()}>
+		<div className={`flex w-full flex-wrap items-center justify-center gap-2 ${className}`.trim()}>
 			{urls.map((href, index) => (
 				<a
 					key={`${href}-${index}`}
