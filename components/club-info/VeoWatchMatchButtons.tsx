@@ -10,6 +10,8 @@ type VeoWatchMatchButtonsProps = {
 	hideLogo?: boolean;
 	/** Tighter padding and type for tables / narrow layouts. */
 	compact?: boolean;
+	/** Mobile: "WATCH"; sm+: "WATCH MATCH" (responsive spans). */
+	shortLabel?: boolean;
 };
 
 export default function VeoWatchMatchButtons({
@@ -18,6 +20,7 @@ export default function VeoWatchMatchButtons({
 	className = "",
 	hideLogo = false,
 	compact = false,
+	shortLabel = false,
 }: VeoWatchMatchButtonsProps) {
 	const urls = parseVeoLinks(veoLink);
 	if (urls.length === 0) return null;
@@ -43,7 +46,14 @@ export default function VeoWatchMatchButtons({
 							<img src='/icons/veo.svg' alt='' className='h-4 w-auto brightness-0 invert' />
 						</span>
 					)}
-					<span>WATCH MATCH</span>
+					{shortLabel ? (
+						<>
+							<span className='sm:hidden'>WATCH</span>
+							<span className='hidden sm:inline'>WATCH MATCH</span>
+						</>
+					) : (
+						<span>WATCH MATCH</span>
+					)}
 				</a>
 			))}
 		</div>

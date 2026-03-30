@@ -40,6 +40,8 @@ import { type EarnedBadgeRow, type ProgressRow } from "@/components/stats/Player
 import { selectBadgesForBar } from "@/lib/badges/evaluate";
 import { getPlayerProfileHref } from "@/lib/profile/slug";
 import { buildMostConnectedListFromPartnershipsJson } from "@/lib/stats/mostConnected";
+import RecordingsSection from "@/components/stats/RecordingsSection";
+import type { RecordingFixture } from "@/lib/utils/recordingsDisplay";
 
 // Dynamically import OppositionMap to reduce initial bundle size (includes Google Maps)
 const OppositionMap = dynamic(() => import("@/components/maps/OppositionMap"), {
@@ -1790,6 +1792,8 @@ export default function PlayerStats() {
 	const [totalAwards, setTotalAwards] = useState<number>(0);
 	const [isLoadingAwardHistory, setIsLoadingAwardHistory] = useState(false);
 
+	const [playerRecordings, setPlayerRecordings] = useState<RecordingFixture[]>([]);
+
 	// Feature 9 — milestone badges (Neo4j PlayerBadge + progress)
 	const [badgePayload, setBadgePayload] = useState<{
 		totalBadges: number;
@@ -2300,6 +2304,40 @@ export default function PlayerStats() {
 
 		fetchAllBelowFoldData();
 	}, [selectedPlayer, playerFilters, hasUnsavedFilters, isFilterSidebarOpen]);
+
+	// Player recordings (Veo) for fixtures this player played in
+	useEffect(() => {
+		if (!selectedPlayer) {
+			setPlayerRecordings([]);
+			return;
+		}
+		if (appConfig.forceSkeletonView) return;
+		if (hasUnsavedFilters || isFilterSidebarOpen) return;
+
+		const fetchPlayerRecordings = async () => {
+			setPlayerRecordings([]);
+			try {
+				const requestBody = {
+					playerName: selectedPlayer,
+					filters: playerFilters,
+				};
+				const cacheKey = generatePageCacheKey("stats", "player-stats", "player-recordings", requestBody);
+				const data = await cachedFetch("/api/player-recordings", {
+					method: "POST",
+					body: requestBody,
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
+				});
+				setPlayerRecordings((data.fixtures || []) as RecordingFixture[]);
+			} catch (err) {
+				log("error", "Error fetching player recordings:", err);
+				setPlayerRecordings([]);
+			}
+		};
+
+		fetchPlayerRecordings();
+	}, [selectedPlayer, playerFilters, hasUnsavedFilters, isFilterSidebarOpen, getCachedPageData, setCachedPageData]);
 
 	// Priority 3: Below fold - Captaincies, Awards and Achievements section
 	// Fetch awards, captain history, and award history in parallel
@@ -4074,6 +4112,16 @@ export default function PlayerStats() {
 					saves={toNumber(validPlayerData.saves || 0)}
 				/>
 				</div>
+			)}
+
+			{playerRecordings.length > 0 && (
+				<RecordingsSection
+					id='player-recordings'
+					title='Player Recordings'
+					subtitle='Matches you played in that have a recording link, for your current filters.'
+					fixtures={playerRecordings}
+					testIdPrefix='player-recording'
+				/>
 			)}
 
 			{/* Captaincies, Awards and Achievements Section */}
