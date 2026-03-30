@@ -23,6 +23,7 @@ import Button from "@/components/ui/Button";
 import { UmamiEvents } from "@/lib/analytics/events";
 import { trackStatsStatSelected, trackTeamStatsTeamSelected } from "@/lib/analytics/statsTracking";
 import { trackEvent } from "@/lib/utils/trackEvent";
+import VeoWatchMatchButtons from "@/components/club-info/VeoWatchMatchButtons";
 
 
 interface TopPlayer {
@@ -63,6 +64,38 @@ interface TopPlayer {
 }
 
 type StatType = "appearances" | "starts" | "goals" | "assists" | "cleanSheets" | "mom" | "saves" | "yellowCards" | "redCards" | "penaltiesScored" | "fantasyPoints" | "goalInvolvements" | "minutes" | "ownGoals" | "conceded" | "penaltiesMissed" | "penaltiesConceded" | "penaltiesSaved" | "distance" | "avgMatchRating" | "matchesRated8Plus" | "goalsPer90" | "assistsPer90" | "goalInvolvementsPer90" | "ftpPer90" | "cleanSheetsPer90" | "concededPer90" | "savesPer90" | "cardsPer90" | "momPer90" | "bestCurrentForm";
+
+interface TeamRecordingFixture {
+	fixtureId: string;
+	season: string;
+	result: string;
+	date: string;
+	opposition: string;
+	homeOrAway: string;
+	goalsScored: number;
+	goalsConceded: number;
+	compType: string;
+	veoLink: string | null;
+}
+
+function formatTeamRecordingDate(dateString: string): string {
+	if (!dateString) return "—";
+	try {
+		const date = new Date(dateString);
+		return date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+	} catch {
+		return dateString;
+	}
+}
+
+function formatTeamRecordingScore(result: string, goalsFor: number, goalsAgainst: number): string {
+	const r = (result || "").trim();
+	if (r === "W" || r === "D" || r === "L") {
+		return `${r} ${goalsFor}-${goalsAgainst}`;
+	}
+	if (r) return `${r} ${goalsFor}-${goalsAgainst}`;
+	return `${goalsFor}-${goalsAgainst}`;
+}
 
 function StatRow({ stat, value, teamData }: { stat: any; value: any; teamData: TeamData }) {
 	const [showTooltip, setShowTooltip] = useState(false);
@@ -455,6 +488,9 @@ export default function TeamStats() {
 	const [uniquePlayerStats, setUniquePlayerStats] = useState<any>(null);
 	const [isLoadingUniqueStats, setIsLoadingUniqueStats] = useState(false);
 
+	// Veo / match recordings for current team + filters
+	const [teamRecordings, setTeamRecordings] = useState<TeamRecordingFixture[]>([]);
+
 	// State for best season finish
 	const [bestSeasonFinishData, setBestSeasonFinishData] = useState<{
 		season: string;
@@ -799,6 +835,42 @@ export default function TeamStats() {
 
 		fetchUniqueStats();
 	}, [selectedTeam, apiFilters, hasUnsavedFilters, isFilterSidebarOpen]);
+
+	// Team recordings (fixtures with Veo/video links) for current team + filters
+	useEffect(() => {
+		if (!selectedTeam || !playerFilters) {
+			setTeamRecordings([]);
+			return;
+		}
+		if (hasUnsavedFilters || isFilterSidebarOpen) return;
+
+		const fetchTeamRecordings = async () => {
+			setTeamRecordings([]);
+			try {
+				const requestBody = {
+					teamName: selectedTeam,
+					filters: {
+						...playerFilters,
+						teams: [],
+					},
+				};
+				const cacheKey = generatePageCacheKey("stats", "team-stats", "team-recordings", requestBody);
+				const data = await cachedFetch("/api/team-recordings", {
+					method: "POST",
+					body: requestBody,
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
+				});
+				setTeamRecordings((data.fixtures || []) as TeamRecordingFixture[]);
+			} catch (err) {
+				log("error", "Error fetching team recordings:", err);
+				setTeamRecordings([]);
+			}
+		};
+
+		fetchTeamRecordings();
+	}, [selectedTeam, playerFilters, hasUnsavedFilters, isFilterSidebarOpen, getCachedPageData, setCachedPageData]);
 
 	// Priority 3: Below fold - Best Season Finish section
 	// Fetch best season finish data when team selected and filters change
@@ -2213,6 +2285,52 @@ export default function TeamStats() {
 															<td className='text-right py-2 px-2 font-mono font-bold'>{uniquePlayerStats.playersWhoConcededPenalties}</td>
 														</tr>
 													)}
+												</tbody>
+											</table>
+										</div>
+									</div>
+								)}
+
+								{/* Team Recordings — only when ≥1 fixture has a Veo/video link for this team + filters */}
+								{selectedTeam && teamRecordings.length > 0 && (
+									<div id='team-recordings' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
+										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Team Recordings</h3>
+										<p className='text-white/70 text-xs md:text-sm mb-3'>
+											All matches with a recording link for the selected team and current filters.
+										</p>
+										<div className='overflow-x-auto'>
+											<table className='w-full text-white text-sm min-w-[640px]'>
+												<thead>
+													<tr className='border-b border-white/20 bg-white/5'>
+														<th className='text-left py-2 px-2 font-semibold'>Date</th>
+														<th className='text-left py-2 px-2 font-semibold'>Season</th>
+														<th className='text-left py-2 px-2 font-semibold'>H/A</th>
+														<th className='text-left py-2 px-2 font-semibold'>Comp</th>
+														<th className='text-left py-2 px-2 font-semibold'>Opponent</th>
+														<th className='text-left py-2 px-2 font-semibold'>Result</th>
+														<th className='text-left py-2 px-2 font-semibold'>Recording</th>
+													</tr>
+												</thead>
+												<tbody>
+													{teamRecordings.map((fx, idx) => (
+														<tr key={fx.fixtureId || `${fx.date}-${fx.opposition}-${idx}`} className='border-b border-white/10 align-top'>
+															<td className='py-2 px-2 whitespace-nowrap'>{formatTeamRecordingDate(fx.date)}</td>
+															<td className='py-2 px-2'>{fx.season || "—"}</td>
+															<td className='py-2 px-2'>{fx.homeOrAway || "—"}</td>
+															<td className='py-2 px-2'>{fx.compType || "—"}</td>
+															<td className='py-2 px-2 max-w-[200px]'>{fx.opposition || "—"}</td>
+															<td className='py-2 px-2 whitespace-nowrap font-mono'>
+																{formatTeamRecordingScore(fx.result, fx.goalsScored, fx.goalsConceded)}
+															</td>
+															<td className='py-2 px-2'>
+																<VeoWatchMatchButtons
+																	veoLink={fx.veoLink}
+																	testIdPrefix={`team-recording-${fx.fixtureId || idx}`}
+																	className='!justify-start'
+																/>
+															</td>
+														</tr>
+													))}
 												</tbody>
 											</table>
 										</div>

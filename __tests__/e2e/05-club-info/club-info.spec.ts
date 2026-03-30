@@ -324,6 +324,8 @@ test.describe("Club Info Page Tests", () => {
 
 		await expect(latestPanel.getByRole("heading", { name: "Latest Result" })).toBeVisible({ timeout: 15000 });
 
+		await expect(latestPanel.locator("[data-testid$='-formation']").first()).toBeVisible({ timeout: 10000 });
+
 		const toggleDetails = latestPanel.getByRole("button", { name: /Show full player details/i }).first();
 		if (!(await toggleDetails.isVisible({ timeout: 8000 }).catch(() => false))) {
 			test.skip(true, "No lineup/full-details toggle visible in Latest Result panel.");
@@ -332,6 +334,7 @@ test.describe("Club Info Page Tests", () => {
 
 		await toggleDetails.click();
 		await expect(latestPanel.locator("[data-testid$='-full-details-table']").first()).toBeVisible({ timeout: 10000 });
+		await expect(latestPanel.locator("[data-testid$='-formation']").first()).toBeHidden({ timeout: 5000 });
 
 		const veoLink = latestPanel.getByRole("link", { name: /watch match/i }).first();
 		if (await veoLink.isVisible({ timeout: 2000 }).catch(() => false)) {

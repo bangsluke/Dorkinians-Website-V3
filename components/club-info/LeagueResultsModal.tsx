@@ -8,6 +8,7 @@ import "react-loading-skeleton/dist/skeleton.css";
 import { FixturesListSkeleton } from "@/components/skeletons";
 import ModalWrapper from "@/components/modals/ModalWrapper";
 import FixtureExpandedDetails, { type FixtureLineupPlayer } from "./FixtureExpandedDetails";
+import VeoWatchMatchButtons from "./VeoWatchMatchButtons";
 
 interface LeagueResultsModalProps {
 	isOpen: boolean;
@@ -182,8 +183,9 @@ export default function LeagueResultsModal({ isOpen, onClose, teamKey, teamDispl
 					</button>
 				</div>
 
-				{/* Scrollable content */}
-				<div className='flex-1 overflow-y-auto p-4 space-y-4' style={{ WebkitOverflowScrolling: "touch" }}>
+				{/* Scrollable content — narrow centered column on large screens */}
+				<div className='flex-1 overflow-y-auto p-4' style={{ WebkitOverflowScrolling: "touch" }}>
+					<div className='w-full max-w-xl md:max-w-lg lg:max-w-xl mx-auto space-y-4'>
 					{loading && (
 						<SkeletonTheme baseColor='var(--skeleton-base)' highlightColor='var(--skeleton-highlight)'>
 							<FixturesListSkeleton />
@@ -257,6 +259,14 @@ export default function LeagueResultsModal({ isOpen, onClose, teamKey, teamDispl
 													{fixture.momPlayerName}
 												</div>
 											)}
+											{fixture.veoLink ? (
+												<div className='mt-3 flex justify-center' onClick={(e) => e.stopPropagation()}>
+													<VeoWatchMatchButtons
+														veoLink={fixture.veoLink}
+														testIdPrefix={`modal-fixture-${fixtureId || String(index)}`}
+													/>
+												</div>
+											) : null}
 											{fixtureId && (
 												<div className='absolute bottom-4 right-4'>
 													<ChevronDownIcon className={`w-5 h-5 text-white transition-transform ${isExpanded ? "rotate-180" : ""}`} />
@@ -269,6 +279,7 @@ export default function LeagueResultsModal({ isOpen, onClose, teamKey, teamDispl
 													lineup={lineup}
 													loading={Boolean(lineupLoading)}
 													veoLink={fixture.veoLink}
+													suppressVeoLink
 													testIdPrefix={`modal-fixture-${fixtureId}`}
 												/>
 											</div>
@@ -278,6 +289,7 @@ export default function LeagueResultsModal({ isOpen, onClose, teamKey, teamDispl
 							})}
 						</div>
 					)}
+					</div>
 				</div>
 
 				{/* Footer */}
