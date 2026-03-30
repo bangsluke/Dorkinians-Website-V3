@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { HomeIcon, ChartBarIcon, TrophyIcon, InformationCircleIcon } from "@heroicons/react/24/outline";
 import { useNavigationStore, type MainPage } from "@/lib/stores/navigation";
 import { log } from "@/lib/utils/logger";
+import { usePathname } from "next/navigation";
 
 const navigationItems = [
 	{ id: "home" as MainPage, icon: HomeIcon, label: "Home" },
@@ -14,6 +15,8 @@ const navigationItems = [
 
 export default function FooterNavigation() {
 	const { currentMainPage, setMainPage } = useNavigationStore();
+	const pathname = usePathname();
+	const isProfileRoute = pathname?.startsWith("/profile/") ?? false;
 
 	// Hide footer navigation on settings page
 	if (currentMainPage === "settings") {
@@ -29,7 +32,7 @@ export default function FooterNavigation() {
 			<div className='flex items-center px-2 md:px-[15%] py-2 pb-[calc(1rem+5px)] md:pb-[calc(0.75rem+5px)] gap-[5px] mx-5'>
 				{navigationItems.map((item) => {
 					const Icon = item.icon;
-					const isActive = currentMainPage === item.id;
+					const isActive = !isProfileRoute && currentMainPage === item.id;
 
 					return (
 						<motion.div
@@ -42,6 +45,9 @@ export default function FooterNavigation() {
 								onClick={() => {
 									log("info", "🔘 [FooterNavigation] Button clicked:", item.id);
 									setMainPage(item.id);
+									if (typeof window !== "undefined" && window.location.pathname !== "/") {
+										window.location.href = "/";
+									}
 								}}
 								aria-label={`Navigate to ${item.label}`}
 								aria-current={isActive ? "page" : undefined}

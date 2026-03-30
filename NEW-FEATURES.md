@@ -819,8 +819,14 @@ interface WrappedData {
 	distanceEquivalent: string; // "that's London to Edinburgh"
 	// Slide 9: Summary card (always last)
 	wrappedUrl: string;
+	// Phase 6 (adapted): seasons the player has apps in; season picker + ?season= deep links
+	seasonsAvailable: string[];
+	// Veo/video slide (slide id 10) — only included in the carousel when this list is non-empty
+	veoFixtures: { fixtureId: string; team: string; opposition: string; date: string; veoLink: string }[];
 }
 ```
+
+**Amendment (Phase 6 UX polish, adapted):** The wrapped API accepts optional `?season=` (hyphen or slash forms). The UI keeps the query string in sync when changing season. Default season is the site current season when the player has appearances there; otherwise the newest season with appearances. **`wrappedUrl`** in the payload includes `?season=` so shared links reopen the same season. A **conditional “Match videos (Veo)”** slide lists fixtures that player played in for that season with a Veo URL; the slide is omitted when the list is empty.
 
 **Player type classification logic:**
 
@@ -886,7 +892,7 @@ async function shareSlide(slideRef: HTMLDivElement, playerName: string, slideNum
 - **Historical (superseded):** The first cut added a homepage banner (`SeasonWrappedBanner`) linking to `/wrapped/[current-player-slug]`. **Current spec:** do **not** show Season Wrapped on the **Homepage**; remove the banner from home. Primary discovery is the **Player Profile** page (Season Wrapped section) and direct `/wrapped/...` URLs. Env flag `NEXT_PUBLIC_SEASON_WRAPPED_ACTIVE` should no longer be used to surface wrapped on home once removal is implemented.
 - Generate a WhatsApp-friendly text block on the wrapped page for easy copy-paste sharing (unchanged).
 
-**Status:** Homepage banner removal and profile-only entry — **not implemented** (see **`IMPLEMENTATION-STATUS.md` → Phase 6 UX polish**).
+**Status:** Homepage banner removal and profile-only entry — **implemented** (Phase 6 UX polish item 1). Wrapped **season query**, **Veo slide**, and payload fields — **implemented** (Phase 6 item 4 adapted); see **`IMPLEMENTATION-STATUS.md`**.
 
 **Tests to write:**
 
@@ -1405,9 +1411,9 @@ These items come from `New-Features-2.md`. Implement after Phase 5 (Feature 9) u
 
 1. New **Player Profile** route (dedicated page, not only Player Stats) showing a career summary: achievement badges, all-time headline stats (goals, assists, cards, appearances, and other relevant aggregates already on `Player` or easy to derive).
 2. **App shell:** Player Profile must use the **same main-app layout as Settings** and other primary screens: **sidebar**, **header** (and footer/navigation pattern as on `app/page.tsx`), not a standalone full-bleed page without app chrome. Implementation may embed profile content in the SPA shell or share a layout wrapper — intent is UX parity with Settings.
-3. **Section order on Player Profile (canonical):** (1) **Headline Stats**; (2) **Milestone Badges**; (3) **Season Wrapped** (entry point / link to `/wrapped/...`). Use **title case** for section headings: “Headline Stats”, “Milestone Badges”, “Season Wrapped”.
+3. **Section order on Player Profile (adapted canonical):** (1) **Season Wrapped** (entry / link to `/wrapped/...` with optional **season selector** when the player has multiple seasons); (2) **Headline Stats**; (3) **Milestone Badges**. Use **title case** for section headings: “Headline Stats”, “Milestone Badges”, “Season Wrapped”.
 4. **Season Wrapped block styling:** Content **centre-aligned**; **Dorkinians club logo** alongside the heading or lead text; section styled with **yellow-forward** emphasis (accent `#E8C547` / `dorkinians-yellow`) to highlight it vs other cards.
-5. **Back navigation:** Place a **“Back to home”** control at the **bottom** of the page, styled like **dialog back buttons** used elsewhere in the app (not only a top-right text link). Remove or relocate any redundant top “back” link.
+5. **Back navigation (adapted):** Do **not** use a dedicated **“Back to home”** control on Player Profile; rely on shell navigation (sidebar / footer / header). Remove any top “back to home” link on the profile body.
 6. On **Player Stats** → Captaincies, Awards and Achievements: **remove** the milestone badges block from that section. Keep the text **“Milestone badges earned”** in place, **underlined**, as a **link** to the Player Profile page for the current player (same player context as stats).
 
 **Where to change (V3-dorkinians-website):** `app/profile/[playerSlug]/page.tsx`, `components/profile/PlayerProfileView.tsx`, and main shell components (`Header`, `SidebarNavigation`, `app/page.tsx` or shared layout) as needed. Reuse badge APIs/components (`player-badges`, badge bar/grid patterns).
@@ -1418,9 +1424,9 @@ These items come from `New-Features-2.md`. Implement after Phase 5 (Feature 9) u
 
 - **Unit tests (Jest):** URL/slug helper for profile link matches player selected on Stats (if shared util).
 - **Integration test (Jest):** Profile page data fetch returns expected shape for a known player (if using a dedicated API route).
-- **E2E (Playwright):** Open Player Stats → click “Milestone badges earned” → lands on Player Profile with milestones visible. On Player Profile, sections appear in order **Headline Stats → Milestone Badges → Season Wrapped**; app chrome matches Settings; bottom **Back to home** matches dialog back-button styling.
+- **E2E (Playwright):** Open Player Stats → click “Milestone badges earned” → lands on Player Profile with milestones visible. On Player Profile, sections appear in order **Season Wrapped → Headline Stats → Milestone Badges**; page title **Player Profile - {name}**; **centred** profile header; **no** top/back-to-home control in profile body; app chrome matches Settings; wrapped **season selector** when multiple seasons; `/wrapped/...` supports **`?season=`** and optional **Veo** slide when recordings exist for that season.
 
-**Status:** Shell, section order, Season Wrapped styling, and bottom back control — **partially implemented** (first cut matches old order/layout); remaining work tracked in **`IMPLEMENTATION-STATUS.md` → Phase 6 UX polish** rows 2 and 4.
+**Status:** Adapted layout, season picker, conditional Veo wrapped slide, and shell navigation — **implemented** (see **`IMPLEMENTATION-STATUS.md` → Phase 6 UX polish** item 4).
 
 ---
 

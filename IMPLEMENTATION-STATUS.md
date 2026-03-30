@@ -4,9 +4,9 @@
 
 **Last updated:** 2026-03-30
 
-**Current milestone:** ✅ Feature 19 League Latest Result + modal parity (website first cut) — League Information now shows per-team latest result with formation/rating details and Show Results modal now supports formation + Veo + full-details toggle parity
+**Current milestone:** ✅ Phase 6 UX polish item 4 (adapted) — Player Profile: **Season Wrapped → Headline Stats → Milestone Badges**, centred header, no profile-body back control; wrapped **`?season=`** + season picker; conditional **Veo** slide; docs updated in **`NEW-FEATURES.md` Feature 8/10**.
 
-**Next focus:** Phase 6 UX follow-ups — **`NEW-FEATURES.md` Feature 20** and related amendments to Features 8 / 10 / 13 (see **Not started → Phase 6 UX polish** below); spec is canonical, implementation not started.
+**Next focus:** Phase 6 UX polish items **5–7** (Form Y-axis, data-table toggle alignment, profile icon on all main pages) per **`IMPLEMENTATION-STATUS.md` → Phase 6 UX polish** checklist.
 
 **Database repo:** When this website repo sits next to the seeding service, paths below use **`../database-dorkinians/`**. If you only have the database clone, open the copy of this file from the website repo or maintain a short pointer there.
 
@@ -141,12 +141,12 @@
 
 | Area                    | Notes                                                                                                                                                                                                                             |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Routes / UI**         | Added `app/profile/[playerSlug]/page.tsx` + `components/profile/PlayerProfileView.tsx`; profile shows player header + badge bar, **Season Wrapped** section first, **Milestone badges** section second, then headline stat cards (standalone route, no main app sidebar). |
+| **Routes / UI**         | `app/profile/[playerSlug]/page.tsx` + `components/profile/PlayerProfileView.tsx` under app shell: **Season Wrapped** (logo, yellow-forward card, optional season selector, link to `/wrapped/...?season=` when multiple seasons) → **Headline Stats** → **Milestone Badges**; centred **Player Profile - {name}** title; no top/back-to-home in profile body. |
 | **Linking / slug**      | Added `lib/profile/slug.ts`; Player Stats Captaincies/Awards section now renders underlined link `data-testid="milestone-badges-profile-link"` for **Milestone badges earned** to the current player profile.                     |
 | **Player Stats change** | Removed in-place milestone grid from Player Stats achievements section (moved to Player Profile per plan).                                                                                                                        |
 | **Tests**               | Jest unit: `__tests__/unit/profile/slug.test.ts`; Playwright `3.26` updated to verify link navigation + profile section order.                                                                                                    |
 
-**Follow-up (spec change, not implemented):** Section order **Headline Stats → Milestone Badges → Season Wrapped** (title case headings); Season Wrapped block centred with logo + yellow emphasis; **Back to home** at bottom (dialog-style); profile must use **same app chrome as Settings** (sidebar/header). See **`NEW-FEATURES.md` Feature 10**.
+**Adapted spec (implemented 2026-03-30):** Order **Season Wrapped → Headline Stats → Milestone Badges**; Season Wrapped centred with logo + yellow emphasis; **no** profile-body **Back to home**; same app chrome as Settings; wrapped season picker on profile + wrapped page; API returns **`seasonsAvailable`**, **`veoFixtures`**, **`wrappedUrl` with `?season=`**; conditional Veo slide in **`WrappedExperience`**. See **`NEW-FEATURES.md` Feature 10** and **Feature 8** amendment.
 
 ### Club Captains and Awards (Feature 11)
 
@@ -272,16 +272,16 @@ Spec source: **`NEW-FEATURES.md` Phase 6 (Features 10-19, plus Feature 20 UX pol
 | **18** — VEO LINK on fixtures                | ✅ Website + DB first cut done: schema/import path persists `Fixture.veoLink`, and website fixture APIs return normalized `veoLink`                     | Follow-up: run full production seeding job and spot-check real fixture pages with populated Veo links across multiple teams/seasons                  |
 | **19** — League Latest Result + modal parity | ✅ Website first cut done: per-team Latest Result cards + shared formation/rating details + modal parity with full-details toggle and optional Veo link | Follow-up: add deterministic seeded assertions for tooltip line content and exact formation/player ordering across desktop/mobile snapshots          |
 
-### Phase 6 UX polish (not started)
+### Phase 6 UX polish (in progress)
 
-Spec source: **`NEW-FEATURES.md`** — amended Feature 8 / 10 / 13 plus **Feature 20: Navigation and Player Stats polish**. None of the rows below are implemented yet; use this checklist when building.
+Spec source: **`NEW-FEATURES.md`** — amended Feature 8 / 10 / 13 plus **Feature 20: Navigation and Player Stats polish**. Rows **1–4** implemented as of 2026-03-30; use this checklist for remaining items.
 
 | # | Item | Status | Tests to add or update |
 |---|------|--------|-------------------------|
-| 1 | Remove **Season Wrapped** from **Homepage** (`SeasonWrappedBanner` / `app/page.tsx`); discovery via **Player Profile** and `/wrapped/...` only | Not started | Playwright: home has no wrapped banner (when feature flag would otherwise show it); existing wrapped E2E still passes |
-| 2 | **Player Profile** uses same **app chrome** as Settings/main SPA (sidebar + header/footer), not a bare full-page view | Not started | E2E: open profile from stats link → sidebar/header visible; navigation matches other pages |
-| 3 | **Settings** → **Home** in “Available Screens” navigates like other destinations (e.g. `window.location.href = "/"` / `router.push` + store sync if on `/settings` route) | Not started | E2E: from `/settings`, click Home → lands on main app home |
-| 4 | **Player Profile** content/layout: order **Headline Stats → Milestone Badges → Season Wrapped**; title-case headings; Season Wrapped centred + club logo + yellow-forward styling; **Back to home** at bottom, dialog-style back button; remove top-right back link | Not started | Update Playwright `3.26` for new order, styling hooks, bottom back control |
+| 1 | Remove **Season Wrapped** from **Homepage** (`SeasonWrappedBanner` / `app/page.tsx`); discovery via **Player Profile** and `/wrapped/...` only | ✅ Completed (2026-03-30) | Updated Playwright wrapped suite `10.2` to assert no homepage wrapped banner after player selection; direct wrapped route coverage remains in `10.1` |
+| 2 | **Player Profile** uses same **app chrome** as Settings/main SPA (sidebar + header/footer), not a bare full-page view | ✅ Completed (2026-03-30) | Added profile route layout with sidebar/header/footer + frosted shell; profile content moved to in-shell scroll container; sidebar/footer now route back to `/` when used from standalone routes |
+| 3 | **Settings** → **Home** in “Available Screens” navigates like other destinations (e.g. `window.location.href = "/"` / `router.push` + store sync if on `/settings` route) | ✅ Completed (2026-03-30) | `components/pages/Settings.tsx` now routes back to `/` when not already on home shell while keeping store updates; standalone `app/settings/page.tsx` path already routes via `window.location.href = "/"` |
+| 4 | **Player Profile** (adapted): order **Season Wrapped → Headline Stats → Milestone Badges**; centred **Player Profile - {name}** header; Season Wrapped + logo + yellow-forward styling + **season selector** when multiple seasons; **no** profile-body back/home button; **`/wrapped/...?season=`** sync; **conditional Veo slide** when that season has recordings | ✅ Completed (2026-03-30) | Playwright **`3.26`** order; **`10.1`** footer URL includes `season=`; **`10.3`** season selector ↔ URL; integration **`wrapped-api`** sample includes new payload fields |
 | 5 | **Player Stats** Form chart: **Y-axis** shows rating scale values (margins / `YAxis` width in `FormComposedChart` or parent) | Not started | Playwright visual or assertion on axis ticks in `3.21` / Form section |
 | 6 | **Player Stats** data table: **Totals \| Per App \| Per 90** toggle group **right-aligned** in the control row | Not started | Playwright: layout/selector check in data table mode |
 | 7 | **Header** (and desktop sidebar header if mirrored): profile icon when player selected on **all** main pages; slightly **tighter** icon spacing | Not started | Extend Home suite or Stats: select player on home → navigate to Stats → icon visible; spacing regression snapshot optional |

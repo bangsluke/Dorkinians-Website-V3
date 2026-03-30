@@ -12,10 +12,10 @@ describe("playerSurnameOrAfterFirstName", () => {
 
 describe("matchRatingCircleClass", () => {
 	test("bands match rating guide thresholds", () => {
-		expect(matchRatingCircleClass(9)).toContain("#C9A42A");
-		expect(matchRatingCircleClass(7.5)).toContain("#5DCAA5");
-		expect(matchRatingCircleClass(6.5)).toContain("#2D6A4F");
-		expect(matchRatingCircleClass(5)).toContain("#D4A574");
-		expect(matchRatingCircleClass(3)).toContain("#BC4749");
+		expect(matchRatingCircleClass(9)).toContain("--match-rating-85-100-bg");
+		expect(matchRatingCircleClass(7.5)).toContain("--match-rating-70-84-bg");
+		expect(matchRatingCircleClass(6.5)).toContain("--match-rating-60-69-bg");
+		expect(matchRatingCircleClass(5)).toContain("--match-rating-40-59-bg");
+		expect(matchRatingCircleClass(3)).toContain("--match-rating-10-39-bg");
 	});
 });

@@ -31,7 +31,14 @@ const sample: WrappedData = {
 	longestStreakValue: 4,
 	totalDistance: 120,
 	distanceEquivalent: "About the same as London to Bristol (~120 mi)",
-	wrappedUrl: "https://example.com/wrapped/abc",
+	wrappedUrl: "https://example.com/wrapped/abc?season=2025%2F26",
+	seasonsAvailable: ["2025/26", "2024/25"],
+	veoFixtures: [],
+	wrappedLeaguePointsContributed: 21,
+	wrappedCupTiesAdvanced: 2,
+	wrappedDominantTeam: "1st XI",
+	wrappedDominantTeamLeaguePosition: 4,
+	wrappedDominantTeamLeagueDivision: "Premier",
 };
 
 describe("GET /api/wrapped/[playerSlug]", () => {

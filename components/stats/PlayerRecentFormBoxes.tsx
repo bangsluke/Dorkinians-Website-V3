@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { buildMatchRatingBreakdown, type MatchRatingDetail } from "@/lib/utils/matchRatingBreakdown";
+import { matchRatingCircleStyle } from "@/lib/utils/matchRatingDisplay";
 
 export type PlayerFormRecentMatch = {
 	fixtureId: string;
@@ -50,11 +51,16 @@ function toDetail(m: PlayerFormRecentMatch): MatchRatingDetail {
 	};
 }
 
-function ratingBandClass(score: number | null): string {
-	if (score == null || Number.isNaN(score)) return "bg-zinc-800 border border-white/10";
-	if (score >= 8) return "bg-emerald-600/90 border border-emerald-400/40";
-	if (score >= 6) return "bg-slate-600/90 border border-slate-400/30";
-	return "bg-red-700/90 border border-red-400/40";
+function ratingBandPresentation(score: number | null): { className: string; style?: CSSProperties } {
+	if (score == null || Number.isNaN(score)) {
+		return {
+			className: "bg-zinc-800 border-2 border-white/10 text-white",
+		};
+	}
+	return {
+		className: "border-2",
+		style: matchRatingCircleStyle(score),
+	};
 }
 
 function formatDate(dateString: string): string {
@@ -240,22 +246,26 @@ export default function PlayerRecentFormBoxes({ matchesNewestFirst }: Props) {
 		<div className='mb-3' data-testid='player-recent-form-boxes'>
 			<p className='text-white/70 text-xs mb-2'>Recent match scores (last 10, same filters)</p>
 			<div className='flex gap-1 w-full'>
-				{boxesToShow.map((m, index) => (
-					<div
-						key={index}
-						data-testid={m ? "player-recent-form-box" : "player-recent-form-box-empty"}
-						ref={(el) => {
-							boxRefs.current[index] = el;
-						}}
-						className={`flex-1 aspect-square rounded flex items-center justify-center cursor-help relative text-white font-bold text-[10px] sm:text-xs ${ratingBandClass(m ? m.displayScore : null)}`}
-						onMouseEnter={() => m && handleMouseEnter(index)}
-						onMouseLeave={handleMouseLeave}
-						onTouchStart={() => m && handleTouchStart(index)}
-						onTouchEnd={handleTouchEnd}
-					>
-						{m ? <span>{m.displayScore.toFixed(1)}</span> : null}
-					</div>
-				))}
+				{boxesToShow.map((m, index) => {
+					const presentation = ratingBandPresentation(m ? m.displayScore : null);
+					return (
+						<div
+							key={index}
+							data-testid={m ? "player-recent-form-box" : "player-recent-form-box-empty"}
+							ref={(el) => {
+								boxRefs.current[index] = el;
+							}}
+							className={`flex-1 aspect-square rounded flex items-center justify-center cursor-help relative font-bold text-[10px] sm:text-xs ${presentation.className}`}
+							style={presentation.style}
+							onMouseEnter={() => m && handleMouseEnter(index)}
+							onMouseLeave={handleMouseLeave}
+							onTouchStart={() => m && handleTouchStart(index)}
+							onTouchEnd={handleTouchEnd}
+						>
+							{m ? <span>{m.displayScore.toFixed(1)}</span> : null}
+						</div>
+					);
+				})}
 			</div>
 			{showTooltip !== null && active && tooltipPosition && typeof document !== "undefined" && document.body
 				? createPortal(

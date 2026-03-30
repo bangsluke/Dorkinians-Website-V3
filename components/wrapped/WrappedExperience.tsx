@@ -10,9 +10,28 @@ import {
 	type ReactNode,
 } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import Image from "next/image";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { XMarkIcon } from "@heroicons/react/24/outline";
 import { toBlob } from "html-to-image";
+import { getPlayerProfileHref } from "@/lib/profile/slug";
+import { getPublicSiteRoot } from "@/lib/utils/publicSiteUrl";
+import { formatRecordingDateMobile, formatRecordingScore } from "@/lib/utils/recordingsDisplay";
 import type { WrappedData } from "@/lib/wrapped/types";
+
+const SWIPE_PX = 56;
+const VEO_WRAP_PREVIEW_COUNT = 5;
+
+function formatOrdinal(n: number): string {
+	const abs = Math.floor(Math.abs(n));
+	const j = abs % 10;
+	const k = abs % 100;
+	if (j === 1 && k !== 11) return `${abs}st`;
+	if (j === 2 && k !== 12) return `${abs}nd`;
+	if (j === 3 && k !== 13) return `${abs}rd`;
+	return `${abs}th`;
+}
 
 const CARD =
 	"rounded-2xl border border-white/[0.08] bg-[rgba(30,35,25,0.75)] p-6 md:p-10 shadow-xl max-w-lg w-full mx-auto";
@@ -21,16 +40,21 @@ function SlideFrame({
 	children,
 	footerUrl,
 	slideRef,
+	topRight,
 }: {
 	children: ReactNode;
 	footerUrl: string;
 	slideRef: LegacyRef<HTMLDivElement>;
+	topRight?: ReactNode;
 }) {
 	return (
 		<div
 			ref={slideRef}
-			className={`${CARD} flex flex-col min-h-[70vh] md:min-h-[420px] justify-between`}
+			className={`${CARD} relative flex flex-col min-h-[70vh] md:min-h-[420px] justify-between`}
 			data-testid='wrapped-slide-card'>
+			{topRight ? (
+				<div className='pointer-events-none absolute top-4 right-4 z-10 md:top-6 md:right-6'>{topRight}</div>
+			) : null}
 			<div className='flex-1 flex flex-col justify-center'>{children}</div>
 			<p className='text-center text-[10px] md:text-xs text-white/45 mt-6 break-all' data-testid='wrapped-slide-url'>
 				{footerUrl}
@@ -43,12 +67,13 @@ function ShareSlideButton({
 	slideRef,
 	playerName,
 	slideNumber,
-	playerSlug,
+	shareUrl,
 }: {
 	slideRef: LegacyRef<HTMLDivElement>;
 	playerName: string;
 	slideNumber: number;
-	playerSlug: string;
+	/** Public wrapped URL including path and `?season=` when applicable */
+	shareUrl: string;
 }) {
 	const share = useCallback(async () => {
 		const el = slideRef.current;
@@ -58,7 +83,7 @@ function ShareSlideButton({
 			if (!blob) return;
 			const safe = playerName.replace(/[^\w\-]+/g, "_").slice(0, 40);
 			const file = new File([blob], `${safe}-wrapped-${slideNumber}.png`, { type: "image/png" });
-			const shareText = `Check out my season stats! dorkiniansfcstats.co.uk/wrapped/${playerSlug}`;
+			const shareText = `Check out my season stats! ${shareUrl.replace(/^https?:\/\//, "")}`;
 
 			if (navigator.canShare?.({ files: [file] })) {
 				await navigator.share({
@@ -78,7 +103,7 @@ function ShareSlideButton({
 		} catch (e) {
 			console.warn("Share slide failed", e);
 		}
-	}, [playerName, playerSlug, slideNumber, slideRef]);
+	}, [playerName, shareUrl, slideNumber, slideRef]);
 
 	return (
 		<button
@@ -88,6 +113,28 @@ function ShareSlideButton({
 			className='text-sm font-medium px-4 py-2 rounded-lg bg-[#E8C547] text-black hover:opacity-90'>
 			Share this slide
 		</button>
+	);
+}
+
+function FinalSlideFullSiteLink() {
+	const root = getPublicSiteRoot();
+	return (
+		<>
+			<p className='text-[#E8C547] text-sm font-semibold uppercase tracking-wide mb-2'>That&apos;s a wrap</p>
+			<h2 className='text-2xl md:text-3xl font-bold text-white mb-4'>Thanks for the season</h2>
+			<p className='text-white/80 text-sm'>
+				Share your story and come back for more stats on the{" "}
+				<a
+					data-testid='wrapped-full-site-link'
+					href={`${root}/`}
+					className='text-[#5DCAA5] font-semibold underline decoration-[#5DCAA5] underline-offset-2 hover:text-[#E8C547] hover:decoration-[#E8C547]'
+					target='_blank'
+					rel='noopener noreferrer'>
+					full site
+				</a>
+				.
+			</p>
+		</>
 	);
 }
 
@@ -101,7 +148,8 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 	const [index, setIndex] = useState(0);
 	const slideRef = useRef<HTMLDivElement | null>(null);
 
-	const touchStartX = useRef<number | null>(null);
+	const pointerSwipe = useRef<{ x: number; y: number; pointerId: number } | null>(null);
+	const touchStart = useRef<{ x: number; y: number } | null>(null);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -131,11 +179,35 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 		};
 	}, [playerSlug, seasonQ]);
 
+	useEffect(() => {
+		setIndex(0);
+	}, [seasonQ, playerSlug]);
+
+	/** Prevent horizontal rubber-banding / scroll revealing content beside the wrapped shell */
+	useEffect(() => {
+		const html = document.documentElement;
+		const body = document.body;
+		const prevHtmlOx = html.style.overflowX;
+		const prevBodyOx = body.style.overflowX;
+		html.style.overflowX = "hidden";
+		body.style.overflowX = "hidden";
+		html.style.setProperty("overscroll-behavior-x", "none");
+		body.style.setProperty("overscroll-behavior-x", "none");
+		return () => {
+			html.style.overflowX = prevHtmlOx;
+			body.style.overflowX = prevBodyOx;
+			html.style.removeProperty("overscroll-behavior-x");
+			body.style.removeProperty("overscroll-behavior-x");
+		};
+	}, []);
+
 	const slideIds = useMemo(() => {
 		if (!data) return [1];
-		const base = [1, 2, 3, 4, 5, 6, 7, 8, 9];
-		if (data.longestStreakValue != null && data.longestStreakValue >= 3) return base;
-		return base.filter((id) => id !== 7);
+		const ids: number[] = [1, 2, 3, 4, 5, 6, 11];
+		if (data.veoFixtures?.length) ids.push(10);
+		if (data.longestStreakValue != null && data.longestStreakValue >= 3) ids.push(7);
+		ids.push(8, 9);
+		return ids;
 	}, [data]);
 
 	const total = slideIds.length;
@@ -145,18 +217,55 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 		setIndex((i) => Math.min(total - 1, Math.max(0, i + dir)));
 	};
 
-	const onTouchStart = (e: React.TouchEvent) => {
-		touchStartX.current = e.changedTouches[0]?.clientX ?? null;
-	};
-	const onTouchEnd = (e: React.TouchEvent) => {
-		const start = touchStartX.current;
-		touchStartX.current = null;
-		if (start == null) return;
-		const end = e.changedTouches[0]?.clientX ?? start;
-		const dx = end - start;
-		if (Math.abs(dx) < 48) return;
+	const applySwipe = (dx: number, dy: number) => {
+		if (Math.abs(dx) < SWIPE_PX) return;
+		if (Math.abs(dx) < Math.abs(dy)) return;
 		if (dx < 0) go(1);
 		else go(-1);
+	};
+
+	const onTouchStartSwipe = (e: React.TouchEvent) => {
+		const t = e.changedTouches[0];
+		if (!t) return;
+		const el = e.target as HTMLElement | null;
+		if (el?.closest("a, button, input, select, textarea, [data-wrapped-no-swipe]")) return;
+		touchStart.current = { x: t.clientX, y: t.clientY };
+	};
+	const onTouchEndSwipe = (e: React.TouchEvent) => {
+		const start = touchStart.current;
+		touchStart.current = null;
+		if (!start) return;
+		const t = e.changedTouches[0];
+		if (!t) return;
+		applySwipe(t.clientX - start.x, t.clientY - start.y);
+	};
+
+	const onPointerDownSwipe = (e: React.PointerEvent) => {
+		if (e.button !== 0) return;
+		const t = e.target as HTMLElement | null;
+		if (t?.closest("a, button, input, select, textarea, [data-wrapped-no-swipe]")) return;
+		pointerSwipe.current = { x: e.clientX, y: e.clientY, pointerId: e.pointerId };
+		try {
+			(e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
+		} catch {
+			/* ignore */
+		}
+	};
+
+	const onPointerUpSwipe = (e: React.PointerEvent) => {
+		const s = pointerSwipe.current;
+		if (!s || s.pointerId !== e.pointerId) return;
+		pointerSwipe.current = null;
+		try {
+			(e.currentTarget as HTMLDivElement).releasePointerCapture(e.pointerId);
+		} catch {
+			/* ignore */
+		}
+		applySwipe(e.clientX - s.x, e.clientY - s.y);
+	};
+
+	const onPointerCancelSwipe = (e: React.PointerEvent) => {
+		if (pointerSwipe.current?.pointerId === e.pointerId) pointerSwipe.current = null;
 	};
 
 	const whatsappBlock = useMemo(() => {
@@ -166,7 +275,7 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 
 	if (loading) {
 		return (
-			<div className='min-h-screen flex items-center justify-center bg-gradient-to-b from-[#1c2418] to-[#2a3220] text-white'>
+			<div className='relative min-h-screen min-h-[100dvh] w-full max-w-[100dvw] overflow-x-hidden overscroll-x-none flex items-center justify-center bg-[#1a2218] bg-gradient-to-b from-[#1c2418] to-[#2a3220] text-white'>
 				<p className='text-white/70'>Loading your season…</p>
 			</div>
 		);
@@ -174,7 +283,7 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 
 	if (error || !data) {
 		return (
-			<div className='min-h-screen flex flex-col items-center justify-center gap-4 px-6 bg-gradient-to-b from-[#1c2418] to-[#2a3220] text-white'>
+			<div className='relative min-h-screen min-h-[100dvh] w-full max-w-[100dvw] overflow-x-hidden overscroll-x-none flex flex-col items-center justify-center gap-4 px-6 bg-[#1a2218] bg-gradient-to-b from-[#1c2418] to-[#2a3220] text-white'>
 				<p className='text-center text-white/85'>{error || "Something went wrong"}</p>
 				<a href='/' className='text-[#E8C547] underline'>
 					Back to home
@@ -256,6 +365,35 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 						</p>
 					</>
 				);
+			case 11: {
+				const teamLabel = data.wrappedDominantTeam?.trim() || "your main XI";
+				const divSuffix =
+					data.wrappedDominantTeamLeagueDivision?.trim() ?
+						` (${data.wrappedDominantTeamLeagueDivision.trim()})`
+					:	"";
+				const pos = data.wrappedDominantTeamLeaguePosition;
+				const leagueLine =
+					pos != null && pos > 0 ?
+						`${teamLabel} finished ${formatOrdinal(pos)} in the league${divSuffix}.`
+					:	`League table position wasn’t available for ${teamLabel} this season.`;
+				return (
+					<>
+						<p className='text-[#E8C547] text-sm font-semibold uppercase tracking-wide mb-2'>Team season</p>
+						<h2 className='text-2xl md:text-3xl font-bold text-white mb-4'>Points, cups, table</h2>
+						<ul className='text-white/85 text-sm md:text-base space-y-3 text-left' data-testid='wrapped-team-season-slide'>
+							<li>
+								<span className='text-[#5DCAA5] font-semibold'>{data.wrappedLeaguePointsContributed}</span> league points from
+								games you played (3 for a win, 1 for a draw).
+							</li>
+							<li>
+								<span className='text-[#5DCAA5] font-semibold'>{data.wrappedCupTiesAdvanced}</span> cup ties advanced — matches
+								where the club went through (including wins on penalties after a draw).
+							</li>
+							<li>{leagueLine}</li>
+						</ul>
+					</>
+				);
+			}
 			case 7:
 				return (
 					<>
@@ -272,27 +410,105 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 						<p className='text-white/85 text-base leading-relaxed'>{data.distanceEquivalent}</p>
 					</>
 				);
-			default:
+			case 10: {
+				const veoAll = data.veoFixtures;
+				const veoTotal = veoAll.length;
+				const veoRows = veoAll.slice(0, VEO_WRAP_PREVIEW_COUNT);
+				const statsHref = getPlayerProfileHref(data.playerName);
+				const recordingsHref = `${statsHref}#player-recordings`;
 				return (
 					<>
-						<p className='text-[#E8C547] text-sm font-semibold uppercase tracking-wide mb-2'>That&apos;s a wrap</p>
-						<h2 className='text-2xl md:text-3xl font-bold text-white mb-4'>Thanks for the season</h2>
-						<p className='text-white/80 text-sm'>Share your story and come back for more stats on the full site.</p>
+						<p className='text-[#E8C547] text-sm font-semibold uppercase tracking-wide mb-2'>Veo</p>
+						<h2 className='text-2xl md:text-3xl font-bold text-white mb-4'>Match videos</h2>
+						<p className='text-white/70 text-sm mb-4'>
+							Fixtures you played with a Veo recording this season.
+							{veoTotal > VEO_WRAP_PREVIEW_COUNT ? (
+								<>
+									{" "}
+									Showing the {VEO_WRAP_PREVIEW_COUNT} most recent of {veoTotal}.
+								</>
+							) : null}
+						</p>
+						<ul
+							className='text-left space-y-3 max-h-[42vh] overflow-y-auto pr-1 touch-pan-y'
+							style={{ touchAction: "pan-y" }}
+							data-testid='wrapped-veo-list'>
+							{veoRows.map((row) => {
+								const scoreline = formatRecordingScore(row.result, row.goalsScored, row.goalsConceded);
+								const metaBits = [row.team?.trim(), scoreline].filter(Boolean);
+								return (
+									<li key={`${row.fixtureId}-${row.veoLink}`} className='border-b border-white/10 pb-2'>
+										<a
+											href={row.veoLink}
+											target='_blank'
+											rel='noopener noreferrer'
+											className='text-[#5DCAA5] text-sm font-medium hover:underline break-words'>
+											{row.opposition || "Fixture"}
+											{row.date ? ` · ${formatRecordingDateMobile(row.date)}` : ""}
+										</a>
+										{metaBits.length > 0 ? (
+											<p className='text-white/50 text-xs mt-0.5 tabular-nums'>{metaBits.join(" · ")}</p>
+										) : null}
+									</li>
+								);
+							})}
+						</ul>
+						<p className='text-white/55 text-xs mt-4 leading-relaxed' data-wrapped-no-swipe>
+							See more on{" "}
+							<Link
+								href={statsHref}
+								prefetch={false}
+								className='text-[#5DCAA5] font-medium underline decoration-[#5DCAA5]/60 underline-offset-2 hover:text-[#E8C547] hover:decoration-[#E8C547]'>
+								player stats
+							</Link>
+							{" and in "}
+							<Link
+								href={recordingsHref}
+								prefetch={false}
+								className='text-[#5DCAA5] font-medium underline decoration-[#5DCAA5]/60 underline-offset-2 hover:text-[#E8C547] hover:decoration-[#E8C547]'>
+								Player Recordings
+							</Link>
+							.
+						</p>
 					</>
+				);
+			}
+			default:
+				return (
+					<FinalSlideFullSiteLink />
 				);
 		}
 	};
 
+	const profileHref = getPlayerProfileHref(data.playerName);
+
 	return (
 		<div
-			className='min-h-screen flex flex-col bg-gradient-to-b from-[#1c2418] via-[#232b1c] to-[#1a2218] text-white px-4 py-6 md:py-10'
-			onTouchStart={onTouchStart}
-			onTouchEnd={onTouchEnd}
+			className='relative min-h-screen min-h-[100dvh] w-full max-w-[100dvw] overflow-x-hidden overscroll-x-none flex flex-col bg-[#1a2218] bg-gradient-to-b from-[#1c2418] via-[#232b1c] to-[#1a2218] text-white px-4 py-6 md:py-10 touch-pan-y'
 			data-testid='wrapped-page'>
-			<header className='max-w-xl mx-auto w-full mb-6 text-center'>
-				<p className='text-xs text-white/50 uppercase tracking-widest'>Dorkinians Wrapped</p>
-				<h1 className='text-xl md:text-2xl font-bold text-white mt-1'>{data.playerName}</h1>
-				<p className='text-sm text-white/45 mt-1'>{data.season}</p>
+			<header className='max-w-xl mx-auto w-full mb-6 relative pr-14 sm:pr-24'>
+				<Link
+					href={profileHref}
+					data-testid='wrapped-exit-profile'
+					className='absolute right-0 top-0 z-10 inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-black/30 px-2.5 py-2 text-sm text-white/90 hover:border-[#E8C547]/50 hover:text-[#E8C547] transition-colors'
+					prefetch={false}>
+					<XMarkIcon className='w-5 h-5 shrink-0' aria-hidden />
+					<span className='hidden sm:inline'>Profile</span>
+				</Link>
+				<div className='flex items-center justify-center gap-3 md:gap-4'>
+					<Image
+						src='/icons/icon-96x96.png'
+						alt='Dorkinians FC'
+						width={44}
+						height={44}
+						className='rounded-full shrink-0'
+					/>
+					<div className='text-left min-w-0'>
+						<p className='text-xs text-white/50 uppercase tracking-widest'>Dorkinians Wrapped</p>
+						<h1 className='text-xl md:text-2xl font-bold text-white mt-1'>{data.playerName}</h1>
+						<p className='text-sm text-white/45 mt-1'>{data.season}</p>
+					</div>
+				</div>
 			</header>
 
 			<div className='flex justify-center gap-2 mb-6 flex-wrap'>
@@ -308,22 +524,41 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 				))}
 			</div>
 
-			<div className='flex-1 flex flex-col items-center justify-center max-w-2xl mx-auto w-full relative'>
-				<AnimatePresence mode='wait'>
-					<motion.div
-						key={currentSlideId}
-						initial={{ opacity: 0, x: 28 }}
-						animate={{ opacity: 1, x: 0 }}
-						exit={{ opacity: 0, x: -28 }}
-						transition={{ duration: 0.22 }}
-						className='w-full'>
-						<SlideFrame footerUrl={data.wrappedUrl} slideRef={slideRef}>
+			<div className='flex-1 flex flex-col items-center justify-center max-w-2xl mx-auto w-full min-w-0 relative overflow-x-hidden'>
+				<div className='relative w-full min-w-0 overflow-x-hidden'>
+					<AnimatePresence mode='wait'>
+						<motion.div
+							key={currentSlideId}
+							initial={{ opacity: 0 }}
+							animate={{ opacity: 1 }}
+							exit={{ opacity: 0 }}
+							transition={{ duration: 0.2 }}
+							className='w-full min-w-0'
+						onPointerDown={onPointerDownSwipe}
+						onPointerUp={onPointerUpSwipe}
+						onPointerCancel={onPointerCancelSwipe}
+						onTouchStart={onTouchStartSwipe}
+						onTouchEnd={onTouchEndSwipe}
+						data-testid='wrapped-slide-swipe-area'>
+						<SlideFrame
+							footerUrl={data.wrappedUrl}
+							slideRef={slideRef}
+							topRight={
+								currentSlideId === 10 ? (
+									<img
+										src='/icons/veo.svg'
+										alt='Veo'
+										className='h-7 w-auto opacity-95 brightness-0 invert md:h-8'
+									/>
+								) : undefined
+							}>
 							{renderSlide()}
 						</SlideFrame>
-					</motion.div>
-				</AnimatePresence>
+						</motion.div>
+					</AnimatePresence>
+				</div>
 
-				<div className='flex flex-wrap items-center justify-center gap-3 mt-8'>
+				<div className='flex flex-wrap items-center justify-center gap-3 mt-8' data-wrapped-no-swipe>
 					<button
 						type='button'
 						onClick={() => go(-1)}
@@ -342,7 +577,7 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 						slideRef={slideRef}
 						playerName={data.playerName}
 						slideNumber={currentSlideId}
-						playerSlug={playerSlug}
+						shareUrl={data.wrappedUrl}
 					/>
 				</div>
 			</div>

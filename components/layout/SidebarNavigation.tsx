@@ -19,6 +19,7 @@ import Button from "@/components/ui/Button";
 import { useState, useEffect, useMemo } from "react";
 import { getPlayerProfileHref } from "@/lib/profile/slug";
 import { isDevelopBranchDeploy } from "@/lib/utils/isDevelopBranchDeploy";
+import { usePathname } from "next/navigation";
 
 interface SidebarNavigationProps {
 	onSettingsClick: () => void;
@@ -86,11 +87,13 @@ export default function SidebarNavigation({
 		selectedPlayer,
 		isPlayerSelected,
 	} = useNavigationStore();
+	const pathname = usePathname();
 	const [showTooltip, setShowTooltip] = useState(false);
 	const [showFilterTooltip, setShowFilterTooltip] = useState(false);
 	const [hasAnimated, setHasAnimated] = useState(false);
 	const [isMounted, setIsMounted] = useState(false);
 	const showDevBadge = isDevelopBranchDeploy() && currentMainPage === "home";
+	const isProfileRoute = pathname?.startsWith("/profile/") ?? false;
 
 	// Calculate active filter count
 	const activeFilterCount = useMemo(() => {
@@ -289,6 +292,9 @@ export default function SidebarNavigation({
 
 	const handleLogoClick = () => {
 		setMainPage("home");
+		if (typeof window !== "undefined" && window.location.pathname !== "/") {
+			window.location.href = "/";
+		}
 	};
 
 	const handleSubPageClick = (mainPageId: MainPage, subPageId: string) => {
@@ -299,6 +305,9 @@ export default function SidebarNavigation({
 			setTOTWSubPage(subPageId as TOTWSubPage);
 		} else if (mainPageId === "club-info") {
 			setClubInfoSubPage(subPageId as ClubInfoSubPage);
+		}
+		if (typeof window !== "undefined" && window.location.pathname !== "/") {
+			window.location.href = "/";
 		}
 	};
 
@@ -313,7 +322,7 @@ export default function SidebarNavigation({
 		return false;
 	};
 
-	const showProfileIcon = currentMainPage === "home" && isPlayerSelected && !!selectedPlayer;
+	const showProfileIcon = isProfileRoute || (isPlayerSelected && !!selectedPlayer);
 
 	const handleProfileClick = () => {
 		if (!selectedPlayer) return;
@@ -354,7 +363,7 @@ export default function SidebarNavigation({
 					</motion.button>
 
 					{/* Action Icons */}
-					<div className='flex items-center justify-center space-x-2 w-full'>
+					<div className='flex items-center justify-center gap-1 w-full'>
 						{/* Burger Menu Icon - only show on stats pages */}
 						{showMenuIcon && onMenuClick && (
 							<div className='relative'>
@@ -434,12 +443,14 @@ export default function SidebarNavigation({
 							<motion.button
 								data-testid='nav-sidebar-profile'
 								onClick={handleProfileClick}
-								className='p-2 rounded-full transition-colors flex items-center justify-center hover:bg-[var(--color-surface)]'
+								className={`p-2 rounded-full transition-colors flex items-center justify-center ${
+									isProfileRoute ? "bg-dorkinians-yellow/20" : "hover:bg-[var(--color-surface)]"
+								}`}
 								whileHover={{ scale: 1.1 }}
 								whileTap={{ scale: 0.9 }}
 								title='Open player profile'
 								aria-label='Open player profile'>
-								<UserCircleIcon className='w-7 h-7 text-[var(--color-text-primary)]' />
+								<UserCircleIcon className={`w-7 h-7 ${isProfileRoute ? "text-dorkinians-yellow-text" : "text-[var(--color-text-primary)]"}`} />
 							</motion.button>
 						)}
 
@@ -471,7 +482,7 @@ export default function SidebarNavigation({
 						// Check if any sub-page is active for this parent
 						const hasActiveSubPage = hasSubPages && item.subPages.some((subPage) => isSubPageActive(item.id, subPage.id));
 						// Parent is active if it's the current main page OR if any of its sub-pages is active
-						const isActive = (currentMainPage === item.id || hasActiveSubPage) && !isSettingsPage;
+						const isActive = !isProfileRoute && (currentMainPage === item.id || hasActiveSubPage) && !isSettingsPage;
 
 						return (
 							<div key={item.id} className='space-y-1'>
@@ -490,6 +501,9 @@ export default function SidebarNavigation({
 											} else if (item.id === "club-info") {
 												setClubInfoSubPage("club-information");
 											}
+										if (typeof window !== "undefined" && window.location.pathname !== "/") {
+											window.location.href = "/";
+										}
 										}}
 										className={`group w-full flex items-center space-x-3 px-3 py-2.5 justify-start rounded-2xl border-none outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${
 											isActive

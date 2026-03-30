@@ -1,9 +1,16 @@
+import type { Record as Neo4jRecord } from "neo4j-driver";
 import { neo4jService } from "@/lib/neo4j";
 import { classifyPlayerType } from "@/lib/wrapped/classifyPlayerType";
 import { distanceMilesToEquivalent } from "@/lib/wrapped/distanceEquivalent";
 import { percentileHigherIsBetter } from "@/lib/wrapped/percentile";
 import { playerNameToWrappedSlug } from "@/lib/wrapped/slug";
-import type { WrappedData } from "@/lib/wrapped/types";
+import type { WrappedData, WrappedVeoFixture } from "@/lib/wrapped/types";
+import {
+	fetchDorkiniansLeagueFinishForTeamSeason,
+	fixtureDisplayTeamToLeagueTableKey,
+	isCupTieAdvanced,
+} from "@/lib/wrapped/wrappedTeamSeason";
+import { CYPHER_FIXTURE_VEOLINK_COALESCE } from "@/lib/utils/neo4jVeoLink";
 
 function toNumber(value: unknown): number {
 	if (value === null || value === undefined) return 0;
@@ -23,6 +30,32 @@ function seasonVariants(season: string): { seasonNorm: string; seasonHyphen: str
 		seasonNorm: trim.replace(/-/g, "/"),
 		seasonHyphen: trim.replace(/\//g, "-"),
 	};
+}
+
+function normalizeSeasonLabel(raw: string): string {
+	return raw.trim().replace(/-/g, "/");
+}
+
+function seasonsEquivalent(a: string, b: string): boolean {
+	const va = seasonVariants(normalizeSeasonLabel(a));
+	const vb = seasonVariants(normalizeSeasonLabel(b));
+	return va.seasonNorm === vb.seasonNorm;
+}
+
+function parseSeasonStartYear(label: string): number {
+	const norm = normalizeSeasonLabel(label);
+	const m = norm.match(/^(\d{4})/);
+	return m ? parseInt(m[1], 10) : 0;
+}
+
+/** Newest first (by leading calendar year, then lexicographic tie-break). */
+function sortSeasonsDesc(unique: string[]): string[] {
+	return [...unique].sort((a, b) => {
+		const ya = parseSeasonStartYear(a);
+		const yb = parseSeasonStartYear(b);
+		if (yb !== ya) return yb - ya;
+		return normalizeSeasonLabel(b).localeCompare(normalizeSeasonLabel(a));
+	});
 }
 
 type ClubRow = { nm: string; apps: number; mins: number; goals: number; assists: number; cs: number };
@@ -94,12 +127,7 @@ export async function computeWrappedData(options: {
 	}
 
 	const graphLabel = neo4jService.getGraphLabel();
-	const { seasonNorm, seasonHyphen } = seasonVariants(
-		options.season?.trim() || (await fetchCurrentSeason(graphLabel)) || "",
-	);
-	if (!seasonNorm) {
-		return { error: "Season not configured", status: 503 };
-	}
+	const siteCurrentSeasonRaw = await fetchCurrentSeason(graphLabel);
 
 	const playerCheck = await neo4jService.runQuery(
 		`
@@ -137,6 +165,50 @@ export async function computeWrappedData(options: {
 		bestPartnerRaw != null && String(bestPartnerRaw).trim() !== "" ? String(bestPartnerRaw) : "—";
 	const topPartnerWinRate = Math.round(toNumber(pr.get("bestPartnerWinRate")) * 10) / 10;
 	const topPartnerMatches = Math.round(toNumber(pr.get("bestPartnerMatches")));
+
+	const seasonsRes = await neo4jService.runQuery(
+		`
+		MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
+		MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+		MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+		WITH DISTINCT f.season AS raw
+		WHERE raw IS NOT NULL AND trim(toString(raw)) <> ''
+		RETURN collect(DISTINCT toString(raw)) AS seasons
+		`,
+		{ graphLabel, playerName },
+	);
+
+	const rawSeasons = seasonsRes.records[0]?.get("seasons");
+	const seasonSet = new Set<string>();
+	if (Array.isArray(rawSeasons)) {
+		for (const item of rawSeasons) {
+			if (item == null) continue;
+			const n = normalizeSeasonLabel(String(item));
+			if (n) seasonSet.add(n);
+		}
+	}
+	const seasonsAvailable = sortSeasonsDesc(Array.from(seasonSet));
+	if (seasonsAvailable.length === 0) {
+		return { error: "No appearances recorded", status: 404 };
+	}
+
+	const requested = options.season?.trim();
+	let effectiveNorm: string | null = null;
+	if (requested) {
+		effectiveNorm = seasonsAvailable.find((s) => seasonsEquivalent(s, requested)) ?? null;
+	}
+	if (!effectiveNorm && siteCurrentSeasonRaw) {
+		const curNorm = normalizeSeasonLabel(siteCurrentSeasonRaw);
+		effectiveNorm = seasonsAvailable.find((s) => seasonsEquivalent(s, curNorm)) ?? null;
+	}
+	if (!effectiveNorm) {
+		effectiveNorm = seasonsAvailable[0] ?? null;
+	}
+	if (!effectiveNorm) {
+		return { error: "Season not configured", status: 503 };
+	}
+
+	const { seasonNorm, seasonHyphen } = seasonVariants(effectiveNorm);
 
 	const seasonAgg = await neo4jService.runQuery(
 		`
@@ -259,6 +331,113 @@ export async function computeWrappedData(options: {
 	const longestStreakType = streakPick && streakPick.value >= 3 ? `${streakPick.type} streak` : null;
 	const longestStreakValue = streakPick && streakPick.value >= 3 ? streakPick.value : null;
 
+	const veoRes = await neo4jService.runQuery(
+		`
+		MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
+		MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+		MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+		WHERE (f.season = $seasonNorm OR f.season = $seasonHyphen)
+		WITH f
+		WHERE (${CYPHER_FIXTURE_VEOLINK_COALESCE}) IS NOT NULL
+		RETURN coalesce(toString(f.id), '') AS fixtureId,
+			coalesce(f.team, '') AS team,
+			coalesce(f.opposition, '') AS opposition,
+			coalesce(toString(f.date), '') AS date,
+			coalesce(f.result, '') AS result,
+			coalesce(f.dorkiniansGoals, 0) AS goalsScored,
+			coalesce(f.conceded, 0) AS goalsConceded,
+			${CYPHER_FIXTURE_VEOLINK_COALESCE} AS veoLink
+		ORDER BY f.date DESC
+		`,
+		{ graphLabel, playerName, seasonNorm, seasonHyphen },
+	);
+
+	const veoFixtures: WrappedVeoFixture[] = veoRes.records
+		.map((rec: Neo4jRecord) => ({
+			fixtureId: rec.get("fixtureId") != null ? String(rec.get("fixtureId")) : "",
+			team: rec.get("team") != null ? String(rec.get("team")) : "",
+			opposition: rec.get("opposition") != null ? String(rec.get("opposition")) : "",
+			date: rec.get("date") != null ? String(rec.get("date")) : "",
+			result: rec.get("result") != null ? String(rec.get("result")) : "",
+			goalsScored: Math.round(toNumber(rec.get("goalsScored"))),
+			goalsConceded: Math.round(toNumber(rec.get("goalsConceded"))),
+			veoLink: rec.get("veoLink") != null ? String(rec.get("veoLink")).trim() : "",
+		}))
+		.filter((row: WrappedVeoFixture) => row.veoLink.length > 0);
+
+	const dominantRes = await neo4jService.runQuery(
+		`
+		MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
+		MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+		MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+		WHERE (f.season = $seasonNorm OR f.season = $seasonHyphen)
+		  AND coalesce(md.minutes, 0) > 0
+		  AND NOT coalesce(f.status, '') IN ['Void', 'Postponed', 'Abandoned']
+		WITH coalesce(f.team, '') AS team, count(*) AS apps, sum(coalesce(md.minutes, 0)) AS mins
+		WHERE trim(team) <> ''
+		RETURN team, apps, mins
+		ORDER BY apps DESC, mins DESC, team ASC
+		LIMIT 1
+		`,
+		{ graphLabel, playerName, seasonNorm, seasonHyphen },
+	);
+	const domRec = dominantRes.records[0];
+	const wrappedDominantTeam =
+		domRec?.get("team") != null ? String(domRec.get("team")).trim() : "";
+
+	const leaguePtsRes = await neo4jService.runQuery(
+		`
+		MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
+		MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+		MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+		WHERE (f.season = $seasonNorm OR f.season = $seasonHyphen)
+		  AND coalesce(md.minutes, 0) > 0
+		  AND NOT coalesce(f.status, '') IN ['Void', 'Postponed', 'Abandoned']
+		  AND toLower(trim(f.compType)) = 'league'
+		RETURN sum(
+			CASE
+				WHEN trim(toUpper(coalesce(f.result, ''))) = 'W'
+					OR trim(toUpper(coalesce(f.result, ''))) STARTS WITH 'WIN' THEN 3
+				WHEN trim(toUpper(coalesce(f.result, ''))) = 'D'
+					OR trim(toUpper(coalesce(f.result, ''))) STARTS WITH 'DRA' THEN 1
+				ELSE 0
+			END
+		) AS leaguePts
+		`,
+		{ graphLabel, playerName, seasonNorm, seasonHyphen },
+	);
+	const wrappedLeaguePointsContributed = Math.round(toNumber(leaguePtsRes.records[0]?.get("leaguePts")));
+
+	const cupRowsRes = await neo4jService.runQuery(
+		`
+		MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
+		MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+		MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+		WHERE (f.season = $seasonNorm OR f.season = $seasonHyphen)
+		  AND coalesce(md.minutes, 0) > 0
+		  AND NOT coalesce(f.status, '') IN ['Void', 'Postponed', 'Abandoned']
+		  AND toLower(trim(f.compType)) = 'cup'
+		RETURN coalesce(f.result, '') AS result, coalesce(f.fullResult, '') AS fullResult
+		`,
+		{ graphLabel, playerName, seasonNorm, seasonHyphen },
+	);
+	let wrappedCupTiesAdvanced = 0;
+	for (const rec of cupRowsRes.records) {
+		const result = rec.get("result") != null ? String(rec.get("result")) : "";
+		const fullResult = rec.get("fullResult") != null ? String(rec.get("fullResult")) : "";
+		if (isCupTieAdvanced(result, fullResult)) wrappedCupTiesAdvanced++;
+	}
+
+	const leagueKey = fixtureDisplayTeamToLeagueTableKey(wrappedDominantTeam);
+	const leagueFinish = await fetchDorkiniansLeagueFinishForTeamSeason({
+		graphLabel,
+		seasonNorm,
+		seasonHyphen,
+		leagueTableTeamKey: leagueKey,
+	});
+	const wrappedDominantTeamLeaguePosition = leagueFinish.position;
+	const wrappedDominantTeamLeagueDivision = leagueFinish.division;
+
 	const { type: playerType, reason: playerTypeReason } = classifyPlayerType({
 		numberTeamsPlayedFor,
 		percentiles,
@@ -266,12 +445,14 @@ export async function computeWrappedData(options: {
 
 	const slug = playerNameToWrappedSlug(playerName);
 	const base = options.sitePublicOrigin.replace(/\/$/, "");
-	const wrappedUrl = `${base}/wrapped/${slug}`;
 	const seasonLabel = seasonNorm;
+	const wrappedUrl = `${base}/wrapped/${slug}?season=${encodeURIComponent(seasonLabel)}`;
 
 	const data: WrappedData = {
 		playerName,
 		season: seasonLabel,
+		seasonsAvailable,
+		veoFixtures,
 		totalMatches,
 		totalGoals,
 		totalAssists,
@@ -294,6 +475,11 @@ export async function computeWrappedData(options: {
 		totalDistance,
 		distanceEquivalent: distanceMilesToEquivalent(totalDistance),
 		wrappedUrl,
+		wrappedLeaguePointsContributed,
+		wrappedCupTiesAdvanced,
+		wrappedDominantTeam,
+		wrappedDominantTeamLeaguePosition,
+		wrappedDominantTeamLeagueDivision,
 	};
 
 	return { data };
