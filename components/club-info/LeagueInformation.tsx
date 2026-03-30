@@ -9,6 +9,7 @@ import { useNavigationStore } from "@/lib/stores/navigation";
 import { cachedFetch, generatePageCacheKey } from "@/lib/utils/pageCache";
 import LeagueResultsModal from "./LeagueResultsModal";
 import FixtureExpandedDetails, { type FixtureLineupPlayer } from "./FixtureExpandedDetails";
+import VeoWatchMatchButtons from "./VeoWatchMatchButtons";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LabelList } from "recharts";
 import { getDivisionValueFromMapping, getStandardizedDivisionName } from "@/config/divisionMapping";
 import { SkeletonTheme } from "react-loading-skeleton";
@@ -1772,52 +1773,50 @@ export default function LeagueInformation() {
 												) : !latestFixture ? (
 													<div className='text-sm text-gray-400'>No latest result data available.</div>
 												) : (
-													<>
-														<div className='rounded-lg border border-white/10 bg-gray-800/50 p-3'>
-															<div className='mb-2 flex flex-wrap items-center justify-between gap-2'>
-																<span className='text-sm text-gray-400'>{formatDate(latestFixture.date)}</span>
-																<div className='flex items-center gap-2'>
-																	{latestFixture.compType ? (
-																		<span className='px-2 py-1 rounded text-xs font-medium bg-blue-600/30 text-blue-300'>{latestFixture.compType}</span>
-																	) : null}
-																	<span
-																		className={`px-2 py-1 rounded text-xs font-medium ${
-																			latestFixture.homeOrAway?.toLowerCase() === "home"
-																				? "bg-dorkinians-yellow/20 text-dorkinians-yellow"
-																				: "bg-gray-700 text-gray-300"
-																		}`}>
-																		{latestFixture.homeOrAway || "N/A"}
-																	</span>
-																</div>
-															</div>
-															<div className='text-lg font-semibold text-white mb-2'>
-																{formatFixtureResult(latestFixture)}{" "}
-																<span className='text-base font-normal'>
-																	vs <span className='font-medium'>{latestFixture.opposition || "Unknown"}</span>
+													<div className='space-y-3'>
+														<div className='mb-2 flex flex-wrap items-center justify-between gap-2'>
+															<span className='text-sm text-gray-400'>{formatDate(latestFixture.date)}</span>
+															<div className='flex items-center gap-2'>
+																{latestFixture.compType ? (
+																	<span className='px-2 py-1 rounded text-xs font-medium bg-blue-600/30 text-blue-300'>{latestFixture.compType}</span>
+																) : null}
+																<span
+																	className={`px-2 py-1 rounded text-xs font-medium ${
+																		latestFixture.homeOrAway?.toLowerCase() === "home"
+																			? "bg-dorkinians-yellow/20 text-dorkinians-yellow"
+																			: "bg-gray-700 text-gray-300"
+																	}`}>
+																	{latestFixture.homeOrAway || "N/A"}
 																</span>
 															</div>
-															{goalscorersText ? (
-																<div className='text-sm text-gray-300 mt-2'>
-																	<span className='text-gray-400'>Goalscorers: </span>
-																	{goalscorersText}
-																</div>
-															) : null}
-															{latestFixture.momPlayerName ? (
-																<div className='text-sm text-gray-300 mt-2'>
-																	<span className='text-gray-400'>MoM: </span>
-																	{latestFixture.momPlayerName}
-																</div>
-															) : null}
 														</div>
-														<div className='mt-3 rounded-lg border border-white/10 bg-gray-800/40'>
-															<FixtureExpandedDetails
-																lineup={latestLineup}
-																loading={false}
-																veoLink={latestFixture.veoLink}
-																testIdPrefix={`latest-result-${teamKey}`}
-															/>
+														<div className='text-lg font-semibold text-white'>
+															{formatFixtureResult(latestFixture)}{" "}
+															<span className='text-base font-normal'>
+																vs <span className='font-medium'>{latestFixture.opposition || "Unknown"}</span>
+															</span>
 														</div>
-													</>
+														{goalscorersText ? (
+															<div className='text-sm text-gray-300'>
+																<span className='text-gray-400'>Goalscorers: </span>
+																{goalscorersText}
+															</div>
+														) : null}
+														{latestFixture.momPlayerName ? (
+															<div className='text-sm text-gray-300'>
+																<span className='text-gray-400'>MoM: </span>
+																{latestFixture.momPlayerName}
+															</div>
+														) : null}
+														<VeoWatchMatchButtons veoLink={latestFixture.veoLink} testIdPrefix={`latest-result-${teamKey}`} />
+														<FixtureExpandedDetails
+															lineup={latestLineup}
+															loading={false}
+															veoLink={latestFixture.veoLink}
+															suppressVeoLink
+															testIdPrefix={`latest-result-${teamKey}`}
+														/>
+													</div>
 												)}
 											</div>
 											{/* League Table Link and Show Results - shown per team */}

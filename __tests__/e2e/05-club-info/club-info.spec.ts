@@ -333,7 +333,7 @@ test.describe("Club Info Page Tests", () => {
 		await toggleDetails.click();
 		await expect(latestPanel.locator("[data-testid$='-full-details-table']").first()).toBeVisible({ timeout: 10000 });
 
-		const veoLink = latestPanel.getByRole("link", { name: /Watch on Veo/i }).first();
+		const veoLink = latestPanel.getByRole("link", { name: /watch match/i }).first();
 		if (await veoLink.isVisible({ timeout: 2000 }).catch(() => false)) {
 			expect(await veoLink.getAttribute("target")).toBe("_blank");
 			expect((await veoLink.getAttribute("rel")) || "").toContain("noopener");

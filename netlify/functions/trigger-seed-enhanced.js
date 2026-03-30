@@ -278,6 +278,11 @@ exports.handler = async (event, context) => {
 			blueGreenCutover: true,
 			...(requestBody.seasonConfig || {}),
 		};
+		const debug =
+			requestBody.debug === true ||
+			requestBody.debug === "true" ||
+			seasonConfig.debug === true ||
+			seasonConfig.debug === "true";
 
 		// Detect if this is a cron job call (no email config) and set defaults
 		const isCronJob = !requestBody.emailConfig || Object.keys(requestBody.emailConfig).length === 0;
@@ -290,6 +295,7 @@ exports.handler = async (event, context) => {
 
 		console.log("📧 TRIGGER: Final email configuration:", emailConfig);
 		console.log(`🗓️ TRIGGER: Season configuration:`, JSON.stringify(seasonConfig, null, 2));
+		console.log(`🔧 TRIGGER: Debug configuration received: ${debug ? "ENABLED ✅" : "DISABLED ❌"}`);
 
 		// Generate unique job ID
 		const jobId = `seed_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -425,7 +431,8 @@ exports.handler = async (event, context) => {
 									emailConfig.sendEmailAtCompletion ?? (!isCronJob ? true : false)
 								),
 							},
-							seasonConfig,
+							seasonConfig: { ...seasonConfig, debug },
+							debug,
 							triggerSource: isCronJob ? "cron" : "admin",
 						}),
 					},
