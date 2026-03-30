@@ -784,7 +784,7 @@ export default function LeagueInformation() {
 	return (
 		<div
 			ref={containerRef}
-			className='px-3 md:px-6 pt-2 md:pt-4 pb-6 md:max-w-2xl md:mx-auto w-full'
+			className='w-full px-3 pt-2 pb-6 md:px-4 md:pt-4 lg:px-6'
 			style={{ WebkitOverflowScrolling: "touch" }}>
 			<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-4 text-center'>League Information</h2>
 
@@ -864,7 +864,7 @@ export default function LeagueInformation() {
 				selectedSeason !== "season-progress" && (
 					<>
 						{!leagueData || loading || appConfig.forceSkeletonView ? (
-							<div className='sticky top-0 z-20 py-2 -mx-3 md:-mx-6'>
+							<div className='sticky top-0 z-20 py-2 -mx-3 md:-mx-4 lg:-mx-6'>
 								<SkeletonTheme baseColor='var(--skeleton-base)' highlightColor='var(--skeleton-highlight)'>
 									<div className='flex flex-wrap justify-center gap-2 md:gap-3 px-2'>
 										{["1s", "2s", "3s", "4s", "5s", "6s", "7s", "8s"].map((teamKey) => (
@@ -876,7 +876,7 @@ export default function LeagueInformation() {
 						) : (
 							<div
 								ref={stickyNavRef}
-								className={`sticky top-0 z-20 py-2 -mx-3 md:-mx-6 transition-all duration-200 ${isSticky ? "bg-[#617867]" : ""}`}>
+								className={`sticky top-0 z-20 py-2 -mx-3 md:-mx-4 lg:-mx-6 transition-all duration-200 ${isSticky ? "bg-[#617867]" : ""}`}>
 								<div className='flex flex-wrap justify-center gap-2 md:gap-3 px-2'>
 									{(() => {
 										// Priority: 1st XI (P1), 2nd XI (P2), then others in order (P3)
@@ -1030,7 +1030,7 @@ export default function LeagueInformation() {
 									)}
 
 									{hasTableData ? (
-										<div className='overflow-x-auto -mx-3 md:-mx-6 px-3 md:px-6'>
+										<div className='overflow-x-auto -mx-3 md:-mx-4 lg:-mx-6 px-3 md:px-4 lg:px-6'>
 											<table className='w-full bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden'>
 												<thead className='sticky top-0 z-10'>
 													<tr className='bg-white/20'>
@@ -1642,7 +1642,7 @@ export default function LeagueInformation() {
 				!error &&
 				leagueData &&
 				selectedSeason !== "2019-20" && (
-					<div className='space-y-8'>
+					<div className='space-y-8 md:space-y-0 player-stats-masonry'>
 						{/* Display tables for each team */}
 						{(() => {
 							// Priority: 1st XI (P1), 2nd XI (P2), then others in order (P3)
@@ -1764,7 +1764,7 @@ export default function LeagueInformation() {
 								);
 
 								return (
-									<Fragment key={teamKey}>
+									<div key={teamKey} className='w-full md:break-inside-avoid md:mb-4'>
 										<div className='w-full'>
 											<h3 id={`team-${teamKey}`} className='text-lg md:text-xl font-bold text-dorkinians-yellow mb-2 text-center'>
 												{teamDisplayName}
@@ -1784,7 +1784,7 @@ export default function LeagueInformation() {
 
 											{hasTableData ? (
 												<div className='lg:grid lg:grid-cols-2 lg:items-start lg:gap-6'>
-													<div className='min-w-0 overflow-x-auto -mx-3 md:-mx-6 px-3 md:px-6 lg:mx-0 lg:px-0'>
+													<div className='min-w-0 overflow-x-auto -mx-3 md:-mx-4 lg:-mx-6 px-3 md:px-4 lg:px-6 lg:mx-0 lg:px-0'>
 														<table className='w-full bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden'>
 															<thead className='sticky top-0 z-10'>
 																<tr className='bg-white/20'>
@@ -1859,8 +1859,8 @@ export default function LeagueInformation() {
 												</div>
 											)}
 										</div>
-										{teamIndex < allTeams.length - 1 && <hr className='border-t border-white/20 my-8' />}
-									</Fragment>
+										{teamIndex < allTeams.length - 1 && <hr className='border-t border-white/20 my-8 md:hidden' />}
+									</div>
 								);
 							});
 						})()}
