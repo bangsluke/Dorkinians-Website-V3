@@ -97,6 +97,21 @@ function formatTeamRecordingScore(result: string, goalsFor: number, goalsAgainst
 	return `${goalsFor}-${goalsAgainst}`;
 }
 
+/** Competition pill — matches League Information / modal styling. */
+function recordingCompBadgeClass(compType: string): string {
+	const c = (compType || "").trim().toLowerCase();
+	if (c === "league") return "bg-blue-600/30 text-blue-300";
+	if (c === "cup") return "bg-purple-600/30 text-purple-300";
+	return "bg-green-600/30 text-green-300";
+}
+
+/** Home / away pill — matches Latest Result styling. */
+function recordingLocBadgeClass(homeOrAway: string): string {
+	return homeOrAway?.trim().toLowerCase() === "home"
+		? "bg-dorkinians-yellow/20 text-dorkinians-yellow"
+		: "bg-gray-700 text-gray-300";
+}
+
 function StatRow({ stat, value, teamData }: { stat: any; value: any; teamData: TeamData }) {
 	const [showTooltip, setShowTooltip] = useState(false);
 	const [tooltipPosition, setTooltipPosition] = useState<{ top: number; left: number; placement: 'above' | 'below' } | null>(null);
@@ -2293,40 +2308,68 @@ export default function TeamStats() {
 
 								{/* Team Recordings — only when ≥1 fixture has a Veo/video link for this team + filters */}
 								{selectedTeam && teamRecordings.length > 0 && (
-									<div id='team-recordings' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
-										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Team Recordings</h3>
-										<p className='text-white/70 text-xs md:text-sm mb-3'>
+									<div id='team-recordings' className='relative bg-white/10 backdrop-blur-sm rounded-lg p-2 pt-3 md:p-4 md:break-inside-avoid md:mb-4'>
+										<div className='absolute right-2 top-2 md:right-3 md:top-3'>
+											{/* eslint-disable-next-line @next/next/no-img-element -- static brand SVG from public */}
+											<img src='/icons/veo.svg' alt='Veo' className='h-5 w-auto opacity-90 brightness-0 invert md:h-6' />
+										</div>
+										<h3 className='text-white font-semibold text-sm md:text-base mb-2 pr-14'>Team Recordings</h3>
+										<p className='text-white/70 text-xs md:text-sm mb-3 pr-14'>
 											All matches with a recording link for the selected team and current filters.
 										</p>
-										<div className='overflow-x-auto'>
-											<table className='w-full text-white text-sm min-w-[640px]'>
+										<div className='w-full overflow-x-auto'>
+											<table className='w-full table-fixed text-white text-[10px] sm:text-xs md:text-sm'>
+												<colgroup>
+													<col className='w-[22%] sm:w-[18%]' />
+													<col className='w-[14%] sm:w-[12%]' />
+													<col className='w-[14%] sm:w-[12%]' />
+													<col className='w-[26%] sm:w-[28%]' />
+													<col className='w-[14%] sm:w-[14%]' />
+													<col className='w-[10%] sm:w-[18%]' />
+												</colgroup>
 												<thead>
 													<tr className='border-b border-white/20 bg-white/5'>
-														<th className='text-left py-2 px-2 font-semibold'>Date</th>
-														<th className='text-left py-2 px-2 font-semibold'>Season</th>
-														<th className='text-left py-2 px-2 font-semibold'>H/A</th>
-														<th className='text-left py-2 px-2 font-semibold'>Comp</th>
-														<th className='text-left py-2 px-2 font-semibold'>Opponent</th>
-														<th className='text-left py-2 px-2 font-semibold'>Result</th>
-														<th className='text-left py-2 px-2 font-semibold'>Recording</th>
+														<th className='text-left py-1.5 px-1 sm:py-2 sm:px-2 font-semibold'>Date</th>
+														<th className='text-left py-1.5 px-1 sm:py-2 sm:px-2 font-semibold'>Loc</th>
+														<th className='text-left py-1.5 px-1 sm:py-2 sm:px-2 font-semibold'>Comp</th>
+														<th className='text-left py-1.5 px-1 sm:py-2 sm:px-2 font-semibold'>Opponent</th>
+														<th className='text-left py-1.5 px-1 sm:py-2 sm:px-2 font-semibold'>Result</th>
+														<th className='text-center py-1.5 px-0.5 sm:py-2 sm:px-2 font-semibold'>Match</th>
 													</tr>
 												</thead>
 												<tbody>
 													{teamRecordings.map((fx, idx) => (
-														<tr key={fx.fixtureId || `${fx.date}-${fx.opposition}-${idx}`} className='border-b border-white/10 align-top'>
-															<td className='py-2 px-2 whitespace-nowrap'>{formatTeamRecordingDate(fx.date)}</td>
-															<td className='py-2 px-2'>{fx.season || "—"}</td>
-															<td className='py-2 px-2'>{fx.homeOrAway || "—"}</td>
-															<td className='py-2 px-2'>{fx.compType || "—"}</td>
-															<td className='py-2 px-2 max-w-[200px]'>{fx.opposition || "—"}</td>
-															<td className='py-2 px-2 whitespace-nowrap font-mono'>
+														<tr key={fx.fixtureId || `${fx.date}-${fx.opposition}-${idx}`} className='border-b border-white/10 align-middle'>
+															<td className='py-1.5 px-1 sm:py-2 sm:px-2 leading-tight'>{formatTeamRecordingDate(fx.date)}</td>
+															<td className='py-1.5 px-1 sm:py-2 sm:px-2'>
+																<span
+																	className={`inline-block max-w-full truncate rounded px-1.5 py-0.5 text-[9px] sm:text-xs font-medium ${recordingLocBadgeClass(fx.homeOrAway)}`}
+																	title={fx.homeOrAway || ""}>
+																	{fx.homeOrAway || "—"}
+																</span>
+															</td>
+															<td className='py-1.5 px-1 sm:py-2 sm:px-2'>
+																<span
+																	className={`inline-block max-w-full truncate rounded px-1.5 py-0.5 text-[9px] sm:text-xs font-medium ${recordingCompBadgeClass(fx.compType)}`}
+																	title={fx.compType || ""}>
+																	{fx.compType || "—"}
+																</span>
+															</td>
+															<td
+																className='py-1.5 px-1 sm:py-2 sm:px-2 truncate'
+																title={fx.opposition || ""}>
+																{fx.opposition || "—"}
+															</td>
+															<td className='py-1.5 px-1 sm:py-2 sm:px-2 font-mono whitespace-nowrap'>
 																{formatTeamRecordingScore(fx.result, fx.goalsScored, fx.goalsConceded)}
 															</td>
-															<td className='py-2 px-2'>
+															<td className='py-1 px-0.5 sm:py-2 sm:px-1 text-center'>
 																<VeoWatchMatchButtons
 																	veoLink={fx.veoLink}
 																	testIdPrefix={`team-recording-${fx.fixtureId || idx}`}
-																	className='!justify-start'
+																	hideLogo
+																	compact
+																	className='!justify-center'
 																/>
 															</td>
 														</tr>
