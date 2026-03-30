@@ -293,18 +293,20 @@ export default function ClubInformation() {
 			<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-4 text-center'>Club Information</h2>
 
 			<div className='lg:grid lg:grid-cols-2 lg:items-start lg:gap-6'>
-				<div className='min-w-0 space-y-8'>
+				<div data-testid='club-information-left-column' className='min-w-0 space-y-8'>
 					{/* Info Section */}
 					<div>
+						<h3 className='text-lg md:text-xl font-bold text-dorkinians-yellow mb-4 text-center lg:text-left'>Club Details</h3>
 						<p className='text-sm md:text-base text-white mb-4 text-center lg:text-left'>
 							Formed in 1930, Dorkinian F.C. is the greatest football club in the world, dominating Surrey football from youth to senior level.
 						</p>
-						<div className='text-center lg:text-left'>
+						<div className='flex justify-center items-center'>
 							<a
 								href='https://www.google.com/maps?saddr=My+Location&daddr=Pixham+Lane+Sports+Ground,+72+B2038,+Dorking+RH4+1PQ'
 								target='_blank'
 								rel='noopener noreferrer'
-								className='text-dorkinians-yellow hover:text-yellow-400 underline transition-colors text-sm md:text-base'>
+								className='inline-flex items-center gap-2 text-dorkinians-yellow hover:text-yellow-400 underline transition-colors text-sm md:text-base'>
+								<Image src='/icons/googlemaps.svg' alt='' width={24} height={24} className='shrink-0 h-6 w-6' aria-hidden />
 								Navigate to Pixham
 							</a>
 						</div>
@@ -343,16 +345,9 @@ export default function ClubInformation() {
 					<p className='text-sm text-gray-400 text-center py-4'>No league championships to display</p>
 				)}
 					</div>
-				</div>
 
-				<div className='min-w-0 space-y-8 mt-8 lg:mt-0'>
-					<RecordsSection />
-					<BadgeLeaderboardSection />
-				</div>
-			</div>
-
-			{/* Milestones Section — full width below two columns */}
-			<div className='mb-8 mt-8 lg:mt-10'>
+					{/* Milestones Section — left column below Club Achievements */}
+					<div>
 				<h3 className='text-lg md:text-xl font-bold text-dorkinians-yellow mb-4'>Milestones</h3>
 				
 				{/* Filter Dropdown */}
@@ -477,6 +472,13 @@ export default function ClubInformation() {
 				) : (
 					<p className='text-sm text-gray-400 text-center py-4'>No players nearing milestones</p>
 				)}
+				</div>
+					</div>
+				</div>
+
+				<div className='min-w-0 space-y-8 mt-8 lg:mt-0'>
+					<RecordsSection />
+					<BadgeLeaderboardSection />
 				</div>
 			</div>
 		</div>

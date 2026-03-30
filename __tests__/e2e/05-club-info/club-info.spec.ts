@@ -619,7 +619,7 @@ test.describe("Club Info Page Tests", () => {
 		expect(await first.getAttribute("rel")).toContain("noopener");
 	});
 
-	test("5.29. Records section is shown on Club Information above Milestones", async ({ page }) => {
+	test("5.29. Records and Milestones are shown on Club Information (desktop: Records in right column)", async ({ page }) => {
 		await navigateToMainPage(page, "club-info");
 		await goToClubInfoSubPage(page, "club-information");
 		await expect(page.getByRole("heading", { name: /Club Information/i })).toBeVisible({ timeout: 20000 });
@@ -629,9 +629,17 @@ test.describe("Club Info Page Tests", () => {
 		const milestonesHeading = page.getByRole("heading", { name: /^Milestones$/i }).first();
 		await expect(recordsHeading).toBeVisible({ timeout: 15000 });
 		await expect(milestonesHeading).toBeVisible({ timeout: 15000 });
-		const recordsTop = await recordsHeading.first().evaluate((el) => el.getBoundingClientRect().top);
-		const milestonesTop = await milestonesHeading.first().evaluate((el) => el.getBoundingClientRect().top);
-		expect(recordsTop).toBeLessThan(milestonesTop);
+		const vw = page.viewportSize()?.width ?? 0;
+		if (vw >= 1024) {
+			const leftCol = page.getByTestId("club-information-left-column");
+			await expect(leftCol).toBeVisible({ timeout: 10000 });
+			const leftBox = await leftCol.boundingBox();
+			const recBox = await section.boundingBox();
+			expect(leftBox && recBox).toBeTruthy();
+			if (leftBox && recBox) {
+				expect(recBox.x).toBeGreaterThanOrEqual(leftBox.x + leftBox.width * 0.25);
+			}
+		}
 	});
 
 	test("5.30. record holder name navigates to Player Stats when ClubRecord data exists", async ({ page }) => {

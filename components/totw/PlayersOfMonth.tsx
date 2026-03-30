@@ -978,7 +978,7 @@ export default function PlayersOfMonth() {
 	const isInitialLoading = seasons.length === 0;
 
 	return (
-		<div className='flex flex-col p-2 md:p-4 relative md:max-w-2xl md:mx-auto w-full'>
+		<div className='flex flex-col p-2 md:p-4 relative md:max-w-2xl md:mx-auto lg:max-w-6xl lg:mx-auto w-full'>
 			{/* Header */}
 			<div className='text-center mb-3'>
 				<h1 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-1'>Players of the Month</h1>
@@ -995,21 +995,21 @@ export default function PlayersOfMonth() {
 							<Skeleton height={36} width="100%" className="rounded-md" />
 						</div>
 					</div>
-					{/* This Months Top Players Section Skeleton */}
-					<div>
-						<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-							<div className='mb-4'>
-								<h2 className='text-lg md:text-xl font-bold text-dorkinians-yellow mb-1'>
-									<Skeleton height={24} width="60%" />
-								</h2>
+					<div className='lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start'>
+						<div className='min-w-0'>
+							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+								<div className='mb-4'>
+									<h2 className='text-lg md:text-xl font-bold text-dorkinians-yellow mb-1'>
+										<Skeleton height={24} width="60%" />
+									</h2>
+								</div>
+								<PlayersTableSkeleton />
 							</div>
-							<PlayersTableSkeleton />
 						</div>
-					</div>
-					{/* This Month FTP Ranking Section Skeleton */}
-					<div className='mt-8'>
-						<div className='bg-white/10 rounded-lg p-4 md:p-6'>
-							<RankingTableSkeleton />
+						<div className='min-w-0 mt-8 lg:mt-0'>
+							<div className='bg-white/10 rounded-lg p-4 md:p-6'>
+								<RankingTableSkeleton />
+							</div>
 						</div>
 					</div>
 				</SkeletonTheme>
@@ -1113,33 +1113,28 @@ export default function PlayersOfMonth() {
 				</div>
 			)}
 
-			{/* Loading Skeleton - Show when loading month data */}
-			{!isInitialLoading && (loading || loadingStats || appConfig.forceSkeletonView) && (
-				<div data-testid="loading-skeleton" className="mt-0">
-					<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-						{/* This Months Top Players Section Skeleton */}
-						<div className="mt-0">
-							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-								<div className='mb-4'>
-									<h2 className='text-lg md:text-xl font-bold text-dorkinians-yellow mb-1'>
-										<Skeleton height={24} width="60%" />
-									</h2>
-								</div>
-								<PlayersTableSkeleton />
+			{/* Main content: two columns on lg (top players | FTP) */}
+			{!isInitialLoading && (
+				<div className='lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start'>
+					<div className='min-w-0'>
+						{/* Loading Skeleton - Show when loading month data */}
+						{(loading || loadingStats || appConfig.forceSkeletonView) && (
+							<div data-testid="loading-skeleton" className='mt-0'>
+								<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+										<div className='mb-4'>
+											<h2 className='text-lg md:text-xl font-bold text-dorkinians-yellow mb-1'>
+												<Skeleton height={24} width="60%" />
+											</h2>
+										</div>
+										<PlayersTableSkeleton />
+									</div>
+								</SkeletonTheme>
 							</div>
-						</div>
-						{/* This Month FTP Ranking Section Skeleton */}
-						<div className='mt-8'>
-							<div className='bg-white/10 rounded-lg p-4 md:p-6'>
-								<RankingTableSkeleton />
-							</div>
-						</div>
-					</SkeletonTheme>
-				</div>
-			)}
+						)}
 
-			{/* Players Table */}
-			{!loading && !loadingStats && players.length > 0 && players.every((player) => playerStats[player.playerName] !== undefined) && (
+						{/* Players Table */}
+						{!loading && !loadingStats && players.length > 0 && players.every((player) => playerStats[player.playerName] !== undefined) && (
 				<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 					<div className='mb-4'>
 						<h2 className='text-lg md:text-xl font-bold text-dorkinians-yellow mb-1'>
@@ -1320,18 +1315,28 @@ export default function PlayersOfMonth() {
 					</table>
 					</div>
 				</div>
-			)}
+						)}
 
-			{/* Empty State - Only show when loading is complete and no players found */}
-			{!loading && !loadingStats && !isFetchingMonthData && !isMonthValidating && !isMonthValidatingRef.current && players.length === 0 && selectedSeason && selectedMonth && (
+						{/* Empty State - Only show when loading is complete and no players found */}
+						{!loading && !loadingStats && !isFetchingMonthData && !isMonthValidating && !isMonthValidatingRef.current && players.length === 0 && selectedSeason && selectedMonth && (
 				<div className='text-center py-2 text-gray-400'>
 					<p>No players found for {selectedMonth} {selectedSeason}</p>
 				</div>
-			)}
+						)}
+					</div>
 
-			{/* FTP Ranking Section */}
-			{!loading && !loadingStats && (
-				<div className='mt-4'>
+					<div className='min-w-0 mt-8 lg:mt-0'>
+						{(loading || loadingStats || appConfig.forceSkeletonView) && (
+							<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+								<div className='bg-white/10 rounded-lg p-4 md:p-6'>
+									<RankingTableSkeleton />
+								</div>
+							</SkeletonTheme>
+						)}
+
+						{/* FTP Ranking Section */}
+						{!loading && !loadingStats && (
+				<div>
 					{selectedPlayer ? (
 						<div className='bg-white/10 rounded-lg p-4 md:p-6 space-y-6'>
 							{/* Current Month Ranking Table */}
@@ -1503,6 +1508,9 @@ export default function PlayersOfMonth() {
 							</div>
 						</div>
 					)}
+				</div>
+						)}
+					</div>
 				</div>
 			)}
 		</div>

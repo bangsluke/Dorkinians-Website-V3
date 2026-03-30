@@ -764,6 +764,9 @@ export default function TeamOfTheWeek() {
 			.slice(0, 10);
 	}, [weeks, selectedWeek]);
 
+	const showPreviousWeeksStrip =
+		!isAllTimeSelected && !isSeasonTOTWSelected && selectedWeek > 0 && previousTenWeeks.length > 0;
+
 	const handleShareTOTW = async () => {
 		if (!shareCaptureRef.current || !totwData || isSharingTOTW) return;
 		setIsSharingTOTW(true);
@@ -980,7 +983,7 @@ export default function TeamOfTheWeek() {
 	}, [formation, playersInFormation, containerWidth]);
 
 	return (
-		<div className='flex flex-col px-[11.2px] md:px-[16.8px] pt-2 md:pt-4 pb-4 md:pb-6 relative md:max-w-2xl md:mx-auto w-full'>
+		<div className='flex flex-col px-[11.2px] md:px-[16.8px] pt-2 md:pt-4 pb-4 md:pb-6 relative md:max-w-2xl md:mx-auto lg:max-w-6xl w-full'>
 			{/* Header */}
 			<div className='text-center mb-3 flex items-center justify-center gap-2'>
 				<h1 
@@ -1132,7 +1135,13 @@ export default function TeamOfTheWeek() {
 					</SkeletonTheme>
 				</div>
 			) : (
-				<>
+				<div
+					className={
+						showPreviousWeeksStrip
+							? "lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(220px,320px)] lg:gap-6 lg:items-start"
+							: ""
+					}>
+					<div className='min-w-0'>
 					<div ref={shareCaptureRef} data-testid='totw-share-capture'>
 						{/* Summary Statistics */}
 						<div className='flex flex-row flex-nowrap gap-8 md:gap-20 mb-6 justify-center'>
@@ -1287,11 +1296,23 @@ export default function TeamOfTheWeek() {
 						</div>
 					</div>
 
-					{/* Previous 10 weeks score strip (Feature 15) */}
-					{!isAllTimeSelected && !isSeasonTOTWSelected && selectedWeek > 0 && previousTenWeeks.length > 0 && (
-						<div id='totw-previous-weeks-strip' data-testid='totw-previous-weeks-strip' className='mb-6'>
-							<h3 className='text-center text-gray-200 font-semibold text-xs md:text-sm mb-2'>Previous 10 Weeks</h3>
-							<div className='grid grid-cols-5 md:grid-cols-10 gap-2'>
+					<div className='flex justify-center mb-2'>
+						<button
+							type='button'
+							data-testid='totw-share-button'
+							onClick={() => void handleShareTOTW()}
+							disabled={isSharingTOTW}
+							className='text-sm font-medium px-4 py-2 rounded-lg bg-[#E8C547] text-black hover:opacity-90 disabled:opacity-60'>
+							{isSharingTOTW ? "Preparing..." : "Share TOTW"}
+						</button>
+					</div>
+					</div>
+
+					{/* Previous 10 weeks score strip (Feature 15) — right column on lg, full width below on smaller screens */}
+					{showPreviousWeeksStrip && (
+						<div id='totw-previous-weeks-strip' data-testid='totw-previous-weeks-strip' className='mb-6 lg:mb-0 min-w-0'>
+							<h3 className='text-center lg:text-left text-gray-200 font-semibold text-xs md:text-sm mb-2'>Previous 10 Weeks</h3>
+							<div className='grid grid-cols-5 md:grid-cols-10 lg:grid-cols-2 gap-2'>
 								{previousTenWeeks.map((weekItem) => (
 									<button
 										key={weekItem.week}
@@ -1312,8 +1333,8 @@ export default function TeamOfTheWeek() {
 										}}
 										className='rounded-md border border-white/20 bg-white/5 hover:bg-white/10 transition-colors px-1 py-1.5 text-center'
 										aria-label={`Open Team of the Week for week ${weekItem.week}`}>
-										<p className='text-[10px] md:text-xs text-white/80'>W{weekItem.week}</p>
-										<p className='text-xs md:text-sm font-semibold text-dorkinians-yellow leading-tight'>
+										<p className='text-[10px] md:text-xs lg:text-[10px] text-white/80'>W{weekItem.week}</p>
+										<p className='text-xs md:text-sm lg:text-xs font-semibold text-dorkinians-yellow leading-tight'>
 											{Math.round(Number(weekItem.totwScore || 0))}
 										</p>
 										<p className='text-[9px] md:text-[10px] text-white/60 truncate'>{weekItem.dateLookup || ""}</p>
@@ -1322,18 +1343,7 @@ export default function TeamOfTheWeek() {
 							</div>
 						</div>
 					)}
-
-					<div className='flex justify-center mb-2'>
-						<button
-							type='button'
-							data-testid='totw-share-button'
-							onClick={() => void handleShareTOTW()}
-							disabled={isSharingTOTW}
-							className='text-sm font-medium px-4 py-2 rounded-lg bg-[#E8C547] text-black hover:opacity-90 disabled:opacity-60'>
-							{isSharingTOTW ? "Preparing..." : "Share TOTW"}
-						</button>
-					</div>
-				</>
+				</div>
 			)}
 
 			{/* Loading Overlay */}

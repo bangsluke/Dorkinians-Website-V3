@@ -45,17 +45,18 @@ export default function RecordingsSection({ id, title, subtitle, fixtures, teamC
 						<col
 							className={
 								teamColumn
-									? "w-[3.05rem] sm:w-[13%]"
+									? "w-[3.25rem] sm:w-[12%]"
 									: "w-[3.05rem] sm:w-[14%]"
 							}
 						/>
-						{teamColumn ? <col className='w-[3.1rem] sm:w-[11%]' /> : null}
-						<col className='w-[1.35rem] sm:w-[9%]' />
-						<col className='w-[1.35rem] sm:w-[9%]' />
-						{/* Opponent: remainder; slightly smaller share from sm+ % */}
-						<col className={teamColumn ? "min-w-0 sm:w-[24%]" : "min-w-0 sm:w-[26%]"} />
-						<col className='w-[3rem] sm:w-[14%]' />
-						<col className='w-[3.5rem] sm:w-[16%]' />
+						{/* Club: tighter team col on mobile so opponent gets more of the row */}
+						{teamColumn ? <col className='w-[2.85rem] sm:w-[11%]' /> : null}
+						<col className={teamColumn ? "w-[1.28rem] sm:w-[9%]" : "w-[1.35rem] sm:w-[9%]"} />
+						<col className={teamColumn ? "w-[1.28rem] sm:w-[9%]" : "w-[1.35rem] sm:w-[9%]"} />
+						{/* Opponent: remainder; club view gets a larger sm % share */}
+						<col className={teamColumn ? "min-w-0 sm:w-[28%]" : "min-w-0 sm:w-[26%]"} />
+						<col className={teamColumn ? "w-[2.85rem] sm:w-[13%]" : "w-[3rem] sm:w-[14%]"} />
+						<col className={teamColumn ? "w-[3.35rem] sm:w-[15%]" : "w-[3.5rem] sm:w-[16%]"} />
 					</colgroup>
 					<thead>
 						<tr className='border-b border-white/20 bg-white/5'>
@@ -81,7 +82,8 @@ export default function RecordingsSection({ id, title, subtitle, fixtures, teamC
 							<th className='whitespace-nowrap py-1.5 px-0.5 text-left sm:py-2 sm:px-2 font-semibold'>
 								Result
 							</th>
-							<th className='w-[3.5rem] max-w-[3.5rem] whitespace-nowrap py-1.5 px-0 text-center sm:w-auto sm:max-w-none sm:py-2 sm:px-2 font-semibold'>
+							<th
+								className={`whitespace-nowrap py-1.5 px-0 text-center sm:py-2 sm:px-2 font-semibold sm:w-auto sm:max-w-none ${teamColumn ? "w-[3.35rem] max-w-[3.35rem]" : "w-[3.5rem] max-w-[3.5rem]"}`}>
 								Match
 							</th>
 						</tr>
@@ -89,13 +91,18 @@ export default function RecordingsSection({ id, title, subtitle, fixtures, teamC
 					<tbody>
 						{fixtures.map((fx, idx) => (
 							<tr key={fx.fixtureId || `${fx.date}-${fx.opposition}-${idx}`} className='border-b border-white/10 align-middle'>
-								<td className='whitespace-nowrap py-1.5 pl-1 pr-0.5 align-middle tabular-nums leading-tight sm:py-2 sm:px-2 sm:pr-2'>
+								<td
+									className={`whitespace-nowrap py-1.5 pl-1 align-middle tabular-nums leading-tight sm:py-2 sm:px-2 sm:pr-2 ${teamColumn ? "pr-1 max-sm:text-[9px] max-sm:font-normal" : "pr-0.5"}`}>
 									<span className='sm:hidden'>{formatRecordingDateMobile(fx.date)}</span>
 									<span className='hidden sm:inline'>{formatRecordingDateDesktop(fx.date)}</span>
 								</td>
 								{teamColumn ? (
-									<td className='py-1.5 px-0.5 align-middle sm:py-2 sm:px-2' title={fx.team || ""}>
-										<div className='max-w-[4rem] truncate text-[9px] sm:max-w-none sm:text-xs'>{fx.team || "—"}</div>
+									<td
+										className='py-1.5 pl-1 pr-0.5 align-middle sm:py-2 sm:px-2'
+										title={fx.team || ""}>
+										<div className='max-w-[4rem] truncate text-[9px] font-normal leading-tight sm:max-w-none sm:text-xs'>
+											{fx.team || "—"}
+										</div>
 									</td>
 								) : null}
 								<td colSpan={2} className='py-1.5 pl-1.5 pr-0 align-middle sm:hidden'>
@@ -130,14 +137,16 @@ export default function RecordingsSection({ id, title, subtitle, fixtures, teamC
 									</span>
 								</td>
 								<td
-									className='min-w-0 max-w-none py-1.5 px-1 align-middle sm:py-2 sm:px-2'
+									className={`min-w-0 max-w-none py-1.5 align-middle sm:py-2 sm:px-2 ${teamColumn ? "px-0.5 text-[9px] font-normal sm:text-xs" : "px-1"}`}
 									title={fx.opposition || ""}>
 									<div className='truncate'>{fx.opposition || "—"}</div>
 								</td>
-								<td className='whitespace-nowrap py-1.5 px-0.5 align-middle font-mono tabular-nums sm:py-2 sm:px-2'>
+								<td
+									className={`whitespace-nowrap py-1.5 px-0.5 align-middle font-mono tabular-nums sm:py-2 sm:px-2 ${teamColumn ? "max-sm:text-[9px]" : ""}`}>
 									{formatRecordingScore(fx.result, fx.goalsScored, fx.goalsConceded)}
 								</td>
-								<td className='w-[3.5rem] max-w-[3.5rem] whitespace-nowrap py-1 px-0 align-middle sm:w-auto sm:max-w-none sm:py-2 sm:px-1'>
+								<td
+									className={`whitespace-nowrap py-1 px-0 align-middle sm:w-auto sm:max-w-none sm:py-2 sm:px-1 ${teamColumn ? "w-[3.35rem] max-w-[3.35rem]" : "w-[3.5rem] max-w-[3.5rem]"}`}>
 									<div className='flex justify-center'>
 										<VeoWatchMatchButtons
 											veoLink={fx.veoLink}

@@ -791,14 +791,14 @@ export default function LeagueInformation() {
 			{/* Season Selector */}
 			<div>
 				{loading || seasons.length === 0 ? (
-					<div className='w-[60%] md:w-full mx-auto'>
+					<div className='w-full max-w-xs mx-auto'>
 						<SkeletonTheme baseColor='var(--skeleton-base)' highlightColor='var(--skeleton-highlight)'>
 							<Skeleton height={48} className='rounded-md' />
 						</SkeletonTheme>
 					</div>
 				) : (
 					<Listbox value={selectedSeason || ""} onChange={handleSeasonChange} disabled={loading || seasons.length === 0}>
-						<div className='relative w-[60%] md:w-full mx-auto mb-4'>
+						<div className='relative w-full max-w-xs mx-auto mb-4'>
 							<Listbox.Button className='relative w-full cursor-default dark-dropdown py-3 pl-4 pr-10 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-sm md:text-base'>
 								<span className={`block truncate ${selectedSeason ? "text-white" : "text-yellow-300"}`}>
 									{selectedSeason === "my-seasons"
@@ -1784,79 +1784,106 @@ export default function LeagueInformation() {
 
 											{hasTableData ? (
 												<div className='lg:grid lg:grid-cols-2 lg:items-start lg:gap-6'>
-													<div className='min-w-0 overflow-x-auto -mx-3 md:-mx-4 lg:-mx-6 px-3 md:px-4 lg:px-6 lg:mx-0 lg:px-0'>
-														<table className='w-full bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden'>
-															<thead className='sticky top-0 z-10'>
-																<tr className='bg-white/20'>
-																	<th className='w-8 px-1.5 py-2 text-left text-white font-semibold text-[10px] md:text-xs'></th>
-																	<th className='px-2 py-2 text-left text-white font-semibold text-xs md:text-sm'>Team</th>
-																	<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>P</th>
-																	<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>W</th>
-																	<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>D</th>
-																	<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>L</th>
-																	<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>F</th>
-																	<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>A</th>
-																	<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>GD</th>
-																	<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>Pts</th>
-																</tr>
-															</thead>
-															<tbody>
-																{teamData.table.map((entry, index) => {
-																	// Only highlight the Dorkinians team that matches this teamKey
-																	const isThisDorkiniansTeam = matchesThisTeam(entry.team);
-																	return (
-																		<tr
-																			key={index}
-																			className={`border-b border-white/10 transition-colors ${
-																				isThisDorkiniansTeam ? "bg-dorkinians-yellow/20 font-semibold" : index % 2 === 0 ? "bg-gray-800/30" : ""
-																			} hover:bg-white/5`}>
-																			<td className='px-1.5 py-2 text-white text-[10px] md:text-xs'>{entry.position}</td>
-																			<td className='px-2 py-2 text-white text-xs md:text-sm'>{entry.team}</td>
-																			<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.played}</td>
-																			<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.won}</td>
-																			<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.drawn}</td>
-																			<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.lost}</td>
-																			<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.goalsFor}</td>
-																			<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.goalsAgainst}</td>
-																			<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.goalDifference}</td>
-																			<td className='px-2 py-2 text-center font-semibold text-dorkinians-yellow text-xs md:text-sm'>{entry.points}</td>
-																		</tr>
-																	);
-																})}
-															</tbody>
-														</table>
+													<div className='min-w-0'>
+														<div className='overflow-x-auto -mx-3 md:-mx-4 lg:-mx-6 px-3 md:px-4 lg:px-6 lg:mx-0 lg:px-0'>
+															<table className='w-full bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden'>
+																<thead className='sticky top-0 z-10'>
+																	<tr className='bg-white/20'>
+																		<th className='w-8 px-1.5 py-2 text-left text-white font-semibold text-[10px] md:text-xs'></th>
+																		<th className='px-2 py-2 text-left text-white font-semibold text-xs md:text-sm'>Team</th>
+																		<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>P</th>
+																		<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>W</th>
+																		<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>D</th>
+																		<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>L</th>
+																		<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>F</th>
+																		<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>A</th>
+																		<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>GD</th>
+																		<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>Pts</th>
+																	</tr>
+																</thead>
+																<tbody>
+																	{teamData.table.map((entry, index) => {
+																		// Only highlight the Dorkinians team that matches this teamKey
+																		const isThisDorkiniansTeam = matchesThisTeam(entry.team);
+																		return (
+																			<tr
+																				key={index}
+																				className={`border-b border-white/10 transition-colors ${
+																					isThisDorkiniansTeam ? "bg-dorkinians-yellow/20 font-semibold" : index % 2 === 0 ? "bg-gray-800/30" : ""
+																				} hover:bg-white/5`}>
+																				<td className='px-1.5 py-2 text-white text-[10px] md:text-xs'>{entry.position}</td>
+																				<td className='px-2 py-2 text-white text-xs md:text-sm'>{entry.team}</td>
+																				<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.played}</td>
+																				<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.won}</td>
+																				<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.drawn}</td>
+																				<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.lost}</td>
+																				<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.goalsFor}</td>
+																				<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.goalsAgainst}</td>
+																				<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.goalDifference}</td>
+																				<td className='px-2 py-2 text-center font-semibold text-dorkinians-yellow text-xs md:text-sm'>{entry.points}</td>
+																			</tr>
+																		);
+																	})}
+																</tbody>
+															</table>
+														</div>
+														{/* League Table Link and Show Results — under table column only */}
+														{((teamData.url && teamData.url.trim() !== "") || selectedSeason) && (
+															<div className='mt-4 text-center lg:text-left'>
+																{teamData.url && teamData.url.trim() !== "" && (
+																	<>
+																		<a
+																			href={teamData.url}
+																			target='_blank'
+																			rel='noopener noreferrer'
+																			className='text-dorkinians-yellow hover:text-yellow-400 underline text-sm md:text-base transition-colors'>
+																			League Table Link
+																		</a>
+																		{selectedSeason && <span className='text-dorkinians-yellow mx-2'>|</span>}
+																	</>
+																)}
+																{selectedSeason && (
+																	<button
+																		type='button'
+																		onClick={() => handleShowResults(teamKey)}
+																		className='text-dorkinians-yellow hover:text-yellow-400 underline text-sm md:text-base transition-colors bg-transparent border-none cursor-pointer'>
+																		Show Results
+																	</button>
+																)}
+															</div>
+														)}
 													</div>
 													{latestResultCard}
 												</div>
 											) : (
 												<>
 													<div className='text-center text-gray-300 py-4 mb-4'>No table data available. Team was removed from the league.</div>
+													{((teamData.url && teamData.url.trim() !== "") || selectedSeason) && (
+														<div className='mt-4 text-center'>
+															{teamData.url && teamData.url.trim() !== "" && (
+																<>
+																	<a
+																		href={teamData.url}
+																		target='_blank'
+																		rel='noopener noreferrer'
+																		className='text-dorkinians-yellow hover:text-yellow-400 underline text-sm md:text-base transition-colors'>
+																		League Table Link
+																	</a>
+																	{selectedSeason && <span className='text-dorkinians-yellow mx-2'>|</span>}
+																</>
+															)}
+															{selectedSeason && (
+																<button
+																	type='button'
+																	onClick={() => handleShowResults(teamKey)}
+																	className='text-dorkinians-yellow hover:text-yellow-400 underline text-sm md:text-base transition-colors bg-transparent border-none cursor-pointer'>
+																	Show Results
+																</button>
+															)}
+														</div>
+													)}
 													{latestResultCard}
 												</>
-											)}
-											{/* League Table Link and Show Results - shown per team */}
-											{((teamData.url && teamData.url.trim() !== "") || selectedSeason) && (
-												<div className='mt-4 text-center'>
-													{teamData.url && teamData.url.trim() !== "" && (
-														<>
-															<a
-																href={teamData.url}
-																target='_blank'
-																rel='noopener noreferrer'
-																className='text-dorkinians-yellow hover:text-yellow-400 underline text-sm md:text-base transition-colors'>
-																League Table Link
-															</a>
-															{selectedSeason && <span className='text-dorkinians-yellow mx-2'>|</span>}
-														</>
-													)}
-													{selectedSeason && (
-														<button
-															onClick={() => handleShowResults(teamKey)}
-															className='text-dorkinians-yellow hover:text-yellow-400 underline text-sm md:text-base transition-colors bg-transparent border-none cursor-pointer'>
-															Show Results
-														</button>
-													)}
-												</div>
 											)}
 										</div>
 										{teamIndex < allTeams.length - 1 && <hr className='border-t border-white/20 my-8' />}
