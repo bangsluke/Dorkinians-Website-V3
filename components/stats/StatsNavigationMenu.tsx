@@ -31,6 +31,7 @@ const statsNavigationItems = [
 			{ id: "opposition-locations", label: "Opposition Locations" },
 			{ id: "minutes-per-stats", label: "Minutes per Stats" },
 			{ id: "opposition-performance", label: "Opposition Performance" },
+			{ id: "player-recordings", label: "Player Recordings" },
 			{ id: "fantasy-points", label: "Fantasy Points" },
 			{ id: "penalty-stats", label: "Penalty Stats" },
 			{ id: "captaincies-awards-and-achievements", label: "Captaincies, Awards and Achievements" },
@@ -71,6 +72,7 @@ const statsNavigationItems = [
 			{ id: "club-home-away-performance", label: "Home vs Away Performance" },
 			{ id: "club-other-club-stats", label: "Other Club Stats" },
 			{ id: "club-unique-player-stats", label: "Unique Player Stats" },
+			{ id: "club-recordings", label: "Club Recordings" },
 		],
 	},
 	{

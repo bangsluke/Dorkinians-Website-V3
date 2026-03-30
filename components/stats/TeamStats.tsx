@@ -23,7 +23,8 @@ import Button from "@/components/ui/Button";
 import { UmamiEvents } from "@/lib/analytics/events";
 import { trackStatsStatSelected, trackTeamStatsTeamSelected } from "@/lib/analytics/statsTracking";
 import { trackEvent } from "@/lib/utils/trackEvent";
-import VeoWatchMatchButtons from "@/components/club-info/VeoWatchMatchButtons";
+import RecordingsSection from "@/components/stats/RecordingsSection";
+import type { RecordingFixture } from "@/lib/utils/recordingsDisplay";
 
 
 interface TopPlayer {
@@ -64,53 +65,6 @@ interface TopPlayer {
 }
 
 type StatType = "appearances" | "starts" | "goals" | "assists" | "cleanSheets" | "mom" | "saves" | "yellowCards" | "redCards" | "penaltiesScored" | "fantasyPoints" | "goalInvolvements" | "minutes" | "ownGoals" | "conceded" | "penaltiesMissed" | "penaltiesConceded" | "penaltiesSaved" | "distance" | "avgMatchRating" | "matchesRated8Plus" | "goalsPer90" | "assistsPer90" | "goalInvolvementsPer90" | "ftpPer90" | "cleanSheetsPer90" | "concededPer90" | "savesPer90" | "cardsPer90" | "momPer90" | "bestCurrentForm";
-
-interface TeamRecordingFixture {
-	fixtureId: string;
-	season: string;
-	result: string;
-	date: string;
-	opposition: string;
-	homeOrAway: string;
-	goalsScored: number;
-	goalsConceded: number;
-	compType: string;
-	veoLink: string | null;
-}
-
-function formatTeamRecordingDate(dateString: string): string {
-	if (!dateString) return "—";
-	try {
-		const date = new Date(dateString);
-		return date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
-	} catch {
-		return dateString;
-	}
-}
-
-function formatTeamRecordingScore(result: string, goalsFor: number, goalsAgainst: number): string {
-	const r = (result || "").trim();
-	if (r === "W" || r === "D" || r === "L") {
-		return `${r} ${goalsFor}-${goalsAgainst}`;
-	}
-	if (r) return `${r} ${goalsFor}-${goalsAgainst}`;
-	return `${goalsFor}-${goalsAgainst}`;
-}
-
-/** Competition pill — matches League Information / modal styling. */
-function recordingCompBadgeClass(compType: string): string {
-	const c = (compType || "").trim().toLowerCase();
-	if (c === "league") return "bg-blue-600/30 text-blue-300";
-	if (c === "cup") return "bg-purple-600/30 text-purple-300";
-	return "bg-green-600/30 text-green-300";
-}
-
-/** Home / away pill — matches Latest Result styling. */
-function recordingLocBadgeClass(homeOrAway: string): string {
-	return homeOrAway?.trim().toLowerCase() === "home"
-		? "bg-dorkinians-yellow/20 text-dorkinians-yellow"
-		: "bg-gray-700 text-gray-300";
-}
 
 function StatRow({ stat, value, teamData }: { stat: any; value: any; teamData: TeamData }) {
 	const [showTooltip, setShowTooltip] = useState(false);
@@ -504,7 +458,7 @@ export default function TeamStats() {
 	const [isLoadingUniqueStats, setIsLoadingUniqueStats] = useState(false);
 
 	// Veo / match recordings for current team + filters
-	const [teamRecordings, setTeamRecordings] = useState<TeamRecordingFixture[]>([]);
+	const [teamRecordings, setTeamRecordings] = useState<RecordingFixture[]>([]);
 
 	// State for best season finish
 	const [bestSeasonFinishData, setBestSeasonFinishData] = useState<{
@@ -877,7 +831,7 @@ export default function TeamStats() {
 					getCachedPageData,
 					setCachedPageData,
 				});
-				setTeamRecordings((data.fixtures || []) as TeamRecordingFixture[]);
+				setTeamRecordings((data.fixtures || []) as RecordingFixture[]);
 			} catch (err) {
 				log("error", "Error fetching team recordings:", err);
 				setTeamRecordings([]);
@@ -2306,78 +2260,14 @@ export default function TeamStats() {
 									</div>
 								)}
 
-								{/* Team Recordings — only when ≥1 fixture has a Veo/video link for this team + filters */}
 								{selectedTeam && teamRecordings.length > 0 && (
-									<div id='team-recordings' className='relative bg-white/10 backdrop-blur-sm rounded-lg p-2 pt-3 md:p-4 md:break-inside-avoid md:mb-4'>
-										<div className='absolute right-2 top-2 md:right-3 md:top-3'>
-											{/* eslint-disable-next-line @next/next/no-img-element -- static brand SVG from public */}
-											<img src='/icons/veo.svg' alt='Veo' className='h-5 w-auto opacity-90 brightness-0 invert md:h-6' />
-										</div>
-										<h3 className='text-white font-semibold text-sm md:text-base mb-2 pr-14'>Team Recordings</h3>
-										<p className='text-white/70 text-xs md:text-sm mb-3 pr-14'>
-											All matches with a recording link for the selected team and current filters.
-										</p>
-										<div className='w-full overflow-x-auto'>
-											<table className='w-full table-fixed text-white text-[10px] sm:text-xs md:text-sm'>
-												<colgroup>
-													<col className='w-[22%] sm:w-[18%]' />
-													<col className='w-[14%] sm:w-[12%]' />
-													<col className='w-[14%] sm:w-[12%]' />
-													<col className='w-[26%] sm:w-[28%]' />
-													<col className='w-[14%] sm:w-[14%]' />
-													<col className='w-[10%] sm:w-[18%]' />
-												</colgroup>
-												<thead>
-													<tr className='border-b border-white/20 bg-white/5'>
-														<th className='text-left py-1.5 px-1 sm:py-2 sm:px-2 font-semibold'>Date</th>
-														<th className='text-left py-1.5 px-1 sm:py-2 sm:px-2 font-semibold'>Loc</th>
-														<th className='text-left py-1.5 px-1 sm:py-2 sm:px-2 font-semibold'>Comp</th>
-														<th className='text-left py-1.5 px-1 sm:py-2 sm:px-2 font-semibold'>Opponent</th>
-														<th className='text-left py-1.5 px-1 sm:py-2 sm:px-2 font-semibold'>Result</th>
-														<th className='text-center py-1.5 px-0.5 sm:py-2 sm:px-2 font-semibold'>Match</th>
-													</tr>
-												</thead>
-												<tbody>
-													{teamRecordings.map((fx, idx) => (
-														<tr key={fx.fixtureId || `${fx.date}-${fx.opposition}-${idx}`} className='border-b border-white/10 align-middle'>
-															<td className='py-1.5 px-1 sm:py-2 sm:px-2 leading-tight'>{formatTeamRecordingDate(fx.date)}</td>
-															<td className='py-1.5 px-1 sm:py-2 sm:px-2'>
-																<span
-																	className={`inline-block max-w-full truncate rounded px-1.5 py-0.5 text-[9px] sm:text-xs font-medium ${recordingLocBadgeClass(fx.homeOrAway)}`}
-																	title={fx.homeOrAway || ""}>
-																	{fx.homeOrAway || "—"}
-																</span>
-															</td>
-															<td className='py-1.5 px-1 sm:py-2 sm:px-2'>
-																<span
-																	className={`inline-block max-w-full truncate rounded px-1.5 py-0.5 text-[9px] sm:text-xs font-medium ${recordingCompBadgeClass(fx.compType)}`}
-																	title={fx.compType || ""}>
-																	{fx.compType || "—"}
-																</span>
-															</td>
-															<td
-																className='py-1.5 px-1 sm:py-2 sm:px-2 truncate'
-																title={fx.opposition || ""}>
-																{fx.opposition || "—"}
-															</td>
-															<td className='py-1.5 px-1 sm:py-2 sm:px-2 font-mono whitespace-nowrap'>
-																{formatTeamRecordingScore(fx.result, fx.goalsScored, fx.goalsConceded)}
-															</td>
-															<td className='py-1 px-0.5 sm:py-2 sm:px-1 text-center'>
-																<VeoWatchMatchButtons
-																	veoLink={fx.veoLink}
-																	testIdPrefix={`team-recording-${fx.fixtureId || idx}`}
-																	hideLogo
-																	compact
-																	className='!justify-center'
-																/>
-															</td>
-														</tr>
-													))}
-												</tbody>
-											</table>
-										</div>
-									</div>
+									<RecordingsSection
+										id='team-recordings'
+										title='Team Recordings'
+										subtitle='All matches with a recording link for the selected team and current filters.'
+										fixtures={teamRecordings}
+										testIdPrefix='team-recording'
+									/>
 								)}
 
 								{/* Best Season Finish Section */}

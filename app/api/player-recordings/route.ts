@@ -14,14 +14,14 @@ export async function OPTIONS() {
 	return new NextResponse(null, { status: 200, headers: corsHeaders });
 }
 
-/** Fixtures for the team + filters that have at least one Veo/video URL (full library, no row limit). */
+/** Fixtures the player appeared in (MatchDetail) that have a Veo/video URL; respects same filters as player-form. */
 export async function POST(request: NextRequest) {
 	try {
 		const body = await request.json();
-		const { teamName, filters } = body;
+		const { playerName, filters } = body;
 
-		if (!teamName || typeof teamName !== "string" || teamName.trim() === "") {
-			return NextResponse.json({ error: "Valid team name is required" }, { status: 400, headers: corsHeaders });
+		if (!playerName || typeof playerName !== "string" || playerName.trim() === "") {
+			return NextResponse.json({ error: "Valid player name is required" }, { status: 400, headers: corsHeaders });
 		}
 
 		if (!filters || typeof filters !== "object") {
@@ -36,36 +36,25 @@ export async function POST(request: NextRequest) {
 		const graphLabel = neo4jService.getGraphLabel();
 		const params: any = {
 			graphLabel,
+			playerName: playerName.trim(),
 		};
 
-		const hasTeamFilter = filters?.teams && Array.isArray(filters.teams) && filters.teams.length > 0;
-
 		let query = `
-			MATCH (f:Fixture {graphLabel: $graphLabel})
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
+			MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
 		`;
 
 		const filterConditions = buildFilterConditions(filters, params);
-		const fixtureConditions = filterConditions.filter((cond) => !cond.includes("md.class"));
-
-		if (teamName && teamName !== "Whole Club" && !hasTeamFilter) {
-			params.teamName = teamName;
-			query += ` WHERE f.team = $teamName`;
-		}
-
-		const conditions =
-			hasTeamFilter || teamName === "Whole Club" || !teamName
-				? fixtureConditions
-				: fixtureConditions.filter((cond) => !cond.includes("f.team IN $teams"));
-
 		const veoPredicate = `(${CYPHER_FIXTURE_VEOLINK_COALESCE}) IS NOT NULL`;
-		const conditionsWithVeo = [...conditions, veoPredicate];
+		const allConditions = [...filterConditions, veoPredicate];
 
-		if (conditionsWithVeo.length > 0) {
-			const hasWhereClause = query.includes("WHERE");
-			query += hasWhereClause ? ` AND ${conditionsWithVeo.join(" AND ")}` : ` WHERE ${conditionsWithVeo.join(" AND ")}`;
+		if (allConditions.length > 0) {
+			query += ` WHERE ${allConditions.join(" AND ")}`;
 		}
 
 		query += `
+			WITH DISTINCT f
 			RETURN f.id as fixtureId, f.team as team, f.season as season, f.result as result, f.date as date, f.opposition as opposition,
 			       f.homeOrAway as homeOrAway, f.dorkiniansGoals as goalsScored,
 			       f.conceded as goalsConceded, f.compType as compType, ${CYPHER_FIXTURE_VEOLINK_COALESCE} as veoLink
@@ -104,7 +93,7 @@ export async function POST(request: NextRequest) {
 
 		return NextResponse.json({ fixtures }, { headers: corsHeaders });
 	} catch (error) {
-		console.error("Error fetching team recordings:", error);
-		return NextResponse.json({ error: "Failed to fetch team recordings" }, { status: 500, headers: corsHeaders });
+		console.error("Error fetching player recordings:", error);
+		return NextResponse.json({ error: "Failed to fetch player recordings" }, { status: 500, headers: corsHeaders });
 	}
 }

@@ -22,6 +22,8 @@ import "react-loading-skeleton/dist/skeleton.css";
 import { StatCardSkeleton, ChartSkeleton, TopPlayersTableSkeleton, RadarChartSkeleton, SankeyChartSkeleton, GameDetailsTableSkeleton, DataTableSkeleton } from "@/components/skeletons";
 import { log } from "@/lib/utils/logger";
 import LazyWhenVisible from "@/components/perf/LazyWhenVisible";
+import RecordingsSection from "@/components/stats/RecordingsSection";
+import type { RecordingFixture } from "@/lib/utils/recordingsDisplay";
 
 // Dynamically import ResponsiveSankey to reduce initial bundle size (151 KB -> only loads when needed)
 const ResponsiveSankey = dynamic(
@@ -458,6 +460,10 @@ export default function ClubStats() {
 	const [uniquePlayerStats, setUniquePlayerStats] = useState<any>(null);
 	const [isLoadingUniqueStats, setIsLoadingUniqueStats] = useState(false);
 
+	const [clubRecordings, setClubRecordings] = useState<RecordingFixture[]>([]);
+
+	const showClubRecordingsTeamColumn = useMemo(() => !playerFilters?.teams?.length, [playerFilters?.teams]);
+
 	// Track last fetched filters to implement caching
 	const lastFetchedFiltersRef = useRef<string | null>(null);
 
@@ -855,6 +861,39 @@ export default function ClubStats() {
 
 		fetchUniqueStats();
 	}, [playerFilters, hasUnsavedFilters, isFilterSidebarOpen]);
+
+	// Club recordings (Veo) — whole club + filters; team column when no explicit team filter
+	useEffect(() => {
+		if (!playerFilters) {
+			setClubRecordings([]);
+			return;
+		}
+		if (hasUnsavedFilters || isFilterSidebarOpen) return;
+
+		const fetchClubRecordings = async () => {
+			setClubRecordings([]);
+			try {
+				const requestBody = {
+					teamName: "Whole Club",
+					filters: playerFilters,
+				};
+				const cacheKey = generatePageCacheKey("stats", "club-stats", "team-recordings", requestBody);
+				const data = await cachedFetch("/api/team-recordings", {
+					method: "POST",
+					body: requestBody,
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
+				});
+				setClubRecordings((data.fixtures || []) as RecordingFixture[]);
+			} catch (err) {
+				log("error", "Error fetching club recordings:", err);
+				setClubRecordings([]);
+			}
+		};
+
+		fetchClubRecordings();
+	}, [playerFilters, hasUnsavedFilters, isFilterSidebarOpen, getCachedPageData, setCachedPageData]);
 
 	// Priority 3: Below fold - Player Distribution section
 	// Fetch player distribution data
@@ -2893,6 +2932,17 @@ export default function ClubStats() {
 											</table>
 										</div>
 									</div>
+								)}
+
+								{clubRecordings.length > 0 && (
+									<RecordingsSection
+										id='club-recordings'
+										title='Club Recordings'
+										subtitle='All club matches with a recording link for your current filters.'
+										fixtures={clubRecordings}
+										teamColumn={showClubRecordingsTeamColumn}
+										testIdPrefix='club-recording'
+									/>
 								)}
 							</div>
 						);
