@@ -16,10 +16,11 @@ import { useNavigationStore, type MainPage, type StatsSubPage, type TOTWSubPage,
 import Image from "next/image";
 import { log } from "@/lib/utils/logger";
 import Button from "@/components/ui/Button";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { getPlayerProfileHref } from "@/lib/profile/slug";
 import { isDevelopBranchDeploy } from "@/lib/utils/isDevelopBranchDeploy";
 import { usePathname } from "next/navigation";
+import { scheduleProfileIntroBursts, shouldRunProfileIntro } from "@/lib/utils/profileNavIntro";
 
 interface SidebarNavigationProps {
 	onSettingsClick: () => void;
@@ -90,10 +91,17 @@ export default function SidebarNavigation({
 	const pathname = usePathname();
 	const [showTooltip, setShowTooltip] = useState(false);
 	const [showFilterTooltip, setShowFilterTooltip] = useState(false);
-	const [hasAnimated, setHasAnimated] = useState(false);
+	const [showProfileTooltip, setShowProfileTooltip] = useState(false);
+	const [menuIntroPulseDone, setMenuIntroPulseDone] = useState(false);
+	const [profileIntroPulse, setProfileIntroPulse] = useState(false);
+	const [isDesktopViewport, setIsDesktopViewport] = useState(false);
 	const [isMounted, setIsMounted] = useState(false);
+	const menuIntroPersistedRef = useRef(false);
+	const profileTooltipTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const profileIntroCleanupRef = useRef<(() => void) | null>(null);
 	const showDevBadge = isDevelopBranchDeploy() && currentMainPage === "home";
 	const isProfileRoute = pathname?.startsWith("/profile/") ?? false;
+	const showProfileIcon = isProfileRoute || (isPlayerSelected && !!selectedPlayer);
 
 	// Calculate active filter count
 	const activeFilterCount = useMemo(() => {
@@ -237,58 +245,137 @@ export default function SidebarNavigation({
 		}
 	}, []);
 
-	// Check if tooltip should be shown on first visit
 	useEffect(() => {
-		if (showMenuIcon && typeof window !== "undefined") {
-			const hasSeenTooltip = localStorage.getItem("stats-nav-menu-tooltip-seen");
-			if (!hasSeenTooltip) {
-				setShowTooltip(true);
-				// Hide tooltip after 5 seconds, then show filter tooltip
-				const timer = setTimeout(() => {
+		if (!showMenuIcon || typeof window === "undefined") return;
+		setMenuIntroPulseDone(localStorage.getItem("stats-nav-menu-animated") === "true");
+	}, [showMenuIcon]);
+
+	useEffect(() => {
+		if (typeof window === "undefined") return;
+		const mq = window.matchMedia("(min-width: 768px)");
+		const apply = () => setIsDesktopViewport(mq.matches);
+		apply();
+		mq.addEventListener("change", apply);
+		return () => mq.removeEventListener("change", apply);
+	}, []);
+
+	// One-time profile ring bursts on desktop when a player is set (sidebar visible md+)
+	useEffect(() => {
+		if (!isDesktopViewport || !showProfileIcon || isProfileRoute) return;
+		if (typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+			try {
+				localStorage.setItem("stats-nav-profile-intro-done", "true");
+			} catch {
+				/* ignore */
+			}
+			return;
+		}
+		if (!shouldRunProfileIntro()) return;
+		profileIntroCleanupRef.current?.();
+		profileIntroCleanupRef.current = scheduleProfileIntroBursts(setProfileIntroPulse);
+		return () => {
+			profileIntroCleanupRef.current?.();
+			profileIntroCleanupRef.current = null;
+		};
+	}, [isDesktopViewport, showProfileIcon, isProfileRoute]);
+
+	const dismissProfileTooltip = () => {
+		if (profileTooltipTimeoutRef.current) {
+			clearTimeout(profileTooltipTimeoutRef.current);
+			profileTooltipTimeoutRef.current = null;
+		}
+		setShowProfileTooltip(false);
+		localStorage.setItem("stats-nav-profile-tooltip-seen", "true");
+	};
+
+	const chainProfileTooltipDesktop = () => {
+		if (!showProfileIcon) return;
+		if (localStorage.getItem("stats-nav-profile-tooltip-seen")) return;
+		profileTooltipTimeoutRef.current = setTimeout(() => {
+			setShowProfileTooltip(true);
+			profileTooltipTimeoutRef.current = setTimeout(() => dismissProfileTooltip(), 5000);
+		}, 500);
+	};
+
+	// First-visit tooltips on desktop: menu → filter → profile
+	useEffect(() => {
+		if (!showMenuIcon || typeof window === "undefined") return;
+
+		const timers: ReturnType<typeof setTimeout>[] = [];
+		const hasSeenMenu = localStorage.getItem("stats-nav-menu-tooltip-seen");
+		const hasSeenFilter = localStorage.getItem("stats-nav-filter-tooltip-seen");
+
+		if (!hasSeenMenu) {
+			setShowTooltip(true);
+			timers.push(
+				setTimeout(() => {
 					setShowTooltip(false);
 					localStorage.setItem("stats-nav-menu-tooltip-seen", "true");
-
-					// Show filter tooltip after a brief delay
-					if (showFilterIcon) {
-						const hasSeenFilterTooltip = localStorage.getItem("stats-nav-filter-tooltip-seen");
-						if (!hasSeenFilterTooltip) {
+					if (showFilterIcon && !localStorage.getItem("stats-nav-filter-tooltip-seen")) {
+						timers.push(
 							setTimeout(() => {
 								setShowFilterTooltip(true);
-								const filterTimer = setTimeout(() => {
-									setShowFilterTooltip(false);
-									localStorage.setItem("stats-nav-filter-tooltip-seen", "true");
-								}, 5000);
-								return () => clearTimeout(filterTimer);
-							}, 500);
-						}
+								timers.push(
+									setTimeout(() => {
+										setShowFilterTooltip(false);
+										localStorage.setItem("stats-nav-filter-tooltip-seen", "true");
+										if (!localStorage.getItem("stats-nav-profile-tooltip-seen") && showProfileIcon) chainProfileTooltipDesktop();
+									}, 5000)
+								);
+							}, 500)
+						);
+					} else if (!localStorage.getItem("stats-nav-profile-tooltip-seen") && showProfileIcon) {
+						chainProfileTooltipDesktop();
 					}
-				}, 5000);
-				return () => clearTimeout(timer);
-			} else if (showFilterIcon) {
-				// If menu tooltip was already seen, check for filter tooltip
-				const hasSeenFilterTooltip = localStorage.getItem("stats-nav-filter-tooltip-seen");
-				if (!hasSeenFilterTooltip) {
-					setShowFilterTooltip(true);
-					const filterTimer = setTimeout(() => {
-						setShowFilterTooltip(false);
-						localStorage.setItem("stats-nav-filter-tooltip-seen", "true");
-					}, 5000);
-					return () => clearTimeout(filterTimer);
-				}
-			}
+				}, 5000)
+			);
+			return () => timers.forEach(clearTimeout);
 		}
-	}, [showMenuIcon, showFilterIcon]);
 
-	// Add animation on first visit
-	useEffect(() => {
-		if (showMenuIcon && typeof window !== "undefined" && !hasAnimated) {
-			const hasAnimatedBefore = localStorage.getItem("stats-nav-menu-animated");
-			if (!hasAnimatedBefore) {
-				setHasAnimated(true);
-				localStorage.setItem("stats-nav-menu-animated", "true");
-			}
+		if (showFilterIcon && !hasSeenFilter) {
+			setShowFilterTooltip(true);
+			const filterTimer = setTimeout(() => {
+				setShowFilterTooltip(false);
+				localStorage.setItem("stats-nav-filter-tooltip-seen", "true");
+				if (!localStorage.getItem("stats-nav-profile-tooltip-seen") && showProfileIcon) chainProfileTooltipDesktop();
+			}, 5000);
+			return () => clearTimeout(filterTimer);
 		}
-	}, [showMenuIcon, hasAnimated]);
+
+		if (!localStorage.getItem("stats-nav-profile-tooltip-seen") && showProfileIcon) {
+			chainProfileTooltipDesktop();
+		}
+	}, [showMenuIcon, showFilterIcon, showProfileIcon]);
+
+	useEffect(() => {
+		if (!showTooltip && !showFilterTooltip && !showProfileTooltip) return;
+		const dismiss = () => {
+			if (showTooltip) {
+				setShowTooltip(false);
+				localStorage.setItem("stats-nav-menu-tooltip-seen", "true");
+			}
+			if (showFilterTooltip) {
+				setShowFilterTooltip(false);
+				localStorage.setItem("stats-nav-filter-tooltip-seen", "true");
+			}
+			if (showProfileTooltip) dismissProfileTooltip();
+		};
+		document.addEventListener("click", dismiss, true);
+		document.addEventListener("touchstart", dismiss, true);
+		return () => {
+			document.removeEventListener("click", dismiss, true);
+			document.removeEventListener("touchstart", dismiss, true);
+		};
+	}, [showTooltip, showFilterTooltip, showProfileTooltip]);
+
+	const persistMenuIntroPulseDone = () => {
+		if (menuIntroPersistedRef.current) return;
+		menuIntroPersistedRef.current = true;
+		if (typeof window !== "undefined") {
+			localStorage.setItem("stats-nav-menu-animated", "true");
+		}
+		setMenuIntroPulseDone(true);
+	};
 
 	const handleLogoClick = () => {
 		setMainPage("home");
@@ -322,14 +409,14 @@ export default function SidebarNavigation({
 		return false;
 	};
 
-	const showProfileIcon = isProfileRoute || (isPlayerSelected && !!selectedPlayer);
-
 	const handleProfileClick = () => {
 		if (!selectedPlayer) return;
 		if (typeof window !== "undefined") {
 			window.location.href = getPlayerProfileHref(selectedPlayer);
 		}
 	};
+
+	const profileRingAttention = profileIntroPulse || showProfileTooltip;
 
 	return (
 		<motion.aside
@@ -371,16 +458,29 @@ export default function SidebarNavigation({
 									data-testid='nav-sidebar-menu'
 									onClick={() => {
 										setShowTooltip(false);
+										localStorage.setItem("stats-nav-menu-tooltip-seen", "true");
 										onMenuClick();
 									}}
-									className={`p-2 rounded-full hover:bg-[var(--color-surface)] transition-colors flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${
+									className={`p-2 rounded-full hover:bg-[var(--color-surface)] transition-colors flex items-center justify-center focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-1 focus-visible:ring-offset-transparent ${
 										showTooltip ? "bg-dorkinians-yellow/20" : ""
 									}`}
 									whileHover={{ scale: 1.1 }}
 									whileTap={{ scale: 0.9 }}
-									initial={hasAnimated ? {} : { scale: 1 }}
-									animate={hasAnimated ? {} : { scale: [1, 1.15, 1] }}
-									transition={hasAnimated ? {} : { duration: 0.6, repeat: 2, delay: 0.5 }}
+									initial={{ scale: 1 }}
+									animate={
+										showTooltip ? { scale: [1, 1.15, 1] } : menuIntroPulseDone ? { scale: 1 } : { scale: [1, 1.15, 1] }
+									}
+									transition={
+										showTooltip
+											? { duration: 0.6, repeat: Infinity }
+											: menuIntroPulseDone
+												? {}
+												: { duration: 0.6, repeat: 2, delay: 0.5 }
+									}
+									onAnimationComplete={() => {
+										if (showTooltip || menuIntroPulseDone) return;
+										persistMenuIntroPulseDone();
+									}}
 									title={showTooltip ? "Click to navigate sections" : "Open stats navigation"}
 									aria-label='Open stats navigation'>
 									<Bars3Icon className={`w-7 h-7 ${showTooltip ? "text-dorkinians-yellow" : "text-[var(--color-text-primary)]"}`} />
@@ -407,7 +507,7 @@ export default function SidebarNavigation({
 										setShowFilterTooltip(false);
 										onFilterClick();
 									}}
-									className={`p-2 rounded-full hover:bg-[var(--color-surface)] transition-colors flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${
+									className={`p-2 rounded-full hover:bg-[var(--color-surface)] transition-colors flex items-center justify-center focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-1 focus-visible:ring-offset-transparent ${
 										showFilterTooltip ? "bg-dorkinians-yellow/20" : ""
 									}`}
 									whileHover={{ scale: 1.1 }}
@@ -440,18 +540,39 @@ export default function SidebarNavigation({
 						)}
 						{/* Settings Icon */}
 						{showProfileIcon && (
-							<motion.button
-								data-testid='nav-sidebar-profile'
-								onClick={handleProfileClick}
-								className={`p-2 rounded-full transition-colors flex items-center justify-center ${
-									isProfileRoute ? "bg-dorkinians-yellow/20" : "hover:bg-[var(--color-surface)]"
-								}`}
-								whileHover={{ scale: 1.1 }}
-								whileTap={{ scale: 0.9 }}
-								title='Open player profile'
-								aria-label='Open player profile'>
-								<UserCircleIcon className={`w-7 h-7 ${isProfileRoute ? "text-dorkinians-yellow-text" : "text-[var(--color-text-primary)]"}`} />
-							</motion.button>
+							<div className='relative'>
+								<motion.button
+									data-testid='nav-sidebar-profile'
+									onClick={() => {
+										dismissProfileTooltip();
+										handleProfileClick();
+									}}
+									className={`p-2 rounded-full transition-all duration-200 flex items-center justify-center ${
+										isProfileRoute
+											? "ring-[3px] ring-dorkinians-yellow ring-offset-2 ring-offset-[var(--color-bg)] bg-dorkinians-yellow/20"
+											: "hover:bg-[var(--color-surface)]"
+									} ${
+										profileRingAttention && !isProfileRoute
+											? "ring-[3px] ring-dorkinians-yellow ring-offset-2 ring-offset-[var(--color-bg)] shadow-[0_0_22px_rgba(232,197,71,0.9)] scale-105"
+											: ""
+									}`}
+									whileHover={{ scale: 1.1 }}
+									whileTap={{ scale: 0.9 }}
+									title='Open player profile'
+									aria-label='Open player profile'>
+									<UserCircleIcon className={`w-7 h-7 ${isProfileRoute ? "text-dorkinians-yellow-text" : "text-[var(--color-text-primary)]"}`} />
+								</motion.button>
+								{showProfileTooltip && (
+									<motion.div
+										initial={{ opacity: 0, y: -10 }}
+										animate={{ opacity: 1, y: 0 }}
+										className='absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-dorkinians-yellow text-black text-xs font-medium rounded-lg shadow-lg whitespace-nowrap z-50'
+										onClick={(e) => e.stopPropagation()}>
+										Open player profile here
+										<div className='absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-dorkinians-yellow' />
+									</motion.div>
+								)}
+							</div>
 						)}
 
 						{/* Settings Icon */}
@@ -505,7 +626,7 @@ export default function SidebarNavigation({
 											window.location.href = "/";
 										}
 										}}
-										className={`group w-full flex items-center space-x-3 px-3 py-2.5 justify-start rounded-2xl border-none outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${
+										className={`group w-full flex items-center space-x-3 px-3 py-2.5 justify-start rounded-2xl border-none outline-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-dorkinians-yellow focus-visible:ring-offset-1 focus-visible:ring-offset-transparent ${
 											isActive
 												? "text-dorkinians-yellow-text bg-dorkinians-yellow/20"
 												: "bg-transparent text-[var(--color-text-primary)] hover:bg-[var(--color-surface)]"
@@ -528,7 +649,7 @@ export default function SidebarNavigation({
 													<button
 														data-testid={`nav-sidebar-${subPage.id}`}
 														onClick={() => handleSubPageClick(item.id, subPage.id)}
-														className={`group w-full flex items-center px-3 py-1.5 text-left justify-start rounded-2xl border-none outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${
+														className={`group w-full flex items-center px-3 py-1.5 text-left justify-start rounded-2xl border-none outline-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-dorkinians-yellow focus-visible:ring-offset-1 focus-visible:ring-offset-transparent ${
 															isSubActive
 																? "text-dorkinians-yellow-text bg-dorkinians-yellow/20"
 																: "bg-transparent text-[var(--color-text-primary)] hover:bg-[var(--color-surface)]"

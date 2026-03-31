@@ -19,7 +19,7 @@ import { trackStatsStatSelected } from "@/lib/analytics/statsTracking";
 import { trackEvent } from "@/lib/utils/trackEvent";
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
-import { StatCardSkeleton, ChartSkeleton, TopPlayersTableSkeleton, RadarChartSkeleton, SankeyChartSkeleton, GameDetailsTableSkeleton, DataTableSkeleton } from "@/components/skeletons";
+import { StatCardSkeleton, ChartSkeleton, TopPlayersTableSkeleton, RadarChartSkeleton, GameDetailsTableSkeleton, DataTableSkeleton } from "@/components/skeletons";
 import { log } from "@/lib/utils/logger";
 import LazyWhenVisible from "@/components/perf/LazyWhenVisible";
 import RecordingsSection from "@/components/stats/RecordingsSection";
@@ -30,9 +30,9 @@ const ResponsiveSankey = dynamic(
 	() => import("@nivo/sankey").then((mod) => mod.ResponsiveSankey),
 	{
 		loading: () => (
-			<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-				<SankeyChartSkeleton />
-			</SkeletonTheme>
+			<div className='flex min-h-[320px] items-center justify-center rounded-lg bg-white/5'>
+				<p className='text-sm text-white/45'>Loading…</p>
+			</div>
 		),
 		ssr: false,
 	}
@@ -401,6 +401,7 @@ export default function ClubStats() {
 		}>
 	>([]);
 	const [isLoadingSquadBackbone, setIsLoadingSquadBackbone] = useState(false);
+	const [squadBackboneNote, setSquadBackboneNote] = useState("");
 
 	// State for view mode toggle - initialize from localStorage
 	const [isDataTableMode, setIsDataTableMode] = useState<boolean>(() => {
@@ -650,13 +651,17 @@ export default function ClubStats() {
 		fetchTopPlayers();
 	}, [filtersKey, selectedStatType, playerFilters, hasUnsavedFilters, isFilterSidebarOpen]);
 
-	// Feature 7: PageRank backbone (GDS only — may return empty)
+	// Squad backbone: filter-scoped co-appearance strength via POST; falls back to global PageRank (GET) if filters unavailable
 	useEffect(() => {
+		if (!playerFilters) return;
+		if (hasUnsavedFilters || isFilterSidebarOpen) return;
+
 		let cancelled = false;
 		const run = async () => {
 			setIsLoadingSquadBackbone(true);
 			try {
-				const cacheKey = generatePageCacheKey("stats", "club-stats", "club-squad-backbone", {});
+				const { getCsrfHeaders } = await import("@/lib/middleware/csrf");
+				const cacheKey = generatePageCacheKey("stats", "club-stats", "club-squad-backbone", { filters: playerFilters });
 				const data = await cachedFetch<{
 					players: Array<{
 						playerName: string;
@@ -664,14 +669,25 @@ export default function ClubStats() {
 						squadInfluenceRank: number | null;
 						communityId: number | null;
 					}>;
+					scope?: "global" | "filtered";
+					sampleNote?: string;
 				}>("/api/club-squad-backbone", {
+					method: "POST",
+					body: { filters: playerFilters },
+					headers: getCsrfHeaders(),
 					cacheKey,
 					getCachedPageData,
 					setCachedPageData,
 				});
-				if (!cancelled) setSquadBackbone(Array.isArray(data.players) ? data.players : []);
+				if (!cancelled) {
+					setSquadBackbone(Array.isArray(data.players) ? data.players : []);
+					setSquadBackboneNote(typeof data.sampleNote === "string" ? data.sampleNote : "");
+				}
 			} catch {
-				if (!cancelled) setSquadBackbone([]);
+				if (!cancelled) {
+					setSquadBackbone([]);
+					setSquadBackboneNote("");
+				}
 			} finally {
 				if (!cancelled) setIsLoadingSquadBackbone(false);
 			}
@@ -680,7 +696,7 @@ export default function ClubStats() {
 		return () => {
 			cancelled = true;
 		};
-	}, [getCachedPageData, setCachedPageData]);
+	}, [filtersKey, playerFilters, hasUnsavedFilters, isFilterSidebarOpen, getCachedPageData, setCachedPageData]);
 
 	// Priority 2: Above fold on desktop - Stats Distribution section
 	// Fetch position stats data
@@ -1974,18 +1990,23 @@ export default function ClubStats() {
 								{!isDataTableMode && (
 									<div id='club-squad-backbone' className='flex-shrink-0 md:break-inside-avoid md:mb-4'>
 										<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-											<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Squad backbone</h3>
+											<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Squad Backbone</h3>
 											<p className='text-white/55 text-[11px] md:text-xs mb-3'>
-												Most &quot;connected&quot; players by PageRank on PLAYED_WITH (Neo4j GDS). Requires Graph Analytics on Aura; otherwise this
-												list stays empty.
+												Ranking uses teammate co-appearances in fixtures that match your current Stats filters (normalized). Narrow filters can shrink
+												the sample; widen them if this list looks empty.
 											</p>
+											{squadBackboneNote ? (
+												<p className='text-dorkinians-yellow/90 text-[11px] mb-2' role='status'>
+													{squadBackboneNote}
+												</p>
+											) : null}
 											{isLoadingSquadBackbone ? (
 												<SkeletonTheme baseColor='var(--skeleton-base)' highlightColor='var(--skeleton-highlight)'>
 													<Skeleton height={16} count={4} className='my-1' />
 												</SkeletonTheme>
 											) : squadBackbone.length === 0 ? (
 												<p className='text-white/60 text-xs'>
-													No PageRank rankings in the graph yet. Enable GDS on Aura Professional and re-seed, or ignore if you stay on Free tier.
+													No backbone ranking for this filter set yet — try including more seasons or teams, or check back after fixtures are loaded.
 												</p>
 											) : (
 												<ol className='list-decimal list-inside space-y-2 text-white text-xs md:text-sm'>
@@ -2121,13 +2142,14 @@ export default function ClubStats() {
 
 								{/* Player Distribution Section */}
 								{!isDataTableMode && (isLoadingPlayerDistribution ? (
-									<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-										<div id='club-player-distribution' className='md:break-inside-avoid md:mb-4'>
-											<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-												<SankeyChartSkeleton />
+									<div id='club-player-distribution' className='md:mb-4 md:break-inside-avoid'>
+										<div className='min-h-[320px] rounded-lg bg-white/10 p-2 backdrop-blur-sm md:p-4'>
+											<h3 className='mb-2 text-sm font-semibold text-white md:text-base'>Player Distribution</h3>
+											<div className='flex min-h-[240px] items-center justify-center'>
+												<p className='text-sm text-white/45'>Loading…</p>
 											</div>
 										</div>
-									</SkeletonTheme>
+									</div>
 								) : !isLoadingPlayerDistribution && sankeyData && sankeyData.nodes.length > 1 && sankeyData.links.length > 0 && (() => {
 									// Validate that all links reference existing nodes
 									const nodeIds = new Set(sankeyData.nodes.map((n: any) => n.id));
@@ -2226,9 +2248,9 @@ export default function ClubStats() {
 												rootMargin="120px"
 												className="chart-container min-h-[320px]"
 												fallback={
-													<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-														<SankeyChartSkeleton />
-													</SkeletonTheme>
+													<div className='flex min-h-[320px] items-center justify-center rounded-lg bg-white/5'>
+														<p className='text-xs text-white/40'>Loading chart…</p>
+													</div>
 												}
 											>
 												<div className="h-[320px]" style={{ touchAction: 'pan-y' }}>
@@ -2253,7 +2275,8 @@ export default function ClubStats() {
 														nodeTooltip={() => null}
 														linkTooltip={() => null}
 														isInteractive={false}
-														layers={['links', 'nodes', CustomLabelLayer as any, 'legends']}
+														enableLegend={false}
+														layers={["links", "nodes", CustomLabelLayer as any]}
 														theme={{
 															text: { fill: '#fff', fontSize: 12 },
 														}}
@@ -2941,6 +2964,7 @@ export default function ClubStats() {
 										subtitle='All club matches with a recording link for your current filters.'
 										fixtures={clubRecordings}
 										teamColumn={showClubRecordingsTeamColumn}
+										collapseAfter={10}
 										testIdPrefix='club-recording'
 									/>
 								)}

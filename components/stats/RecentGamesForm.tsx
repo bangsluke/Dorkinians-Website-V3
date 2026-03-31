@@ -361,6 +361,7 @@ export default function RecentGamesForm({ teamName, filters }: RecentGamesFormPr
 			>
 				{showDetailBoxes ? 'Hide detail boxes' : 'Show detail boxes'}
 			</button>
+			<div className='md:scale-[0.8] md:origin-top'>
 			<div className='flex gap-1 w-full'>
 				{boxesToShow.map((fixture, index) => (
 					<div
@@ -434,6 +435,7 @@ export default function RecentGamesForm({ teamName, filters }: RecentGamesFormPr
 					</div>
 				</div>
 			)}
+			</div>
 			{/* Summary text */}
 			{fixtures.length > 0 && (
 				<div className='mt-2 text-center'>

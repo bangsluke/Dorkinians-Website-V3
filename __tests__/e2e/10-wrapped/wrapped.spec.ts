@@ -23,7 +23,7 @@ test.describe("Season Wrapped", () => {
 		await expect(page.getByTestId("wrapped-slide-url")).toContainText("season=");
 		await expect(page.getByTestId("wrapped-share-slide")).toBeVisible();
 
-		await page.getByRole("button", { name: "Next" }).click();
+		await page.getByTestId("wrapped-page").getByRole("button", { name: "Next" }).click();
 		await expect(page.getByText("Versus the squad")).toBeVisible({ timeout: 15000 });
 
 		await expect(page.getByTestId("wrapped-whatsapp-block")).toBeVisible();

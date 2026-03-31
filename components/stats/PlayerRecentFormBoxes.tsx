@@ -245,7 +245,7 @@ export default function PlayerRecentFormBoxes({ matchesNewestFirst }: Props) {
 	return (
 		<div className='mb-3' data-testid='player-recent-form-boxes'>
 			<p className='text-white/70 text-xs mb-2'>Recent match scores (last 10, same filters)</p>
-			<div className='flex gap-1 w-full'>
+			<div className='flex gap-1 w-full md:scale-[0.7] md:origin-top md:max-w-[calc(100%/0.7)]'>
 				{boxesToShow.map((m, index) => {
 					const presentation = ratingBandPresentation(m ? m.displayScore : null);
 					return (

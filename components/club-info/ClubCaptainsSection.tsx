@@ -116,16 +116,6 @@ export default function ClubCaptainsSection({ embedded = false }: { embedded?: b
 		setShowPopup(true);
 	};
 
-	const handleCaptainHover = (captainName: string) => {
-		if (typeof window !== "undefined" && window.innerWidth >= 768) {
-			trackEvent(UmamiEvents.CaptainHistoryOpened, { playerName: captainName, source: "hover" });
-			setSelectedPlayer(captainName);
-			setShowPopup(true);
-		}
-	};
-
-	const handleCaptainHoverEnd = () => {};
-
 	const handleClosePopup = () => {
 		setShowPopup(false);
 		setSelectedPlayer(null);
@@ -225,8 +215,6 @@ export default function ClubCaptainsSection({ embedded = false }: { embedded?: b
 															<span key={playerIndex} className='inline-flex items-center'>
 																<button
 																	onClick={() => handleCaptainClick(playerName)}
-																	onMouseEnter={() => handleCaptainHover(playerName)}
-																	onMouseLeave={handleCaptainHoverEnd}
 																	onTouchStart={() => handleCaptainClick(playerName)}
 																	className='text-white text-xs md:text-sm underline hover:text-dorkinians-yellow transition-colors cursor-pointer'>
 																	{playerName}

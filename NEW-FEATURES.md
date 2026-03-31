@@ -1587,7 +1587,51 @@ These items come from `New-Features-2.md`. Implement after Phase 5 (Feature 9) u
 
 - **E2E (Playwright):** Settings home navigation (see item 1); Form section axis ticks visible (extend `3.21` or dedicated check); data table mode — toggle group aligned right (layout assertion or stable `data-testid` + bounding box optional).
 
-**Status:** **Not implemented.**
+**Status:** Items **1–3** completed per **`IMPLEMENTATION-STATUS.md` → Phase 6 UX polish**; remaining Phase 6 rows **5–7** rolled into **Phase 7** where overlapping.
+
+---
+
+### Phase 7: UX polish Round 3 _(in progress; track checklist in **`IMPLEMENTATION-STATUS.md` → Phase 7 UX polish Round 3**)_
+
+**Purpose:** Navigation parity, header onboarding, Player Profile polish, Player Stats section order and Form/Streaks UX, filter-scoped graph insights (partnerships / impact / most connected / squad backbone), Club/Team Stats fixes, Club Information records styling, League Information layout, Club Captains interaction fixes, TOTW/POTM desktop/mobile polish.
+
+**Phases A–J (summary):**
+
+| Phase | Scope |
+| ----- | ----- |
+| **A** | Profile icon highlight pulse; first-visit Stats tooltips including profile; fix stats menu pulse `localStorage` init; `StatsNavigationMenu` + Settings trees aligned to live section ids; sidebar selected border minimal; Squad Backbone nav label |
+| **B** | Player Profile title sizing; milestone badge tooltips (catalog sync: DB `badgeDefinitions.js` + `lib/badges/catalog.ts`); Recently Unlocked yellow card; past seasons wrapped dropdown + logo link; profile loading skeleton |
+| **C** | Key Performance order (Mins before Starts, Form after Assists); 9-box skeleton; move All Games above Streaks; Most Connected / Partnerships / Impact above Defensive Record; Form: white axes, margins, remove golden-cross copy, legend + tooltip labels, coloured summary cards |
+| **D** | Streaks intro + per-streak tooltips; remove Season bests grid; Season best / All-time best under each streak |
+| **E** | Filter-scoped Cypher or API params for graph sections; user-facing copy that values respect current filters |
+| **F** | Team Stats: **Formations Used** below Match Results; Club Stats: Sankey grey artefacts; **Squad Backbone** title |
+| **G** | Club Recordings date font; Pixham link white; Records + Badge Leaderboard honour-board style; XI display formatter; POTM loader simplification |
+| **H** | League Information: centre “League Table Link \| Show Results”; desktop meta row in first column |
+| **I** | Club Captains/Awards: click-only modals (no hover cascade); modal `max-w` single column |
+| **J** | TOTW/POTM: skeleton size, dropdown width, previous-weeks font; mobile spacing + share button |
+
+**Tests:** Extend Playwright stats/home/totw/club-info/profile as rows are touched; integration tests for filter-scoped APIs.
+
+---
+
+### Phase 8: UX polish Round 4 _(track checklist in **`IMPLEMENTATION-STATUS.md` → Phase 8 UX polish Round 4**)_ 
+
+**Purpose:** Profile nav one-time ring + tooltip parity; sidebar selection chrome; achievements milestone tooltips/rounding/circle values and Recently Unlocked tint; profile “past seasons wrapped” layout; Form/Streaks/Impact copy and styling; team recent form scale; club player distribution loading without Sankey skeleton flash; Veo recordings count + club list collapse; TOTW pitch skeleton parity; docs refresh for the next integration pass.
+
+**Checklist (mirror of shipped work):**
+
+- Header + sidebar: stronger yellow ring bursts once per browser (`localStorage`), synced with profile tutorial tooltip; desktop header tooltip parity where applicable.
+- Sidebar: no ring/outline on selected parent/sub rows (yellow bg + text only).
+- Achievements: `formatBadgeNumber` in badge tooltips; custom hover tooltips on milestone grid; threshold/target values in circles; Recently Unlocked card aligned with Season Wrapped styling.
+- Player Profile: past seasons control above helper copy; extra bottom padding on wrapped block.
+- Player Stats Form: legend above chart, tighter margins, coloured form tooltip labels; recent form boxes scaled on `md+`; summary cards use full rating-band styling.
+- Streaks: remove body paragraph under heading; dark tooltip for info icon. Impact: “The {XI} wins {n}% more/less often when you play.”
+- Team Stats: Recent Form boxes ~20% smaller on `md+`.
+- Club Stats: Player Distribution — no `SankeyChartSkeleton` while loading or in lazy fallback; section id `club-player-distribution` preserved when data loads.
+- Recordings: title includes count `(N)`; club view `collapseAfter={10}` + **See all**.
+- TOTW: pitch skeleton `minHeight` and marker sizes aligned with loaded pitch.
+
+**Tests:** Targeted Playwright if selectors/copy change (Impact heading unchanged; recordings title now includes count).
 
 ---
 
@@ -1601,5 +1645,7 @@ These items come from `New-Features-2.md`. Implement after Phase 5 (Feature 9) u
 | 4     | Feature 8 (Season Wrapped)                                | V3-dorkinians-website     | Phases 1-3 (uses per-90, streaks, partnerships, match ratings)     |
 | 5     | Feature 9 (achievement badges)                            | Both repos                | Phases 1-3 (uses streaks, per-90, match ratings)                   |
 | 6     | Features 10-19 (New Requests Round 2) + **Feature 20** (UX polish) | Both repos (18 + seeding) | Phase 5 for 10; Phase 1 + 18 for 19; Feature 20 after 10–19 or alongside profile/header work |
+| 7     | **Phase 7** UX polish Round 3 | V3-dorkinians-website (+ optional DB for badges) | After Phase 6; filter-scoped graph work may extend APIs only |
+| 8     | **Phase 8** UX polish Round 4 | V3-dorkinians-website | After Phase 7 |
 
 Within each phase, implement features in the order listed. Run the full test suite after each feature before moving to the next.

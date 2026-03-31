@@ -1032,7 +1032,7 @@ export default function TeamOfTheWeek() {
 										<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
 									</span>
 								</Listbox.Button>
-								<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none text-[0.65rem] md:text-sm'>
+								<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full max-w-[min(100vw-1rem,22rem)] overflow-auto dark-dropdown py-1 text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none text-[0.65rem] md:text-sm'>
 									{seasons.map((season) => (
 										<Listbox.Option
 											key={season}
@@ -1094,7 +1094,7 @@ export default function TeamOfTheWeek() {
 									</span>
 								</Listbox.Button>
 								{!isAllTimeSelected && (
-									<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none text-[0.65rem] md:text-sm'>
+									<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full max-w-[min(100vw-1rem,22rem)] overflow-auto dark-dropdown py-1 text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none text-[0.65rem] md:text-sm'>
 										{weeks.length === 0 ? (
 											<Listbox.Option value={0} className='relative cursor-default select-none dark-dropdown-option py-2 pl-3 pr-9 text-white'>
 												<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
@@ -1296,13 +1296,13 @@ export default function TeamOfTheWeek() {
 						</div>
 					</div>
 
-					<div className='flex justify-center mb-2'>
+					<div className={`flex justify-center ${showPreviousWeeksStrip ? "mb-4 lg:mb-2" : "mb-2"}`}>
 						<button
 							type='button'
 							data-testid='totw-share-button'
 							onClick={() => void handleShareTOTW()}
 							disabled={isSharingTOTW}
-							className='text-sm font-medium px-4 py-2 rounded-lg bg-[#E8C547] text-black hover:opacity-90 disabled:opacity-60'>
+							className='text-xs md:text-sm font-medium px-3 py-1.5 md:px-4 md:py-2 rounded-lg bg-[#E8C547] text-black hover:opacity-90 disabled:opacity-60'>
 							{isSharingTOTW ? "Preparing..." : "Share TOTW"}
 						</button>
 					</div>
@@ -1310,7 +1310,7 @@ export default function TeamOfTheWeek() {
 
 					{/* Previous 10 weeks score strip (Feature 15) — right column on lg, full width below on smaller screens */}
 					{showPreviousWeeksStrip && (
-						<div id='totw-previous-weeks-strip' data-testid='totw-previous-weeks-strip' className='mb-6 lg:mb-0 min-w-0'>
+						<div id='totw-previous-weeks-strip' data-testid='totw-previous-weeks-strip' className='mb-6 lg:mb-0 min-w-0 mt-2 lg:mt-0'>
 							<h3 className='text-center lg:text-left text-gray-200 font-semibold text-xs md:text-sm mb-2'>Previous 10 Weeks</h3>
 							<div className='grid grid-cols-5 md:grid-cols-10 lg:grid-cols-2 gap-2'>
 								{previousTenWeeks.map((weekItem) => (
@@ -1334,7 +1334,7 @@ export default function TeamOfTheWeek() {
 										className='rounded-md border border-white/20 bg-white/5 hover:bg-white/10 transition-colors px-1 py-1.5 text-center'
 										aria-label={`Open Team of the Week for week ${weekItem.week}`}>
 										<p className='text-[10px] md:text-xs lg:text-[10px] text-white/80'>W{weekItem.week}</p>
-										<p className='text-xs md:text-sm lg:text-xs font-semibold text-dorkinians-yellow leading-tight'>
+										<p className='text-sm md:text-base lg:text-sm font-semibold text-dorkinians-yellow leading-tight'>
 											{Math.round(Number(weekItem.totwScore || 0))}
 										</p>
 										<p className='text-[9px] md:text-[10px] text-white/60 truncate'>{weekItem.dateLookup || ""}</p>

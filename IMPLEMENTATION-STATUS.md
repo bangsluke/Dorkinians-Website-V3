@@ -2,11 +2,11 @@
 
 **Purpose:** Running log of what is implemented vs still to do for the plan in **`NEW-FEATURES.md`** (same folder). Use this when resuming work across sessions. The plan file remains the detailed spec; this file is the checklist.
 
-**Last updated:** 2026-03-30
+**Last updated:** 2026-03-31
 
-**Current milestone:** ✅ Phase 6 UX polish item 4 (adapted) — Player Profile: **Season Wrapped → Headline Stats → Milestone Badges**, centred header, no profile-body back control; wrapped **`?season=`** + season picker; conditional **Veo** slide; docs updated in **`NEW-FEATURES.md` Feature 8/10**.
+**Current milestone:** Phase 8 UX polish Round 4 — profile nav intro, achievements/form/recordings/TOTW polish, club distribution loading, docs (see checklist below).
 
-**Next focus:** Phase 6 UX polish items **5–7** (Form Y-axis, data-table toggle alignment, profile icon on all main pages) per **`IMPLEMENTATION-STATUS.md` → Phase 6 UX polish** checklist.
+**Next focus:** Run Playwright stats/TOTW smoke on a seeded env; optional E2E for **See all** on club recordings (`club-recording-see-all`) when data exists; any follow-up from real-device tooltip/ring timing.
 
 **Database repo:** When this website repo sits next to the seeding service, paths below use **`../database-dorkinians/`**. If you only have the database clone, open the copy of this file from the website repo or maintain a short pointer there.
 
@@ -282,9 +282,45 @@ Spec source: **`NEW-FEATURES.md`** — amended Feature 8 / 10 / 13 plus **Featur
 | 2 | **Player Profile** uses same **app chrome** as Settings/main SPA (sidebar + header/footer), not a bare full-page view | ✅ Completed (2026-03-30) | Added profile route layout with sidebar/header/footer + frosted shell; profile content moved to in-shell scroll container; sidebar/footer now route back to `/` when used from standalone routes |
 | 3 | **Settings** → **Home** in “Available Screens” navigates like other destinations (e.g. `window.location.href = "/"` / `router.push` + store sync if on `/settings` route) | ✅ Completed (2026-03-30) | `components/pages/Settings.tsx` now routes back to `/` when not already on home shell while keeping store updates; standalone `app/settings/page.tsx` path already routes via `window.location.href = "/"` |
 | 4 | **Player Profile** (adapted): order **Season Wrapped → Headline Stats → Milestone Badges**; centred **Player Profile - {name}** header; Season Wrapped + logo + yellow-forward styling + **season selector** when multiple seasons; **no** profile-body back/home button; **`/wrapped/...?season=`** sync; **conditional Veo slide** when that season has recordings | ✅ Completed (2026-03-30) | Playwright **`3.26`** order; **`10.1`** footer URL includes `season=`; **`10.3`** season selector ↔ URL; integration **`wrapped-api`** sample includes new payload fields |
-| 5 | **Player Stats** Form chart: **Y-axis** shows rating scale values (margins / `YAxis` width in `FormComposedChart` or parent) | Not started | Playwright visual or assertion on axis ticks in `3.21` / Form section |
-| 6 | **Player Stats** data table: **Totals \| Per App \| Per 90** toggle group **right-aligned** in the control row | Not started | Playwright: layout/selector check in data table mode |
-| 7 | **Header** (and desktop sidebar header if mirrored): profile icon when player selected on **all** main pages; slightly **tighter** icon spacing | Not started | Extend Home suite or Stats: select player on home → navigate to Stats → icon visible; spacing regression snapshot optional |
+| 5 | **Player Stats** Form chart: **Y-axis** shows rating scale values (margins / `YAxis` width in `FormComposedChart` or parent) | ✅ (Phase 7 C) | Playwright visual or assertion on axis ticks in `3.21` / Form section |
+| 6 | **Player Stats** data table: **Totals \| Per App \| Per 90** toggle group **right-aligned** in the control row | ✅ (Phase 7 C) | Playwright: layout/selector check in data table mode |
+| 7 | **Header** (and desktop sidebar header if mirrored): profile icon when player selected on **all** main pages; slightly **tighter** icon spacing | Rolled into **Phase 7 A** | Extend Home suite or Stats: select player on home → navigate to Stats → icon visible |
+
+### Phase 7 UX polish Round 3 _(in progress)_
+
+Spec source: **`NEW-FEATURES.md` → Phase 7** (detail in repo plan **Phase 7 — UX polish and navigation parity**). Mark rows **✅** when shipped.
+
+| Phase | Item (summary) | Status |
+| ----- | ---------------- | ------ |
+| **A** | Stats menu pulse `localStorage` init; profile icon pulse + first-visit profile tooltip; `StatsNavigationMenu` + Settings parity; sidebar minimal selected border; Squad Backbone nav | ✅ |
+| **B** | Player Profile title size; milestone tooltips; Recently Unlocked tint; past seasons wrapped dropdown + logo; profile skeleton | ✅ |
+| **C** | Key perf order + 9 skeleton boxes; section reorder (All Games, graph blocks, Defensive Record); Form axes/legend/tooltip/cards; data table toggle right-align | ✅ |
+| **D** | Streaks intro + tooltips; season/all-time under circles; remove season-bests grid | ✅ |
+| **E** | Filter-scoped partnerships / impact / most connected / squad backbone APIs + copy | ✅ |
+| **F** | Formations Used below Match Results; Sankey artefacts; Squad Backbone title | ✅ |
+| **G** | Club Recordings date font; Pixham white; Records + Badge Leaderboard; POTM loader | ✅ |
+| **H** | League link row centre; desktop meta in column 1 | ✅ |
+| **I** | Captains/Awards click-only modals; modal max-width | ✅ |
+| **J** | TOTW/POTM skeleton, dropdown width, week scores font; mobile share spacing | ✅ |
+
+### Phase 8 UX polish Round 4 _(shipped 2026-03-31)_
+
+Spec source: **`NEW-FEATURES.md` → Phase 8** (detail in workspace plan **Phase 8 — UX polish**).
+
+| Item | Status |
+| ---- | ------ |
+| Profile icon: one-time yellow ring bursts + `localStorage`; sync with profile tooltip; desktop header tooltip parity | ✅ Shipped |
+| Sidebar: remove ring on selected nav rows | ✅ Shipped |
+| Achievements: `formatBadgeNumber`, hover tooltips, circle thresholds/targets, Recently Unlocked tint | ✅ Shipped |
+| Player Profile: past seasons control above copy; extra bottom padding | ✅ Shipped |
+| Form: legend top, margins, tooltip colours, `md` recent boxes scale, summary card band styling | ✅ Shipped |
+| Streaks: drop paragraph; dark info tooltip | ✅ Shipped |
+| Impact: “The {XI} wins …% more/less often when you play.” | ✅ Shipped |
+| Team Recent Form: `md` scale ~0.8 | ✅ Shipped |
+| Club Player Distribution: no Sankey skeleton / plain lazy fallback | ✅ Shipped |
+| Recordings: title count `(N)`; club `collapseAfter={10}` + See all | ✅ Shipped |
+| TOTW pitch skeleton: smaller markers, `minHeight` 450px | ✅ Shipped |
+| Docs: Phase 8 in `NEW-FEATURES.md` + this checklist | ✅ Shipped |
 
 ---
 

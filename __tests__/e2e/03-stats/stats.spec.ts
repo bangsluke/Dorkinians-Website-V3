@@ -284,12 +284,11 @@ test.describe("Stats Page Tests", () => {
 		}
 		const teamTopPlayersHeading = page.getByTestId("team-top-players-heading").first();
 		const teamStatsHeading = page.getByRole("heading", { name: /Team Stats/i }).first();
-		try {
-			await expect(teamTopPlayersHeading).toBeVisible({ timeout: 20000 });
-		} catch {
-			// Flaky: team data loading may show page heading before top-players block
-			await expect(teamStatsHeading).toBeVisible({ timeout: 20000 });
-		}
+		await expect(teamStatsHeading).toBeVisible({ timeout: 20000 });
+		// Either top-players loaded or valid empty state (no team selected yet).
+		await expect(
+			teamTopPlayersHeading.or(page.getByText(/Please select a team to view stats/i).first()),
+		).toBeVisible({ timeout: 25000 });
 	});
 
 	test("3.8. should navigate to Club Stats sub-page", async ({ page }) => {
@@ -421,7 +420,8 @@ test.describe("Stats Page Tests", () => {
 		if (await tableControls.isVisible({ timeout: 4000 }).catch(() => false)) {
 			await expect(tableControls).toHaveClass(/justify-end/);
 			await page.getByRole("button", { name: "Per 90" }).click();
-			await expect(tableControls).toHaveClass(/justify-between/);
+			// Per-90 note sits below the mode row; controls stay right-aligned (Phase 7).
+			await expect(tableControls).toHaveClass(/justify-end/);
 		}
 		await toggleDataTable(page, "visualisation");
 	});
@@ -633,7 +633,7 @@ test.describe("Stats Page Tests", () => {
 		const streaks = page.locator("#streaks-section");
 		await expect(streaks).toBeVisible({ timeout: 12000 });
 		await expect(page.getByRole("heading", { name: /^Streaks$/i })).toBeVisible({ timeout: 12000 });
-		await expect(streaks.getByText(/Season bests/i)).toBeVisible({ timeout: 8000 });
+		await expect(streaks.getByText(/Season best/i).first()).toBeVisible({ timeout: 8000 });
 	});
 
 	test("3.25. Player partnerships and impact sections render", async ({ page }) => {
