@@ -17,7 +17,6 @@ const PLAYER_SECTION_IDS = [
 	"key-performance-stats",
 	"form-section",
 	"streaks-section",
-	"most-connected-section",
 	"partnerships-section",
 	"impact-section",
 	"all-games",
@@ -718,22 +717,4 @@ test.describe("Stats Page Tests", () => {
 		await expect(page.getByText(/Suggested setup/i).first()).toBeVisible({ timeout: 5000 });
 	});
 
-	test("3.28. Most Connected section renders top links or fallback", async ({ page }) => {
-		await openStatsFromHome(page);
-		if (await page.getByRole("heading", { name: /No player data available/i }).first().isVisible({ timeout: 2500 }).catch(() => false)) {
-			test.skip(true, "No player data — skipping most connected section.");
-			return;
-		}
-		const section = page.locator("#most-connected-section");
-		await expect(section).toBeVisible({ timeout: 12000 });
-		await expect(page.getByRole("heading", { name: /^Most Connected$/i })).toBeVisible({ timeout: 8000 });
-		const firstItem = section.getByTestId("most-connected-item").first();
-		const fallback = section.getByText(/No connection data yet/i);
-		const hasItem = await firstItem.isVisible({ timeout: 3000 }).catch(() => false);
-		if (!hasItem) {
-			await expect(fallback).toBeVisible({ timeout: 8000 });
-			return;
-		}
-		await expect(firstItem).toBeVisible({ timeout: 8000 });
-	});
 });

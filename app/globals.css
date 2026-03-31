@@ -501,6 +501,13 @@
 		box-sizing: border-box;
 	}
 
+	/* KPI + Form share one masonry cell. Use margin on KPI (md:mb-4) for vertical rhythm — same as masonry > * margin-bottom — not flex gap, so spacing matches full-page skeleton + other cards once content loads. */
+	.player-stats-masonry > .player-stats-kpi-form-group {
+		display: flex !important;
+		flex-direction: column !important;
+		gap: 0 !important;
+	}
+
 	/* When single-column sections are present, use grid for better control */
 	/* On desktop: 2-column grid, all sections span 1 column */
 	/* On mobile: 1-column layout (handled by space-y-4 class) */

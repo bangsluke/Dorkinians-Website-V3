@@ -29,7 +29,6 @@ const statsNavigationItems = [
 			{ id: "starting-impact", label: "Starting Impact" },
 			{ id: "game-details", label: "Game Details" },
 			{ id: "monthly-performance", label: "Monthly Performance" },
-			{ id: "most-connected-section", label: "Most Connected" },
 			{ id: "partnerships-section", label: "Partnerships" },
 			{ id: "impact-section", label: "Impact" },
 			{ id: "defensive-record", label: "Defensive Record" },

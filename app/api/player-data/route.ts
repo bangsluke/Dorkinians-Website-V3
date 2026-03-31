@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neo4jService } from "@/lib/neo4j";
 import { getCorsHeadersWithSecurity } from "@/lib/utils/securityHeaders";
-import { buildMostConnectedListFromPartnershipsJson } from "@/lib/stats/mostConnected";
 
 const corsHeaders = getCorsHeadersWithSecurity();
 
@@ -104,6 +103,13 @@ export function buildFilterConditions(filters: any, params: any): string[] {
 	return conditions;
 }
 
+/** Split Cypher filter snippets for appearance-slot queries (allow `md IS NULL` only for f-only conditions). */
+export function partitionFilterConditions(conditions: string[]): { fixture: string[]; matchDetail: string[] } {
+	const matchDetail = conditions.filter((c) => c.includes("md."));
+	const fixture = conditions.filter((c) => !c.includes("md."));
+	return { fixture, matchDetail };
+}
+
 /** Neo4j RETURN fragment: career streak counters on `p` (Feature 5; independent of stat filters). */
 export const PLAYER_STREAK_PROPERTY_RETURN = `
 			coalesce(p.currentScoringStreak, 0) as currentScoringStreak,
@@ -180,7 +186,6 @@ export function mapPlayerGraphInsightFieldsFromRecord(record: { get: (key: strin
 	const bm = nullableNum("bestPartnerMatches");
 	const jsonRaw = record.get("partnershipsTopJson");
 	const partnershipsTopJson = jsonRaw != null && String(jsonRaw).trim() !== "" ? String(jsonRaw) : null;
-	const mostConnected = buildMostConnectedListFromPartnershipsJson(partnershipsTopJson, 5);
 	const graphInsightsBestPartnerDisplay =
 		bestPartnerName != null && wr != null && bm != null
 			? `${bestPartnerName} (${Math.round(wr * 10) / 10}% in ${Math.round(bm)} games)`
@@ -202,7 +207,6 @@ export function mapPlayerGraphInsightFieldsFromRecord(record: { get: (key: strin
 		bestPartnerWinRate: wr,
 		bestPartnerMatches: bm != null ? Math.round(bm) : null,
 		partnershipsTopJson,
-		mostConnected,
 		graphInsightsBestPartnerDisplay,
 		impactDelta: nullableNum("impactDelta"),
 		impactWinRateWith: irWith,
@@ -236,10 +240,9 @@ export function buildFilteredPartnershipsQuery(playerName: string, filters: any)
 		WHERE pOther <> p AND coalesce(pOther.allowOnSite, true) = true
 		WITH pOther.playerName AS mateName, f, f.result AS res
 		WITH mateName, count(*) AS matches, sum(CASE WHEN res = 'W' THEN 1 ELSE 0 END) AS winCount
-		WHERE matches >= 1
+		WHERE matches >= 5
 		RETURN mateName, matches, CASE WHEN matches > 0 THEN toFloat(winCount) * 100.0 / matches ELSE 0.0 END AS winRate
-		ORDER BY matches DESC
-		LIMIT 30`;
+		LIMIT 400`;
 	return { query, params };
 }
 
@@ -320,11 +323,24 @@ export function packFilteredPlayerGraphInsights(
 		return Number.isNaN(n) ? 0 : n;
 	};
 
-	const sorted = [...rows].sort((a, b) => b.matches - a.matches || a.mateName.localeCompare(b.mateName));
+	/** Union top partners by co-appearance volume and by win rate so UI "best win %" is not limited to the busiest teammates only. */
+	const valid = rows.filter((r) => r.mateName.length > 0 && r.matches >= 5);
+	const byName = new Map<string, FilteredPartnershipRow>();
+	for (const r of valid) {
+		byName.set(r.mateName, r);
+	}
+	const all = [...byName.values()];
+	const byMatches = [...all].sort((a, b) => b.matches - a.matches || b.winRate - a.winRate || a.mateName.localeCompare(b.mateName));
+	const byWinRate = [...all].sort((a, b) => b.winRate - a.winRate || b.matches - a.matches || a.mateName.localeCompare(b.mateName));
+	const picked = new Map<string, FilteredPartnershipRow>();
+	for (const r of byMatches.slice(0, 45)) picked.set(r.mateName, r);
+	for (const r of byWinRate.slice(0, 45)) picked.set(r.mateName, r);
+	const merged = [...picked.values()];
+
 	const partnershipsTopJson =
-		sorted.length > 0
+		merged.length > 0
 			? JSON.stringify(
-					sorted.map((r) => ({
+					merged.map((r) => ({
 						name: r.mateName,
 						matches: Math.round(r.matches),
 						winRate: Math.round(r.winRate * 10) / 10,
@@ -332,12 +348,11 @@ export function packFilteredPlayerGraphInsights(
 				)
 			: null;
 
-	const top = sorted[0];
-	const bestPartnerName = top && top.mateName ? top.mateName : null;
-	const bestPartnerWinRate = top ? top.winRate : null;
-	const bestPartnerMatches = top ? Math.round(top.matches) : null;
+	const topWin = byWinRate[0];
+	const bestPartnerName = topWin && topWin.mateName ? topWin.mateName : null;
+	const bestPartnerWinRate = topWin ? topWin.winRate : null;
+	const bestPartnerMatches = topWin ? Math.round(topWin.matches) : null;
 
-	const mostConnected = buildMostConnectedListFromPartnershipsJson(partnershipsTopJson, 5);
 	const graphInsightsBestPartnerDisplay =
 		bestPartnerName != null && bestPartnerWinRate != null && bestPartnerMatches != null
 			? `${bestPartnerName} (${Math.round(bestPartnerWinRate * 10) / 10}% in ${Math.round(bestPartnerMatches)} games)`
@@ -398,9 +413,70 @@ export function packFilteredPlayerGraphInsights(
 	const base = mapPlayerGraphInsightFieldsFromRecord(synthetic, toNumber);
 	return {
 		...base,
-		mostConnected,
 		graphInsightsBestPartnerDisplay,
 	};
+}
+
+/** Collect ordered match rows for live streak computation (same shape as foundation streak seeding). */
+export function buildStreakMatchesCollectQuery(playerName: string, filters: any): { query: string; params: Record<string, unknown> } {
+	const graphLabel = neo4jService.getGraphLabel();
+	const params: Record<string, unknown> = { graphLabel, playerName };
+	const conditions = buildFilterConditions(filters, params);
+	let query = `
+		MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
+		OPTIONAL MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+		OPTIONAL MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)`;
+	if (conditions.length > 0) {
+		query += ` WHERE md IS NULL OR (f IS NOT NULL AND ${conditions.join(" AND ")})`;
+	} else {
+		query += ` WHERE md IS NULL OR f IS NOT NULL`;
+	}
+	query += `
+		WITH p, md, f
+		ORDER BY f.date ASC
+		WITH p, collect(CASE WHEN md IS NULL OR f IS NULL THEN null ELSE {
+			season: md.season,
+			date: f.date,
+			goals: md.goals,
+			penaltiesScored: md.penaltiesScored,
+			assists: md.assists,
+			cleanSheets: md.cleanSheets,
+			class: md.class,
+			minutes: md.minutes,
+			started: md.started,
+			mom: md.mom,
+			yellowCards: md.yellowCards,
+			redCards: md.redCards,
+			fixtureResult: f.result,
+			fixtureId: f.id
+		} END) as rawMatches
+		RETURN rawMatches`;
+	return { query, params };
+}
+
+/** Appearance slots for `p.mostPlayedForTeam` fixtures (filtered), ordered by date. */
+export function buildStreakAppearanceSlotsCollectQuery(playerName: string, filters: any): { query: string; params: Record<string, unknown> } {
+	const graphLabel = neo4jService.getGraphLabel();
+	const params: Record<string, unknown> = { graphLabel, playerName };
+	let query = `
+		MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
+		WHERE coalesce(p.mostPlayedForTeam, '') <> ''
+		MATCH (f:Fixture {graphLabel: $graphLabel, team: p.mostPlayedForTeam})
+		OPTIONAL MATCH (f)-[:HAS_MATCH_DETAILS]->(md:MatchDetail {graphLabel: $graphLabel})<-[:PLAYED_IN]-(p)`;
+	const conditions = buildFilterConditions(filters, params);
+	if (conditions.length > 0) {
+		const { fixture, matchDetail } = partitionFilterConditions(conditions);
+		const parts: string[] = [];
+		if (fixture.length > 0) parts.push(`(${fixture.join(" AND ")})`);
+		if (matchDetail.length > 0) parts.push(`(md IS NOT NULL AND ${matchDetail.join(" AND ")})`);
+		if (parts.length > 0) query += ` WHERE ${parts.join(" AND ")}`;
+	}
+	query += `
+		WITH p, f, md
+		ORDER BY f.date ASC
+		WITH p, collect({ season: f.season, minutes: CASE WHEN md IS NOT NULL THEN coalesce(md.minutes, 0) ELSE null END }) as appearanceSlots
+		RETURN appearanceSlots`;
+	return { query, params };
 }
 
 // Build unified Cypher query with aggregation

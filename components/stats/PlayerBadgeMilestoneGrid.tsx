@@ -80,11 +80,14 @@ function MilestoneHoverShell({
 export default function PlayerBadgeMilestoneGrid({
 	earned,
 	progress,
+	achieverCountsByBadgeKey,
 }: {
 	earned: EarnedBadgeRow[];
 	progress: ProgressRow[];
+	achieverCountsByBadgeKey?: Record<string, number>;
 }) {
 	const earnedByKey = mergeEarnedByKey(earned);
+	const achieverCounts = achieverCountsByBadgeKey ?? {};
 	const progressByKey = new Map<string, ProgressRow>();
 	for (const p of progress) {
 		progressByKey.set(p.badgeKey, p);
@@ -125,6 +128,7 @@ export default function PlayerBadgeMilestoneGrid({
 											BADGE_DEFINITIONS[recentlyUnlocked.badgeKey],
 											recentlyUnlocked,
 											progressByKey.get(recentlyUnlocked.badgeKey),
+											achieverCounts[recentlyUnlocked.badgeKey],
 										)
 									: `${recentlyUnlocked.badgeName} — ${recentlyUnlocked.description}`
 							}>
@@ -137,6 +141,7 @@ export default function PlayerBadgeMilestoneGrid({
 												BADGE_DEFINITIONS[recentlyUnlocked.badgeKey],
 												recentlyUnlocked,
 												progressByKey.get(recentlyUnlocked.badgeKey),
+												achieverCounts[recentlyUnlocked.badgeKey],
 											)
 										: `${recentlyUnlocked.badgeName} — ${recentlyUnlocked.description}`
 								}
@@ -173,7 +178,7 @@ export default function PlayerBadgeMilestoneGrid({
 								if (!def) return null;
 								const got = earnedByKey.get(badgeKey);
 								const prog = progressByKey.get(badgeKey);
-								const tip = buildMilestoneBadgeTooltip(def, got, prog);
+								const tip = buildMilestoneBadgeTooltip(def, got, prog, achieverCounts[badgeKey]);
 								const earnedInner = got ? tierThresholdLabel(def, got.tier) : undefined;
 								const lockedInner =
 									prog && prog.remaining > 0 ? formatBadgeNumber(prog.targetValue) : prog ? "—" : "—";

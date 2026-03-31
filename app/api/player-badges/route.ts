@@ -95,6 +95,32 @@ export async function GET(request: NextRequest) {
 		const progress = getBadgeProgress(player);
 		const totalBadges = Number(player.totalBadges ?? earned.length) || earned.length;
 		const highestBadgeTier = player.highestBadgeTier != null && String(player.highestBadgeTier).trim() !== "" ? String(player.highestBadgeTier) : null;
+		const achieverCountsByBadgeKey: Record<string, number> = {};
+
+		const achieverQuery = `
+			MATCH (pb:PlayerBadge {graphLabel: $graphLabel})
+			WITH pb.playerName as playerName, split(pb.badgeId, "_") as parts
+			WITH playerName, parts[0..size(parts)-1] as keyParts
+			WITH playerName, reduce(k = "", part IN keyParts | k + CASE WHEN k = "" THEN "" ELSE "_" END + part) as badgeKey
+			WHERE badgeKey <> ""
+			RETURN badgeKey, count(DISTINCT playerName) as achieverCount
+		`;
+		const achieverResult = await neo4jService.runQuery(achieverQuery, { graphLabel });
+		for (const row of achieverResult.records) {
+			const badgeKey = str(row.get("badgeKey")).trim();
+			if (!badgeKey) continue;
+			const raw = row.get("achieverCount");
+			let achieverCount = 0;
+			if (typeof raw === "number") {
+				achieverCount = Number.isFinite(raw) ? raw : 0;
+			} else if (raw && typeof raw === "object" && "toNumber" in raw && typeof (raw as { toNumber: () => number }).toNumber === "function") {
+				achieverCount = (raw as { toNumber: () => number }).toNumber();
+			} else {
+				const n = Number(raw);
+				achieverCount = Number.isFinite(n) ? n : 0;
+			}
+			achieverCountsByBadgeKey[badgeKey] = achieverCount;
+		}
 
 		return NextResponse.json(
 			{
@@ -103,6 +129,7 @@ export async function GET(request: NextRequest) {
 				highestBadgeTier,
 				earned,
 				progress,
+				achieverCountsByBadgeKey,
 			},
 			{ headers: corsHeaders },
 		);

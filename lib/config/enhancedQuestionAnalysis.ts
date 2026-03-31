@@ -1839,6 +1839,7 @@ export class EnhancedQuestionAnalyzer {
 			"Number Teams Played For",
 			"Goals", // General goals (lower priority)
 			"Assists",
+			"Starts", // Lineups / starts (narrower than general Apps)
 			"Apps",
 			"Games", // Map "Games" to "Apps" - should have same priority as Apps
 			"Minutes",
@@ -1868,6 +1869,7 @@ export class EnhancedQuestionAnalyzer {
 		Apps: "APP",
 		Appearances: "APP",
 		Games: "APP", // Map "Games" to "APP" (appearances)
+		Starts: "STARTS",
 		Minutes: "MIN",
 			"Yellow Cards": "Y",
 			"Red Cards": "R",
