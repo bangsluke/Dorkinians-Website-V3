@@ -18,6 +18,7 @@ import { dataApiRateLimiter } from "@/lib/middleware/rateLimiter";
 import { sanitizeError } from "@/lib/utils/errorSanitizer";
 import { log, logError, logQuery } from "@/lib/utils/logger";
 import { csrfProtection } from "@/lib/middleware/csrf";
+import { validatePlayerStatsFilters } from "@/lib/api/validatePlayerStatsFilters";
 
 const corsHeaders = getCorsHeadersWithSecurity();
 
@@ -35,7 +36,7 @@ async function loadFilteredPlayerGraphInsights(
 			matches: toNumber(rec.get("matches")),
 			winRate: toNumber(rec.get("winRate")),
 		}))
-		.filter((r: FilteredPartnershipRow) => r.mateName.length > 0 && r.matches >= 1);
+		.filter((r: FilteredPartnershipRow) => r.mateName.length > 0 && r.matches >= 5);
 
 	let withStats: { games: number; wins: number } | null = null;
 	let withoutStats: { games: number; wins: number } | null = null;
@@ -119,7 +120,7 @@ export async function POST(request: NextRequest) {
 		}
 
 		// Validate filter structure
-		const validationError = validateFilters(filters);
+		const validationError = validatePlayerStatsFilters(filters);
 		if (validationError) {
 			return NextResponse.json({ error: validationError }, { status: 400, headers: corsHeaders });
 		}
@@ -497,84 +498,3 @@ ${PLAYER_STREAK_PROPERTY_RETURN}
 	}
 }
 
-// Validation function for filter structure
-function validateFilters(filters: any): string | null {
-	// Validate timeRange
-	if (filters.timeRange) {
-		const { type, seasons, beforeDate, afterDate, startDate, endDate } = filters.timeRange;
-
-		if (!type || !["season", "beforeDate", "afterDate", "betweenDates", "allTime"].includes(type)) {
-			return "Invalid timeRange type";
-		}
-
-		if (type === "season" && (!seasons || !Array.isArray(seasons) || seasons.length === 0)) {
-			return "Seasons array is required for season filter";
-		}
-
-		if (type === "beforeDate" && !beforeDate) {
-			return "beforeDate is required for beforeDate filter";
-		}
-
-		if (type === "afterDate" && !afterDate) {
-			return "afterDate is required for afterDate filter";
-		}
-
-		if (type === "betweenDates" && (!startDate || !endDate)) {
-			return "startDate and endDate are required for betweenDates filter";
-		}
-	}
-
-	// Validate teams
-	if (filters.teams && (!Array.isArray(filters.teams) || filters.teams.some((team: any) => typeof team !== "string"))) {
-		return "Teams must be an array of strings";
-	}
-
-	// Validate location
-	if (filters.location && (!Array.isArray(filters.location) || filters.location.some((loc: any) => !["Home", "Away"].includes(loc)))) {
-		return "Location must be an array containing 'Home' and/or 'Away'";
-	}
-
-	// Validate opposition
-	if (filters.opposition) {
-		if (
-			typeof filters.opposition !== "object" ||
-			!["all", "club", "team"].includes(filters.opposition.mode ?? "all") ||
-			(typeof filters.opposition.searchTerm !== "string" && filters.opposition.searchTerm !== undefined)
-		) {
-			return "Invalid opposition filter structure";
-		}
-	}
-
-	// Validate competition
-	if (filters.competition) {
-		if (typeof filters.competition !== "object") {
-			return "Competition filter must be an object";
-		}
-
-		if (!["types", "individual"].includes(filters.competition.mode ?? "types")) {
-			return "Competition mode must be 'types' or 'individual'";
-		}
-
-		if (
-			filters.competition.types &&
-			(!Array.isArray(filters.competition.types) ||
-				filters.competition.types.some((type: any) => !["League", "Cup", "Friendly"].includes(type)))
-		) {
-			return "Competition types must be an array containing 'League', 'Cup', and/or 'Friendly'";
-		}
-
-		if (filters.competition.searchTerm && typeof filters.competition.searchTerm !== "string") {
-			return "Competition search term must be a string";
-		}
-	}
-
-	// Validate result
-	if (
-		filters.result &&
-		(!Array.isArray(filters.result) || filters.result.some((result: any) => !["Win", "Draw", "Loss"].includes(result)))
-	) {
-		return "Result must be an array containing 'Win', 'Draw', and/or 'Loss'";
-	}
-
-	return null;
-}

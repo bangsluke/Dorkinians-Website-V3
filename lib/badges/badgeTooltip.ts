@@ -30,19 +30,24 @@ export function buildMilestoneBadgeTooltip(
 	def: BadgeDefinition,
 	got: EarnedRow | undefined,
 	prog: Progress | undefined,
+	achieverCount?: number,
 ): string {
-	const measure = `${def.name}: milestone based on your ${def.category} stats.`;
+	const achieverText =
+		typeof achieverCount === "number" && Number.isFinite(achieverCount)
+			? ` Achieved by ${formatBadgeNumber(achieverCount)} club player${achieverCount === 1 ? "" : "s"}.`
+			: "";
+	const measure = def.description;
 	if (got && prog && prog.remaining > 0) {
-		return `${measure} Earned ${got.tier} (${got.description}). Current value ${formatBadgeNumber(prog.currentValue)}. Next tier: ${prog.nextTier} at ${formatBadgeNumber(prog.targetValue)} — ${formatBadgeNumber(prog.remaining)} to go.`;
+		return `${measure} Earned ${got.tier} (${got.description}). Current value ${formatBadgeNumber(prog.currentValue)}. Next tier: ${prog.nextTier} at ${formatBadgeNumber(prog.targetValue)} — ${formatBadgeNumber(prog.remaining)} to go.${achieverText}`;
 	}
 	if (got) {
-		return `${measure} Earned ${got.tier}: ${got.description}. Highest tier achieved.`;
+		return `${measure} Earned ${got.tier}: ${got.description}. Highest tier achieved.${achieverText}`;
 	}
 	if (prog && prog.remaining > 0) {
-		return `${measure} Current value: ${formatBadgeNumber(prog.currentValue)}. Next: ${prog.nextTier} (target ${formatBadgeNumber(prog.targetValue)}). ${formatBadgeNumber(prog.remaining)} to go.`;
+		return `${measure} Current value: ${formatBadgeNumber(prog.currentValue)}. Next: ${prog.nextTier} (target ${formatBadgeNumber(prog.targetValue)}). ${formatBadgeNumber(prog.remaining)} to go.${achieverText}`;
 	}
 	if (prog) {
-		return `${measure} Current value: ${formatBadgeNumber(prog.currentValue)}.`;
+		return `${measure} Current value: ${formatBadgeNumber(prog.currentValue)}.${achieverText}`;
 	}
-	return `${measure} Highest tier achieved.`;
+	return `${measure} Highest tier achieved.${achieverText}`;
 }

@@ -17,6 +17,14 @@ export const metricConfigs: MetricConfig[] = [
 		description: "Number of games/matches played",
 	},
 	{
+		key: "STARTS",
+		displayName: "starts",
+		singular: "start",
+		plural: "starts",
+		aliases: ["games started", "matches started", "starting xi", "in the starting lineup", "from the start"],
+		description: "Games where the player started (starting lineup)",
+	},
+	{
 		key: "MIN",
 		displayName: "minutes",
 		singular: "minute played",

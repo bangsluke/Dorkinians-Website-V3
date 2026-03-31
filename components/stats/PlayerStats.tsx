@@ -37,7 +37,7 @@ import AllGamesModal from "@/components/stats/AllGamesModal";
 import PlayerRecentFormBoxes, { type PlayerFormRecentMatch } from "@/components/stats/PlayerRecentFormBoxes";
 import { type EarnedBadgeRow, type ProgressRow } from "@/components/stats/PlayerBadgeMilestoneGrid";
 import { getPlayerProfileHref } from "@/lib/profile/slug";
-import { buildMostConnectedListFromPartnershipsJson } from "@/lib/stats/mostConnected";
+import type { LiveStreakPayload } from "@/lib/stats/playerStreaksComputation";
 import { matchRatingCircleStyle } from "@/lib/utils/matchRatingDisplay";
 import { formatXiTeamLabel } from "@/lib/utils/formatXiTeamLabel";
 import RecordingsSection from "@/components/stats/RecordingsSection";
@@ -75,6 +75,7 @@ const MonthlyPerformanceChart = dynamic(() => import("./player-stats/MonthlyPerf
 
 type PlayerStatsTableMode = "totals" | "perApp" | "per90";
 type PlayerStatsKeyMode = "totals" | "per90";
+type PartnershipSortMode = "bestWinRate" | "mostImprovedWinRate" | "mostGames";
 type FormTrend = "rising" | "declining" | "stable";
 
 const PER90_STAT_NAMES = new Set([
@@ -140,6 +141,44 @@ function PenaltyStatsSkeleton() {
 }
 
 // Page-specific skeleton components (keep in this file)
+
+function StreakStatTile({
+	label,
+	current,
+	seasonBest,
+	allTimeBest,
+	tip,
+}: {
+	label: string;
+	current: number;
+	seasonBest: string;
+	allTimeBest: string;
+	tip: string;
+}) {
+	const lit = current > 0;
+	return (
+		<div
+			tabIndex={0}
+			className={`relative group rounded-md p-2 flex flex-col items-center text-center gap-1 cursor-help outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow/80 ${
+				lit ? "bg-white/12" : "bg-white/5 opacity-75"
+			}`}
+		>
+			<div
+				className={`flex h-11 w-11 items-center justify-center rounded-full text-sm font-bold ${
+					lit ? "bg-dorkinians-yellow text-black" : "bg-white/15 text-white/80"
+				}`}
+			>
+				{current}
+			</div>
+			<p className='text-white/85 text-[11px] md:text-xs leading-tight'>{label}</p>
+			<p className='text-white/45 text-[10px] leading-tight w-full'>Season best: {seasonBest}</p>
+			<p className='text-white/45 text-[10px] leading-tight w-full'>All-time best: {allTimeBest}</p>
+			<div className='pointer-events-none absolute left-1/2 bottom-full z-40 mb-2 hidden w-[17rem] -translate-x-1/2 rounded-md bg-black/95 p-2 text-left text-[11px] text-white shadow-xl ring-1 ring-white/15 group-hover:block group-focus-within:block'>
+				<p className='text-white/95 leading-snug'>{tip}</p>
+			</div>
+		</div>
+	);
+}
 
 function FantasyPointsSkeleton() {
 	return (
@@ -1777,6 +1816,7 @@ export default function PlayerStats() {
 	const [goldenCrosses, setGoldenCrosses] = useState<Array<{ week: string; date: string }>>([]);
 	const [isLoadingFormData, setIsLoadingFormData] = useState(false);
 	const [recentFormMatches, setRecentFormMatches] = useState<PlayerFormRecentMatch[]>([]);
+	const [liveStreaks, setLiveStreaks] = useState<LiveStreakPayload | null>(null);
 
 	// State for awards data
 	const [awardsData, setAwardsData] = useState<any>(null);
@@ -1803,10 +1843,6 @@ export default function PlayerStats() {
 	} | null>(null);
 	const [isLoadingBadges, setIsLoadingBadges] = useState(false);
 
-	// State for icon loading tracking in Key Performance Stats
-	const [loadedIcons, setLoadedIcons] = useState<Set<string>>(new Set());
-	const [allIconsLoaded, setAllIconsLoaded] = useState(false);
-
 	// State for view mode toggle - initialize from localStorage
 	const [isDataTableMode, setIsDataTableMode] = useState<boolean>(() => {
 		if (typeof window !== "undefined") {
@@ -1826,6 +1862,7 @@ export default function PlayerStats() {
 		return "totals";
 	});
 	const [keyPerformanceMode, setKeyPerformanceMode] = useState<PlayerStatsKeyMode>("totals");
+	const [partnershipSortMode, setPartnershipSortMode] = useState<PartnershipSortMode>("bestWinRate");
 
 	// Persist view mode to localStorage when it changes
 	useEffect(() => {
@@ -1887,18 +1924,40 @@ export default function PlayerStats() {
 					winRate: typeof x.winRate === "number" ? x.winRate : Number(x.winRate),
 					matches: typeof x.matches === "number" ? x.matches : Number(x.matches),
 				}))
-				.filter((x) => x.name.length > 0 && !Number.isNaN(x.winRate) && !Number.isNaN(x.matches));
+				.filter((x) => x.name.length > 0 && !Number.isNaN(x.winRate) && !Number.isNaN(x.matches) && x.matches >= 5);
 		} catch {
 			return [];
 		}
 	}, [playerData?.partnershipsTopJson]);
 
-	const mostConnectedList = useMemo(() => {
-		if (Array.isArray(playerData?.mostConnected) && playerData!.mostConnected.length > 0) {
-			return playerData!.mostConnected;
+	const partnershipListDisplay = useMemo(() => {
+		const list = [...partnershipList];
+		const base = playerData?.impactWinRateWith;
+
+		if (partnershipSortMode === "mostGames") {
+			list.sort((a, b) => b.matches - a.matches || a.name.localeCompare(b.name));
+		} else if (partnershipSortMode === "mostImprovedWinRate") {
+			// Rank by the same value as the green subtitle: partnership win % minus your win rate when you play (percentage points).
+			list.sort((a, b) => {
+				if (base != null && typeof base === "number" && !Number.isNaN(base)) {
+					const da = a.winRate - base;
+					const db = b.winRate - base;
+					if (db !== da) return db - da;
+				}
+				return b.winRate - a.winRate || b.matches - a.matches || a.name.localeCompare(b.name);
+			});
+		} else {
+			// bestWinRate: highest partnership win percentage (ties: more shared games first)
+			list.sort((a, b) => b.winRate - a.winRate || b.matches - a.matches || a.name.localeCompare(b.name));
 		}
-		return buildMostConnectedListFromPartnershipsJson(playerData?.partnershipsTopJson, 5);
-	}, [playerData?.mostConnected, playerData?.partnershipsTopJson]);
+		return list.slice(0, 10);
+	}, [partnershipList, partnershipSortMode, playerData?.impactWinRateWith]);
+
+	const streakDisplaySource = useMemo((): PlayerData | null => {
+		if (!playerData) return null;
+		if (!liveStreaks) return playerData;
+		return { ...playerData, ...liveStreaks };
+	}, [playerData, liveStreaks]);
 
 	// Debug log for position counts (must be before early returns)
 	useEffect(() => {
@@ -1954,21 +2013,6 @@ export default function PlayerStats() {
 			{ name: "Form", value: formSummary?.formCurrent ?? null, isForm: true },
 		];
 	}, [playerData, filterData, keyPerformanceMode, formSummary]);
-
-	// Reset icon loading state when keyPerformanceData changes
-	useEffect(() => {
-		setLoadedIcons(new Set());
-		setAllIconsLoaded(false);
-	}, [keyPerformanceData]);
-
-	// Check when all icons are loaded
-	useEffect(() => {
-		// Count all items that are actually rendered (all items in keyPerformanceData are rendered)
-		const expectedIcons = keyPerformanceData.length;
-		if (loadedIcons.size === expectedIcons && expectedIcons > 0) {
-			setAllIconsLoaded(true);
-		}
-	}, [loadedIcons, keyPerformanceData]);
 
 	const cardData = useMemo(() => {
 		if (!playerData) return [];
@@ -2339,6 +2383,38 @@ export default function PlayerStats() {
 		fetchPlayerRecordings();
 	}, [selectedPlayer, playerFilters, hasUnsavedFilters, isFilterSidebarOpen, getCachedPageData, setCachedPageData]);
 
+	// Live streak metrics (filter-scoped; aligned with chatbot / foundation streak rules)
+	useEffect(() => {
+		if (!selectedPlayer) {
+			setLiveStreaks(null);
+			return;
+		}
+		if (appConfig.forceSkeletonView) return;
+		if (hasUnsavedFilters || isFilterSidebarOpen) return;
+
+		let cancelled = false;
+		(async () => {
+			try {
+				const { getCsrfHeaders } = await import("@/lib/middleware/csrf");
+				const res = await fetch("/api/player-streaks", {
+					method: "POST",
+					headers: { "Content-Type": "application/json", ...getCsrfHeaders() },
+					body: JSON.stringify({ playerName: selectedPlayer, filters: playerFilters }),
+				});
+				if (!res.ok) throw new Error(`player-streaks ${res.status}`);
+				const data = (await res.json()) as { streaks?: LiveStreakPayload };
+				if (!cancelled && data.streaks) setLiveStreaks(data.streaks);
+			} catch (e) {
+				log("warn", "Live streaks fetch failed; using player payload streaks", e);
+				if (!cancelled) setLiveStreaks(null);
+			}
+		})();
+
+		return () => {
+			cancelled = true;
+		};
+	}, [selectedPlayer, playerFilters, hasUnsavedFilters, isFilterSidebarOpen]);
+
 	// Priority 3: Below fold - Captaincies, Awards and Achievements section
 	// Fetch awards, captain history, and award history in parallel
 	useEffect(() => {
@@ -2630,8 +2706,18 @@ export default function PlayerStats() {
 						<FilterPills playerFilters={playerFilters} filterData={filterData} currentStatsSubPage={currentStatsSubPage} />
 					</div>
 					<div className='flex-1 px-2 md:px-4 pb-4 min-h-0 overflow-y-auto space-y-4 md:space-y-0 player-stats-masonry'>
-						<div className='md:break-inside-avoid md:mb-4'>
-							<StatCardSkeleton />
+						<div className='player-stats-kpi-form-group flex flex-col gap-4 md:gap-0 md:break-inside-avoid md:mb-4'>
+							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:mb-4'>
+								<div className='flex items-center justify-between gap-2 mb-3'>
+									<Skeleton height={22} width="45%" className='max-w-[220px]' />
+									<Skeleton height={32} width={112} />
+								</div>
+								<StatCardSkeleton count={9} variant='embedded' />
+							</div>
+							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+								<Skeleton height={20} width={56} className='mb-2' />
+								<ChartSkeleton />
+							</div>
 						</div>
 						<div className='md:break-inside-avoid md:mb-4'>
 							<ChartSkeleton />
@@ -3069,21 +3155,106 @@ export default function PlayerStats() {
 		return null;
 	};
 
+	const kpiAndFormGrouped = Boolean(playerData && keyPerformanceData.length > 0);
+
+	const formSectionInner = (
+		<>
+			<div className='flex items-center gap-2 mb-2'>
+				<h3 className='text-white font-semibold text-sm md:text-base'>Form</h3>
+				<div className='relative group'>
+					<span className='inline-flex items-center justify-center w-4 h-4 text-[10px] rounded-full border border-white/40 text-white/80 cursor-help'>
+						i
+					</span>
+					<div className='pointer-events-none absolute left-0 top-6 z-20 hidden w-72 rounded-md bg-black/90 p-2 text-[11px] text-white shadow-lg group-hover:block'>
+						Each point is your match rating for that game (with fantasy-points fallback when needed). The yellow line is current form (5-match EWMA) and the green line is the longer baseline (15-match EWMA). Grey dots are the raw rating for each match.
+					</div>
+				</div>
+			</div>
+			{isLoadingFormData ? (
+				<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+					<Skeleton height={48} className='rounded mb-3' />
+					<Skeleton height={220} className='rounded mb-3' />
+					<div className='grid grid-cols-2 md:grid-cols-3 gap-2'>
+						<Skeleton height={64} className='rounded' />
+						<Skeleton height={64} className='rounded' />
+						<Skeleton height={64} className='rounded col-span-2 md:col-span-1' />
+					</div>
+				</SkeletonTheme>
+			) : formData.length > 0 ? (
+				<>
+					{recentFormMatches.length > 0 ? <PlayerRecentFormBoxes matchesNewestFirst={recentFormMatches} /> : null}
+					<LazyWhenVisible rootMargin="120px" className="min-h-[220px] -my-2 md:my-0" fallback={<ChartSkeleton />}>
+						<FormComposedChart formData={formData} />
+					</LazyWhenVisible>
+					<div className='grid grid-cols-2 md:grid-cols-3 gap-2 mt-3'>
+						{(() => {
+							const v = formSummary?.formCurrent;
+							const band = v != null && !Number.isNaN(v) ? matchRatingCircleStyle(v) : null;
+							return (
+								<div
+									className='rounded-md border-2 p-2'
+									style={{
+										backgroundColor: band?.backgroundColor ?? "rgba(255,255,255,0.05)",
+										borderColor: band?.borderColor ?? "rgba(255,255,255,0.12)",
+									}}>
+									<p className='text-white/75 text-xs'>Current form</p>
+									<p className='font-semibold text-sm md:text-base' style={{ color: band?.color ?? "rgba(255,255,255,0.95)" }}>
+										{formSummary?.formCurrent != null ? formSummary.formCurrent.toFixed(1) : "—"}{" "}
+										{formSummary?.formTrend === "rising" ? "↑" : formSummary?.formTrend === "declining" ? "↓" : "→"}
+									</p>
+								</div>
+							);
+						})()}
+						{(() => {
+							const v = formSummary?.seasonAvg;
+							const band = v != null && !Number.isNaN(v) ? matchRatingCircleStyle(v) : null;
+							return (
+								<div
+									className='rounded-md border-2 p-2'
+									style={{
+										backgroundColor: band?.backgroundColor ?? "rgba(255,255,255,0.05)",
+										borderColor: band?.borderColor ?? "rgba(255,255,255,0.12)",
+									}}>
+									<p className='text-white/75 text-xs'>Season avg</p>
+									<p className='font-semibold text-sm md:text-base' style={{ color: band?.color ?? "rgba(255,255,255,0.95)" }}>
+										{formSummary?.seasonAvg != null ? formSummary.seasonAvg.toFixed(1) : "—"}
+									</p>
+								</div>
+							);
+						})()}
+						{(() => {
+							const v = formSummary?.formPeak;
+							const band = v != null && !Number.isNaN(v) ? matchRatingCircleStyle(v) : null;
+							return (
+								<div
+									className='rounded-md border-2 p-2 col-span-2 md:col-span-1'
+									style={{
+										backgroundColor: band?.backgroundColor ?? "rgba(255,255,255,0.05)",
+										borderColor: band?.borderColor ?? "rgba(255,255,255,0.12)",
+									}}>
+									<p className='text-white/75 text-xs'>Peak form</p>
+									<p className='font-semibold text-sm md:text-base' style={{ color: band?.color ?? "rgba(255,255,255,0.95)" }}>
+										{formSummary?.formPeak != null
+											? `${formSummary.formPeak.toFixed(1)} (${formatFormWeekLabel(formSummary.formPeakWeek)})`
+											: "—"}
+									</p>
+								</div>
+							);
+						})()}
+					</div>
+				</>
+			) : (
+				<p className='text-white/70 text-xs md:text-sm'>No form data available for the current filters.</p>
+			)}
+		</>
+	);
+
 	const chartContent = (
 		<div className='space-y-4 pb-4 md:space-y-0 player-stats-masonry'>
-			{/* Key Performance Stats Grid */}
-			{playerData && keyPerformanceData.length > 0 ? (
-				<div className='md:break-inside-avoid md:mb-4 relative'>
-					{/* Skeleton - shown while loading or icons not loaded */}
-					{(isLoadingPlayerData || !allIconsLoaded) && (
-						<div className='absolute inset-0 z-10 bg-transparent'>
-							<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-								<StatCardSkeleton count={9} />
-							</SkeletonTheme>
-						</div>
-					)}
-					{/* Actual content - always rendered so images can load */}
-					<div id='key-performance-stats' className={`bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 ${(isLoadingPlayerData || !allIconsLoaded) ? 'opacity-0' : 'opacity-100'}`}>
+			{kpiAndFormGrouped ? (
+				<div className='player-stats-kpi-form-group flex flex-col gap-4 md:gap-0 md:break-inside-avoid md:mb-4'>
+					{/* Key Performance Stats — no longer gated on Image onLoad (cached SVGs often skip onLoad in Next/Image) */}
+					<div id='key-performance-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:mb-4'>
 						<div className='flex items-center justify-between gap-2 mb-3'>
 							<h3 className='text-white font-semibold text-sm md:text-base'>Key Performance Stats</h3>
 							<div className='inline-flex rounded-md overflow-hidden border border-white/20'>
@@ -3103,177 +3274,89 @@ export default function PlayerStats() {
 								</button>
 							</div>
 						</div>
-						<div className='grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4'>
-							{keyPerformanceData.map((item, index) => {
-								let statKey = "APP";
-								if (item.name === "Apps") statKey = "APP";
-								else if (item.name === "Starts") statKey = "PlayerStarts";
-								else if (item.name === "Mins") statKey = "MIN";
-								else if (item.name === "Seasons") statKey = "NumberSeasonsPlayedFor";
-								else if (item.name === "MoM") statKey = "MOM";
-								else if (item.name === "Form") statKey = "PlayerAvgMatchRating";
-								else if (item.name === "Avg Rtg") statKey = "PlayerAvgMatchRating";
-								else if (item.name === "Goals") statKey = "AllGSC";
-								else if (item.name === "Assists") statKey = "A";
-								else if (item.name === "G/90") statKey = "PlayerGoalsPer90";
-								else if (item.name === "A/90") statKey = "PlayerAssistsPer90";
-								else if (item.name === "GI/90") statKey = "PlayerGI90";
-								else if (item.name === "FTP/90") statKey = "PlayerFTP90";
-								else if (item.name === "Cards/90") statKey = "PlayerCards90";
-								else if (item.name === "MoM/90") statKey = "PlayerMoM90";
-								const stat = statObject[statKey as keyof typeof statObject];
-								// Use Goals-Icon specifically for Goals stat
-								const iconName = item.name === "Goals" ? "Goals-Icon" : (stat?.iconName || "Appearance-Icon");
-								const iconLoadKey = `${item.name}-${index}`;
-								// Priority loading for first visible icons
-								const isPriority = index < 3;
-								return (
-									<div key={item.name} className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
-										<div className='flex-shrink-0'>
-											<Image
-												src={`/stat-icons/${iconName}.svg`}
-												alt={stat?.displayText || item.name}
-												width={40}
-												height={40}
-												className='w-8 h-8 md:w-10 md:h-10 object-contain'
-												priority={isPriority}
-												loading="eager"
-												onLoad={() => {
-													setLoadedIcons(prev => new Set([...prev, iconLoadKey]));
-												}}
-												onError={() => {
-													// If icon fails to load, still mark it as "loaded" to prevent skeleton from showing forever
-													setLoadedIcons(prev => new Set([...prev, iconLoadKey]));
-												}}
-											/>
-										</div>
-										<div className='flex-1 min-w-0'>
-											<div className='text-white/70 text-sm md:text-base mb-1'>
-												{item.name}
+						{isLoadingPlayerData ? (
+							<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+								<StatCardSkeleton count={9} variant='embedded' />
+							</SkeletonTheme>
+						) : (
+							<div className='grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4'>
+								{keyPerformanceData.map((item, index) => {
+									let statKey = "APP";
+									if (item.name === "Apps") statKey = "APP";
+									else if (item.name === "Starts") statKey = "PlayerStarts";
+									else if (item.name === "Mins") statKey = "MIN";
+									else if (item.name === "Seasons") statKey = "NumberSeasonsPlayedFor";
+									else if (item.name === "MoM") statKey = "MOM";
+									else if (item.name === "Form") statKey = "PlayerAvgMatchRating";
+									else if (item.name === "Avg Rtg") statKey = "PlayerAvgMatchRating";
+									else if (item.name === "Goals") statKey = "AllGSC";
+									else if (item.name === "Assists") statKey = "A";
+									else if (item.name === "G/90") statKey = "PlayerGoalsPer90";
+									else if (item.name === "A/90") statKey = "PlayerAssistsPer90";
+									else if (item.name === "GI/90") statKey = "PlayerGI90";
+									else if (item.name === "FTP/90") statKey = "PlayerFTP90";
+									else if (item.name === "Cards/90") statKey = "PlayerCards90";
+									else if (item.name === "MoM/90") statKey = "PlayerMoM90";
+									const stat = statObject[statKey as keyof typeof statObject];
+									const iconName = item.name === "Goals" ? "Goals-Icon" : (stat?.iconName || "Appearance-Icon");
+									const isPriority = index < 3;
+									return (
+										<div key={item.name} className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
+											<div className='flex-shrink-0'>
+												<Image
+													src={`/stat-icons/${iconName}.svg`}
+													alt={stat?.displayText || item.name}
+													width={40}
+													height={40}
+													className='w-8 h-8 md:w-10 md:h-10 object-contain'
+													priority={isPriority}
+												/>
 											</div>
-											<div className='text-white font-bold text-xl md:text-2xl'>
-												{(item as any).isString ? item.value : (() => {
-													if ((item as any).isForm) {
-														const v = item.value as number | null | undefined;
-														if (v == null) return "—";
-														const trend = formSummary?.formTrend || "stable";
-														const arrow = trend === "rising" ? "↑" : trend === "declining" ? "↓" : "→";
-														return `${v.toFixed(1)} ${arrow}`;
-													}
-													if ((item as any).isPer90 && toNumber(playerData.minutes) < 360) {
-														return "Min. 360";
-													}
-													if (item.name === "Mins") {
-														// Format minutes with commas and without " mins" suffix
-														return Math.round(toNumber(item.value)).toLocaleString();
-													}
-													if ((item as any).isRating) {
-														const v = item.value as number | null | undefined;
-														if (v === null || v === undefined) return "—";
-														return formatStatValue(v, stat?.statFormat || "Decimal1", stat?.numberDecimalPlaces ?? 1, (stat as any)?.statUnit);
-													}
-													return formatStatValue(item.value, stat?.statFormat || "Integer", stat?.numberDecimalPlaces || 0, (stat as any)?.statUnit);
-												})()}
+											<div className='flex-1 min-w-0'>
+												<div className='text-white/70 text-sm md:text-base mb-1'>
+													{item.name}
+												</div>
+												<div className='text-white font-bold text-xl md:text-2xl'>
+													{(item as any).isString ? item.value : (() => {
+														if ((item as any).isForm) {
+															const v = item.value as number | null | undefined;
+															if (v == null) return "—";
+															const trend = formSummary?.formTrend || "stable";
+															const arrow = trend === "rising" ? "↑" : trend === "declining" ? "↓" : "→";
+															return `${v.toFixed(1)} ${arrow}`;
+														}
+														if ((item as any).isPer90 && toNumber(playerData!.minutes) < 360) {
+															return "Min. 360";
+														}
+														if (item.name === "Mins") {
+															return Math.round(toNumber(item.value)).toLocaleString();
+														}
+														if ((item as any).isRating) {
+															const v = item.value as number | null | undefined;
+															if (v === null || v === undefined) return "—";
+															return formatStatValue(v, stat?.statFormat || "Decimal1", stat?.numberDecimalPlaces ?? 1, (stat as any)?.statUnit);
+														}
+														return formatStatValue(item.value, stat?.statFormat || "Integer", stat?.numberDecimalPlaces || 0, (stat as any)?.statUnit);
+													})()}
+												</div>
 											</div>
 										</div>
-									</div>
-								);
-							})}
-						</div>
+									);
+								})}
+							</div>
+						)}
 					</div>
-				</div>
-			) : null}
 
-			{/* Form Section */}
-			<div id='form-section' className='relative z-30 bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
-				<div className='flex items-center gap-2 mb-2'>
-					<h3 className='text-white font-semibold text-sm md:text-base'>Form</h3>
-					<div className='relative group'>
-						<span className='inline-flex items-center justify-center w-4 h-4 text-[10px] rounded-full border border-white/40 text-white/80 cursor-help'>
-							i
-						</span>
-						<div className='pointer-events-none absolute left-0 top-6 z-20 hidden w-72 rounded-md bg-black/90 p-2 text-[11px] text-white shadow-lg group-hover:block'>
-							Each point is your match rating for that game (with fantasy-points fallback when needed). The yellow line is current form (5-match EWMA) and the green line is the longer baseline (15-match EWMA). Grey dots are the raw rating for each match.
-						</div>
+					{/* Form Section (same masonry unit as KPI above = no column gap between them) */}
+					<div id='form-section' className='relative z-30 bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+						{formSectionInner}
 					</div>
 				</div>
-				{isLoadingFormData ? (
-					<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-						<Skeleton height={48} className='rounded mb-3' />
-						<Skeleton height={220} className='rounded mb-3' />
-						<div className='grid grid-cols-2 md:grid-cols-3 gap-2'>
-							<Skeleton height={64} className='rounded' />
-							<Skeleton height={64} className='rounded' />
-							<Skeleton height={64} className='rounded col-span-2 md:col-span-1' />
-						</div>
-					</SkeletonTheme>
-				) : formData.length > 0 ? (
-					<>
-						{recentFormMatches.length > 0 ? <PlayerRecentFormBoxes matchesNewestFirst={recentFormMatches} /> : null}
-						<LazyWhenVisible rootMargin="120px" className="min-h-[220px] -my-2" fallback={<ChartSkeleton />}>
-							<FormComposedChart formData={formData} />
-						</LazyWhenVisible>
-						<div className='grid grid-cols-2 md:grid-cols-3 gap-2 mt-3'>
-							{(() => {
-								const v = formSummary?.formCurrent;
-								const band = v != null && !Number.isNaN(v) ? matchRatingCircleStyle(v) : null;
-								return (
-									<div
-										className='rounded-md border-2 p-2'
-										style={{
-											backgroundColor: band?.backgroundColor ?? "rgba(255,255,255,0.05)",
-											borderColor: band?.borderColor ?? "rgba(255,255,255,0.12)",
-										}}>
-										<p className='text-white/75 text-xs'>Current form</p>
-										<p className='font-semibold text-sm md:text-base' style={{ color: band?.color ?? "rgba(255,255,255,0.95)" }}>
-											{formSummary?.formCurrent != null ? formSummary.formCurrent.toFixed(1) : "—"}{" "}
-											{formSummary?.formTrend === "rising" ? "↑" : formSummary?.formTrend === "declining" ? "↓" : "→"}
-										</p>
-									</div>
-								);
-							})()}
-							{(() => {
-								const v = formSummary?.seasonAvg;
-								const band = v != null && !Number.isNaN(v) ? matchRatingCircleStyle(v) : null;
-								return (
-									<div
-										className='rounded-md border-2 p-2'
-										style={{
-											backgroundColor: band?.backgroundColor ?? "rgba(255,255,255,0.05)",
-											borderColor: band?.borderColor ?? "rgba(255,255,255,0.12)",
-										}}>
-										<p className='text-white/75 text-xs'>Season avg</p>
-										<p className='font-semibold text-sm md:text-base' style={{ color: band?.color ?? "rgba(255,255,255,0.95)" }}>
-											{formSummary?.seasonAvg != null ? formSummary.seasonAvg.toFixed(1) : "—"}
-										</p>
-									</div>
-								);
-							})()}
-							{(() => {
-								const v = formSummary?.formPeak;
-								const band = v != null && !Number.isNaN(v) ? matchRatingCircleStyle(v) : null;
-								return (
-									<div
-										className='rounded-md border-2 p-2 col-span-2 md:col-span-1'
-										style={{
-											backgroundColor: band?.backgroundColor ?? "rgba(255,255,255,0.05)",
-											borderColor: band?.borderColor ?? "rgba(255,255,255,0.12)",
-										}}>
-										<p className='text-white/75 text-xs'>Peak form</p>
-										<p className='font-semibold text-sm md:text-base' style={{ color: band?.color ?? "rgba(255,255,255,0.95)" }}>
-											{formSummary?.formPeak != null
-												? `${formSummary.formPeak.toFixed(1)} (${formatFormWeekLabel(formSummary.formPeakWeek)})`
-												: "—"}
-										</p>
-									</div>
-								);
-							})()}
-						</div>
-					</>
-				) : (
-					<p className='text-white/70 text-xs md:text-sm'>No form data available for the current filters.</p>
-				)}
-			</div>
+			) : (
+				<div id='form-section' className='relative z-30 bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
+					{formSectionInner}
+				</div>
+			)}
 
 			{/* All Games Section */}
 			<div id='all-games' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
@@ -3289,8 +3372,8 @@ export default function PlayerStats() {
 				</div>
 			</div>
 
-			{/* Streaks (Feature 5 — career counters on Player from seeding) */}
-			{playerData ? (
+			{/* Streaks — live computation for current filter set (foundation / chatbot rules) */}
+			{playerData && streakDisplaySource ? (
 				<div id='streaks-section' className='relative z-30 bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 					<div className='flex items-center gap-2 mb-2'>
 						<h3 className='text-white font-semibold text-sm md:text-base'>Streaks</h3>
@@ -3301,9 +3384,10 @@ export default function PlayerStats() {
 								i
 							</span>
 							<div className='pointer-events-none absolute left-0 top-6 z-20 hidden w-72 rounded-md bg-black/90 p-2 text-[11px] text-white shadow-lg group-hover:block group-focus-within:block'>
-								Active runs are consecutive matches (by date) where the condition held. Appearance streak uses your most-played team: if the
-								side played and you were not in the squad, the run ends. Values come from the database after each full seed. Hover a tile for how
-								+1 is earned, season and all-time bests, and when a run resets.
+								Active runs are consecutive matches (by date) where the condition held. Values are computed live from your current filters (same
+								rules as the chatbot and foundation seed). Appearance streak uses your most-played XI: if that side played and you were not in the
+								squad, the run ends. &quot;Season best&quot; uses the season of your chronologically last game in the filtered set. Hover a tile for how +1 is
+								earned.
 							</div>
 						</div>
 					</div>
@@ -3315,13 +3399,14 @@ export default function PlayerStats() {
 							allTimeBest?: keyof PlayerData;
 							tip: string;
 						};
+						const src = streakDisplaySource;
 						const sn = (k: keyof PlayerData) => {
-							const v = playerData[k];
+							const v = src[k];
 							return typeof v === "number" && !Number.isNaN(v) ? v : 0;
 						};
 						const fmtOpt = (k?: keyof PlayerData) => {
 							if (!k) return "—";
-							const v = playerData[k];
+							const v = src[k];
 							return typeof v === "number" && !Number.isNaN(v) ? String(v) : "—";
 						};
 						const activeCards: StreakCard[] = [
@@ -3336,11 +3421,14 @@ export default function PlayerStats() {
 								label: "Assists",
 								cur: "currentAssistStreak",
 								seasonBest: "seasonBestAssistStreak",
+								allTimeBest: "allTimeBestAssistStreak",
 								tip: "Counts consecutive games with at least one assist. A game with no assist resets the run.",
 							},
 							{
 								label: "Goal involvement",
 								cur: "currentGoalInvolvementStreak",
+								seasonBest: "seasonBestGoalInvolvementStreak",
+								allTimeBest: "allTimeBestGoalInvolvementStreak",
 								tip: "Counts consecutive games with a goal or assist (or both). A game with neither resets the run.",
 							},
 							{
@@ -3360,22 +3448,29 @@ export default function PlayerStats() {
 							{
 								label: "Starts",
 								cur: "currentStartStreak",
+								seasonBest: "seasonBestStartStreak",
+								allTimeBest: "allTimeBestStartStreak",
 								tip: "Consecutive games where you started. A bench cameo or omission resets the run.",
 							},
 							{
 								label: "85+ mins",
 								cur: "currentFullMatchStreak",
+								seasonBest: "seasonBestFullMatchStreak",
+								allTimeBest: "allTimeBestFullMatchStreak",
 								tip: "Consecutive games with at least 85 minutes played. Subbing earlier resets the run.",
 							},
 							{
 								label: "MoM",
 								cur: "currentMomStreak",
+								seasonBest: "seasonBestMomStreak",
+								allTimeBest: "allTimeBestMomStreak",
 								tip: "Consecutive games named Player of the Match. Missing MoM resets the run.",
 							},
 							{
 								label: "No cards",
 								cur: "currentDisciplineStreak",
 								seasonBest: "seasonBestDisciplineStreak",
+								allTimeBest: "allTimeBestDisciplineStreak",
 								tip: "Consecutive games with no yellow or red card. Any booking resets the run.",
 							},
 							{
@@ -3388,26 +3483,16 @@ export default function PlayerStats() {
 						];
 						return (
 							<div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2'>
-								{activeCards.map(({ label, cur, seasonBest, allTimeBest, tip }) => {
-									const c = sn(cur);
-									const lit = c > 0;
-									return (
-										<div
-											key={String(cur)}
-											title={tip}
-											className={`rounded-md p-2 flex flex-col items-center text-center gap-1 cursor-help ${lit ? "bg-white/12" : "bg-white/5 opacity-75"}`}
-										>
-											<div
-												className={`flex h-11 w-11 items-center justify-center rounded-full text-sm font-bold ${lit ? "bg-dorkinians-yellow text-black" : "bg-white/15 text-white/80"}`}
-											>
-												{c}
-											</div>
-											<p className='text-white/85 text-[11px] md:text-xs leading-tight'>{label}</p>
-											<p className='text-white/45 text-[10px] leading-tight w-full'>Season best: {fmtOpt(seasonBest)}</p>
-											<p className='text-white/45 text-[10px] leading-tight w-full'>All-time best: {fmtOpt(allTimeBest)}</p>
-										</div>
-									);
-								})}
+								{activeCards.map(({ label, cur, seasonBest, allTimeBest, tip }) => (
+									<StreakStatTile
+										key={String(cur)}
+										label={label}
+										current={sn(cur)}
+										seasonBest={fmtOpt(seasonBest)}
+										allTimeBest={fmtOpt(allTimeBest)}
+										tip={tip}
+									/>
+								))}
 							</div>
 						);
 					})()}
@@ -3825,66 +3910,62 @@ export default function PlayerStats() {
 			{playerData ? (
 				<>
 					<div
-						id='most-connected-section'
-						className='relative z-30 bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
-						<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Most Connected</h3>
-						<p className='text-white/55 text-[11px] md:text-xs mb-3'>
-							Teammates you have shared the pitch with most often (by match count), using PLAYED_WITH data after seeding. When filters are
-							applied, counts include only fixtures that match your current filter set.
-						</p>
-						{mostConnectedList.length === 0 ? (
-							<p className='text-white/60 text-xs'>
-								No connection data yet. Run a full seed so graph insights (Feature 7) can populate this section.
-							</p>
-						) : (
-							<ul className='space-y-2'>
-								{mostConnectedList.slice(0, 5).map((item) => (
-									<li
-										key={item.name}
-										data-testid='most-connected-item'
-										className='flex flex-wrap items-baseline justify-between gap-2 bg-white/5 rounded-md px-3 py-2'>
-										<div className='min-w-0'>
-											<button
-												type='button'
-												onClick={() => {
-													trackEvent(UmamiEvents.PlayerSelected, { source: "player-most-connected", playerName: item.name });
-													selectPlayer(item.name, "picker");
-													setMainPage("stats");
-													setStatsSubPage("player-stats");
-												}}
-												className='text-[#E8C547] text-xs md:text-sm font-medium hover:underline text-left'>
-												{item.name}
-											</button>
-										</div>
-										<p className='text-white text-xs md:text-sm font-semibold tabular-nums shrink-0'>
-											{Math.round(item.timesPlayed)} shared games
-										</p>
-									</li>
-								))}
-							</ul>
-						)}
-					</div>
-					<div
 						id='partnerships-section'
 						className='relative z-30 bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
-						<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Partnerships</h3>
-						<p className='text-white/55 text-[11px] md:text-xs mb-3'>
-							Win rate in games where you and each teammate both played (minimum five shared games). With filters applied, only those
-							matches are counted — compare to your baseline XI win rate when you play.
-						</p>
+						<div className='flex flex-wrap items-center justify-between gap-2 mb-2'>
+							<div className='flex items-center gap-2 min-w-0'>
+								<h3 className='text-white font-semibold text-sm md:text-base'>Partnerships</h3>
+								<div className='relative group'>
+									<span
+										tabIndex={0}
+										className='inline-flex items-center justify-center w-4 h-4 text-[10px] rounded-full border border-white/40 text-white/80 cursor-help outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow/80'>
+										i
+									</span>
+									<div className='pointer-events-none absolute left-0 top-6 z-20 hidden w-[min(100vw-2rem,22rem)] rounded-md bg-black/90 p-2 text-[11px] text-white shadow-lg group-hover:block group-focus-within:block'>
+										Win rate in games where you and each teammate both played (minimum five shared games) compared to your baseline win rate when
+										you play.
+									</div>
+								</div>
+							</div>
+							{partnershipList.length > 0 ? (
+								<div className='inline-flex flex-wrap justify-end rounded-md overflow-hidden border border-white/20 shrink-0 max-w-full'>
+									<button
+										type='button'
+										onClick={() => setPartnershipSortMode("bestWinRate")}
+										className={`px-2 py-1 text-[10px] md:text-xs whitespace-nowrap ${partnershipSortMode === "bestWinRate" ? "bg-dorkinians-yellow text-black font-semibold" : "bg-transparent text-white"}`}>
+										Best win rate
+									</button>
+									<button
+										type='button'
+										onClick={() => setPartnershipSortMode("mostImprovedWinRate")}
+										className={`px-2 py-1 text-[10px] md:text-xs text-center leading-tight border-l border-white/20 ${partnershipSortMode === "mostImprovedWinRate" ? "bg-dorkinians-yellow text-black font-semibold" : "bg-transparent text-white"}`}>
+										Most improved win rate
+									</button>
+									<button
+										type='button'
+										onClick={() => setPartnershipSortMode("mostGames")}
+										className={`px-2 py-1 text-[10px] md:text-xs whitespace-nowrap border-l border-white/20 ${partnershipSortMode === "mostGames" ? "bg-dorkinians-yellow text-black font-semibold" : "bg-transparent text-white"}`}>
+										Most games
+									</button>
+								</div>
+							) : null}
+						</div>
 						{partnershipList.length === 0 ? (
 							<p className='text-white/60 text-xs'>
 								No partnership data yet. Run a full seed so graph insights (Feature 7) can populate this section.
 							</p>
 						) : (
 							<ul className='space-y-2'>
-								{partnershipList.slice(0, 5).map((p) => {
+								{partnershipListDisplay.map((p) => {
 									const base = playerData.impactWinRateWith;
-									const chem =
+									const deltaPct =
 										base != null && typeof p.winRate === "number" && !Number.isNaN(p.winRate)
 											? Math.round((p.winRate - base) * 10) / 10
 											: null;
-									const showChem = chem != null && chem > 0.5;
+									const deltaClass =
+										deltaPct != null ? (deltaPct < 0 ? "text-red-400" : deltaPct > 0 ? "text-dorkinians-green-text" : "text-white/50") : "";
+									const deltaLabel =
+										deltaPct != null ? `${deltaPct > 0 ? "+" : ""}${deltaPct.toFixed(1)}% vs your win rate` : null;
 									return (
 										<li key={p.name} className='flex flex-wrap items-baseline justify-between gap-2 bg-white/5 rounded-md px-3 py-2'>
 											<div className='min-w-0'>
@@ -3899,9 +3980,7 @@ export default function PlayerStats() {
 													className='text-[#E8C547] text-xs md:text-sm font-medium hover:underline text-left'>
 													{p.name}
 												</button>
-												{showChem ? (
-													<p className='text-dorkinians-green-text text-[10px] mt-0.5'>+{chem} pp vs your XI win rate</p>
-												) : null}
+												{deltaLabel ? <p className={`text-[10px] mt-0.5 ${deltaClass}`}>{deltaLabel}</p> : null}
 											</div>
 											<p className='text-white text-xs md:text-sm font-semibold tabular-nums shrink-0'>
 												{Math.round(p.winRate * 10) / 10}% · {Math.round(p.matches)} games

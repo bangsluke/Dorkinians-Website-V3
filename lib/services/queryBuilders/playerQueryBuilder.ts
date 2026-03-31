@@ -145,6 +145,8 @@ export class PlayerQueryBuilder {
 				return "coalesce(p.fwd, 0)";
 			case "APP":
 				return "coalesce(p.appearances, 0)";
+			case "STARTS":
+				return "coalesce(p.starts, 0)";
 			case "MOSTPROLIFICSEASON":
 				return "p.mostProlificSeason";
 			// Seasonal metrics - dynamic handling
@@ -173,6 +175,8 @@ export class PlayerQueryBuilder {
 		switch (metric.toUpperCase()) {
 			case "APP":
 				return "count(md) as value";
+			case "STARTS":
+				return "coalesce(sum(CASE WHEN md.started = true THEN 1 ELSE 0 END), 0) as value";
 			case "G":
 				return `
 				coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) + 

@@ -21,6 +21,7 @@ type BadgePayload = {
 	highestBadgeTier: string | null;
 	earned: EarnedBadgeRow[];
 	progress: ProgressRow[];
+	achieverCountsByBadgeKey?: Record<string, number>;
 };
 
 export default function PlayerProfileView({ playerSlug }: { playerSlug: string }) {
@@ -392,7 +393,11 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 											</span>
 										) : null}
 									</p>
-									<PlayerBadgeMilestoneGrid earned={badgePayload.earned} progress={badgePayload.progress} />
+									<PlayerBadgeMilestoneGrid
+										earned={badgePayload.earned}
+										progress={badgePayload.progress}
+										achieverCountsByBadgeKey={badgePayload.achieverCountsByBadgeKey}
+									/>
 								</>
 							) : (
 								<p className='text-white/65 text-sm mt-2'>No badge data available.</p>

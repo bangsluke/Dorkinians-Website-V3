@@ -4,6 +4,14 @@
 
 ---
 
+## Recent integration notes (2026-03-31)
+
+- **Player Stats:** Filter-scoped **live streaks** via `POST /api/player-streaks` (foundation / chatbot rules); **Partnerships** require **≥5** shared games with signed **% vs your win rate** deltas; **Most Connected** removed from UI/API/tests.
+- **Chatbot:** **`STARTS`** metric answers “How many times have I started?” (`entityExtraction`, `enhancedQuestionAnalysis`, `chatbotMetrics`, `playerQueryBuilder`).
+- **Operations:** **`docs/Neo4j_Aura_GDS_Setup_Guide.md`** — step-by-step Aura Graph Analytics / GDS enablement, verification, full reseed, troubleshooting.
+
+---
+
 ## Project context
 
 **Two repositories:**
