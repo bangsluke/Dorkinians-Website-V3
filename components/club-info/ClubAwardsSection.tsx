@@ -171,16 +171,6 @@ export default function ClubAwardsSection({ embedded = false }: { embedded?: boo
 		setShowPopup(true);
 	};
 
-	const handlePlayerHover = (playerName: string) => {
-		if (typeof window !== "undefined" && window.innerWidth >= 768) {
-			trackEvent(UmamiEvents.AwardHistoryOpened, { playerName, source: "hover" });
-			setSelectedPlayer(playerName);
-			setShowPopup(true);
-		}
-	};
-
-	const handlePlayerHoverEnd = () => {};
-
 	const handleClosePopup = () => {
 		setShowPopup(false);
 		setSelectedPlayer(null);
@@ -280,8 +270,6 @@ export default function ClubAwardsSection({ embedded = false }: { embedded?: boo
 															<span key={playerIndex} className='inline-flex items-center'>
 																<button
 																	onClick={() => handlePlayerClick(playerName)}
-																	onMouseEnter={() => handlePlayerHover(playerName)}
-																	onMouseLeave={handlePlayerHoverEnd}
 																	onTouchStart={() => handlePlayerClick(playerName)}
 																	className='text-white text-xs md:text-sm underline hover:text-dorkinians-yellow transition-colors cursor-pointer text-left'>
 																	{playerName}
@@ -349,8 +337,6 @@ export default function ClubAwardsSection({ embedded = false }: { embedded?: boo
 														{entry.isPlayer ? (
 															<button
 																onClick={() => handlePlayerClick(entry.receiver)}
-																onMouseEnter={() => handlePlayerHover(entry.receiver)}
-																onMouseLeave={handlePlayerHoverEnd}
 																onTouchStart={() => handlePlayerClick(entry.receiver)}
 																className='text-white text-xs md:text-sm underline hover:text-dorkinians-yellow transition-colors cursor-pointer text-left block w-full'>
 																{entry.receiver}

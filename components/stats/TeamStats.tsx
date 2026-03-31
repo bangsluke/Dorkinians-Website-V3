@@ -1569,67 +1569,6 @@ export default function TeamStats() {
 									</div>
 								)}
 
-								{!isDataTableMode && teamData.formationBreakdown && teamData.formationBreakdown.length > 0 && (
-									<div id='team-formation-breakdown' className='md:break-inside-avoid md:mb-4'>
-										<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-											<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Formations used</h3>
-											<p className='text-white/60 text-xs mb-3'>Games and win % by formation (from starting XI)</p>
-											{formationRecommendation ? (
-												<div
-													data-testid='formation-recommendation'
-													className='mb-3 rounded-md border border-dorkinians-yellow/40 bg-yellow-400/10 px-3 py-2 text-xs text-white'
-												>
-													<p className='font-semibold text-dorkinians-yellow'>Suggested setup</p>
-													<p className='mt-1'>
-														<strong>{formationRecommendation.formation}</strong> — best win rate in this sample (
-														{formationRecommendation.winPercentage.toFixed(1)}% over {formationRecommendation.games} game
-														{formationRecommendation.games === 1 ? "" : "s"}, {formationRecommendation.wins} win
-														{formationRecommendation.wins === 1 ? "" : "s"}).
-													</p>
-													{formationRecommendation.lowSample ? (
-														<p className='mt-1 text-white/70'>Low sample size — treat as a hint, not a rule.</p>
-													) : null}
-												</div>
-											) : null}
-											<div className='chart-container -my-2' style={{ touchAction: 'pan-y' }}>
-												<ResponsiveContainer width='100%' height={280}>
-													<BarChart
-														data={teamData.formationBreakdown}
-														margin={{ top: 8, right: 12, left: 0, bottom: 4 }}>
-														<CartesianGrid strokeDasharray='3 3' stroke='#ffffff22' />
-														<XAxis
-															dataKey='formation'
-															tick={{ fill: '#e5e5e5', fontSize: 10 }}
-															interval={0}
-															angle={-30}
-															textAnchor='end'
-															height={72}
-														/>
-														<YAxis yAxisId='games' tick={{ fill: '#e5e5e5', fontSize: 11 }} allowDecimals={false} width={36} />
-														<YAxis
-															yAxisId='pct'
-															orientation='right'
-															tick={{ fill: '#e5e5e5', fontSize: 11 }}
-															domain={[0, 100]}
-															width={40}
-															unit='%'
-														/>
-														<Tooltip
-															contentStyle={{ backgroundColor: '#1a1a1a', border: '1px solid #444' }}
-															labelStyle={{ color: '#fff' }}
-															formatter={(value: number, name: string) =>
-																name === 'Win %' ? [`${value}%`, name] : [value, name]
-															}
-														/>
-														<Bar yAxisId='games' dataKey='games' name='Games' fill='#d4a012' radius={[4, 4, 0, 0]} />
-														<Bar yAxisId='pct' dataKey='winPercentage' name='Win %' fill='#22c55e' radius={[4, 4, 0, 0]} />
-													</BarChart>
-												</ResponsiveContainer>
-											</div>
-										</div>
-									</div>
-								)}
-
 								{/* Recent Games Form */}
 								{!isDataTableMode && selectedTeam && apiFilters && (
 									<div id='team-recent-games' className='md:break-inside-avoid md:mb-4'>
@@ -1939,6 +1878,67 @@ export default function TeamStats() {
 									</div>
 									);
 								})()}
+
+								{!isDataTableMode && teamData.formationBreakdown && teamData.formationBreakdown.length > 0 && (
+									<div id='team-formation-breakdown' className='md:break-inside-avoid md:mb-4'>
+										<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+											<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Formations Used</h3>
+											<p className='text-white/60 text-xs mb-3'>Games and win % by formation (from starting XI)</p>
+											{formationRecommendation ? (
+												<div
+													data-testid='formation-recommendation'
+													className='mb-3 rounded-md border border-dorkinians-yellow/40 bg-yellow-400/10 px-3 py-2 text-xs text-white'
+												>
+													<p className='font-semibold text-dorkinians-yellow'>Suggested setup</p>
+													<p className='mt-1'>
+														<strong>{formationRecommendation.formation}</strong> — best win rate in this sample (
+														{formationRecommendation.winPercentage.toFixed(1)}% over {formationRecommendation.games} game
+														{formationRecommendation.games === 1 ? "" : "s"}, {formationRecommendation.wins} win
+														{formationRecommendation.wins === 1 ? "" : "s"}).
+													</p>
+													{formationRecommendation.lowSample ? (
+														<p className='mt-1 text-white/70'>Low sample size — treat as a hint, not a rule.</p>
+													) : null}
+												</div>
+											) : null}
+											<div className='chart-container -my-2' style={{ touchAction: 'pan-y' }}>
+												<ResponsiveContainer width='100%' height={280}>
+													<BarChart
+														data={teamData.formationBreakdown}
+														margin={{ top: 8, right: 12, left: 0, bottom: 4 }}>
+														<CartesianGrid strokeDasharray='3 3' stroke='#ffffff22' />
+														<XAxis
+															dataKey='formation'
+															tick={{ fill: '#e5e5e5', fontSize: 10 }}
+															interval={0}
+															angle={-30}
+															textAnchor='end'
+															height={72}
+														/>
+														<YAxis yAxisId='games' tick={{ fill: '#e5e5e5', fontSize: 11 }} allowDecimals={false} width={36} />
+														<YAxis
+															yAxisId='pct'
+															orientation='right'
+															tick={{ fill: '#e5e5e5', fontSize: 11 }}
+															domain={[0, 100]}
+															width={40}
+															unit='%'
+														/>
+														<Tooltip
+															contentStyle={{ backgroundColor: '#1a1a1a', border: '1px solid #444' }}
+															labelStyle={{ color: '#fff' }}
+															formatter={(value: number, name: string) =>
+																name === 'Win %' ? [`${value}%`, name] : [value, name]
+															}
+														/>
+														<Bar yAxisId='games' dataKey='games' name='Games' fill='#d4a012' radius={[4, 4, 0, 0]} />
+														<Bar yAxisId='pct' dataKey='winPercentage' name='Win %' fill='#22c55e' radius={[4, 4, 0, 0]} />
+													</BarChart>
+												</ResponsiveContainer>
+											</div>
+										</div>
+									</div>
+								)}
 
 								{/* Goals Scored vs Conceded Waterfall Chart */}
 								{(toNumber(teamData.goalsScored) > 0 || toNumber(teamData.goalsConceded) > 0) && (

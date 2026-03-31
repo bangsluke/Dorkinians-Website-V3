@@ -1772,19 +1772,18 @@ export default function LeagueInformation() {
 													<span className='ml-2 text-base text-gray-300 font-normal'>{teamData.division}</span>
 												)}
 											</h3>
-											{currentSeason && teamData.lastUpdated && (
-												<div className='text-center text-sm text-gray-400 mb-2'>Last updated: {formatDate(teamData.lastUpdated)}</div>
-											)}
-											{dorkiniansEntry && (
-												<div className='text-center text-sm text-gray-400 mb-4'>
-													{currentSeason ? "Currently" : "Finished"} {dorkiniansEntry.position}
-													{dorkiniansEntry.position === 1 ? "st" : dorkiniansEntry.position === 2 ? "nd" : dorkiniansEntry.position === 3 ? "rd" : "th"}
-												</div>
-											)}
-
 											{hasTableData ? (
 												<div className='lg:grid lg:grid-cols-2 lg:items-start lg:gap-6'>
 													<div className='min-w-0'>
+														{currentSeason && teamData.lastUpdated && (
+															<div className='text-center text-sm text-gray-400 mb-2'>Last updated: {formatDate(teamData.lastUpdated)}</div>
+														)}
+														{dorkiniansEntry && (
+															<div className='text-center text-sm text-gray-400 mb-4'>
+																{currentSeason ? "Currently" : "Finished"} {dorkiniansEntry.position}
+																{dorkiniansEntry.position === 1 ? "st" : dorkiniansEntry.position === 2 ? "nd" : dorkiniansEntry.position === 3 ? "rd" : "th"}
+															</div>
+														)}
 														<div className='overflow-x-auto -mx-3 md:-mx-4 lg:-mx-6 px-3 md:px-4 lg:px-6 lg:mx-0 lg:px-0'>
 															<table className='w-full bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden'>
 																<thead className='sticky top-0 z-10'>
@@ -1829,7 +1828,7 @@ export default function LeagueInformation() {
 														</div>
 														{/* League Table Link and Show Results — under table column only */}
 														{((teamData.url && teamData.url.trim() !== "") || selectedSeason) && (
-															<div className='mt-4 text-center lg:text-left'>
+															<div className='mt-4 text-center'>
 																{teamData.url && teamData.url.trim() !== "" && (
 																	<>
 																		<a
@@ -1857,6 +1856,15 @@ export default function LeagueInformation() {
 												</div>
 											) : (
 												<>
+													{currentSeason && teamData.lastUpdated && (
+														<div className='text-center text-sm text-gray-400 mb-2'>Last updated: {formatDate(teamData.lastUpdated)}</div>
+													)}
+													{dorkiniansEntry && (
+														<div className='text-center text-sm text-gray-400 mb-4'>
+															{currentSeason ? "Currently" : "Finished"} {dorkiniansEntry.position}
+															{dorkiniansEntry.position === 1 ? "st" : dorkiniansEntry.position === 2 ? "nd" : dorkiniansEntry.position === 3 ? "rd" : "th"}
+														</div>
+													)}
 													<div className='text-center text-gray-300 py-4 mb-4'>No table data available. Team was removed from the league.</div>
 													{((teamData.url && teamData.url.trim() !== "") || selectedSeason) && (
 														<div className='mt-4 text-center'>

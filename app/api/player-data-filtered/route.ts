@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neo4jService } from "@/lib/neo4j";
 import {
+	buildFilteredImpactWithQuery,
+	buildFilteredImpactWithoutQuery,
+	buildFilteredPartnershipsQuery,
 	buildPlayerStatsQuery,
 	mapPlayerGraphInsightFieldsFromRecord,
 	mapPlayerStreakFieldsFromRecord,
+	packFilteredPlayerGraphInsights,
+	type FilteredPartnershipRow,
 	PLAYER_GRAPH_INSIGHT_PROPERTY_RETURN,
 	PLAYER_STREAK_PROPERTY_RETURN,
 } from "../player-data/route";
+import type { PlayerData } from "@/lib/stores/navigation";
 import { getCorsHeadersWithSecurity } from "@/lib/utils/securityHeaders";
 import { dataApiRateLimiter } from "@/lib/middleware/rateLimiter";
 import { sanitizeError } from "@/lib/utils/errorSanitizer";
@@ -14,6 +20,47 @@ import { log, logError, logQuery } from "@/lib/utils/logger";
 import { csrfProtection } from "@/lib/middleware/csrf";
 
 const corsHeaders = getCorsHeadersWithSecurity();
+
+async function loadFilteredPlayerGraphInsights(
+	playerName: string,
+	filters: Record<string, unknown>,
+	mostPlayedForTeam: string,
+	toNumber: (v: unknown) => number
+): Promise<ReturnType<typeof packFilteredPlayerGraphInsights>> {
+	const { query: pq, params: pp } = buildFilteredPartnershipsQuery(playerName, filters);
+	const pRes = await neo4jService.runQuery(pq, pp);
+	const rows: FilteredPartnershipRow[] = pRes.records
+		.map((rec: { get: (key: string) => unknown }) => ({
+			mateName: String(rec.get("mateName") ?? ""),
+			matches: toNumber(rec.get("matches")),
+			winRate: toNumber(rec.get("winRate")),
+		}))
+		.filter((r: FilteredPartnershipRow) => r.mateName.length > 0 && r.matches >= 1);
+
+	let withStats: { games: number; wins: number } | null = null;
+	let withoutStats: { games: number; wins: number } | null = null;
+
+	const withQ = buildFilteredImpactWithQuery(playerName, filters, mostPlayedForTeam);
+	if (withQ) {
+		const w = await neo4jService.runQuery(withQ.query, withQ.params);
+		if (w.records[0]) {
+			const games = toNumber(w.records[0].get("games"));
+			const wins = toNumber(w.records[0].get("wins"));
+			if (games > 0) withStats = { games, wins };
+		}
+	}
+	const withoutQ = buildFilteredImpactWithoutQuery(playerName, filters, mostPlayedForTeam);
+	if (withoutQ) {
+		const w = await neo4jService.runQuery(withoutQ.query, withoutQ.params);
+		if (w.records[0]) {
+			const games = toNumber(w.records[0].get("games"));
+			const wins = toNumber(w.records[0].get("wins"));
+			if (games > 0) withoutStats = { games, wins };
+		}
+	}
+
+	return packFilteredPlayerGraphInsights(rows, withStats, withoutStats);
+}
 
 export async function OPTIONS() {
 	return new NextResponse(null, { status: 200, headers: corsHeaders });
@@ -156,7 +203,7 @@ ${PLAYER_STREAK_PROPERTY_RETURN}
 		// If player exists but no matches for filters, return zero stats
 		if (result.records.length === 0) {
 			const playerRecord = playerCheckResult.records[0];
-			const defaultPlayerData = {
+			let defaultPlayerData = {
 				id: playerRecord.get("id"),
 				playerName: playerRecord.get("playerName"),
 				allowOnSite: playerRecord.get("allowOnSite"),
@@ -240,12 +287,21 @@ ${PLAYER_STREAK_PROPERTY_RETURN}
 				averageMatchRating: null as number | null,
 				highestMatchRating: null as number | null,
 				matchesRated8Plus: 0,
-				...mapPlayerGraphInsightFieldsFromRecord(playerRecord, toNumber),
 				...mapPlayerStreakFieldsFromRecord(playerRecord, toNumber),
 			};
 
+			const globalGraphEmpty = mapPlayerGraphInsightFieldsFromRecord(playerRecord, toNumber);
+			const filteredGraphEmpty = await loadFilteredPlayerGraphInsights(playerName, filters as Record<string, unknown>, "", toNumber);
+			const playerDataOut = {
+				...defaultPlayerData,
+				...filteredGraphEmpty,
+				squadInfluence: globalGraphEmpty.squadInfluence,
+				squadInfluenceRank: globalGraphEmpty.squadInfluenceRank,
+				communityId: globalGraphEmpty.communityId,
+			} as PlayerData;
+
 			return NextResponse.json({
-				playerData: defaultPlayerData,
+				playerData: playerDataOut,
 				debug: {
 					copyPasteQuery,
 				},
@@ -275,7 +331,7 @@ ${PLAYER_STREAK_PROPERTY_RETURN}
 			});
 		}
 		
-		const playerData = {
+		let playerData: PlayerData = {
 			id: record.get("id"),
 			playerName: record.get("playerName"),
 			allowOnSite: record.get("allowOnSite"),
@@ -405,8 +461,23 @@ ${PLAYER_STREAK_PROPERTY_RETURN}
 				return Math.round(n * 10) / 10;
 			})(),
 			matchesRated8Plus: toNumber(record.get("matchesRated8Plus")),
-			...mapPlayerGraphInsightFieldsFromRecord(record, toNumber),
 			...mapPlayerStreakFieldsFromRecord(record, toNumber),
+		} as PlayerData;
+
+		const globalGraphMerged = mapPlayerGraphInsightFieldsFromRecord(record, toNumber);
+		const teamForImpact = String(record.get("mostPlayedForTeam") ?? "");
+		const filteredGraphMerged = await loadFilteredPlayerGraphInsights(
+			playerName,
+			filters as Record<string, unknown>,
+			teamForImpact,
+			toNumber
+		);
+		playerData = {
+			...playerData,
+			...filteredGraphMerged,
+			squadInfluence: globalGraphMerged.squadInfluence,
+			squadInfluenceRank: globalGraphMerged.squadInfluenceRank,
+			communityId: globalGraphMerged.communityId,
 		};
 
 		// Include copyable query in response for debugging

@@ -1122,12 +1122,10 @@ export default function PlayersOfMonth() {
 							<div data-testid="loading-skeleton" className='mt-0'>
 								<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
 									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-										<div className='mb-4'>
-											<h2 className='text-lg md:text-xl font-bold text-dorkinians-yellow mb-1'>
-												<Skeleton height={24} width="60%" />
-											</h2>
-										</div>
-										<PlayersTableSkeleton />
+										<Skeleton height={22} width='55%' className='mb-3' />
+										{[1, 2, 3, 4, 5].map((i) => (
+											<Skeleton key={i} height={48} className='mb-2 rounded-md' />
+										))}
 									</div>
 								</SkeletonTheme>
 							</div>

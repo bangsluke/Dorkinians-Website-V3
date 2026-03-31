@@ -305,7 +305,7 @@ export default function ClubInformation() {
 								href='https://www.google.com/maps?saddr=My+Location&daddr=Pixham+Lane+Sports+Ground,+72+B2038,+Dorking+RH4+1PQ'
 								target='_blank'
 								rel='noopener noreferrer'
-								className='inline-flex items-center gap-2 text-dorkinians-yellow hover:text-yellow-400 underline transition-colors text-sm md:text-base'>
+								className='inline-flex items-center gap-2 text-white hover:text-dorkinians-yellow underline underline-offset-2 transition-colors text-sm md:text-base'>
 								<Image src='/icons/googlemaps.svg' alt='' width={24} height={24} className='shrink-0 h-6 w-6' aria-hidden />
 								Navigate to Pixham
 							</a>

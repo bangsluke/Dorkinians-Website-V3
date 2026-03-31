@@ -7,10 +7,10 @@ import { Cog6ToothIcon, XMarkIcon, FunnelIcon, Bars3Icon, UserCircleIcon } from 
 import { useNavigationStore } from "@/lib/stores/navigation";
 import { getActiveFilterCount } from "@/lib/utils/filterUtils";
 import Image from "next/image";
-import Button from "@/components/ui/Button";
 import { getPlayerProfileHref } from "@/lib/profile/slug";
 import { isDevelopBranchDeploy } from "@/lib/utils/isDevelopBranchDeploy";
 import { usePathname } from "next/navigation";
+import { scheduleProfileIntroBursts, shouldRunProfileIntro } from "@/lib/utils/profileNavIntro";
 
 interface HeaderProps {
 	onSettingsClick: () => void;
@@ -33,10 +33,19 @@ export default function Header({
 	const pathname = usePathname();
 	const [showMenuTooltip, setShowMenuTooltip] = useState(false);
 	const [showFilterTooltip, setShowFilterTooltip] = useState(false);
-	const [hasAnimated, setHasAnimated] = useState(false);
+	const [showProfileTooltip, setShowProfileTooltip] = useState(false);
+	/** Intro pulse finished or skipped (persisted) — avoids repeating pulse every Stats visit. */
+	const [menuIntroPulseDone, setMenuIntroPulseDone] = useState(false);
+	const [profileIntroPulse, setProfileIntroPulse] = useState(false);
 	const [isMobile, setIsMobile] = useState(false);
 	const menuTooltipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 	const filterTooltipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+	const profileTooltipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+	const menuIntroPersistedRef = useRef(false);
+	const profileIntroCleanupRef = useRef<(() => void) | null>(null);
+
+	const isProfileRoute = pathname?.startsWith("/profile/") ?? false;
+	const showProfileIcon = isProfileRoute || (isPlayerSelected && !!selectedPlayer);
 
 	// Dismiss tooltips
 	const dismissMenuTooltip = () => {
@@ -57,7 +66,42 @@ export default function Header({
 		localStorage.setItem("stats-nav-filter-tooltip-seen", "true");
 	};
 
+	const dismissProfileTooltip = () => {
+		if (profileTooltipTimeoutRef.current) {
+			clearTimeout(profileTooltipTimeoutRef.current);
+			profileTooltipTimeoutRef.current = null;
+		}
+		setShowProfileTooltip(false);
+		localStorage.setItem("stats-nav-profile-tooltip-seen", "true");
+	};
+
 	const activeFilterCount = useMemo(() => getActiveFilterCount(playerFilters, filterData), [playerFilters, filterData]);
+
+	// Persisted menu intro pulse: read after mount to avoid wrong initial pulse on repeat visits
+	useEffect(() => {
+		if (!showMenuIcon || typeof window === "undefined") return;
+		setMenuIntroPulseDone(localStorage.getItem("stats-nav-menu-animated") === "true");
+	}, [showMenuIcon]);
+
+	// One-time obvious yellow ring bursts on mobile when a player is set (not on profile route)
+	useEffect(() => {
+		if (!isMobile || !showProfileIcon || isProfileRoute) return;
+		if (typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+			try {
+				localStorage.setItem("stats-nav-profile-intro-done", "true");
+			} catch {
+				/* ignore */
+			}
+			return;
+		}
+		if (!shouldRunProfileIntro()) return;
+		profileIntroCleanupRef.current?.();
+		profileIntroCleanupRef.current = scheduleProfileIntroBursts(setProfileIntroPulse);
+		return () => {
+			profileIntroCleanupRef.current?.();
+			profileIntroCleanupRef.current = null;
+		};
+	}, [isMobile, showProfileIcon, isProfileRoute]);
 
 	// Detect mobile on mount and resize
 	useEffect(() => {
@@ -69,48 +113,76 @@ export default function Header({
 		return () => window.removeEventListener("resize", checkMobile);
 	}, []);
 
-	// Sequential tooltips on mobile
-	useEffect(() => {
-		if (showMenuIcon && typeof window !== "undefined" && isMobile) {
-			const hasSeenMenuTooltip = localStorage.getItem("stats-nav-menu-tooltip-seen");
-			if (!hasSeenMenuTooltip) {
-				setShowMenuTooltip(true);
-				// Hide menu tooltip after 5 seconds, then show filter tooltip
-				menuTooltipTimeoutRef.current = setTimeout(() => {
-					dismissMenuTooltip();
+	const chainProfileTooltipMobile = () => {
+		if (!showProfileIcon) return;
+		if (localStorage.getItem("stats-nav-profile-tooltip-seen")) return;
+		profileTooltipTimeoutRef.current = setTimeout(() => {
+			setShowProfileTooltip(true);
+			profileTooltipTimeoutRef.current = setTimeout(() => {
+				dismissProfileTooltip();
+			}, 5000);
+		}, 500);
+	};
 
-					// Show filter tooltip after a brief delay
-					if (showFilterIcon) {
-						const hasSeenFilterTooltip = localStorage.getItem("stats-nav-filter-tooltip-seen");
-						if (!hasSeenFilterTooltip) {
-							setTimeout(() => {
-								setShowFilterTooltip(true);
-								filterTooltipTimeoutRef.current = setTimeout(() => {
-									dismissFilterTooltip();
-								}, 5000);
-							}, 500);
-						}
-					}
-				}, 5000);
-				return () => {
-					if (menuTooltipTimeoutRef.current) {
-						clearTimeout(menuTooltipTimeoutRef.current);
-					}
-					if (filterTooltipTimeoutRef.current) {
-						clearTimeout(filterTooltipTimeoutRef.current);
-					}
-				};
-			}
+	// Sequential tooltips on mobile: menu → filter → player profile
+	useEffect(() => {
+		if (!showMenuIcon || typeof window === "undefined" || !isMobile) return;
+
+		const hasSeenMenu = localStorage.getItem("stats-nav-menu-tooltip-seen");
+		const hasSeenFilter = localStorage.getItem("stats-nav-filter-tooltip-seen");
+		const hasSeenProfile = localStorage.getItem("stats-nav-profile-tooltip-seen");
+
+		if (!hasSeenMenu) {
+			setShowMenuTooltip(true);
+			menuTooltipTimeoutRef.current = setTimeout(() => {
+				dismissMenuTooltip();
+				if (showFilterIcon && !localStorage.getItem("stats-nav-filter-tooltip-seen")) {
+					setTimeout(() => {
+						setShowFilterTooltip(true);
+						filterTooltipTimeoutRef.current = setTimeout(() => {
+							dismissFilterTooltip();
+							chainProfileTooltipMobile();
+						}, 5000);
+					}, 500);
+				} else {
+					chainProfileTooltipMobile();
+				}
+			}, 5000);
+			return () => {
+				if (menuTooltipTimeoutRef.current) clearTimeout(menuTooltipTimeoutRef.current);
+				if (filterTooltipTimeoutRef.current) clearTimeout(filterTooltipTimeoutRef.current);
+				if (profileTooltipTimeoutRef.current) clearTimeout(profileTooltipTimeoutRef.current);
+			};
 		}
-	}, [showMenuIcon, showFilterIcon, isMobile]);
+
+		if (showFilterIcon && !hasSeenFilter) {
+			setShowFilterTooltip(true);
+			filterTooltipTimeoutRef.current = setTimeout(() => {
+				dismissFilterTooltip();
+				if (!hasSeenProfile) chainProfileTooltipMobile();
+			}, 5000);
+			return () => {
+				if (filterTooltipTimeoutRef.current) clearTimeout(filterTooltipTimeoutRef.current);
+				if (profileTooltipTimeoutRef.current) clearTimeout(profileTooltipTimeoutRef.current);
+			};
+		}
+
+		if (!hasSeenProfile) {
+			chainProfileTooltipMobile();
+			return () => {
+				if (profileTooltipTimeoutRef.current) clearTimeout(profileTooltipTimeoutRef.current);
+			};
+		}
+	}, [showMenuIcon, showFilterIcon, isMobile, showProfileIcon]);
 
 	// Handle click/touch to dismiss tooltips
 	useEffect(() => {
-		if (!showMenuTooltip && !showFilterTooltip) return;
+		if (!showMenuTooltip && !showFilterTooltip && !showProfileTooltip) return;
 
 		const handleClick = () => {
 			if (showMenuTooltip) dismissMenuTooltip();
 			if (showFilterTooltip) dismissFilterTooltip();
+			if (showProfileTooltip) dismissProfileTooltip();
 		};
 
 		document.addEventListener("click", handleClick, true);
@@ -120,18 +192,16 @@ export default function Header({
 			document.removeEventListener("click", handleClick, true);
 			document.removeEventListener("touchstart", handleClick, true);
 		};
-	}, [showMenuTooltip, showFilterTooltip]);
+	}, [showMenuTooltip, showFilterTooltip, showProfileTooltip]);
 
-	// Add animation on first visit
-	useEffect(() => {
-		if (showMenuIcon && typeof window !== "undefined" && !hasAnimated) {
-			const hasAnimatedBefore = localStorage.getItem("stats-nav-menu-animated");
-			if (!hasAnimatedBefore) {
-				setHasAnimated(true);
-				localStorage.setItem("stats-nav-menu-animated", "true");
-			}
+	const persistMenuIntroPulseDone = () => {
+		if (menuIntroPersistedRef.current) return;
+		menuIntroPersistedRef.current = true;
+		if (typeof window !== "undefined") {
+			localStorage.setItem("stats-nav-menu-animated", "true");
 		}
-	}, [showMenuIcon, hasAnimated]);
+		setMenuIntroPulseDone(true);
+	};
 
 	const handleLogoClick = () => {
 		setMainPage("home");
@@ -140,9 +210,7 @@ export default function Header({
 		}
 	};
 
-	const showAnyTooltip = showMenuTooltip || showFilterTooltip;
-	const isProfileRoute = pathname?.startsWith("/profile/") ?? false;
-	const showProfileIcon = isProfileRoute || (isPlayerSelected && !!selectedPlayer);
+	const showAnyTooltip = showMenuTooltip || showFilterTooltip || showProfileTooltip;
 	const showDevBadge = isDevelopBranchDeploy() && currentMainPage === "home";
 
 	const handleProfileClick = () => {
@@ -151,6 +219,8 @@ export default function Header({
 			window.location.href = getPlayerProfileHref(selectedPlayer);
 		}
 	};
+
+	const profileRingAttention = profileIntroPulse || showProfileTooltip;
 
 	return (
 		<>
@@ -164,10 +234,12 @@ export default function Header({
 					onClick={() => {
 						if (showMenuTooltip) dismissMenuTooltip();
 						if (showFilterTooltip) dismissFilterTooltip();
+						if (showProfileTooltip) dismissProfileTooltip();
 					}}
 					onTouchStart={() => {
 						if (showMenuTooltip) dismissMenuTooltip();
 						if (showFilterTooltip) dismissFilterTooltip();
+						if (showProfileTooltip) dismissProfileTooltip();
 					}}
 				/>
 			)}
@@ -214,9 +286,25 @@ export default function Header({
 									}`}
 									whileHover={{ scale: 1.1 }}
 									whileTap={{ scale: 0.9 }}
-									initial={hasAnimated && !showMenuTooltip ? {} : { scale: 1 }}
-									animate={showMenuTooltip ? { scale: [1, 1.15, 1] } : hasAnimated ? {} : { scale: [1, 1.15, 1] }}
-									transition={showMenuTooltip ? { duration: 0.6, repeat: Infinity } : hasAnimated ? {} : { duration: 0.6, repeat: 2, delay: 0.5 }}
+									initial={{ scale: 1 }}
+									animate={
+										showMenuTooltip
+											? { scale: [1, 1.15, 1] }
+											: menuIntroPulseDone
+												? { scale: 1 }
+												: { scale: [1, 1.15, 1] }
+									}
+									transition={
+										showMenuTooltip
+											? { duration: 0.6, repeat: Infinity }
+											: menuIntroPulseDone
+												? {}
+												: { duration: 0.6, repeat: 2, delay: 0.5 }
+									}
+									onAnimationComplete={() => {
+										if (showMenuTooltip || menuIntroPulseDone) return;
+										persistMenuIntroPulseDone();
+									}}
 									title={showMenuTooltip ? "Click to navigate sections" : "Open stats navigation"}
 									aria-label='Open stats navigation'>
 									<Bars3Icon className={`w-6 h-6 ${showMenuTooltip ? "text-dorkinians-yellow" : "text-[var(--color-text-primary)]"}`} />
@@ -282,20 +370,39 @@ export default function Header({
 
 						{/* Settings/Close Icon */}
 						{showProfileIcon && (
-							<motion.button
-								data-testid='header-profile'
-								onClick={handleProfileClick}
-								className={`p-2 rounded-full transition-colors flex items-center justify-center ${
-									isProfileRoute
-										? "bg-dorkinians-yellow/20"
-										: "hover:bg-[var(--color-surface)]"
-								}`}
-								whileHover={{ scale: 1.1 }}
-								whileTap={{ scale: 0.9 }}
-								title='Open player profile'
-								aria-label='Open player profile'>
-								<UserCircleIcon className={`w-6 h-6 ${isProfileRoute ? "text-dorkinians-yellow-text" : "text-[var(--color-text-primary)]"}`} />
-							</motion.button>
+							<div className='relative'>
+								<motion.button
+									data-testid='header-profile'
+									onClick={() => {
+										dismissProfileTooltip();
+										handleProfileClick();
+									}}
+									className={`p-2 rounded-full transition-all duration-200 flex items-center justify-center ${
+										isProfileRoute
+											? "ring-[3px] ring-dorkinians-yellow ring-offset-2 ring-offset-[var(--color-bg)] bg-dorkinians-yellow/20"
+											: "hover:bg-[var(--color-surface)]"
+									} ${
+										profileRingAttention && !isProfileRoute
+											? "ring-[3px] ring-dorkinians-yellow ring-offset-2 ring-offset-[var(--color-bg)] shadow-[0_0_22px_rgba(232,197,71,0.9)] scale-105"
+											: ""
+									}`}
+									whileHover={{ scale: 1.1 }}
+									whileTap={{ scale: 0.9 }}
+									title='Open player profile'
+									aria-label='Open player profile'>
+									<UserCircleIcon className={`w-6 h-6 ${isProfileRoute ? "text-dorkinians-yellow-text" : "text-[var(--color-text-primary)]"}`} />
+								</motion.button>
+								{showProfileTooltip && (
+									<motion.div
+										initial={{ opacity: 0, y: 10 }}
+										animate={{ opacity: 1, y: 0 }}
+										className='absolute top-full right-0 mt-2 px-3 py-2 bg-dorkinians-yellow text-black text-xs font-medium rounded-lg shadow-lg whitespace-nowrap z-50'
+										onClick={(e) => e.stopPropagation()}>
+										Open player profile here
+										<div className='absolute bottom-full right-4 mb-0 border-4 border-transparent border-b-dorkinians-yellow' />
+									</motion.div>
+								)}
+							</div>
 						)}
 
 						{/* Settings/Close Icon */}

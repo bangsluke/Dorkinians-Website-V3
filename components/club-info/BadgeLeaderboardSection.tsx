@@ -102,65 +102,64 @@ export default function BadgeLeaderboardSection() {
 			{empty ? (
 				<p className='text-white/70 text-xs md:text-sm'>No badge data yet. Run a full database seed with Feature 9 enabled.</p>
 			) : (
-				<div className='space-y-5 text-white text-xs md:text-sm'>
+				<div className='space-y-5 text-xs md:text-sm'>
 					{mostBadges.length > 0 && (
 						<div>
 							<h4 className='text-white/90 font-medium mb-2'>Most badges earned</h4>
-							<ol className='list-decimal list-inside space-y-1'>
+							<div className='rounded-md border border-white/10 divide-y divide-white/10'>
 								{mostBadges.map((r) => (
-									<li key={r.playerName}>
+									<div key={r.playerName} className='flex items-baseline justify-between gap-2 px-2 py-1.5'>
 										<button
 											type='button'
-											className='text-left underline decoration-white/30 hover:text-dorkinians-yellow'
+											className='text-left text-[#E8C547] font-medium hover:underline min-w-0 shrink'
 											onClick={() => goToPlayer(r.playerName)}>
 											{r.playerName}
 										</button>
-										<span className='text-white/70'>
-											{" "}
-											— {r.totalBadges} badges
+										<span className='text-white/80 tabular-nums text-right shrink-0'>
+											{Math.round(r.totalBadges)} badges
 											{r.highestBadgeTier ? (
-												<span className='capitalize'> (top tier {r.highestBadgeTier})</span>
+												<span className='text-white/55 capitalize'> · {r.highestBadgeTier}</span>
 											) : null}
 										</span>
-									</li>
+									</div>
 								))}
-							</ol>
+							</div>
 						</div>
 					)}
 					{mostDiamond.length > 0 && (
 						<div>
 							<h4 className='text-white/90 font-medium mb-2'>Most diamond badges</h4>
-							<ol className='list-decimal list-inside space-y-1'>
+							<div className='rounded-md border border-white/10 divide-y divide-white/10'>
 								{mostDiamond.map((r) => (
-									<li key={`d-${r.playerName}`}>
+									<div key={`d-${r.playerName}`} className='flex items-baseline justify-between gap-2 px-2 py-1.5'>
 										<button
 											type='button'
-											className='text-left underline decoration-white/30 hover:text-dorkinians-yellow'
+											className='text-left text-[#E8C547] font-medium hover:underline min-w-0 shrink'
 											onClick={() => goToPlayer(r.playerName)}>
 											{r.playerName}
 										</button>
-										<span className='text-white/70'> — {r.count} diamond</span>
-									</li>
+										<span className='text-white tabular-nums font-semibold shrink-0'>{Math.round(r.count)}</span>
+									</div>
 								))}
-							</ol>
+							</div>
 						</div>
 					)}
 					{mostGold.length > 0 && (
 						<div>
 							<h4 className='text-white/90 font-medium mb-2'>Most gold badges</h4>
-							<ol className='list-decimal list-inside space-y-1'>
+							<div className='rounded-md border border-white/10 divide-y divide-white/10'>
 								{mostGold.map((r) => (
-									<li key={`g-${r.playerName}`}>
+									<div key={`g-${r.playerName}`} className='flex items-baseline justify-between gap-2 px-2 py-1.5'>
 										<button
 											type='button'
-											className='text-left underline decoration-white/30 hover:text-dorkinians-yellow'
+											className='text-left text-[#E8C547] font-medium hover:underline min-w-0 shrink'
 											onClick={() => goToPlayer(r.playerName)}>
 											{r.playerName}
 										</button>
-										<span className='text-white/70'> — {r.count} gold</span>
-									</li>
+										<span className='text-white tabular-nums font-semibold shrink-0'>{Math.round(r.count)}</span>
+									</div>
 								))}
-							</ol>
+							</div>
 						</div>
 					)}
 				</div>

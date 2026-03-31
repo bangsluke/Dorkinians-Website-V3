@@ -216,6 +216,193 @@ export function mapPlayerGraphInsightFieldsFromRecord(record: { get: (key: strin
 	};
 }
 
+/** Co-appearance / partnership rows scoped to the same fixtures as `buildPlayerStatsQuery` filters. */
+export function buildFilteredPartnershipsQuery(playerName: string, filters: any): { query: string; params: Record<string, unknown> } {
+	const graphLabel = neo4jService.getGraphLabel();
+	const params: Record<string, unknown> = { graphLabel, playerName };
+	const conditions = buildFilterConditions(filters, params);
+	let query = `
+		MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
+		MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+		MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)`;
+	if (conditions.length > 0) {
+		query += ` WHERE ${conditions.join(" AND ")}`;
+	}
+	query += `
+		WITH p, f, md.team AS xiTeam
+		MATCH (f)-[:HAS_MATCH_DETAILS]->(mdO:MatchDetail {graphLabel: $graphLabel})
+		WHERE mdO.team = xiTeam
+		MATCH (pOther:Player {graphLabel: $graphLabel})-[:PLAYED_IN]->(mdO)
+		WHERE pOther <> p AND coalesce(pOther.allowOnSite, true) = true
+		WITH pOther.playerName AS mateName, f, f.result AS res
+		WITH mateName, count(*) AS matches, sum(CASE WHEN res = 'W' THEN 1 ELSE 0 END) AS winCount
+		WHERE matches >= 1
+		RETURN mateName, matches, CASE WHEN matches > 0 THEN toFloat(winCount) * 100.0 / matches ELSE 0.0 END AS winRate
+		ORDER BY matches DESC
+		LIMIT 30`;
+	return { query, params };
+}
+
+export function buildFilteredImpactWithQuery(playerName: string, filters: any, team: string): { query: string; params: Record<string, unknown> } | null {
+	if (!team || String(team).trim() === "") return null;
+	const graphLabel = neo4jService.getGraphLabel();
+	const params: Record<string, unknown> = { graphLabel, playerName, team };
+	const conditions = buildFilterConditions(filters, params);
+	let query = `
+		MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
+		MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+		WHERE md.team = $team
+		MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)`;
+	if (conditions.length > 0) {
+		query += ` WHERE ${conditions.join(" AND ")}`;
+	}
+	query += `
+		RETURN count(f) AS games, sum(CASE WHEN f.result = 'W' THEN 1 ELSE 0 END) AS wins`;
+	return { query, params };
+}
+
+export function buildFilteredImpactWithoutQuery(playerName: string, filters: any, team: string): { query: string; params: Record<string, unknown> } | null {
+	if (!team || String(team).trim() === "") return null;
+	const graphLabel = neo4jService.getGraphLabel();
+	const params: Record<string, unknown> = { graphLabel, playerName, team };
+	const conditions = buildFilterConditions(filters, params);
+	let query = `
+		MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
+		MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md:MatchDetail {graphLabel: $graphLabel})
+		WHERE md.team = $team
+		AND NOT (p)-[:PLAYED_IN]->(md)`;
+	if (conditions.length > 0) {
+		query += ` AND ${conditions.join(" AND ")}`;
+	}
+	query += `
+		RETURN count(f) AS games, sum(CASE WHEN f.result = 'W' THEN 1 ELSE 0 END) AS wins`;
+	return { query, params };
+}
+
+/** Top players by co-appearance edge count in filtered fixtures (proxy for squad “backbone” when filters apply). */
+export function buildFilteredClubSquadBackboneQuery(filters: any): { query: string; params: Record<string, unknown> } {
+	const graphLabel = neo4jService.getGraphLabel();
+	const params: Record<string, unknown> = { graphLabel };
+	const conditions = buildFilterConditions(filters, params);
+	let query = `
+		MATCH (p:Player {graphLabel: $graphLabel})
+		WHERE coalesce(p.allowOnSite, true) = true
+		MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+		MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)`;
+	if (conditions.length > 0) {
+		query += ` WHERE ${conditions.join(" AND ")}`;
+	}
+	query += `
+		WITH p, f, md.team AS xiTeam
+		MATCH (f)-[:HAS_MATCH_DETAILS]->(mdO:MatchDetail {graphLabel: $graphLabel})
+		WHERE mdO.team = xiTeam
+		MATCH (pOther:Player {graphLabel: $graphLabel})-[:PLAYED_IN]->(mdO)
+		WHERE pOther <> p AND coalesce(pOther.allowOnSite, true) = true
+		WITH p.playerName AS playerName, count(*) AS edgeWeight
+		RETURN playerName, edgeWeight
+		ORDER BY edgeWeight DESC
+		LIMIT 12`;
+	return { query, params };
+}
+
+export type FilteredPartnershipRow = { mateName: string; matches: number; winRate: number };
+
+/** Build graph-insight object fields to merge into filtered player payloads (overrides precomputed Player properties). */
+export function packFilteredPlayerGraphInsights(
+	rows: FilteredPartnershipRow[],
+	withStats: { games: number; wins: number } | null,
+	withoutStats: { games: number; wins: number } | null
+): ReturnType<typeof mapPlayerGraphInsightFieldsFromRecord> {
+	const toNumber = (value: unknown): number => {
+		if (value === null || value === undefined) return 0;
+		if (typeof value === "number") return Number.isNaN(value) ? 0 : value;
+		const n = Number(value);
+		return Number.isNaN(n) ? 0 : n;
+	};
+
+	const sorted = [...rows].sort((a, b) => b.matches - a.matches || a.mateName.localeCompare(b.mateName));
+	const partnershipsTopJson =
+		sorted.length > 0
+			? JSON.stringify(
+					sorted.map((r) => ({
+						name: r.mateName,
+						matches: Math.round(r.matches),
+						winRate: Math.round(r.winRate * 10) / 10,
+					}))
+				)
+			: null;
+
+	const top = sorted[0];
+	const bestPartnerName = top && top.mateName ? top.mateName : null;
+	const bestPartnerWinRate = top ? top.winRate : null;
+	const bestPartnerMatches = top ? Math.round(top.matches) : null;
+
+	const mostConnected = buildMostConnectedListFromPartnershipsJson(partnershipsTopJson, 5);
+	const graphInsightsBestPartnerDisplay =
+		bestPartnerName != null && bestPartnerWinRate != null && bestPartnerMatches != null
+			? `${bestPartnerName} (${Math.round(bestPartnerWinRate * 10) / 10}% in ${Math.round(bestPartnerMatches)} games)`
+			: bestPartnerName;
+
+	let impactWinRateWith: number | null = null;
+	let impactWinRateWithout: number | null = null;
+	let impactSampleWith: number | null = null;
+	let impactSampleWithout: number | null = null;
+	let impactDelta: number | null = null;
+	let impactRatesDisplay: string | null = null;
+
+	if (withStats && withStats.games > 0) {
+		impactSampleWith = Math.round(withStats.games);
+		impactWinRateWith = (withStats.wins / withStats.games) * 100;
+	}
+	if (withoutStats && withoutStats.games > 0) {
+		impactSampleWithout = Math.round(withoutStats.games);
+		impactWinRateWithout = (withoutStats.wins / withoutStats.games) * 100;
+	}
+
+	if (impactWinRateWith != null && impactWinRateWithout != null) {
+		impactDelta = Math.round((impactWinRateWith - impactWinRateWithout) * 10) / 10;
+		impactRatesDisplay =
+			impactSampleWith != null && impactSampleWithout != null
+				? `${Math.round(impactWinRateWith * 10) / 10}% with (${impactSampleWith} games) · ${Math.round(impactWinRateWithout * 10) / 10}% without (${impactSampleWithout} games)`
+				: null;
+	} else if (impactWinRateWith != null && impactSampleWith != null) {
+		impactRatesDisplay = `${Math.round(impactWinRateWith * 10) / 10}% with (${impactSampleWith} games)`;
+	}
+
+	const synthetic = {
+		get: (k: string): unknown => {
+			switch (k) {
+				case "bestPartnerName":
+					return bestPartnerName;
+				case "bestPartnerWinRate":
+					return bestPartnerWinRate;
+				case "bestPartnerMatches":
+					return bestPartnerMatches;
+				case "partnershipsTopJson":
+					return partnershipsTopJson;
+				case "impactDelta":
+					return impactDelta;
+				case "impactWinRateWith":
+					return impactWinRateWith;
+				case "impactWinRateWithout":
+					return impactWinRateWithout;
+				case "impactSampleWith":
+					return impactSampleWith;
+				case "impactSampleWithout":
+					return impactSampleWithout;
+				default:
+					return null;
+			}
+		},
+	};
+	const base = mapPlayerGraphInsightFieldsFromRecord(synthetic, toNumber);
+	return {
+		...base,
+		mostConnected,
+		graphInsightsBestPartnerDisplay,
+	};
+}
+
 // Build unified Cypher query with aggregation
 export function buildPlayerStatsQuery(playerName: string, filters: any = null): { query: string; params: any } {
 	const graphLabel = neo4jService.getGraphLabel();

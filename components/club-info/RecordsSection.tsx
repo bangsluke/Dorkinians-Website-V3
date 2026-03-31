@@ -7,6 +7,7 @@ import { UmamiEvents } from "@/lib/analytics/events";
 import { trackEvent } from "@/lib/utils/trackEvent";
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
+import { formatXiTeamLabel } from "@/lib/utils/formatXiTeamLabel";
 
 export interface ClubRecordDTO {
 	id: string;
@@ -22,16 +23,22 @@ export interface ClubRecordDTO {
 	challengerValue: number | null;
 }
 
+function formatRecordValueDisplay(rec: ClubRecordDTO): string {
+	if (rec.recordValueDisplay != null && String(rec.recordValueDisplay).trim() !== "") return String(rec.recordValueDisplay);
+	if (typeof rec.recordValue === "number" && Number.isFinite(rec.recordValue)) return String(Math.round(rec.recordValue));
+	return String(rec.recordValue ?? "—");
+}
+
 function RecordRow({ rec, onPlayerClick }: { rec: ClubRecordDTO; onPlayerClick: (name: string) => void }) {
 	const hasChallenger = rec.currentChallenger && rec.challengerValue != null;
-	const displayValue = rec.recordValueDisplay ?? String(rec.recordValue);
+	const displayValue = formatRecordValueDisplay(rec);
+	const teamLine = rec.holderTeam ? formatXiTeamLabel(rec.holderTeam) : null;
 
 	return (
-		<div
-			className={`rounded-lg px-3 py-2.5 md:px-4 md:py-3 bg-white/5 ${hasChallenger ? "border border-[rgba(232,197,71,0.35)]" : "border border-transparent"}`}>
+		<div className={`px-2 py-2.5 md:px-3 md:py-3 ${hasChallenger ? "bg-yellow-400/5" : ""}`}>
 			<div className='flex flex-row items-start justify-between gap-3'>
 				<div className='flex-1 min-w-0'>
-					<p className='text-white text-xs md:text-sm font-medium'>{rec.recordName}</p>
+					<p className='text-white/85 text-xs md:text-sm'>{rec.recordName}</p>
 					{rec.season ? <p className='text-white/50 text-[10px] md:text-xs mt-0.5'>{rec.season}</p> : null}
 					{rec.additionalContext ? (
 						<p className='text-white/55 text-[10px] md:text-xs mt-0.5'>{rec.additionalContext}</p>
@@ -43,23 +50,24 @@ function RecordRow({ rec, onPlayerClick }: { rec: ClubRecordDTO; onPlayerClick: 
 							type='button'
 							data-testid={`record-holder-${rec.id}`}
 							onClick={() => onPlayerClick(rec.holderName!)}
-							className='text-[#E8C547] text-xs md:text-sm font-medium hover:underline text-right'>
+							className='text-[#E8C547] text-xs md:text-sm font-semibold hover:underline text-right'>
 							{rec.holderName}
 						</button>
-					) : rec.holderTeam ? (
-						<span className='text-white/90 text-xs md:text-sm font-medium'>{rec.holderTeam}</span>
+					) : teamLine ? (
+						<span className='text-[#E8C547] text-xs md:text-sm font-semibold'>{teamLine}</span>
 					) : (
 						<span className='text-white/50 text-xs'>—</span>
 					)}
-					{rec.holderTeam && rec.holderName ? (
-						<span className='text-white/45 text-[10px] md:text-xs mt-0.5'>{rec.holderTeam}</span>
+					{teamLine && rec.holderName ? (
+						<span className='text-white/45 text-[10px] md:text-xs mt-0.5'>{teamLine}</span>
 					) : null}
-					<p className='text-white font-bold text-sm md:text-base mt-1'>{displayValue}</p>
+					<p className='text-white font-bold tabular-nums text-sm md:text-base mt-1'>{displayValue}</p>
 				</div>
 			</div>
 			{hasChallenger ? (
 				<p className='text-[#E8C547]/90 text-[10px] md:text-xs mt-2'>
-					⚠ Under threat — {rec.currentChallenger} on {rec.challengerValue}
+					⚠ Under threat — {rec.currentChallenger} on{" "}
+					{typeof rec.challengerValue === "number" ? Math.round(rec.challengerValue) : rec.challengerValue}
 				</p>
 			) : null}
 		</div>
@@ -154,7 +162,7 @@ export default function RecordsSection() {
 			{individual.length > 0 ? (
 				<div className='mb-6'>
 					<h4 className='text-dorkinians-yellow/90 text-xs md:text-sm font-semibold mb-3'>Individual records</h4>
-					<div className='space-y-2'>
+					<div className='rounded-lg border border-white/10 bg-white/[0.03] overflow-hidden divide-y divide-white/10'>
 						{individual.map((rec) => (
 							<RecordRow key={rec.id} rec={rec} onPlayerClick={goToPlayerStats} />
 						))}
@@ -165,7 +173,7 @@ export default function RecordsSection() {
 			{team.length > 0 ? (
 				<div>
 					<h4 className='text-dorkinians-yellow/90 text-xs md:text-sm font-semibold mb-3'>Team records</h4>
-					<div className='space-y-2'>
+					<div className='rounded-lg border border-white/10 bg-white/[0.03] overflow-hidden divide-y divide-white/10'>
 						{team.map((rec) => (
 							<RecordRow key={rec.id} rec={rec} onPlayerClick={goToPlayerStats} />
 						))}

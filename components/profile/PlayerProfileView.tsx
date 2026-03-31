@@ -4,6 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { createPortal } from "react-dom";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
 import PlayerBadgeMilestoneGrid, {
 	type EarnedBadgeRow,
 	type ProgressRow,
@@ -28,8 +30,13 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 	const [wrappedSelectedSeason, setWrappedSelectedSeason] = useState<string | null>(null);
 	const [seasonPickerOpen, setSeasonPickerOpen] = useState(false);
 	const [seasonMenuPos, setSeasonMenuPos] = useState<{ top: number; left: number } | null>(null);
+	const [pastSeasonsOpen, setPastSeasonsOpen] = useState(false);
+	const [pastSeasonsMenuPos, setPastSeasonsMenuPos] = useState<{ top: number; left: number } | null>(null);
 	const seasonTriggerRef = useRef<HTMLButtonElement>(null);
 	const seasonDropdownRef = useRef<HTMLDivElement>(null);
+	const pastSeasonsTriggerRef = useRef<HTMLButtonElement>(null);
+	const pastSeasonsDropdownRef = useRef<HTMLDivElement>(null);
+	const [wrappedDefaultSeason, setWrappedDefaultSeason] = useState<string | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [seasonWrappedPromoActive, setSeasonWrappedPromoActive] = useState(false);
@@ -78,6 +85,46 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 		};
 	}, [seasonPickerOpen]);
 
+	const updatePastSeasonsMenuPosition = useCallback(() => {
+		const btn = pastSeasonsTriggerRef.current;
+		if (!btn) return;
+		const r = btn.getBoundingClientRect();
+		setPastSeasonsMenuPos({ top: r.bottom + 8, left: r.left });
+	}, []);
+
+	useLayoutEffect(() => {
+		if (!pastSeasonsOpen) {
+			setPastSeasonsMenuPos(null);
+			return;
+		}
+		updatePastSeasonsMenuPosition();
+		window.addEventListener("scroll", updatePastSeasonsMenuPosition, true);
+		window.addEventListener("resize", updatePastSeasonsMenuPosition);
+		return () => {
+			window.removeEventListener("scroll", updatePastSeasonsMenuPosition, true);
+			window.removeEventListener("resize", updatePastSeasonsMenuPosition);
+		};
+	}, [pastSeasonsOpen, updatePastSeasonsMenuPosition]);
+
+	useEffect(() => {
+		if (!pastSeasonsOpen) return;
+		const close = (e: MouseEvent) => {
+			const t = e.target as Node;
+			if (pastSeasonsTriggerRef.current?.contains(t)) return;
+			if (pastSeasonsDropdownRef.current?.contains(t)) return;
+			setPastSeasonsOpen(false);
+		};
+		const onKey = (e: KeyboardEvent) => {
+			if (e.key === "Escape") setPastSeasonsOpen(false);
+		};
+		document.addEventListener("mousedown", close);
+		document.addEventListener("keydown", onKey);
+		return () => {
+			document.removeEventListener("mousedown", close);
+			document.removeEventListener("keydown", onKey);
+		};
+	}, [pastSeasonsOpen]);
+
 	const playerName = useMemo(() => profileSlugToPlayerName(playerSlug), [playerSlug]);
 	const wrappedSlug = useMemo(() => {
 		if (!playerName) return null;
@@ -90,6 +137,12 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 		if (!wrappedSelectedSeason || wrappedSeasons.length <= 1) return base;
 		return `${base}?season=${encodeURIComponent(wrappedSelectedSeason)}`;
 	}, [wrappedSlug, wrappedSelectedSeason, wrappedSeasons.length]);
+
+	const pastWrappedSeasons = useMemo(() => {
+		const cur = wrappedDefaultSeason ?? wrappedSelectedSeason;
+		if (!cur) return wrappedSeasons.filter(() => true);
+		return wrappedSeasons.filter((s) => s !== cur);
+	}, [wrappedSeasons, wrappedDefaultSeason, wrappedSelectedSeason]);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -106,10 +159,9 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 			const promo = isSeasonWrappedPromoMonth(new Date());
 			setSeasonWrappedPromoActive(promo);
 			try {
-				const wrappedPromise =
-					wrappedSlug && promo
-						? fetch(`/api/wrapped/${encodeURIComponent(wrappedSlug)}`)
-						: Promise.resolve(new Response("", { status: 404 }));
+				const wrappedPromise = wrappedSlug
+					? fetch(`/api/wrapped/${encodeURIComponent(wrappedSlug)}`)
+					: Promise.resolve(new Response("", { status: 404 }));
 				const [playerRes, badgesRes, wrappedRes] = await Promise.all([
 					fetch(`/api/player-data?playerName=${encodeURIComponent(playerName)}`),
 					fetch(`/api/player-badges?playerName=${encodeURIComponent(playerName)}`),
@@ -136,10 +188,12 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 					if (!cancelled) {
 						setWrappedSeasons(seasons);
 						setWrappedSelectedSeason(season ?? seasons[0] ?? null);
+						setWrappedDefaultSeason(season ?? seasons[0] ?? null);
 					}
 				} else if (!cancelled) {
 					setWrappedSeasons([]);
 					setWrappedSelectedSeason(null);
+					setWrappedDefaultSeason(null);
 				}
 
 				if (!cancelled) {
@@ -167,13 +221,35 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 		<div className='h-full px-4 py-6 md:px-8 md:py-8' data-testid='player-profile-page'>
 			<div className='mx-auto w-full max-w-5xl space-y-4'>
 				<div className='flex flex-col items-center justify-center text-center gap-2'>
-					<h1 className='text-2xl md:text-3xl font-bold text-dorkinians-yellow'>
+					<h1 className='text-xl md:text-2xl font-bold text-dorkinians-yellow'>
 						Player Profile{playerName ? ` - ${playerName}` : ""}
 					</h1>
 				</div>
 
 				{isLoading ? (
-					<div className='rounded-lg bg-white/10 backdrop-blur-sm p-4 text-white/70'>Loading profile...</div>
+					<SkeletonTheme baseColor='var(--skeleton-base)' highlightColor='var(--skeleton-highlight)'>
+						<div className='rounded-xl border-2 border-[#E8C547]/40 bg-[#E8C547]/12 p-4 md:p-5 space-y-3'>
+							<Skeleton height={22} width='40%' />
+							<Skeleton count={2} height={14} />
+							<Skeleton height={40} width={160} className='mx-auto' />
+						</div>
+						<div className='rounded-lg bg-white/10 backdrop-blur-sm p-4 mt-4 space-y-3'>
+							<Skeleton height={20} width='30%' />
+							<div className='grid grid-cols-2 md:grid-cols-4 gap-2'>
+								{Array.from({ length: 8 }).map((_, i) => (
+									<Skeleton key={i} height={64} className='rounded-md' />
+								))}
+							</div>
+						</div>
+						<div className='rounded-lg bg-white/10 backdrop-blur-sm p-4 mt-4 space-y-2'>
+							<Skeleton height={20} width='35%' />
+							<div className='grid grid-cols-3 sm:grid-cols-4 gap-2'>
+								{Array.from({ length: 8 }).map((_, i) => (
+									<Skeleton key={i} height={72} className='rounded-lg' />
+								))}
+							</div>
+						</div>
+					</SkeletonTheme>
 				) : error ? (
 					<div className='rounded-lg bg-white/10 backdrop-blur-sm p-4 text-red-200'>{error}</div>
 				) : (
@@ -323,15 +399,58 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 							)}
 						</div>
 
-						{!seasonWrappedPromoActive && wrappedSlug ? (
-							<div className='pt-8 pb-2 text-center border-t border-white/10 mt-6'>
-								<Link
-									href={`/wrapped/${wrappedSlug}`}
+						{!seasonWrappedPromoActive && wrappedSlug && pastWrappedSeasons.length > 0 ? (
+							<div className='pt-8 pb-12 text-center border-t border-white/10 mt-6 flex flex-col items-center gap-3'>
+								<button
+									ref={pastSeasonsTriggerRef}
+									type='button'
 									data-testid='player-profile-see-past-seasons-wrapped'
-									prefetch={false}
-									className='text-sm text-[#5DCAA5] font-medium underline decoration-[#5DCAA5]/70 underline-offset-2 hover:text-[#E8C547] hover:decoration-[#E8C547]'>
+									onClick={() => {
+										setPastSeasonsOpen((o) => !o);
+										if (!pastSeasonsOpen) {
+											requestAnimationFrame(() => {
+												const btn = pastSeasonsTriggerRef.current;
+												if (btn) {
+													const r = btn.getBoundingClientRect();
+													setPastSeasonsMenuPos({ top: r.bottom + 8, left: r.left });
+												}
+											});
+										}
+									}}
+									className='inline-flex items-center gap-2 mx-auto text-sm font-medium text-white underline decoration-white/50 underline-offset-2 hover:text-dorkinians-yellow hover:decoration-dorkinians-yellow bg-transparent border-0 cursor-pointer order-1'>
+									<Image src='/icons/icon-96x96.png' alt='' width={20} height={20} className='rounded-full shrink-0' />
 									See past seasons wrapped
-								</Link>
+								</button>
+								<p className='text-white/60 text-xs max-w-sm leading-relaxed order-2'>
+									Open the menu above to pick a season and view that Season Wrapped.
+								</p>
+								{pastSeasonsOpen && pastSeasonsMenuPos && typeof document !== "undefined"
+									? createPortal(
+											<div
+												ref={pastSeasonsDropdownRef}
+												data-testid='player-profile-past-seasons-menu'
+												className='fixed z-[300] min-w-[13rem] max-h-[min(50vh,20rem)] overflow-y-auto rounded-xl border-2 border-[#E8C547]/70 bg-[#0f140c] py-2 shadow-[0_16px_48px_rgba(0,0,0,0.75)] ring-1 ring-[#E8C547]/40'
+												style={{
+													top: pastSeasonsMenuPos.top,
+													left: pastSeasonsMenuPos.left,
+												}}
+												role='listbox'
+												aria-label='Past seasons wrapped'>
+												{pastWrappedSeasons.map((s) => (
+													<Link
+														key={s}
+														href={`/wrapped/${wrappedSlug}?season=${encodeURIComponent(s)}`}
+														role='option'
+														prefetch={false}
+														className='block w-full px-4 py-2.5 text-left text-sm text-white/95 hover:bg-white/12'
+														onClick={() => setPastSeasonsOpen(false)}>
+														{s}
+													</Link>
+												))}
+											</div>,
+											document.body,
+										)
+									: null}
 							</div>
 						) : null}
 					</>

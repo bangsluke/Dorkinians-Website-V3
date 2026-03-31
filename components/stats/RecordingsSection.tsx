@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import VeoWatchMatchButtons from "@/components/club-info/VeoWatchMatchButtons";
 import type { RecordingFixture } from "@/lib/utils/recordingsDisplay";
 import {
@@ -21,11 +22,27 @@ export type RecordingsSectionProps = {
 	fixtures: RecordingFixture[];
 	/** When true, show `team` column after Date (club whole-club view). */
 	teamColumn?: boolean;
+	/** When set, show only this many rows until user expands (club-wide lists). */
+	collapseAfter?: number;
 	testIdPrefix: string;
 };
 
-export default function RecordingsSection({ id, title, subtitle, fixtures, teamColumn = false, testIdPrefix }: RecordingsSectionProps) {
+export default function RecordingsSection({
+	id,
+	title,
+	subtitle,
+	fixtures,
+	teamColumn = false,
+	collapseAfter,
+	testIdPrefix,
+}: RecordingsSectionProps) {
+	const [expanded, setExpanded] = useState(false);
 	if (fixtures.length === 0) return null;
+
+	const total = fixtures.length;
+	const collapsed =
+		collapseAfter != null && !expanded && total > collapseAfter;
+	const visibleFixtures = collapsed ? fixtures.slice(0, collapseAfter) : fixtures;
 
 	return (
 		<div id={id} className='relative bg-white/10 backdrop-blur-sm rounded-lg p-2 pt-3 md:p-4 md:break-inside-avoid md:mb-4'>
@@ -33,7 +50,9 @@ export default function RecordingsSection({ id, title, subtitle, fixtures, teamC
 				{/* eslint-disable-next-line @next/next/no-img-element -- static brand SVG from public */}
 				<img src='/icons/veo.svg' alt='Veo' className='h-5 w-auto opacity-90 brightness-0 invert md:h-6' />
 			</div>
-			<h3 className='text-white font-semibold text-sm md:text-base mb-2 pr-14'>{title}</h3>
+			<h3 className='text-white font-semibold text-sm md:text-base mb-2 pr-14'>
+				{title} ({total})
+			</h3>
 			<p className='text-white/70 text-xs md:text-sm mb-3 pr-14'>{subtitle}</p>
 			<div className='w-full overflow-x-auto'>
 				<table className='w-full max-w-full table-fixed text-white text-[10px] sm:text-xs md:text-sm'>
@@ -89,10 +108,10 @@ export default function RecordingsSection({ id, title, subtitle, fixtures, teamC
 						</tr>
 					</thead>
 					<tbody>
-						{fixtures.map((fx, idx) => (
+						{visibleFixtures.map((fx, idx) => (
 							<tr key={fx.fixtureId || `${fx.date}-${fx.opposition}-${idx}`} className='border-b border-white/10 align-middle'>
 								<td
-									className={`whitespace-nowrap py-1.5 pl-1 align-middle tabular-nums leading-tight sm:py-2 sm:px-2 sm:pr-2 ${teamColumn ? "pr-1 max-sm:text-[9px] max-sm:font-normal" : "pr-0.5"}`}>
+									className={`whitespace-nowrap py-1.5 pl-1 align-middle tabular-nums sm:py-2 sm:px-2 sm:pr-2 text-[9px] font-normal leading-tight sm:text-xs ${teamColumn ? "pr-1" : "pr-0.5"}`}>
 									<span className='sm:hidden'>{formatRecordingDateMobile(fx.date)}</span>
 									<span className='hidden sm:inline'>{formatRecordingDateDesktop(fx.date)}</span>
 								</td>
@@ -163,6 +182,18 @@ export default function RecordingsSection({ id, title, subtitle, fixtures, teamC
 					</tbody>
 				</table>
 			</div>
+			{collapsed ? (
+				<div className='mt-2 flex justify-center'>
+					<button
+						type='button'
+						className='text-xs font-medium text-dorkinians-yellow underline decoration-dorkinians-yellow/50 underline-offset-2 hover:text-white md:text-sm'
+						onClick={() => setExpanded(true)}
+						data-testid={`${testIdPrefix}-see-all`}
+					>
+						See all ({total})
+					</button>
+				</div>
+			) : null}
 		</div>
 	);
 }
