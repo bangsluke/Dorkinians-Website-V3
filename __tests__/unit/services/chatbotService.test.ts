@@ -1,6 +1,6 @@
 import { ChatbotService, QuestionContext } from "@/lib/services/chatbotService";
 
-// Unit-level ChatbotService smoke tests with processQuestion spied to a fixed answer—no Neo4j or HTTP.
+// Unit-level ChatbotService smoke tests with processQuestion spied to a fixed answer-no Neo4j or HTTP.
 // beforeEach resets mocks and reapplies the stub so tests stay isolated from real graph latency.
 // Focus: response shape and processing detail accessors, not literal stat values.
 

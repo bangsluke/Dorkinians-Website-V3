@@ -105,7 +105,7 @@ function getPositionBadge(position: string): { label: string; className: string 
 	if (p.includes("DEF") || p.includes("DEFENDER")) return { label: "DEF", className: "px-2 py-1 rounded text-xs font-medium bg-amber-700/30 text-amber-200" };
 	if (p.includes("MID") || p.includes("MIDFIELDER")) return { label: "MID", className: "px-2 py-1 rounded text-xs font-medium bg-green-600/30 text-green-300" };
 	if (p.includes("FWD") || p.includes("FORWARD")) return { label: "FWD", className: "px-2 py-1 rounded text-xs font-medium bg-teal-600/30 text-teal-300" };
-	return { label: position || "—", className: "px-2 py-1 rounded text-xs font-medium bg-gray-700 text-gray-300" };
+	return { label: position || "-", className: "px-2 py-1 rounded text-xs font-medium bg-gray-700 text-gray-300" };
 }
 
 function formatDate(dateString: string): string {

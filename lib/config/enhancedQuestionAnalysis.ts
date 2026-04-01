@@ -1771,7 +1771,7 @@ export class EnhancedQuestionAnalyzer {
 			"Penalty Conversion Rate", // More specific than general penalty stats - must be before "Penalties Scored"
 			"Distance Travelled", // More specific - distance/travel queries (HIGH PRIORITY)
 			"Fantasy Points", // More specific - fantasy points queries (HIGH PRIORITY)
-			"Current Form", // EWMA form — before generic Apps/Goals
+			"Current Form", // EWMA form - before generic Apps/Goals
 			"All-Time Best Scoring Streak",
 			"All-Time Best Win Streak",
 			"All-Time Best Appearance Streak",

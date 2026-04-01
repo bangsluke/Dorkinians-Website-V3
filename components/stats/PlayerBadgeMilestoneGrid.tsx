@@ -1,8 +1,15 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { createPortal } from "react-dom";
+import { useCallback, useEffect, useState } from "react";
 import { BADGE_DEFINITIONS, BADGE_CATEGORY_ORDER, CATEGORY_LABELS, type BadgeDefinition } from "@/lib/badges/catalog";
-import { buildMilestoneBadgeTooltip, formatBadgeNumber } from "@/lib/badges/badgeTooltip";
+import {
+	buildMilestoneBadgeTooltip,
+	buildMilestoneTooltipLines,
+	formatBadgeNumber,
+	type MilestoneTooltipLines,
+} from "@/lib/badges/badgeTooltip";
 import { tierRank } from "@/lib/badges/evaluate";
 import BadgeDot from "@/components/stats/BadgeDot";
 
@@ -54,25 +61,75 @@ function tierThresholdLabel(def: BadgeDefinition, tier: string): string | undefi
 	return formatBadgeNumber(t.threshold);
 }
 
+function TooltipLineBlock({ lines }: { lines: MilestoneTooltipLines }) {
+	const rows = [
+		lines.titleLine,
+		lines.descriptionLine,
+		lines.currentLine,
+		lines.nextLine,
+		lines.peersLine,
+		lines.leaderLine,
+	];
+	return (
+		<div className='text-left text-[11px] leading-snug text-white space-y-1.5'>
+			{rows.map((line, i) => (
+				<p key={i} className={i === 0 ? "text-dorkinians-yellow font-semibold text-xs" : ""}>
+					{line}
+				</p>
+			))}
+		</div>
+	);
+}
+
 function MilestoneHoverShell({
-	tip,
+	lines,
 	className,
 	children,
+	isSmallScreen,
+	onActivate,
 }: {
-	tip: string;
+	lines: MilestoneTooltipLines;
 	className?: string;
 	children: ReactNode;
+	isSmallScreen: boolean;
+	onActivate: () => void;
 }) {
+	const tipString = [
+		lines.titleLine,
+		lines.descriptionLine,
+		lines.currentLine,
+		lines.nextLine,
+		lines.peersLine,
+		lines.leaderLine,
+	].join("\n");
+
 	return (
 		<div
 			tabIndex={0}
-			className={`group relative outline-none ${className ?? ""}`}>
+			role='button'
+			onClick={(e) => {
+				if (isSmallScreen) {
+					e.preventDefault();
+					e.stopPropagation();
+					onActivate();
+				}
+			}}
+			onKeyDown={(e) => {
+				if (isSmallScreen && (e.key === "Enter" || e.key === " ")) {
+					e.preventDefault();
+					onActivate();
+				}
+			}}
+			className={`group relative outline-none ${className ?? ""} ${isSmallScreen ? "cursor-pointer" : ""}`}>
 			{children}
-			<div
-				className='pointer-events-none absolute bottom-full left-1/2 z-30 mb-1 hidden w-[min(18rem,calc(100vw-2rem))] -translate-x-1/2 rounded-md bg-black/90 p-2 text-left text-[11px] leading-snug text-white shadow-lg group-hover:block group-focus-visible:block'
-				role='tooltip'>
-				{tip}
-			</div>
+			{!isSmallScreen ? (
+				<div
+					className='pointer-events-none absolute bottom-full left-1/2 z-30 mb-1 hidden w-[min(20rem,calc(100vw-2rem))] -translate-x-1/2 rounded-md bg-black/90 p-3 shadow-lg group-hover:block group-focus-visible:block'
+					role='tooltip'>
+					<TooltipLineBlock lines={lines} />
+				</div>
+			) : null}
+			<span className='sr-only'>{tipString}</span>
 		</div>
 	);
 }
@@ -81,13 +138,22 @@ export default function PlayerBadgeMilestoneGrid({
 	earned,
 	progress,
 	achieverCountsByBadgeKey,
+	tierCountsByBadgeKey,
+	milestoneValuesByBadgeKey,
+	milestoneLeadersByBadgeKey,
 }: {
 	earned: EarnedBadgeRow[];
 	progress: ProgressRow[];
 	achieverCountsByBadgeKey?: Record<string, number>;
+	tierCountsByBadgeKey?: Record<string, Record<string, number>>;
+	milestoneValuesByBadgeKey?: Record<string, number>;
+	milestoneLeadersByBadgeKey?: Record<string, { playerName: string; value: number }>;
 }) {
 	const earnedByKey = mergeEarnedByKey(earned);
 	const achieverCounts = achieverCountsByBadgeKey ?? {};
+	const tiers = tierCountsByBadgeKey ?? {};
+	const statVals = milestoneValuesByBadgeKey ?? {};
+	const leaders = milestoneLeadersByBadgeKey ?? {};
 	const progressByKey = new Map<string, ProgressRow>();
 	for (const p of progress) {
 		progressByKey.set(p.badgeKey, p);
@@ -95,12 +161,75 @@ export default function PlayerBadgeMilestoneGrid({
 	const totalBadges = Object.keys(BADGE_DEFINITIONS).length;
 	const unlockedCount = earnedByKey.size;
 	const unlockedPercent = totalBadges > 0 ? Math.round((unlockedCount / totalBadges) * 100) : 0;
-	const recentlyUnlocked = [...earned]
-		.sort((a, b) => toDateValue(b.earnedDate) - toDateValue(a.earnedDate))
-		.at(0);
+	const recentlyUnlocked = [...earned].sort(
+		(a, b) => toDateValue(b.earnedDate) - toDateValue(a.earnedDate),
+	)[0];
+
+	const [isSmallScreen, setIsSmallScreen] = useState(false);
+	const [modalLines, setModalLines] = useState<MilestoneTooltipLines | null>(null);
+
+	useEffect(() => {
+		const mq = window.matchMedia("(max-width: 767px)");
+		const apply = () => setIsSmallScreen(mq.matches);
+		apply();
+		mq.addEventListener("change", apply);
+		return () => mq.removeEventListener("change", apply);
+	}, []);
+
+	const openModal = useCallback((lines: MilestoneTooltipLines) => {
+		setModalLines(lines);
+	}, []);
+
+	useEffect(() => {
+		if (!modalLines) return;
+		const onKey = (e: KeyboardEvent) => {
+			if (e.key === "Escape") setModalLines(null);
+		};
+		document.addEventListener("keydown", onKey);
+		return () => document.removeEventListener("keydown", onKey);
+	}, [modalLines]);
+
+	const buildCtx = useCallback(
+		(badgeKey: string, got: EarnedBadgeRow | undefined) => {
+			const tierPeerCount =
+				got ? tiers[badgeKey]?.[got.tier] : undefined;
+			return {
+				achieverCountAnyTier: achieverCounts[badgeKey],
+				tierPeerCount,
+				leader: leaders[badgeKey] ?? null,
+				currentStatValue: statVals[badgeKey],
+			};
+		},
+		[achieverCounts, leaders, statVals, tiers],
+	);
 
 	return (
 		<div id='player-achievement-badges' className='mt-3 space-y-4' data-testid='player-badge-milestones'>
+			{modalLines && typeof document !== "undefined"
+				? createPortal(
+						<div
+							className='fixed inset-0 z-[500] flex items-center justify-center p-4 bg-black/75'
+							role='dialog'
+							aria-modal='true'
+							aria-label='Milestone details'
+							data-testid='milestone-tooltip-modal'
+							onClick={() => setModalLines(null)}>
+							<div
+								className='max-w-md w-full rounded-xl border border-[#E8C547]/40 bg-[#0f140c] p-4 shadow-2xl ring-1 ring-[#E8C547]/25'
+								onClick={(e) => e.stopPropagation()}>
+								<TooltipLineBlock lines={modalLines} />
+								<button
+									type='button'
+									className='mt-4 w-full rounded-lg border border-white/20 py-2 text-sm font-medium text-white hover:bg-white/10'
+									onClick={() => setModalLines(null)}>
+									Close
+								</button>
+							</div>
+						</div>,
+						document.body,
+					)
+				: null}
+
 			<div className='rounded-xl border border-white/10 bg-black/15 p-3'>
 				<div className='flex items-center justify-between text-sm'>
 					<h5 className='text-white font-semibold'>Achievements</h5>
@@ -120,39 +249,41 @@ export default function PlayerBadgeMilestoneGrid({
 				<div className='relative z-20 overflow-visible rounded-xl border-2 border-[#E8C547]/60 bg-gradient-to-br from-[#E8C547]/45 via-[#E8C547]/28 to-[#b8941f]/18 p-3 md:p-5 shadow-lg shadow-black/30 ring-1 ring-inset ring-[#E8C547]/35 isolate'>
 					<p className='text-dorkinians-yellow text-xs font-semibold uppercase tracking-wide'>Recently unlocked</p>
 					<div className='mt-2 flex items-center gap-3'>
-						<MilestoneHoverShell
-							className='shrink-0'
-							tip={
-								BADGE_DEFINITIONS[recentlyUnlocked.badgeKey]
-									? buildMilestoneBadgeTooltip(
-											BADGE_DEFINITIONS[recentlyUnlocked.badgeKey],
-											recentlyUnlocked,
-											progressByKey.get(recentlyUnlocked.badgeKey),
-											achieverCounts[recentlyUnlocked.badgeKey],
-										)
-									: `${recentlyUnlocked.badgeName} — ${recentlyUnlocked.description}`
-							}>
-							<BadgeDot
-								tier={recentlyUnlocked.tier}
-								title=''
-								aria-label={
-									BADGE_DEFINITIONS[recentlyUnlocked.badgeKey]
-										? buildMilestoneBadgeTooltip(
-												BADGE_DEFINITIONS[recentlyUnlocked.badgeKey],
-												recentlyUnlocked,
-												progressByKey.get(recentlyUnlocked.badgeKey),
-												achieverCounts[recentlyUnlocked.badgeKey],
-											)
-										: `${recentlyUnlocked.badgeName} — ${recentlyUnlocked.description}`
-								}
-								size='md'
-								innerLabel={
-									BADGE_DEFINITIONS[recentlyUnlocked.badgeKey]
-										? tierThresholdLabel(BADGE_DEFINITIONS[recentlyUnlocked.badgeKey], recentlyUnlocked.tier)
-										: undefined
-								}
-							/>
-						</MilestoneHoverShell>
+						{(() => {
+							const def = BADGE_DEFINITIONS[recentlyUnlocked.badgeKey];
+							const prog = progressByKey.get(recentlyUnlocked.badgeKey);
+							const ctx = buildCtx(recentlyUnlocked.badgeKey, recentlyUnlocked);
+							const lines = def
+								? buildMilestoneTooltipLines(def, recentlyUnlocked, prog, ctx)
+								: ({
+										titleLine: recentlyUnlocked.badgeName,
+										descriptionLine: recentlyUnlocked.description,
+										currentLine: "Current value: -.",
+										nextLine: "Next tier: -",
+										peersLine: "Club milestone counts aren’t available.",
+										leaderLine: "Club leader: -",
+									} as MilestoneTooltipLines);
+							const aria = def
+								? buildMilestoneBadgeTooltip(def, recentlyUnlocked, prog, ctx)
+								: `${recentlyUnlocked.badgeName} - ${recentlyUnlocked.description}`;
+							return (
+								<MilestoneHoverShell
+									className='shrink-0'
+									lines={lines}
+									isSmallScreen={isSmallScreen}
+									onActivate={() => openModal(lines)}>
+									<BadgeDot
+										tier={recentlyUnlocked.tier}
+										title=''
+										aria-label={aria}
+										size='md'
+										innerLabel={
+											def ? tierThresholdLabel(def, recentlyUnlocked.tier) : undefined
+										}
+									/>
+								</MilestoneHoverShell>
+							);
+						})()}
 						<div className='min-w-0 flex-1'>
 							<p className='text-white font-semibold leading-tight'>{recentlyUnlocked.badgeName}</p>
 							<p className='text-white/80 text-xs leading-tight'>{recentlyUnlocked.description}</p>
@@ -178,19 +309,23 @@ export default function PlayerBadgeMilestoneGrid({
 								if (!def) return null;
 								const got = earnedByKey.get(badgeKey);
 								const prog = progressByKey.get(badgeKey);
-								const tip = buildMilestoneBadgeTooltip(def, got, prog, achieverCounts[badgeKey]);
+								const ctx = buildCtx(badgeKey, got);
+								const lines = buildMilestoneTooltipLines(def, got, prog, ctx);
+								const aria = buildMilestoneBadgeTooltip(def, got, prog, ctx);
 								const earnedInner = got ? tierThresholdLabel(def, got.tier) : undefined;
 								const lockedInner =
-									prog && prog.remaining > 0 ? formatBadgeNumber(prog.targetValue) : prog ? "—" : "—";
+									prog && prog.remaining > 0 ? formatBadgeNumber(prog.targetValue) : prog ? "-" : "-";
 								return (
 									<MilestoneHoverShell
 										key={badgeKey}
-										tip={tip}
-										className={`flex flex-col items-center text-center gap-1.5 p-2 rounded-lg cursor-help ${
+										lines={lines}
+										isSmallScreen={isSmallScreen}
+										onActivate={() => openModal(lines)}
+										className={`flex flex-col items-center text-center gap-1.5 p-2 rounded-lg ${
 											got ? "bg-white/5 border border-white/10" : "border border-dashed border-white/25 bg-transparent"
-										}`}>
+										} ${isSmallScreen ? "" : "cursor-help"}`}>
 										{got ? (
-											<BadgeDot tier={got.tier} title='' aria-label={tip} size='md' innerLabel={earnedInner} />
+											<BadgeDot tier={got.tier} title='' aria-label={aria} size='md' innerLabel={earnedInner} />
 										) : (
 											<div className='h-9 w-9 min-h-[36px] min-w-[36px] rounded-full border-2 border-dashed border-white/30 flex items-center justify-center bg-black/15'>
 												<span className='text-[9px] font-bold text-white/80 tabular-nums px-0.5 text-center leading-none'>
@@ -205,7 +340,7 @@ export default function PlayerBadgeMilestoneGrid({
 											<span className='text-[10px] text-white/65'>
 												{prog.remaining > 0
 													? `${formatBadgeNumber(prog.remaining)} to ${prog.nextTier}`
-													: "—"}
+													: "-"}
 											</span>
 										) : (
 											<span className='text-[10px] text-white/65'>Max tier</span>

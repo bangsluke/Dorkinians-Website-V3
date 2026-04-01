@@ -2,7 +2,7 @@ import { ChatbotService, QuestionContext } from "@/lib/services/chatbotService";
 import { FALLBACK_TEST_DATA } from "@/__tests__/utils/testUtils";
 
 // Smoke and integration-style coverage for ChatbotService: singleton wiring, shared fixture data, and live graph-backed answers.
-// No Neo4j module mocks here—"Real Database" and similar tests assume a reachable database and stable seed players (e.g. Luke Bangs).
+// No Neo4j module mocks here-"Real Database" and similar tests assume a reachable database and stable seed players (e.g. Luke Bangs).
 // Some async tests use 30s timeouts; intermittent failures may reflect DB connectivity, load, or data drift rather than pure unit regressions.
 
 describe("ChatbotService Basic Tests", () => {

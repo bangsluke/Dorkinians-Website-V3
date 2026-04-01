@@ -4,7 +4,7 @@ import * as path from 'path';
 
 // Shared Playwright helpers for specs under __tests__/e2e/: section logging (cross-project), main-page nav,
 // Club Info / TOTW / Stats sub-pages, player Listbox selection (retries on mobile detach), localStorage shortcuts,
-// chatbot I/O, and assertions. Many waits are best-effort or polled — specs should skip when preconditions fail
+// chatbot I/O, and assertions. Many waits are best-effort or polled - specs should skip when preconditions fail
 // instead of assuming helpers always reach a single DOM shape (slow APIs and CI retries amplify flakiness).
 
 // Use a file-based lock to persist across all execution contexts
@@ -703,7 +703,7 @@ export async function submitChatbotQuery(page: Page, query: string) {
 		await page.getByTestId('chatbot-submit').filter({ has: page.locator(':visible') }).click();
 	}
 	
-	// Wait for response (avoid networkidle — analytics/long-polling often prevent it on production)
+	// Wait for response (avoid networkidle - analytics/long-polling often prevent it on production)
 	await page.getByTestId('chatbot-submit').waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
 	await expect(page.getByTestId('chatbot-answer')).toBeVisible({ timeout: 120000 });
 }

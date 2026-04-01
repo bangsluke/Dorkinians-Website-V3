@@ -7,6 +7,7 @@ import { playerNameToWrappedSlug } from "@/lib/wrapped/slug";
 import type { WrappedData, WrappedVeoFixture } from "@/lib/wrapped/types";
 import {
 	fetchDorkiniansLeagueFinishForTeamSeason,
+	fetchDorkiniansLeagueTableRowForTeamSeason,
 	fixtureDisplayTeamToLeagueTableKey,
 	isCupTieAdvanced,
 } from "@/lib/wrapped/wrappedTeamSeason";
@@ -58,7 +59,18 @@ function sortSeasonsDesc(unique: string[]): string[] {
 	});
 }
 
-type ClubRow = { nm: string; apps: number; mins: number; goals: number; assists: number; cs: number };
+type ClubRow = {
+	nm: string;
+	apps: number;
+	mins: number;
+	goals: number;
+	assists: number;
+	cs: number;
+	ftp: number;
+	dist: number;
+	mom: number;
+	starts: number;
+};
 
 function toPlainProps(item: unknown): Record<string, unknown> | null {
 	if (!item || typeof item !== "object") return null;
@@ -83,6 +95,10 @@ function parseClubRows(raw: unknown): ClubRow[] {
 			goals: toNumber(r.goals),
 			assists: toNumber(r.assists),
 			cs: toNumber(r.cs),
+			ftp: toNumber(r.ftp),
+			dist: toNumber(r.dist),
+			mom: toNumber(r.mom),
+			starts: toNumber(r.starts),
 		});
 	}
 	return out;
@@ -135,9 +151,6 @@ export async function computeWrappedData(options: {
 		RETURN p.playerName AS playerName,
 			p.allowOnSite AS allowOnSite,
 			coalesce(p.numberTeamsPlayedFor, 0) AS numberTeamsPlayedFor,
-			p.bestPartnerName AS bestPartnerName,
-			coalesce(p.bestPartnerWinRate, 0) AS bestPartnerWinRate,
-			coalesce(p.bestPartnerMatches, 0) AS bestPartnerMatches,
 			coalesce(p.seasonBestScoringStreak, 0) AS seasonBestScoringStreak,
 			coalesce(p.seasonBestAssistStreak, 0) AS seasonBestAssistStreak,
 			coalesce(p.seasonBestCleanSheetStreak, 0) AS seasonBestCleanSheetStreak,
@@ -160,11 +173,6 @@ export async function computeWrappedData(options: {
 	}
 
 	const numberTeamsPlayedFor = toNumber(pr.get("numberTeamsPlayedFor"));
-	const bestPartnerRaw = pr.get("bestPartnerName");
-	const topPartnerName =
-		bestPartnerRaw != null && String(bestPartnerRaw).trim() !== "" ? String(bestPartnerRaw) : "—";
-	const topPartnerWinRate = Math.round(toNumber(pr.get("bestPartnerWinRate")) * 10) / 10;
-	const topPartnerMatches = Math.round(toNumber(pr.get("bestPartnerMatches")));
 
 	const seasonsRes = await neo4jService.runQuery(
 		`
@@ -222,6 +230,7 @@ export async function computeWrappedData(options: {
 			sum(coalesce(md.mom, 0)) AS mom,
 			sum(coalesce(md.minutes, 0)) AS minutes,
 			sum(coalesce(md.distance, 0)) AS distance,
+			sum(CASE WHEN coalesce(md.started, false) THEN 1 ELSE 0 END) AS starts,
 			max(coalesce(md.matchRating, 0)) AS peakRating
 		`,
 		{ graphLabel, playerName, seasonNorm, seasonHyphen },
@@ -233,6 +242,7 @@ export async function computeWrappedData(options: {
 	const totalAssists = Math.round(toNumber(s0?.get("assists")));
 	const totalMom = Math.round(toNumber(s0?.get("mom")));
 	const seasonMinutes = toNumber(s0?.get("minutes"));
+	const totalStarts = Math.round(toNumber(s0?.get("starts")));
 	const totalDistance = Math.round(toNumber(s0?.get("distance")) * 10) / 10;
 	const peakMatchRating = Math.round(toNumber(s0?.get("peakRating")) * 10) / 10;
 
@@ -252,8 +262,12 @@ export async function computeWrappedData(options: {
 			sum(coalesce(md2.minutes, 0)) AS mins,
 			sum(coalesce(md2.goals, 0)) AS goals,
 			sum(coalesce(md2.assists, 0)) AS assists,
-			sum(coalesce(md2.cleanSheets, 0)) AS cs
-		RETURN collect({nm: nm, apps: apps, mins: mins, goals: goals, assists: assists, cs: cs}) AS rows
+			sum(coalesce(md2.cleanSheets, 0)) AS cs,
+			sum(coalesce(md2.fantasyPoints, 0)) AS ftp,
+			sum(coalesce(md2.distance, 0)) AS dist,
+			sum(coalesce(md2.mom, 0)) AS mom,
+			sum(CASE WHEN coalesce(md2.started, false) THEN 1 ELSE 0 END) AS starts
+		RETURN collect({nm: nm, apps: apps, mins: mins, goals: goals, assists: assists, cs: cs, ftp: ftp, dist: dist, mom: mom, starts: starts}) AS rows
 		`,
 		{ graphLabel, seasonNorm, seasonHyphen },
 	);
@@ -266,11 +280,24 @@ export async function computeWrappedData(options: {
 	const g90 = rows.map((r) => per90(r.goals, r.mins)).filter((v): v is number => v != null);
 	const a90 = rows.map((r) => per90(r.assists, r.mins)).filter((v): v is number => v != null);
 	const c90 = rows.map((r) => per90(r.cs, r.mins)).filter((v): v is number => v != null);
+	const f90 = rows.map((r) => per90(r.ftp, r.mins)).filter((v): v is number => v != null);
 	const minsList = rows.map((r) => r.mins);
+	const distList = rows.map((r) => r.dist);
 
 	const myG90 = per90(my?.goals ?? 0, my?.mins ?? 0) ?? 0;
 	const myA90 = per90(my?.assists ?? 0, my?.mins ?? 0) ?? 0;
 	const myC90 = per90(my?.cs ?? 0, my?.mins ?? 0) ?? 0;
+	const myF90 = per90(my?.ftp ?? 0, my?.mins ?? 0) ?? 0;
+	const myDist = my?.dist ?? 0;
+	const myMom90 = per90(my?.mom ?? 0, my?.mins ?? 0) ?? 0;
+	const m90 = rows.map((r) => per90(r.mom, r.mins)).filter((v): v is number => v != null);
+
+	const startRatios = rows
+		.filter((r) => r.apps >= 5)
+		.map((r) => (r.starts > 0 ? r.starts / r.apps : 0));
+	const myApps = my?.apps ?? 0;
+	const myStarts = my?.starts ?? 0;
+	const myStartRatio = myApps >= 5 && myStarts >= 0 ? myStarts / myApps : -1;
 
 	const percentiles = {
 		goalsPer90: myG90 > 0 ? percentileHigherIsBetter(myG90, g90) : 0,
@@ -278,6 +305,13 @@ export async function computeWrappedData(options: {
 		appearances: percentileHigherIsBetter(my?.apps ?? 0, appsList),
 		minutes: percentileHigherIsBetter(my?.mins ?? 0, minsList),
 		cleanSheetsPer90: myC90 > 0 ? percentileHigherIsBetter(myC90, c90) : 0,
+		ftpPer90: myF90 > 0 ? percentileHigherIsBetter(myF90, f90) : 0,
+		distance: myDist > 0 ? percentileHigherIsBetter(myDist, distList) : 0,
+		momPer90: myMom90 > 0 && m90.length > 0 ? percentileHigherIsBetter(myMom90, m90) : 0,
+		startRate:
+			myStartRatio >= 0 && startRatios.length > 0 ?
+				percentileHigherIsBetter(myStartRatio, startRatios)
+			:	0,
 	};
 
 	const monthRes = await neo4jService.runQuery(
@@ -287,9 +321,11 @@ export async function computeWrappedData(options: {
 		MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
 		WHERE f.season = $seasonNorm OR f.season = $seasonHyphen
 		WITH substring(toString(f.date), 0, 7) AS ym,
+			count(md) AS monthApps,
 			sum(coalesce(md.goals, 0)) AS g,
-			sum(coalesce(md.assists, 0)) AS a
-		RETURN ym, g, a
+			sum(coalesce(md.assists, 0)) AS a,
+			sum(coalesce(md.fantasyPoints, 0)) AS ftp
+		RETURN ym, monthApps, g, a, ftp
 		ORDER BY (g + a) DESC, g DESC
 		LIMIT 1
 		`,
@@ -299,10 +335,12 @@ export async function computeWrappedData(options: {
 	const ym = monthRes.records[0]?.get("ym");
 	const bestMonthGoals = Math.round(toNumber(monthRes.records[0]?.get("g")));
 	const bestMonthAssists = Math.round(toNumber(monthRes.records[0]?.get("a")));
+	const bestMonthMatches = Math.round(toNumber(monthRes.records[0]?.get("monthApps")));
+	const bestMonthFantasyPoints = Math.round(toNumber(monthRes.records[0]?.get("ftp")) * 10) / 10;
 	const bestMonth =
 		ym != null && String(ym).length >= 7
 			? formatYearMonth(String(ym))
-			: "—";
+			: "-";
 
 	const peakRes = await neo4jService.runQuery(
 		`
@@ -316,16 +354,77 @@ export async function computeWrappedData(options: {
 		RETURN coalesce(md.matchRating, 0) AS peakRating,
 			coalesce(f.opposition, '') AS opposition,
 			coalesce(md.goals, 0) AS peakGoals,
-			coalesce(md.assists, 0) AS peakAssists
+			coalesce(md.assists, 0) AS peakAssists,
+			coalesce(f.result, '') AS peakResult,
+			coalesce(f.dorkiniansGoals, 0) AS peakDorkiniansGoals,
+			coalesce(f.conceded, 0) AS peakConceded
 		`,
 		{ graphLabel, playerName, seasonNorm, seasonHyphen },
 	);
 
 	const peakR = peakRes.records[0];
-	const peakMatchOpposition = peakR?.get("opposition") != null ? String(peakR.get("opposition")) : "—";
+	const peakMatchOpposition = peakR?.get("opposition") != null ? String(peakR.get("opposition")) : "-";
 	const peakMatchGoals = Math.round(toNumber(peakR?.get("peakGoals")));
 	const peakMatchAssists = Math.round(toNumber(peakR?.get("peakAssists")));
 	const peakFromRow = Math.round(toNumber(peakR?.get("peakRating")) * 10) / 10;
+	const peakResultRaw = peakR?.get("peakResult") != null ? String(peakR.get("peakResult")) : "";
+	const peakDorkGoals = Math.round(toNumber(peakR?.get("peakDorkiniansGoals")));
+	const peakConceded = Math.round(toNumber(peakR?.get("peakConceded")));
+	const hasPeak = peakFromRow > 0 || peakMatchRating > 0;
+	const peakMatchResultLabel = hasPeak ? wrappedPeakResultLabel(peakResultRaw) : "-";
+	const peakMatchScoreline = hasPeak ? `${peakDorkGoals}-${peakConceded}` : "-";
+
+	const posRes = await neo4jService.runQuery(
+		`
+		MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
+		MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+		MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+		WHERE f.season = $seasonNorm OR f.season = $seasonHyphen
+		WITH coalesce(md.class, 'UNK') AS cls, count(*) AS c
+		RETURN cls, c
+		ORDER BY c DESC
+		LIMIT 1
+		`,
+		{ graphLabel, playerName, seasonNorm, seasonHyphen },
+	);
+	const rawCls = posRes.records[0]?.get("cls");
+	const mostPlayedPosition = formatWrappedPositionClass(rawCls != null ? String(rawCls) : "");
+
+	const partnerRes = await neo4jService.runQuery(
+		`
+		MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
+		MATCH (p)-[:PLAYED_IN]->(md1:MatchDetail {graphLabel: $graphLabel})<-[:HAS_MATCH_DETAILS]-(f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md2:MatchDetail {graphLabel: $graphLabel})<-[:PLAYED_IN]-(p2:Player {graphLabel: $graphLabel})
+		WHERE p2.playerName <> p.playerName
+		  AND coalesce(p2.allowOnSite, true) = true
+		  AND (f.season = $seasonNorm OR f.season = $seasonHyphen)
+		  AND coalesce(md1.minutes, 0) > 0 AND coalesce(md2.minutes, 0) > 0
+		  AND NOT coalesce(f.status, '') IN ['Void', 'Postponed', 'Abandoned']
+		WITH p2.playerName AS partner,
+			count(DISTINCT f) AS games,
+			sum(CASE
+				WHEN trim(toUpper(coalesce(f.result, ''))) = 'W'
+					OR trim(toUpper(coalesce(f.result, ''))) STARTS WITH 'WIN' THEN 1
+				ELSE 0
+			END) AS wins
+		WHERE games >= 1
+		RETURN partner, games, wins
+		ORDER BY CASE WHEN games >= 5 THEN 1 ELSE 0 END DESC, (wins * 1.0 / games) DESC, games DESC
+		LIMIT 1
+		`,
+		{ graphLabel, playerName, seasonNorm, seasonHyphen },
+	);
+	const partnerRec = partnerRes.records[0];
+	let topPartnerName = "-";
+	let topPartnerMatches = 0;
+	let topPartnerWinRate = 0;
+	if (partnerRec) {
+		const games = Math.round(toNumber(partnerRec.get("games")));
+		const wins = Math.round(toNumber(partnerRec.get("wins")));
+		const pn = partnerRec.get("partner");
+		topPartnerName = pn != null && String(pn).trim() !== "" ? String(pn) : "-";
+		topPartnerMatches = games;
+		topPartnerWinRate = games > 0 ? Math.round((wins * 1000) / games) / 10 : 0;
+	}
 
 	const streakPick = pickLongestSeasonStreak(pr);
 	const longestStreakType = streakPick && streakPick.value >= 3 ? `${streakPick.type} streak` : null;
@@ -438,6 +537,26 @@ export async function computeWrappedData(options: {
 	const wrappedDominantTeamLeaguePosition = leagueFinish.position;
 	const wrappedDominantTeamLeagueDivision = leagueFinish.division;
 
+	const leagueRowEntry = await fetchDorkiniansLeagueTableRowForTeamSeason({
+		seasonNorm,
+		leagueTableTeamKey: leagueKey,
+	});
+	const wrappedDominantTeamLeagueRow =
+		leagueRowEntry ?
+			{
+				position: leagueRowEntry.position,
+				team: leagueRowEntry.team,
+				played: leagueRowEntry.played,
+				won: leagueRowEntry.won,
+				drawn: leagueRowEntry.drawn,
+				lost: leagueRowEntry.lost,
+				goalsFor: leagueRowEntry.goalsFor,
+				goalsAgainst: leagueRowEntry.goalsAgainst,
+				goalDifference: leagueRowEntry.goalDifference,
+				points: leagueRowEntry.points,
+			}
+		:	null;
+
 	const { type: playerType, reason: playerTypeReason } = classifyPlayerType({
 		numberTeamsPlayedFor,
 		percentiles,
@@ -454,6 +573,9 @@ export async function computeWrappedData(options: {
 		seasonsAvailable,
 		veoFixtures,
 		totalMatches,
+		totalMinutes: Math.round(seasonMinutes),
+		totalStarts,
+		mostPlayedPosition,
 		totalGoals,
 		totalAssists,
 		totalMom,
@@ -461,6 +583,8 @@ export async function computeWrappedData(options: {
 		bestMonth,
 		bestMonthGoals,
 		bestMonthAssists,
+		bestMonthMatches,
+		bestMonthFantasyPoints,
 		topPartnerName,
 		topPartnerMatches,
 		topPartnerWinRate,
@@ -470,6 +594,8 @@ export async function computeWrappedData(options: {
 		peakMatchOpposition,
 		peakMatchGoals,
 		peakMatchAssists,
+		peakMatchResultLabel,
+		peakMatchScoreline,
 		longestStreakType,
 		longestStreakValue,
 		totalDistance,
@@ -480,6 +606,7 @@ export async function computeWrappedData(options: {
 		wrappedDominantTeam,
 		wrappedDominantTeamLeaguePosition,
 		wrappedDominantTeamLeagueDivision,
+		wrappedDominantTeamLeagueRow,
 	};
 
 	return { data };
@@ -492,6 +619,27 @@ async function fetchCurrentSeason(graphLabel: string): Promise<string | null> {
 	);
 	const v = r.records[0]?.get("currentSeason");
 	return v != null && String(v).trim() !== "" ? String(v).trim() : null;
+}
+
+function wrappedPeakResultLabel(raw: string): string {
+	const u = raw.trim().toUpperCase();
+	if (u === "W" || u.startsWith("WIN")) return "Win";
+	if (u === "D" || u.startsWith("DRA")) return "Draw";
+	if (u === "L" || u.startsWith("LOS")) return "Loss";
+	return raw.trim() || "-";
+}
+
+function formatWrappedPositionClass(cls: string): string {
+	const c = cls.trim().toUpperCase();
+	const map: Record<string, string> = {
+		GK: "Goalkeeper",
+		DEF: "Defender",
+		MID: "Midfielder",
+		FWD: "Forward",
+	};
+	if (map[c]) return map[c];
+	if (!c || c === "UNK" || c === "UN") return "-";
+	return cls;
 }
 
 function formatYearMonth(ym: string): string {

@@ -97,7 +97,7 @@ export function buildMatchRatingBreakdown(detail: MatchRatingDetail): {
 	const penaltiesSaved = n(detail.penaltiesSaved);
 
 	const posRaw = detail.class;
-	const pos = typeof posRaw === "string" ? posRaw.toUpperCase().trim() : "—";
+	const pos = typeof posRaw === "string" ? posRaw.toUpperCase().trim() : "-";
 
 	const lines: MatchRatingBreakdownLine[] = [];
 	let running = 6.0;
@@ -194,5 +194,5 @@ export function buildMatchRatingBreakdown(detail: MatchRatingDetail): {
 		lines.push({ label: "Round to 1 decimal", delta: final - clamped, running: final });
 	}
 
-	return { lines, final, position: pos || "—" };
+	return { lines, final, position: pos || "-" };
 }

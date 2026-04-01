@@ -9,7 +9,7 @@ jest.mock("@/lib/neo4j", () => ({
 	},
 }));
 
-// ChatbotService integration with Neo4j mocked end-to-end—deterministic executeQuery payloads, no real graph.
+// ChatbotService integration with Neo4j mocked end-to-end-deterministic executeQuery payloads, no real graph.
 // Validates answer strings, optional processing metadata, and paraphrased question stability for common intents.
 // Flakes are uncommon unless mock wiring or ChatbotService internals change response shape.
 

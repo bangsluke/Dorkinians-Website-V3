@@ -1308,7 +1308,7 @@ export default function TeamOfTheWeek() {
 					</div>
 					</div>
 
-					{/* Previous 10 weeks score strip (Feature 15) — right column on lg, full width below on smaller screens */}
+					{/* Previous 10 weeks score strip (Feature 15) - right column on lg, full width below on smaller screens */}
 					{showPreviousWeeksStrip && (
 						<div id='totw-previous-weeks-strip' data-testid='totw-previous-weeks-strip' className='mb-6 lg:mb-0 min-w-0 mt-2 lg:mt-0'>
 							<h3 className='text-center lg:text-left text-gray-200 font-semibold text-xs md:text-sm mb-2'>Previous 10 Weeks</h3>

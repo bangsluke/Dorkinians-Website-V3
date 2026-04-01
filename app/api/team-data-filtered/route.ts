@@ -192,7 +192,7 @@ function buildTeamStatsQuery(teamName: string, filters: any = null): { query: st
 	return { query, params };
 }
 
-/** Fixture-level formation counts (excludes position filters — formation is derived from starters). */
+/** Fixture-level formation counts (excludes position filters - formation is derived from starters). */
 function buildFormationBreakdownQuery(teamName: string, filters: any = null): { query: string; params: any } {
 	const graphLabel = neo4jService.getGraphLabel();
 	const params: any = { graphLabel };

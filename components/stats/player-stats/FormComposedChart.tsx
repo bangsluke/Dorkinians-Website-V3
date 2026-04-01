@@ -43,19 +43,19 @@ function FormTooltip({
 			style={{ background: "rgba(0,0,0,0.88)" }}>
 			<p className='mb-1 font-medium text-white/90'>{label}</p>
 			<p className='text-white/80'>
-				<span className='text-white/60'>Rating:</span> {Number.isFinite(row.rawScore) ? row.rawScore.toFixed(1) : "—"}
+				<span className='text-white/60'>Rating:</span> {Number.isFinite(row.rawScore) ? row.rawScore.toFixed(1) : "-"}
 			</p>
 			<p className='text-white/80'>
 				<span className='font-medium' style={yellowLabel}>
 					Current form (5-match):
 				</span>{" "}
-				{Number.isFinite(row.ewmaReactive) ? row.ewmaReactive.toFixed(1) : "—"}
+				{Number.isFinite(row.ewmaReactive) ? row.ewmaReactive.toFixed(1) : "-"}
 			</p>
 			<p className='text-white/80'>
 				<span className='font-medium' style={greenLabel}>
 					Baseline (15-match):
 				</span>{" "}
-				{Number.isFinite(row.ewmaBaseline) ? row.ewmaBaseline.toFixed(1) : "—"}
+				{Number.isFinite(row.ewmaBaseline) ? row.ewmaBaseline.toFixed(1) : "-"}
 			</p>
 		</div>
 	);

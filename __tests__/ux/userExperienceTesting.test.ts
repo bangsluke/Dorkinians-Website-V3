@@ -11,7 +11,7 @@ jest.mock("@/lib/neo4j", () => ({
 
 // UX-oriented chatbot checks: readable opening characters and graceful handling of vague prompts with mocked Neo4j.
 // Complements functional suites by asserting minimal polish heuristics on answer strings.
-// Non-empty answers are required even for junk input—signals user-facing fallback copy is present.
+// Non-empty answers are required even for junk input-signals user-facing fallback copy is present.
 
 describe("User Experience Testing", () => {
 	let chatbotService: ChatbotService;

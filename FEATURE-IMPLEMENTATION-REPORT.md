@@ -1,4 +1,4 @@
-# Dorkinians FC website — feature implementation report
+# Dorkinians FC website - feature implementation report
 
 **Generated from:** `IMPLEMENTATION-STATUS.md` and `NEW-FEATURES.md` (as of last documented update: **2026-03-31**).  
 **Purpose:** Single readable summary of what has shipped, what is deferred, how major Player Stats sections work, and what you can ask the home chatbot today.
@@ -9,7 +9,7 @@
 
 The site has moved well beyond “basic stats”: there is a full **foundation** layer (starters, match ratings, formations), **per-90** analytics, **form** (EWMA curves), **streaks** (DB-backed + **live filter-scoped** API on Player Stats), **club records**, **graph insights** (partnerships, impact, squad backbone), **Season Wrapped**, **achievement badges**, **Player Profile**, **Veo** on fixtures and recordings, **TOTW** enhancements (previous weeks, share), and several **UX polish** rounds (Phases 6–8).
 
-**Documentation state:** Phase 7 (A–J) and Phase 8 checklist items are marked **shipped** in `IMPLEMENTATION-STATUS.md`. `NEW-FEATURES.md` still labels Phase 7 as “in progress” in one heading—treat the **status file** as the source of truth for completion unless you reconcile that wording.
+**Documentation state:** Phase 7 (A–J) and Phase 8 checklist items are marked **shipped** in `IMPLEMENTATION-STATUS.md`. `NEW-FEATURES.md` still labels Phase 7 as “in progress” in one heading-treat the **status file** as the source of truth for completion unless you reconcile that wording.
 
 **Immediate operational next step (from status file):** run Playwright stats/TOTW smoke on a **seeded** environment; optionally harden E2E for club recordings **See all** (`club-recording-see-all`).
 
@@ -34,9 +34,9 @@ Grouped by theme; details and “what’s left” follow in later sections.
 
 ---
 
-## 3. Player Stats — section guide
+## 3. Player Stats - section guide
 
-These blocks appear on **Player Stats** (exact order has been adjusted in Phase 7—use the live page + `StatsNavigationMenu` as the final order). Stable **section ids** matter for in-page nav and tests (`#streaks-section`, `#partnerships-section`, etc.).
+These blocks appear on **Player Stats** (exact order has been adjusted in Phase 7-use the live page + `StatsNavigationMenu` as the final order). Stable **section ids** matter for in-page nav and tests (`#streaks-section`, `#partnerships-section`, etc.).
 
 ### 3.1 Form (`#form-section` and related)
 
@@ -44,7 +44,7 @@ These blocks appear on **Player Stats** (exact order has been adjusted in Phase 
 
 - **Recent match scores:** Last 10 match ratings (styled by band), respecting current filters.
 - **Chart:** Grey scatter points = per-match **Rating**; **yellow** line = **Current form (5-match)** EWMA; **green** line = **Baseline (15-match)** EWMA.
-- **Summary cards:** Current form, season average, peak form—with rating-band styling (polished in Phase 7/8).
+- **Summary cards:** Current form, season average, peak form-with rating-band styling (polished in Phase 7/8).
 
 **Data source**
 
@@ -62,7 +62,7 @@ These blocks appear on **Player Stats** (exact order has been adjusted in Phase 
 
 **What it shows**
 
-- **Active** streaks (scoring, assists, goal involvement, clean sheet, appearances, starts, 85+ mins, MoM, discipline, wins—see live UI).
+- **Active** streaks (scoring, assists, goal involvement, clean sheet, appearances, starts, 85+ mins, MoM, discipline, wins-see live UI).
 - **Season best** and **all-time best** on **every** tile; season best uses the **season of the chronologically last match** in the **current filter set**.
 - Section + tile **info tooltips** use the same dark overlay pattern as other stats tooltips (no native `title` on tiles).
 
@@ -108,7 +108,7 @@ These blocks appear on **Player Stats** (exact order has been adjusted in Phase 
 
 **Caveats**
 
-- Small sample sizes on “without player” minutes may produce noisy or suppressed messaging—see spec for thresholds.
+- Small sample sizes on “without player” minutes may produce noisy or suppressed messaging-see spec for thresholds.
 
 ---
 
@@ -118,7 +118,7 @@ These blocks appear on **Player Stats** (exact order has been adjusted in Phase 
 
 **What it shows**
 
-- Top players by **PageRank**-style influence on `PLAYED_WITH`—**only when Neo4j GDS** is available on the Aura instance.
+- Top players by **PageRank**-style influence on `PLAYED_WITH`-**only when Neo4j GDS** is available on the Aura instance.
 
 **If the list is empty**
 
@@ -126,7 +126,7 @@ These blocks appear on **Player Stats** (exact order has been adjusted in Phase 
 
 ---
 
-## 4. Chatbot — what you can ask today
+## 4. Chatbot - what you can ask today
 
 The home chatbot uses `lib/config/chatbotMetrics.ts` plus dedicated handlers in `lib/services/chatbotService.ts` (including extensive **streak** routing).
 
@@ -134,9 +134,9 @@ The home chatbot uses `lib/config/chatbotMetrics.ts` plus dedicated handlers in 
 
 | Area | Example questions / phrasing (illustrative) |
 | ---- | -------------------------------------------- |
-| **Form** | “What’s my current form?”, “Who’s in the best form?” — **`FORM_CURRENT`** metric; rankings for best/worst / low form style questions (see implementation notes in status: Feature 3 chatbot). |
-| **Streaks** | “What’s my longest scoring streak?”, “Longest appearance streak”, “Current win streak”, goal involvement / clean sheet / assist streaks, many “longest run” variants — wired via `chatbotMetrics` streak keys and `chatbotService` streak paths. |
-| **Core stats** | Goals, assists, minutes, cards, clean sheets, MoM, **starts** (`STARTS` / “how many times have I started?”), etc. — standard `metricConfigs` aliases. |
+| **Form** | “What’s my current form?”, “Who’s in the best form?” - **`FORM_CURRENT`** metric; rankings for best/worst / low form style questions (see implementation notes in status: Feature 3 chatbot). |
+| **Streaks** | “What’s my longest scoring streak?”, “Longest appearance streak”, “Current win streak”, goal involvement / clean sheet / assist streaks, many “longest run” variants - wired via `chatbotMetrics` streak keys and `chatbotService` streak paths. |
+| **Core stats** | Goals, assists, minutes, cards, clean sheets, MoM, **starts** (`STARTS` / “how many times have I started?”), etc. - standard `metricConfigs` aliases. |
 
 ### 4.2 Spec’d in NEW-FEATURES but **not** documented as chatbot-complete
 
@@ -144,7 +144,7 @@ The home chatbot uses `lib/config/chatbotMetrics.ts` plus dedicated handlers in 
 
 - **Partnerships / impact / connectivity style questions** in natural language are **not** marked done for the chatbot (e.g. “Who’s my best partner?”, “What’s my impact on the team?”).
 - **Badges:** optional future chatbot phrasing.
-- ~~**Starters:** “How many times have I started?”~~ — **shipped (2026-03-31)** via `STARTS`.
+- ~~**Starters:** “How many times have I started?”~~ - **shipped (2026-03-31)** via `STARTS`.
 
 Treat graph-insight **questions** (other than starts) as **UI-first** today; extending `chatbotService` + entity extraction would be a discrete follow-up task.
 
@@ -163,7 +163,7 @@ Treat graph-insight **questions** (other than starts) as **UI-first** today; ext
 
 | Item | Notes |
 | ---- | ----- |
-| **Profile icon everywhere** | Feature 13 follow-up: show profile icon on **all** main pages when a player is selected (not only Home)—verify against `NEW-FEATURES.md` amendment. |
+| **Profile icon everywhere** | Feature 13 follow-up: show profile icon on **all** main pages when a player is selected (not only Home)-verify against `NEW-FEATURES.md` amendment. |
 | **Season Wrapped on home** | Spec supersession: banner removal; entry via profile + direct `/wrapped/...` (check if fully aligned with your product preference). |
 | **Playwright / E2E** | Run full suites on seeded data; harden recordings **See all**, deterministic TOTW strip assertions. |
 | **Chatbot graph + badges** | See §4.2. |
@@ -175,7 +175,7 @@ Treat graph-insight **questions** (other than starts) as **UI-first** today; ext
 
 ---
 
-## 6. Quick reference — where logic lives
+## 6. Quick reference - where logic lives
 
 | Feature | Primary locations |
 | ------- | ------------------- |
@@ -193,13 +193,13 @@ Treat graph-insight **questions** (other than starts) as **UI-first** today; ext
 
 ---
 
-## 7. Club milestones & badges — storage and extensions
+## 7. Club milestones & badges - storage and extensions
 
 ### 7.1 Club milestones API (`GET /api/milestones`)
 
 - **File:** `app/api/milestones/route.ts`.
 - **Role:** Club-wide approaching/achieved milestones from aggregated `MatchDetail` / fixture data; thresholds live **in the route** alongside Cypher aggregations (rolling windows for apps, goals, assists, MoM, etc.).
-- **Cache:** `apiCache` — invalidate or adjust TTL when milestone rules change.
+- **Cache:** `apiCache` - invalidate or adjust TTL when milestone rules change.
 
 **Adding a new milestone**
 

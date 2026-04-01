@@ -7,8 +7,9 @@ This document summarizes every milestone badge currently used on the Player Prof
 
 - Source of truth: `lib/badges/catalog.ts`
 - Progress engine: `lib/badges/evaluate.ts`
-- Tooltip copy: `lib/badges/badgeTooltip.ts`
-- Hover now includes how many club players achieved each milestone.
+- Tooltip copy: `lib/badges/badgeTooltip.ts` (`buildMilestoneTooltipLines` - six-line layout: name, description, earned/current, next tier, peers at tier, club leader)
+- On narrow viewports, milestone cells open a **centered modal** instead of a hover tooltip (avoids scroll clipping).
+- API `player-badges` supplies `tierCountsByBadgeKey`, `milestoneValuesByBadgeKey`, and `milestoneLeadersByBadgeKey` for tooltip lines 5–6.
 
 ---
 

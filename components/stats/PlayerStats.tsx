@@ -91,7 +91,7 @@ const PER90_STAT_NAMES = new Set([
 ]);
 
 function formatFormWeekLabel(value: string | null | undefined): string {
-	if (!value) return "—";
+	if (!value) return "-";
 	const label = value.trim();
 	const seasonWeek = label.match(/^(.+)-(\d+)$/);
 	if (seasonWeek) {
@@ -1834,7 +1834,7 @@ export default function PlayerStats() {
 
 	const [playerRecordings, setPlayerRecordings] = useState<RecordingFixture[]>([]);
 
-	// Feature 9 — milestone badges (Neo4j PlayerBadge + progress)
+	// Feature 9 - milestone badges (Neo4j PlayerBadge + progress)
 	const [badgePayload, setBadgePayload] = useState<{
 		totalBadges: number;
 		highestBadgeTier: string | null;
@@ -2683,11 +2683,17 @@ export default function PlayerStats() {
 				<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
 					<div className='h-full flex flex-col'>
 					<div className='flex-shrink-0 p-2 md:p-4'>
-						<div className='flex items-center justify-center mb-2 md:mb-4 relative'>
-							<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow text-center' data-testid="stats-page-heading">Stats - {selectedPlayer}</h2>
+						<div className='flex items-center justify-center mb-2 md:mb-4 space-x-2 md:space-x-3'>
+							<h2
+								className='text-xl md:text-2xl font-semibold text-dorkinians-yellow text-center'
+								data-testid='stats-page-heading'>
+								Stats - {selectedPlayer}
+							</h2>
 							<button
+								type='button'
+								data-testid='home-edit-player-button'
 								onClick={handleEditClick}
-								className='absolute right-0 flex items-center justify-center w-8 h-8 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors'
+								className='p-1.5 md:p-2 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors shrink-0'
 								title='Edit player selection'>
 								<PenOnPaperIcon className='h-4 w-4 md:h-5 md:w-5' />
 							</button>
@@ -3199,7 +3205,7 @@ export default function PlayerStats() {
 									}}>
 									<p className='text-white/75 text-xs'>Current form</p>
 									<p className='font-semibold text-sm md:text-base' style={{ color: band?.color ?? "rgba(255,255,255,0.95)" }}>
-										{formSummary?.formCurrent != null ? formSummary.formCurrent.toFixed(1) : "—"}{" "}
+										{formSummary?.formCurrent != null ? formSummary.formCurrent.toFixed(1) : "-"}{" "}
 										{formSummary?.formTrend === "rising" ? "↑" : formSummary?.formTrend === "declining" ? "↓" : "→"}
 									</p>
 								</div>
@@ -3217,7 +3223,7 @@ export default function PlayerStats() {
 									}}>
 									<p className='text-white/75 text-xs'>Season avg</p>
 									<p className='font-semibold text-sm md:text-base' style={{ color: band?.color ?? "rgba(255,255,255,0.95)" }}>
-										{formSummary?.seasonAvg != null ? formSummary.seasonAvg.toFixed(1) : "—"}
+										{formSummary?.seasonAvg != null ? formSummary.seasonAvg.toFixed(1) : "-"}
 									</p>
 								</div>
 							);
@@ -3236,7 +3242,7 @@ export default function PlayerStats() {
 									<p className='font-semibold text-sm md:text-base' style={{ color: band?.color ?? "rgba(255,255,255,0.95)" }}>
 										{formSummary?.formPeak != null
 											? `${formSummary.formPeak.toFixed(1)} (${formatFormWeekLabel(formSummary.formPeakWeek)})`
-											: "—"}
+											: "-"}
 									</p>
 								</div>
 							);
@@ -3253,7 +3259,7 @@ export default function PlayerStats() {
 		<div className='space-y-4 pb-4 md:space-y-0 player-stats-masonry'>
 			{kpiAndFormGrouped ? (
 				<div className='player-stats-kpi-form-group flex flex-col gap-4 md:gap-0 md:break-inside-avoid md:mb-4'>
-					{/* Key Performance Stats — no longer gated on Image onLoad (cached SVGs often skip onLoad in Next/Image) */}
+					{/* Key Performance Stats - no longer gated on Image onLoad (cached SVGs often skip onLoad in Next/Image) */}
 					<div id='key-performance-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:mb-4'>
 						<div className='flex items-center justify-between gap-2 mb-3'>
 							<h3 className='text-white font-semibold text-sm md:text-base'>Key Performance Stats</h3>
@@ -3320,7 +3326,7 @@ export default function PlayerStats() {
 													{(item as any).isString ? item.value : (() => {
 														if ((item as any).isForm) {
 															const v = item.value as number | null | undefined;
-															if (v == null) return "—";
+															if (v == null) return "-";
 															const trend = formSummary?.formTrend || "stable";
 															const arrow = trend === "rising" ? "↑" : trend === "declining" ? "↓" : "→";
 															return `${v.toFixed(1)} ${arrow}`;
@@ -3333,7 +3339,7 @@ export default function PlayerStats() {
 														}
 														if ((item as any).isRating) {
 															const v = item.value as number | null | undefined;
-															if (v === null || v === undefined) return "—";
+															if (v === null || v === undefined) return "-";
 															return formatStatValue(v, stat?.statFormat || "Decimal1", stat?.numberDecimalPlaces ?? 1, (stat as any)?.statUnit);
 														}
 														return formatStatValue(item.value, stat?.statFormat || "Integer", stat?.numberDecimalPlaces || 0, (stat as any)?.statUnit);
@@ -3372,7 +3378,7 @@ export default function PlayerStats() {
 				</div>
 			</div>
 
-			{/* Streaks — live computation for current filter set (foundation / chatbot rules) */}
+			{/* Streaks - live computation for current filter set (foundation / chatbot rules) */}
 			{playerData && streakDisplaySource ? (
 				<div id='streaks-section' className='relative z-30 bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 					<div className='flex items-center gap-2 mb-2'>
@@ -3405,9 +3411,9 @@ export default function PlayerStats() {
 							return typeof v === "number" && !Number.isNaN(v) ? v : 0;
 						};
 						const fmtOpt = (k?: keyof PlayerData) => {
-							if (!k) return "—";
+							if (!k) return "-";
 							const v = src[k];
-							return typeof v === "number" && !Number.isNaN(v) ? String(v) : "—";
+							return typeof v === "number" && !Number.isNaN(v) ? String(v) : "-";
 						};
 						const activeCards: StreakCard[] = [
 							{
@@ -3694,7 +3700,7 @@ export default function PlayerStats() {
 				);
 			})()}
 
-			{/* Starting impact — uses filtered aggregates from player-data */}
+			{/* Starting impact - uses filtered aggregates from player-data */}
 			{toNumber(validPlayerData.appearances) > 0 && (
 				<div id='starting-impact' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 					<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Starting impact</h3>
@@ -4028,7 +4034,7 @@ export default function PlayerStats() {
 								) : null}
 								{playerData.impactSampleWithout != null && playerData.impactSampleWithout < 10 ? (
 									<p className='text-white/50 text-[11px] md:text-xs border-l-2 border-[rgba(232,197,71,0.35)] pl-2'>
-										Sample without you is small ({playerData.impactSampleWithout} games) — interpret with care.
+										Sample without you is small ({playerData.impactSampleWithout} games) - interpret with care.
 									</p>
 								) : null}
 							</>
@@ -4460,15 +4466,20 @@ export default function PlayerStats() {
 		<div className='h-full flex flex-col'>
 			<div className='flex-shrink-0 p-2 md:p-4'>
 				<div className='flex flex-col items-center mb-2 md:mb-4 gap-2'>
-					<div className='flex items-center justify-center relative w-full'>
-						<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow text-center' data-testid="stats-page-heading">Stats - {selectedPlayer}</h2>
-						<Button
-							variant="icon"
-							size="sm"
+					<div className='flex items-center justify-center space-x-2 md:space-x-3'>
+						<h2
+							className='text-xl md:text-2xl font-semibold text-dorkinians-yellow text-center'
+							data-testid='stats-page-heading'>
+							Stats - {selectedPlayer}
+						</h2>
+						<button
+							type='button'
+							data-testid='home-edit-player-button'
 							onClick={handleEditClick}
-							title='Edit player selection'
-							className='absolute right-0 w-8 h-8 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10'
-							icon={<PenOnPaperIcon className='h-4 w-4 md:h-5 md:w-5' />} />
+							className='p-1.5 md:p-2 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors shrink-0'
+							title='Edit player selection'>
+							<PenOnPaperIcon className='h-4 w-4 md:h-5 md:w-5' />
+						</button>
 					</div>
 				</div>
 				<div className='flex justify-center mb-2 md:mb-4'>

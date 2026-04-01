@@ -5,7 +5,7 @@
 
 import { playerNameToProfileSlug, profileSlugToPlayerName } from "@/lib/profile/slug";
 
-/** RFC 4648 base64url — used only to decode legacy bookmarks. */
+/** RFC 4648 base64url - used only to decode legacy bookmarks. */
 function bytesToBase64UrlFromStandardBase64(standardBase64: string): string {
 	return standardBase64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
@@ -60,7 +60,7 @@ export function wrappedSlugToPlayerName(slug: string): string | null {
 		return null;
 	};
 
-	/* Compact base64url bookmarks have no `-` (space) or `%` (encoded punctuation) — try those first. */
+	/* Compact base64url bookmarks have no `-` (space) or `%` (encoded punctuation) - try those first. */
 	if (!looksProfileEncoded) {
 		const leg = tryLegacy();
 		if (leg) return leg;

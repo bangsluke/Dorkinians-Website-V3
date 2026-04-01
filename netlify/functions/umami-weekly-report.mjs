@@ -5,8 +5,8 @@
  * Env (Netlify):
  *   UMAMI_WEBSITE_ID, UMAMI_API_KEY
  *   UMAMI_BASE_URL (optional, default https://api.umami.is/v1)
- *   UMAMI_APP_BASE_URL (optional) — Umami web UI base for this site (email nav links), e.g. https://cloud.umami.is/analytics/eu/websites/<id>
- *   UMAMI_EMAIL_LOGO_URL (optional) — Absolute URL to a white/light logo for the header (many clients ignore CSS filters on images).
+ *   UMAMI_APP_BASE_URL (optional) - Umami web UI base for this site (email nav links), e.g. https://cloud.umami.is/analytics/eu/websites/<id>
+ *   UMAMI_EMAIL_LOGO_URL (optional) - Absolute URL to a white/light logo for the header (many clients ignore CSS filters on images).
  *   SMTP_SERVER, SMTP_PORT, SMTP_EMAIL_SECURE, SMTP_USERNAME, SMTP_PASSWORD,
  *   SMTP_FROM_EMAIL, SMTP_TO_EMAIL
  */
@@ -67,7 +67,7 @@ const WEB_VITAL_DISPLAY_NAMES = {
 	SI: "SI (Speed Index)",
 };
 
-/** Default logos — prefer white asset for email; set UMAMI_EMAIL_LOGO_URL if needed. */
+/** Default logos - prefer white asset for email; set UMAMI_EMAIL_LOGO_URL if needed. */
 const EMAIL_HEADER_LOGO_SRC =
 	"https://bangsluke-assets.netlify.app/images/company-logos/Dorkinians.png";
 
@@ -85,14 +85,14 @@ const LEAGUE_TEAM_KEY_LABELS = {
 
 /** Stats Stat Selected leaderboard blocks (prefix must match client statsLeaderKey). */
 const STAT_LEADER_PREFIXES = [
-	{ prefix: "player-stats/seasonal-performance/", label: "Player — Seasonal Performance" },
-	{ prefix: "player-stats/team-performance/", label: "Player — Team Performance" },
-	{ prefix: "player-stats/monthly-performance/", label: "Player — Monthly Performance" },
-	{ prefix: "team-stats/team-top-players/", label: "Team — Top 5" },
-	{ prefix: "team-stats/team-seasonal-performance/", label: "Team — Seasonal Performance" },
-	{ prefix: "club-stats/club-top-players/", label: "Club — Top 5" },
-	{ prefix: "club-stats/club-seasonal-performance/", label: "Club — Seasonal Performance" },
-	{ prefix: "club-stats/club-stats-distribution/", label: "Club — Stats Distribution" },
+	{ prefix: "player-stats/seasonal-performance/", label: "Player - Seasonal Performance" },
+	{ prefix: "player-stats/team-performance/", label: "Player - Team Performance" },
+	{ prefix: "player-stats/monthly-performance/", label: "Player - Monthly Performance" },
+	{ prefix: "team-stats/team-top-players/", label: "Team - Top 5" },
+	{ prefix: "team-stats/team-seasonal-performance/", label: "Team - Seasonal Performance" },
+	{ prefix: "club-stats/club-top-players/", label: "Club - Top 5" },
+	{ prefix: "club-stats/club-seasonal-performance/", label: "Club - Seasonal Performance" },
+	{ prefix: "club-stats/club-stats-distribution/", label: "Club - Stats Distribution" },
 ];
 
 function getOpts(apiKey) {
@@ -222,7 +222,7 @@ function subsectionLabel(id) {
 
 function webVitalDisplayName(rawKey) {
 	const k = String(rawKey || "").trim();
-	if (!k) return "—";
+	if (!k) return "-";
 	const upper = k.toUpperCase();
 	return WEB_VITAL_DISPLAY_NAMES[upper] || k;
 }
@@ -396,14 +396,14 @@ function recommendSubsectionBullet(subId, rank, currScore, prevScore, pageviews,
 			: ((currScore - prevScore) / prevScore) * 100;
 	let base = "";
 	if (rank === "top") {
-		if (wow > 15) base = "Strong week-over-week momentum—good time to deepen content or CTAs here.";
+		if (wow > 15) base = "Strong week-over-week momentum-good time to deepen content or CTAs here.";
 		else if (pageviews > engagement) base = "Traffic-weighted: prioritize clarity and load performance for this area.";
-		else base = "Interaction-heavy: users are working in this area—protect UX and ship iterative improvements.";
+		else base = "Interaction-heavy: users are working in this area-protect UX and ship iterative improvements.";
 	} else {
-		if (wow < -20) base = "Notable drop vs last week—investigate regressions, IA, or seasonal effects.";
+		if (wow < -20) base = "Notable drop vs last week-investigate regressions, IA, or seasonal effects.";
 		else if (pageviews < 3 && engagement < 3)
-			base = "Low footprint—validate discovery (nav, SEO, deep links) before retiring features.";
-		else base = "Below peer subsections—consider simplification, merge with higher-traffic flows, or targeted prompts.";
+			base = "Low footprint-validate discovery (nav, SEO, deep links) before retiring features.";
+		else base = "Below peer subsections-consider simplification, merge with higher-traffic flows, or targeted prompts.";
 	}
 	const detail = ` Subpage views: ${Math.round(pageviews)} · engagement signals: ${Math.round(engagement)}.`;
 	return base + detail;
@@ -835,8 +835,8 @@ export default async () => {
 			trendHtml: trendArrows(filtersApplied, filtersAppliedPrev),
 		});
 
-		const topPathLabel = topPath?.x ? String(topPath.x) : "—";
-		const topPathPrevLabel = topPathPrev?.x ? String(topPathPrev.x) : "—";
+		const topPathLabel = topPath?.x ? String(topPath.x) : "-";
+		const topPathPrevLabel = topPathPrev?.x ? String(topPathPrev.x) : "-";
 
 		const investHtml = top3
 			.map((sid) => {
@@ -850,7 +850,7 @@ export default async () => {
 					currModel.views[sid],
 					currModel.engagement[sid],
 				);
-				return `<li style="margin:8px 0;"><strong>${escapeHtml(subsectionLabel(sid))}</strong> (score ${s.toFixed(2)}, was ${sp.toFixed(2)}) — ${bullet}</li>`;
+				return `<li style="margin:8px 0;"><strong>${escapeHtml(subsectionLabel(sid))}</strong> (score ${s.toFixed(2)}, was ${sp.toFixed(2)}) - ${bullet}</li>`;
 			})
 			.join("");
 
@@ -866,7 +866,7 @@ export default async () => {
 					currModel.views[sid],
 					currModel.engagement[sid],
 				);
-				return `<li style="margin:8px 0;"><strong>${escapeHtml(subsectionLabel(sid))}</strong> (score ${s.toFixed(2)}, was ${sp.toFixed(2)}) — ${bullet}</li>`;
+				return `<li style="margin:8px 0;"><strong>${escapeHtml(subsectionLabel(sid))}</strong> (score ${s.toFixed(2)}, was ${sp.toFixed(2)}) - ${bullet}</li>`;
 			})
 			.join("");
 
@@ -874,7 +874,7 @@ export default async () => {
 		const periodEndLabel = formatPeriodDate(endAt);
 		const subject = `Dorkinians Website - Umami Weekly Report (${periodStartLabel} to ${periodEndLabel})`;
 
-		/* —— Secondary blocks —— */
+		/* -- Secondary blocks -- */
 		const subpageViewEntries = REPORT_SUBSECTION_ORDER.map((id) => ({
 			id,
 			curr: currViews[id] || 0,
@@ -941,7 +941,7 @@ export default async () => {
 		const topPlayersBlock =
 			topPlayers.length > 0
 				? buildSecondaryTable(
-						"Top 10 — Player Selected (playerName)",
+						"Top 10 - Player Selected (playerName)",
 						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Player</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${playersRows}`,
 					)
 				: "";
@@ -963,7 +963,7 @@ export default async () => {
 		const teamXiBlock =
 			teamXiTop.length > 0
 				? buildSecondaryTable(
-						"Team Stats — XI / team dropdown (teamLabel)",
+						"Team Stats - XI / team dropdown (teamLabel)",
 						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Team</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${teamRows}`,
 					)
 				: "";
@@ -984,7 +984,7 @@ export default async () => {
 		const leagueBlock =
 			leagueTop.length > 0
 				? buildSecondaryTable(
-						"League — team focus + results (merged teamKey)",
+						"League - team focus + results (merged teamKey)",
 						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Team</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${leagueRows}`,
 					)
 				: "";
@@ -1010,7 +1010,7 @@ export default async () => {
 		const filtersSpBlock =
 			filtersSp.entries.length > 0
 				? buildSecondaryTable(
-						"Filters Applied — statsSubPage",
+						"Filters Applied - statsSubPage",
 						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Page</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${filtersSp.html}`,
 					)
 				: "";
@@ -1019,7 +1019,7 @@ export default async () => {
 		const filtersTrBlock =
 			filtersTr.entries.length > 0
 				? buildSecondaryTable(
-						"Filters Applied — timeRangeType",
+						"Filters Applied - timeRangeType",
 						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Range</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${filtersTr.html}`,
 					)
 				: "";
@@ -1028,7 +1028,7 @@ export default async () => {
 		const shareBlock =
 			shareM.entries.length > 0
 				? buildSecondaryTable(
-						"Stats Shared — method",
+						"Stats Shared - method",
 						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Method</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${shareM.html}`,
 					)
 				: "";
@@ -1037,7 +1037,7 @@ export default async () => {
 		const chatBlock =
 			chatM.entries.length > 0
 				? buildSecondaryTable(
-						"Chatbot questions — questionLengthBucket",
+						"Chatbot questions - questionLengthBucket",
 						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Bucket</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${chatM.html}`,
 					)
 				: "";
@@ -1046,7 +1046,7 @@ export default async () => {
 		const totwBlock =
 			totwM.entries.length > 0
 				? buildSecondaryTable(
-						"TOTW Player Opened — mode",
+						"TOTW Player Opened - mode",
 						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Mode</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${totwM.html}`,
 					)
 				: "";
@@ -1055,7 +1055,7 @@ export default async () => {
 		const usefulBlock =
 			usefulM.entries.length > 0
 				? buildSecondaryTable(
-						"Useful links — linkCategory",
+						"Useful links - linkCategory",
 						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Category</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${usefulM.html}`,
 					)
 				: "";
@@ -1066,7 +1066,7 @@ export default async () => {
 		const webBlock =
 			webM.entries.length > 0
 				? buildSecondaryTable(
-						"Web Vitals — samples per metric (not seconds)",
+						"Web Vitals - samples per metric (not seconds)",
 						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Metric</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Samples</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${webM.html}`,
 						webVitalsExplanation,
 					)
@@ -1076,7 +1076,7 @@ export default async () => {
 		const exBlock =
 			exM.entries.length > 0
 				? buildSecondaryTable(
-						"Example questions — questionId",
+						"Example questions - questionId",
 						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">questionId</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${exM.html}`,
 					)
 				: "";
@@ -1087,7 +1087,7 @@ export default async () => {
 		const exSourceBlock =
 			exSourceM.entries.length > 0
 				? buildSecondaryTable(
-						"Example Question Selected — source (homepage / modal / conversation)",
+						"Example Question Selected - source (homepage / modal / conversation)",
 						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Source</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${exSourceM.html}`,
 					)
 				: "";
@@ -1096,7 +1096,7 @@ export default async () => {
 		const allGamesBlock =
 			allGamesM.entries.length > 0
 				? buildSecondaryTable(
-						"Stats — All Games Modal Opened · statsSubPage",
+						"Stats - All Games Modal Opened · statsSubPage",
 						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">statsSubPage</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${allGamesM.html}`,
 					)
 				: "";
@@ -1105,7 +1105,7 @@ export default async () => {
 		const dataTableBlock =
 			dataTableM.entries.length > 0
 				? buildSecondaryTable(
-						"Stats — Data Table Toggled · statsSubPage",
+						"Stats - Data Table Toggled · statsSubPage",
 						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">statsSubPage</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${dataTableM.html}`,
 					)
 				: "";
@@ -1114,7 +1114,7 @@ export default async () => {
 		const statsNavSpBlock =
 			statsNavSpM.entries.length > 0
 				? buildSecondaryTable(
-						"Stats — Section Navigated · statsSubPage",
+						"Stats - Section Navigated · statsSubPage",
 						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">statsSubPage</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${statsNavSpM.html}`,
 					)
 				: "";
@@ -1123,7 +1123,7 @@ export default async () => {
 		const statsNavSecBlock =
 			statsNavSecM.entries.length > 0
 				? buildSecondaryTable(
-						"Stats — Section Navigated · sectionId",
+						"Stats - Section Navigated · sectionId",
 						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">sectionId</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${statsNavSecM.html}`,
 					)
 				: "";
@@ -1132,7 +1132,7 @@ export default async () => {
 		const filtersResetBlock =
 			filtersResetM.entries.length > 0
 				? buildSecondaryTable(
-						"Stats — Filters Reset · statsSubPage",
+						"Stats - Filters Reset · statsSubPage",
 						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">statsSubPage</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${filtersResetM.html}`,
 					)
 				: "";
@@ -1141,7 +1141,7 @@ export default async () => {
 		const filterPresetBlock =
 			filterPresetM.entries.length > 0
 				? buildSecondaryTable(
-						"Stats — Filter Preset Applied · statsSubPage",
+						"Stats - Filter Preset Applied · statsSubPage",
 						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">statsSubPage</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${filterPresetM.html}`,
 					)
 				: "";
@@ -1173,7 +1173,7 @@ export default async () => {
 
 		const topPathY = topPath ? Number(topPath.y) || 0 : 0;
 		const topPathPrevY = topPathPrev ? Number(topPathPrev.y) || 0 : 0;
-		const scoreHelp = `Score = ${PAGEWEIGHT}x normalized subpage/main views (per subsection) + ${EVENTWEIGHT}x normalized engagement (events rolled up to that subsection). Bottom 3 excludes any subsection already in top 3 (no duplicate on ties). If you still see 0.00 everywhere, Umami had no matching custom events in this window or property breakdowns failed to load—check the dashboard for the same dates.`;
+		const scoreHelp = `Score = ${PAGEWEIGHT}x normalized subpage/main views (per subsection) + ${EVENTWEIGHT}x normalized engagement (events rolled up to that subsection). Bottom 3 excludes any subsection already in top 3 (no duplicate on ties). If you still see 0.00 everywhere, Umami had no matching custom events in this window or property breakdowns failed to load-check the dashboard for the same dates.`;
 		const customLogo = process.env.UMAMI_EMAIL_LOGO_URL?.trim();
 		const logoSrcForEmail = customLogo || EMAIL_HEADER_LOGO_SRC;
 		const logoImgStyle = customLogo

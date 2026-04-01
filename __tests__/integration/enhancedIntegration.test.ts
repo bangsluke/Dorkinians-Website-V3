@@ -9,7 +9,7 @@ jest.mock("@/lib/neo4j", () => ({
 	},
 }));
 
-// Sequenced ChatbotService journeys with Neo4j fully mocked via jest—no real database I/O.
+// Sequenced ChatbotService journeys with Neo4j fully mocked via jest-no real database I/O.
 // Covers multi-turn prompts, player context switching, malformed input, and higher-volume call patterns.
 // Assertions focus on non-empty string answers and stable shapes; mock data is static so timing flakes are rare.
 

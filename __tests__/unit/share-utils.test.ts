@@ -7,7 +7,7 @@ jest.mock("@/lib/utils/trackEvent", () => ({
 }));
 
 // Exercises shareUtils Web Share vs download fallbacks under jsdom with a stubbed navigator and mocked analytics.
-// User-agent overrides simulate iOS vs desktop; no real network—share/download paths are faked via jest spies.
+// User-agent overrides simulate iOS vs desktop; no real network-share/download paths are faked via jest spies.
 // Relies on DOM APIs (document.body, anchor click); failures usually mean browser API surface changed in tests.
 
 const ONE_PIXEL_PNG =

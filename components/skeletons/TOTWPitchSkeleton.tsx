@@ -53,7 +53,7 @@ export default function TOTWPitchSkeleton() {
 				</div>
 			</div>
 
-			{/* Pitch Visualization — minHeight matches loaded TeamOfTheWeek pitch */}
+			{/* Pitch Visualization - minHeight matches loaded TeamOfTheWeek pitch */}
 			<div className='relative w-full mb-4 overflow-hidden' style={{ minHeight: "450px", aspectRatio: "16/9.6" }}>
 				{/* Pitch Background */}
 				<div className='absolute inset-0 w-full h-[110%]'>
@@ -79,7 +79,7 @@ export default function TOTWPitchSkeleton() {
 						}}
 					>
 					<div className='relative flex flex-col items-center'>
-						{/* Kit circle + name block — smaller than prior skeleton to match loaded markers */}
+						{/* Kit circle + name block - smaller than prior skeleton to match loaded markers */}
 						<Skeleton circle height={32} width={32} className="mb-0.5" />
 						<Skeleton height={28} width={48} />
 					</div>

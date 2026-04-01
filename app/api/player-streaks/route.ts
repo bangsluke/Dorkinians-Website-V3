@@ -21,7 +21,7 @@ export async function OPTIONS() {
 }
 
 /**
- * POST { playerName, filters? } — live streak metrics for the same fixture scope as filtered player stats.
+ * POST { playerName, filters? } - live streak metrics for the same fixture scope as filtered player stats.
  * When `filters` is omitted or null, uses full career (no WHERE on fixtures).
  */
 export async function POST(request: NextRequest) {

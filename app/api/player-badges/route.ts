@@ -4,7 +4,8 @@ import { neo4jService } from "@/lib/neo4j";
 import { getCorsHeadersWithSecurity } from "@/lib/utils/securityHeaders";
 import { dataApiRateLimiter } from "@/lib/middleware/rateLimiter";
 import { logError } from "@/lib/utils/logger";
-import { playerPropsFromNeo4j } from "@/lib/badges/neo4jProps";
+import { BADGE_DEFINITIONS } from "@/lib/badges/catalog";
+import { playerPropsFromNeo4j, type BadgePlayer } from "@/lib/badges/neo4jProps";
 import { getBadgeProgress } from "@/lib/badges/evaluate";
 
 const corsHeaders = getCorsHeadersWithSecurity();
@@ -122,6 +123,68 @@ export async function GET(request: NextRequest) {
 			achieverCountsByBadgeKey[badgeKey] = achieverCount;
 		}
 
+		const pbRows = await neo4jService.runQuery(
+			`
+			MATCH (pb:PlayerBadge {graphLabel: $graphLabel})
+			RETURN pb.badgeId AS badgeId, pb.playerName AS playerName
+			`,
+			{ graphLabel },
+		);
+		const tierSets: Record<string, Record<string, Set<string>>> = {};
+		for (const row of pbRows.records) {
+			const badgeId = str(row.get("badgeId"));
+			const pn = str(row.get("playerName"));
+			const parsed = parseBadgeId(badgeId);
+			if (!parsed) continue;
+			const { badgeKey, tier } = parsed;
+			if (!tierSets[badgeKey]) tierSets[badgeKey] = {};
+			if (!tierSets[badgeKey][tier]) tierSets[badgeKey][tier] = new Set();
+			tierSets[badgeKey][tier].add(pn);
+		}
+		const tierCountsByBadgeKey: Record<string, Record<string, number>> = {};
+		for (const bk of Object.keys(tierSets)) {
+			tierCountsByBadgeKey[bk] = {};
+			for (const t of Object.keys(tierSets[bk])) {
+				tierCountsByBadgeKey[bk][t] = tierSets[bk][t].size;
+			}
+		}
+
+		const milestoneValuesByBadgeKey: Record<string, number> = {};
+		for (const [badgeKey, definition] of Object.entries(BADGE_DEFINITIONS)) {
+			const raw = definition.evaluate(player as BadgePlayer);
+			const v = typeof raw === "number" && !Number.isNaN(raw) ? raw : raw ? 1 : 0;
+			milestoneValuesByBadgeKey[badgeKey] = v;
+		}
+
+		const allForLeaders = await neo4jService.runQuery(
+			`
+			MATCH (p:Player {graphLabel: $graphLabel})
+			WHERE coalesce(p.allowOnSite, true) = true
+			RETURN p.playerName AS playerName, properties(p) AS props
+			`,
+			{ graphLabel },
+		);
+		const milestoneLeadersByBadgeKey: Record<string, { playerName: string; value: number }> = {};
+		for (const [badgeKey, definition] of Object.entries(BADGE_DEFINITIONS)) {
+			let bestName = "";
+			let bestVal = Number.NEGATIVE_INFINITY;
+			for (const row of allForLeaders.records) {
+				const nm = str(row.get("playerName"));
+				const props = row.get("props") as Record<string, unknown>;
+				const pl = playerPropsFromNeo4j(props);
+				const raw = definition.evaluate(pl as BadgePlayer);
+				const v = typeof raw === "number" && !Number.isNaN(raw) ? raw : raw ? 1 : 0;
+				if (v > bestVal) {
+					bestVal = v;
+					bestName = nm;
+				}
+			}
+			milestoneLeadersByBadgeKey[badgeKey] = {
+				playerName: bestName,
+				value: bestVal === Number.NEGATIVE_INFINITY ? 0 : bestVal,
+			};
+		}
+
 		return NextResponse.json(
 			{
 				playerName,
@@ -130,6 +193,9 @@ export async function GET(request: NextRequest) {
 				earned,
 				progress,
 				achieverCountsByBadgeKey,
+				tierCountsByBadgeKey,
+				milestoneValuesByBadgeKey,
+				milestoneLeadersByBadgeKey,
 			},
 			{ headers: corsHeaders },
 		);

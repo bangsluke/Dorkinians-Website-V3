@@ -1,7 +1,7 @@
 /**
  * Netlify OpenNext copies `.env.production` into the Next server handler bundle, but site env vars
  * are not always injected into that Lambda's process.env (classic functions still see them).
- * During a Netlify build, `DEPLOY_ID` is set and UI env vars are on process.env — write them to
+ * During a Netlify build, `DEPLOY_ID` is set and UI env vars are on process.env - write them to
  * `.env.production` so dotenv in `ensurePackageEnvLoaded()` can load them at runtime in /var/task.
  * Does not run locally (no DEPLOY_ID). File is gitignored.
  */

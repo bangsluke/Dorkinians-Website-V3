@@ -4,7 +4,7 @@ Use an external uptime service to confirm the Netlify site and Heroku database A
 
 ## 1. Choose a monitor (primary)
 
-**Recommended primary:** [UptimeRobot](https://uptimerobot.com/) — free tier includes many HTTP monitors, email alerts, and an optional public status page.
+**Recommended primary:** [UptimeRobot](https://uptimerobot.com/) - free tier includes many HTTP monitors, email alerts, and an optional public status page.
 
 **Alternatives:** [Better Stack Uptime](https://betterstack.com/uptime) (free tier), or [Healthchecks.io](https://healthchecks.io/) plus a scheduled job if you prefer “expected ping” style checks.
 

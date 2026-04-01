@@ -43,7 +43,7 @@ export default function SeasonWrappedBanner() {
 			data-testid='season-wrapped-banner'
 			className='mb-4 rounded-xl border border-[rgba(232,197,71,0.25)] bg-[rgba(30,35,25,0.65)] px-4 py-3 text-center'>
 			<p className='text-[#E8C547] text-xs font-semibold uppercase tracking-wide'>Season Wrapped</p>
-			<p className='text-white/85 text-sm mt-1'>See your season story — slides you can share.</p>
+			<p className='text-white/85 text-sm mt-1'>See your season story - slides you can share.</p>
 			<Link
 				href={href}
 				className='inline-block mt-2 text-sm font-medium text-[#5DCAA5] hover:underline'

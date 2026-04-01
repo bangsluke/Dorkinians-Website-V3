@@ -125,7 +125,7 @@ test.describe("Home Page Tests", () => {
 			await expect(page.getByTestId("header-filter")).toHaveCount(0);
 			await expect(page.getByTestId("header-menu")).toHaveCount(0);
 		} else {
-			// Desktop: left rail is Home nav only — no stats sidebar filter/menu test ids mounted.
+			// Desktop: left rail is Home nav only - no stats sidebar filter/menu test ids mounted.
 			await expect(page.getByTestId("nav-sidebar-filter")).toHaveCount(0);
 			await expect(page.getByTestId("nav-sidebar-menu")).toHaveCount(0);
 		}

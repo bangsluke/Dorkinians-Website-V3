@@ -305,7 +305,7 @@ const schema = {
       allTimeBestAppearanceStreak: { type: 'integer', required: false },
       allTimeBestCleanSheetStreak: { type: 'integer', required: false },
       allTimeBestWinStreak: { type: 'integer', required: false },
-      // Feature 7 — graph insights (computed after seeding; optional GDS fields)
+      // Feature 7 - graph insights (computed after seeding; optional GDS fields)
       bestPartnerName: { type: 'string', required: false },
       bestPartnerWinRate: { type: 'number', required: false },
       bestPartnerMatches: { type: 'integer', required: false },
@@ -318,7 +318,7 @@ const schema = {
       squadInfluence: { type: 'number', required: false },
       squadInfluenceRank: { type: 'integer', required: false },
       communityId: { type: 'integer', required: false },
-      // Feature 9 — achievement badges (aggregates written during badge pass)
+      // Feature 9 - achievement badges (aggregates written during badge pass)
       maxAppsInSeason: { type: 'integer', required: false },
       maxGoalsInSeason: { type: 'integer', required: false },
       hatTrickCount: { type: 'integer', required: false },
@@ -738,7 +738,7 @@ const schema = {
   },
 
   // ============================================================================
-  // PlayerBadge — Feature 9 achievement badges (computed after seeding)
+  // PlayerBadge - Feature 9 achievement badges (computed after seeding)
   // ============================================================================
   PlayerBadge: {
     nodeType: 'PlayerBadge',

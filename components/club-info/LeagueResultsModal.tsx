@@ -183,7 +183,7 @@ export default function LeagueResultsModal({ isOpen, onClose, teamKey, teamDispl
 					</button>
 				</div>
 
-				{/* Scrollable content — narrow centered column on large screens */}
+				{/* Scrollable content - narrow centered column on large screens */}
 				<div className='flex-1 overflow-y-auto p-4' style={{ WebkitOverflowScrolling: "touch" }}>
 					<div className='w-full max-w-xl md:max-w-lg lg:max-w-xl mx-auto space-y-4'>
 					{loading && (

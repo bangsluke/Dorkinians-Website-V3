@@ -4,11 +4,17 @@
 
 ---
 
+## Recent integration notes (2026-04-01)
+
+- **Season Wrapped (UX pass):** autoplay (15s/slide, timer bar, stop on last slide); **Share** modal (full season URL vs slide image); season-scoped teammate stats; richer slides (overview minutes/starts/position, best-month apps/FTP, peak result/scoreline, league row on team season); swipe limited to one slide; `/wrapped/...` Open Graph image uses **overview** slide (slide `1`) for link previews.
+- **Player Profile milestones:** small-screen tooltips open as a **centered overlay** (avoid scroll clipping); tooltip lines: name, description, earned/current, next tier, peers at current tier, club leader; `player-badges` API adds tier-level achiever counts and per-milestone value leaders.
+- **Docs checklist:** see **`IMPLEMENTATION-STATUS.md` → Phase 9**.
+
 ## Recent integration notes (2026-03-31)
 
 - **Player Stats:** Filter-scoped **live streaks** via `POST /api/player-streaks` (foundation / chatbot rules); **Partnerships** require **≥5** shared games with signed **% vs your win rate** deltas; **Most Connected** removed from UI/API/tests.
 - **Chatbot:** **`STARTS`** metric answers “How many times have I started?” (`entityExtraction`, `enhancedQuestionAnalysis`, `chatbotMetrics`, `playerQueryBuilder`).
-- **Operations:** **`docs/Neo4j_Aura_GDS_Setup_Guide.md`** — step-by-step Aura Graph Analytics / GDS enablement, verification, full reseed, troubleshooting.
+- **Operations:** **`docs/Neo4j_Aura_GDS_Setup_Guide.md`** - step-by-step Aura Graph Analytics / GDS enablement, verification, full reseed, troubleshooting.
 
 ---
 
@@ -45,7 +51,7 @@
 - Club Info page with sub-pages: Club Information, League Information, Club Captains, Club Awards, Useful Links
 - Settings page
 
-**Planned (Phase 6 — New Requests Round 2):** Dedicated **Player Profile** page; **Club Captains and Awards** (merged captains + awards pages); **Records** moved to Club Information above Milestones; fixtures **VEO LINK**; TOTW history strip + share; dev branding and CI gates; **Feature 20** navigation and Player Stats polish — see Phase 6 below.
+**Planned (Phase 6 - New Requests Round 2):** Dedicated **Player Profile** page; **Club Captains and Awards** (merged captains + awards pages); **Records** moved to Club Information above Milestones; fixtures **VEO LINK**; TOTW history strip + share; dev branding and CI gates; **Feature 20** navigation and Player Stats polish - see Phase 6 below.
 
 **Design system:** Dark olive-to-warm-gold gradient background. Semi-transparent card sections (`background: rgba(30,35,25,0.7)`) with subtle white borders (`border: 1px solid rgba(255,255,255,0.08)`). White bold section headers. Muted secondary text (`rgba(255,255,255,0.4-0.5)`). Yellow `#E8C547` as primary accent colour. Green `#5DCAA5` for positive indicators. The site is mobile-first.
 
@@ -829,7 +835,7 @@ interface WrappedData {
 	wrappedUrl: string;
 	// Phase 6 (adapted): seasons the player has apps in; season picker + ?season= deep links
 	seasonsAvailable: string[];
-	// Veo/video slide (slide id 10) — only included in the carousel when this list is non-empty
+	// Veo/video slide (slide id 10) - only included in the carousel when this list is non-empty
 	veoFixtures: { fixtureId: string; team: string; opposition: string; date: string; veoLink: string }[];
 }
 ```
@@ -900,7 +906,7 @@ async function shareSlide(slideRef: HTMLDivElement, playerName: string, slideNum
 - **Historical (superseded):** The first cut added a homepage banner (`SeasonWrappedBanner`) linking to `/wrapped/[current-player-slug]`. **Current spec:** do **not** show Season Wrapped on the **Homepage**; remove the banner from home. Primary discovery is the **Player Profile** page (Season Wrapped section) and direct `/wrapped/...` URLs. Env flag `NEXT_PUBLIC_SEASON_WRAPPED_ACTIVE` should no longer be used to surface wrapped on home once removal is implemented.
 - Generate a WhatsApp-friendly text block on the wrapped page for easy copy-paste sharing (unchanged).
 
-**Status:** Homepage banner removal and profile-only entry — **implemented** (Phase 6 UX polish item 1). Wrapped **season query**, **Veo slide**, and payload fields — **implemented** (Phase 6 item 4 adapted); see **`IMPLEMENTATION-STATUS.md`**.
+**Status:** Homepage banner removal and profile-only entry - **implemented** (Phase 6 UX polish item 1). Wrapped **season query**, **Veo slide**, and payload fields - **implemented** (Phase 6 item 4 adapted); see **`IMPLEMENTATION-STATUS.md`**.
 
 **Tests to write:**
 
@@ -1409,7 +1415,7 @@ multiTeamSeasons: // COUNT of seasons where player appeared for 2+ teams with 10
 
 ## Phase 6: New Requests Round 2
 
-These items come from `New-Features-2.md`. Implement after Phase 5 (Feature 9) unless a dependency note says otherwise. Run the full test suite after each feature. **Feature 20** and amendments to Features **8**, **10**, and **13** (Season Wrapped on profile only, profile shell/order/styling, global profile icon) are specified at the end of this phase — see **`IMPLEMENTATION-STATUS.md` → Phase 6 UX polish** for a checklist.
+These items come from `New-Features-2.md`. Implement after Phase 5 (Feature 9) unless a dependency note says otherwise. Run the full test suite after each feature. **Feature 20** and amendments to Features **8**, **10**, and **13** (Season Wrapped on profile only, profile shell/order/styling, global profile icon) are specified at the end of this phase - see **`IMPLEMENTATION-STATUS.md` → Phase 6 UX polish** for a checklist.
 
 ---
 
@@ -1418,7 +1424,7 @@ These items come from `New-Features-2.md`. Implement after Phase 5 (Feature 9) u
 **What:**
 
 1. New **Player Profile** route (dedicated page, not only Player Stats) showing a career summary: achievement badges, all-time headline stats (goals, assists, cards, appearances, and other relevant aggregates already on `Player` or easy to derive).
-2. **App shell:** Player Profile must use the **same main-app layout as Settings** and other primary screens: **sidebar**, **header** (and footer/navigation pattern as on `app/page.tsx`), not a standalone full-bleed page without app chrome. Implementation may embed profile content in the SPA shell or share a layout wrapper — intent is UX parity with Settings.
+2. **App shell:** Player Profile must use the **same main-app layout as Settings** and other primary screens: **sidebar**, **header** (and footer/navigation pattern as on `app/page.tsx`), not a standalone full-bleed page without app chrome. Implementation may embed profile content in the SPA shell or share a layout wrapper - intent is UX parity with Settings.
 3. **Section order on Player Profile (adapted canonical):** (1) **Season Wrapped** (entry / link to `/wrapped/...` with optional **season selector** when the player has multiple seasons); (2) **Headline Stats**; (3) **Milestone Badges**. Use **title case** for section headings: “Headline Stats”, “Milestone Badges”, “Season Wrapped”.
 4. **Season Wrapped block styling:** Content **centre-aligned**; **Dorkinians club logo** alongside the heading or lead text; section styled with **yellow-forward** emphasis (accent `#E8C547` / `dorkinians-yellow`) to highlight it vs other cards.
 5. **Back navigation (adapted):** Do **not** use a dedicated **“Back to home”** control on Player Profile; rely on shell navigation (sidebar / footer / header). Remove any top “back to home” link on the profile body.
@@ -1434,7 +1440,7 @@ These items come from `New-Features-2.md`. Implement after Phase 5 (Feature 9) u
 - **Integration test (Jest):** Profile page data fetch returns expected shape for a known player (if using a dedicated API route).
 - **E2E (Playwright):** Open Player Stats → click “Milestone badges earned” → lands on Player Profile with milestones visible. On Player Profile, sections appear in order **Season Wrapped → Headline Stats → Milestone Badges**; page title **Player Profile - {name}**; **centred** profile header; **no** top/back-to-home control in profile body; app chrome matches Settings; wrapped **season selector** when multiple seasons; `/wrapped/...` supports **`?season=`** and optional **Veo** slide when recordings exist for that season.
 
-**Status:** Adapted layout, season picker, conditional Veo wrapped slide, and shell navigation — **implemented** (see **`IMPLEMENTATION-STATUS.md` → Phase 6 UX polish** item 4).
+**Status:** Adapted layout, season picker, conditional Veo wrapped slide, and shell navigation - **implemented** (see **`IMPLEMENTATION-STATUS.md` → Phase 6 UX polish** item 4).
 
 ---
 
@@ -1444,7 +1450,7 @@ These items come from `New-Features-2.md`. Implement after Phase 5 (Feature 9) u
 
 **Where to change (V3-dorkinians-website):** Club Info routing, sidebar/tabs, Settings navigation tree, any deep links to old paths (redirects from old URLs if bookmarked).
 
-**Dependencies:** Feature 6/9 UI that lived under Club Awards (records leaderboard, etc.) — ensure merged page still hosts awards + badge leaderboard until Feature 12 moves Records.
+**Dependencies:** Feature 6/9 UI that lived under Club Awards (records leaderboard, etc.) - ensure merged page still hosts awards + badge leaderboard until Feature 12 moves Records.
 
 **Tests to write:**
 
@@ -1478,11 +1484,11 @@ These items come from `New-Features-2.md`. Implement after Phase 5 (Feature 9) u
 
 - **E2E (Playwright):** Select player on home → icon visible on home → click → Player Profile. Navigate to Player Stats (or another main page) → icon still visible → click → same player profile. No selection → icon hidden.
 
-**Status:** Icon-on-home-only behaviour — **implemented**; icon on all pages + tighter spacing — **not implemented** (see **`IMPLEMENTATION-STATUS.md` → Phase 6 UX polish** row 7).
+**Status:** Icon-on-home-only behaviour - **implemented**; icon on all pages + tighter spacing - **not implemented** (see **`IMPLEMENTATION-STATUS.md` → Phase 6 UX polish** row 7).
 
 ---
 
-### Feature 14: Player Stats — “Most Connected” (top 5) _(website first cut done)_
+### Feature 14: Player Stats - “Most Connected” (top 5) _(website first cut done)_
 
 **What:** New **Most Connected** section on **Player Stats**: top **5** players with the strongest connection to the selected player (use existing `PLAYED_WITH` / `timesPlayed` or graph fields from Feature 7; define sort: e.g. by `timesPlayed` descending).
 
@@ -1498,7 +1504,7 @@ These items come from `New-Features-2.md`. Implement after Phase 5 (Feature 9) u
 
 ---
 
-### Feature 15: Team of the Week — previous 10 weeks score strip _(website first cut done)_
+### Feature 15: Team of the Week - previous 10 weeks score strip _(website first cut done)_
 
 **What:** Below the current TOTW graphic, render **10** boxes: **previous 10** teams-of-the-week **total scores**, **week number** under each. Clicking a box navigates to the TOTW view for **that week**.
 
@@ -1510,7 +1516,7 @@ These items come from `New-Features-2.md`. Implement after Phase 5 (Feature 9) u
 
 ---
 
-### Feature 16: Team of the Week — Share (WhatsApp-friendly image) _(website first cut done)_
+### Feature 16: Team of the Week - Share (WhatsApp-friendly image) _(website first cut done)_
 
 **What:** **Share** control at the **bottom** of the TOTW page: generate a **graphic** of the **current** team of the week and share via **Web Share API** where available; optimise for **WhatsApp** (PNG dimensions/compression, readable text). Fallback: download image (same pattern as Season Wrapped `html-to-image`).
 
@@ -1527,12 +1533,12 @@ These items come from `New-Features-2.md`. Implement after Phase 5 (Feature 9) u
 
 **What:**
 
-1. **Dev** deployment uses a distinct **iOS / PWA icon** — asset **`dev-icon-192x192`** (path under `public/` as implemented).
+1. **Dev** deployment uses a distinct **iOS / PWA icon** - asset **`dev-icon-192x192`** (path under `public/` as implemented).
 2. **Dev** build shows **“Dev”** in the **homepage header** bar (environment-based, e.g. `NEXT_PUBLIC_*` or Netlify `CONTEXT`).
-3. **E2E tests run on push** to the **Dev** branch/deploy pipeline (same suite as main or Dev subset — document which).
+3. **E2E tests run on push** to the **Dev** branch/deploy pipeline (same suite as main or Dev subset - document which).
 4. **Merge/push to `main` gated:** CI must report **≥ 90% automated test pass rate** before merge is allowed (pass-rate gate, not coverage threshold).
 
-**Where to change:** `V3-dorkinians-website` — `next.config`, `app/manifest` or metadata icons, header component, GitHub Actions / Netlify config (whichever applies in repo). Document exact job names and pass-rate calculation (e.g. `passed / (passed + failed)` excluding skipped).
+**Where to change:** `V3-dorkinians-website` - `next.config`, `app/manifest` or metadata icons, header component, GitHub Actions / Netlify config (whichever applies in repo). Document exact job names and pass-rate calculation (e.g. `passed / (passed + failed)` excluding skipped).
 
 **Tests to write:**
 
@@ -1540,7 +1546,7 @@ These items come from `New-Features-2.md`. Implement after Phase 5 (Feature 9) u
 
 ---
 
-### Feature 18: Fixtures — “VEO LINK” from Google Sheets _(website first cut done)_
+### Feature 18: Fixtures - “VEO LINK” from Google Sheets _(website first cut done)_
 
 **What:** New Google Sheets column **VEO LINK** on fixtures data: ingest in **`database-dorkinians`** (schema + CSV mapping), persist on **`Fixture`** (or equivalent), expose via website API for any consumer (League Info, Show Results, etc.).
 
@@ -1555,15 +1561,15 @@ These items come from `New-Features-2.md`. Implement after Phase 5 (Feature 9) u
 
 ---
 
-### Feature 19: League Information — Latest Result + formation + Show Results parity _(website first cut done)_
+### Feature 19: League Information - Latest Result + formation + Show Results parity _(website first cut done)_
 
 **What:**
 
-1. **League Information:** Below **each** team’s **league table**, add subheading **Latest Result**. Under it: a **card** with match details — **date, score, goalscorers, MoM** (match collapsed-card style from **Show Results** modal).
+1. **League Information:** Below **each** team’s **league table**, add subheading **Latest Result**. Under it: a **card** with match details - **date, score, goalscorers, MoM** (match collapsed-card style from **Show Results** modal).
 2. Below the card: **formation** as **dots** with **player names** and **match ratings**; **click dot** → **tooltip** with **match rating** and **rating breakdown** (reuse match-rating decomposition rules from foundation).
 3. If **VEO LINK** exists: **“Watch on Veo”** opens link in **new tab**.
 4. **“Show full player details”** expands to the **per-player match table** (same as Show Results modal).
-5. **Show Results modal:** Same behaviour — expandable cards with formation, optional Veo link, and **“Show full player details”** toggling full table.
+5. **Show Results modal:** Same behaviour - expandable cards with formation, optional Veo link, and **“Show full player details”** toggling full table.
 
 **Where to change (V3-dorkinians-website):** League Information components, Show Results modal + shared subcomponents; may need `fixture-lineup` or new API combining `Fixture`, `MatchDetail`, `veoLink`.
 
@@ -1585,15 +1591,15 @@ These items come from `New-Features-2.md`. Implement after Phase 5 (Feature 9) u
 
 1. **Settings → Home:** In **Available Screens**, choosing **Home** must navigate the same way as other sidebar destinations when the user is on the standalone **`/settings`** route or in-app settings overlay: e.g. align with logo/home behaviour (`window.location.href = "/"` and/or `router.push('/')`) plus navigation store updates so the main shell shows Home. **Acceptance:** From `/settings`, tap Home → user lands on homepage with correct main page state.
 
-2. **Player Stats — Form chart Y-axis:** The **Form** section composed chart (`components/stats/player-stats/FormComposedChart.tsx` or parent) must show **readable Y-axis ticks** for the **rating scale** (adjust `margin`, `YAxis` width, `tickFormatter`, or domain padding as needed). **Acceptance:** Rating values (e.g. 2–10) are visible without clipping on typical mobile and desktop widths.
+2. **Player Stats - Form chart Y-axis:** The **Form** section composed chart (`components/stats/player-stats/FormComposedChart.tsx` or parent) must show **readable Y-axis ticks** for the **rating scale** (adjust `margin`, `YAxis` width, `tickFormatter`, or domain padding as needed). **Acceptance:** Rating values (e.g. 2–10) are visible without clipping on typical mobile and desktop widths.
 
-3. **Player Stats — Data table toggles:** In **data table** view, align the **Totals | Per App | Per 90** segmented control to the **right** of the control row (keep per-90 threshold copy layout sensible — e.g. toggles `ml-auto` or flex `justify-end` for the toggle group).
+3. **Player Stats - Data table toggles:** In **data table** view, align the **Totals | Per App | Per 90** segmented control to the **right** of the control row (keep per-90 threshold copy layout sensible - e.g. toggles `ml-auto` or flex `justify-end` for the toggle group).
 
 **Where to change (V3-dorkinians-website):** `components/pages/Settings.tsx` (and/or `app/settings/page.tsx` if route-specific); `FormComposedChart.tsx`; `components/stats/PlayerStats.tsx` (`dataTableContent` header row).
 
 **Tests to write:**
 
-- **E2E (Playwright):** Settings home navigation (see item 1); Form section axis ticks visible (extend `3.21` or dedicated check); data table mode — toggle group aligned right (layout assertion or stable `data-testid` + bounding box optional).
+- **E2E (Playwright):** Settings home navigation (see item 1); Form section axis ticks visible (extend `3.21` or dedicated check); data table mode - toggle group aligned right (layout assertion or stable `data-testid` + bounding box optional).
 
 **Status:** Items **1–3** completed per **`IMPLEMENTATION-STATUS.md` → Phase 6 UX polish**; remaining Phase 6 rows **5–7** rolled into **Phase 7** where overlapping.
 
@@ -1635,7 +1641,7 @@ These items come from `New-Features-2.md`. Implement after Phase 5 (Feature 9) u
 - Player Stats Form: legend above chart, tighter margins, coloured form tooltip labels; recent form boxes scaled on `md+`; summary cards use full rating-band styling.
 - Streaks: remove body paragraph under heading; dark tooltip for info icon. Impact: “The {XI} wins {n}% more/less often when you play.”
 - Team Stats: Recent Form boxes ~20% smaller on `md+`.
-- Club Stats: Player Distribution — no `SankeyChartSkeleton` while loading or in lazy fallback; section id `club-player-distribution` preserved when data loads.
+- Club Stats: Player Distribution - no `SankeyChartSkeleton` while loading or in lazy fallback; section id `club-player-distribution` preserved when data loads.
 - Recordings: title includes count `(N)`; club view `collapseAfter={10}` + **See all**.
 - TOTW: pitch skeleton `minHeight` and marker sizes aligned with loaded pitch.
 
