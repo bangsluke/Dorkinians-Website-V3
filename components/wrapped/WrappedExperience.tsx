@@ -113,7 +113,7 @@ function WrappedLeagueSnapshotTable({ row }: { row: WrappedLeagueTableRow }) {
 }
 
 const CARD =
-	"rounded-2xl border border-[#E8C547]/20 bg-[rgba(18,24,14,0.88)] backdrop-blur-md p-4 md:p-7 shadow-[0_20px_60px_rgba(0,0,0,0.45)] max-w-lg w-full mx-auto ring-1 ring-inset ring-white/[0.06] min-h-[70vh] md:min-h-[420px] flex flex-col";
+	"rounded-2xl border border-[#E8C547]/20 bg-[rgba(18,24,14,0.88)] backdrop-blur-md p-4 md:p-7 shadow-[0_20px_60px_rgba(0,0,0,0.45)] max-w-lg w-full mx-auto ring-1 ring-inset ring-white/[0.06] min-h-[60vh] md:min-h-[360px] flex flex-col";
 
 const ACCENT = "text-[#E8C547]";
 const MINT = "text-[#5DCAA5]";
@@ -138,7 +138,7 @@ function SlideFrame({
 			{topRight ? (
 				<div className='pointer-events-none absolute top-4 right-4 z-10 md:top-6 md:right-6'>{topRight}</div>
 			) : null}
-			<div className='flex-1 flex flex-col justify-center min-h-0 overflow-y-auto'>{children}</div>
+			<div className='flex-1 flex flex-col justify-center min-h-0 overflow-y-auto [&_p]:text-base [&_li]:text-base'>{children}</div>
 			<div className='mt-2 pt-2 border-t border-white/10 shrink-0' data-wrapped-no-swipe>
 				{showTimer ? (
 					<div className='flex justify-center mb-2' data-testid='wrapped-slide-timer'>
@@ -187,6 +187,7 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 	const [loading, setLoading] = useState(true);
 	const [index, setIndex] = useState(0);
 	const [timerPct, setTimerPct] = useState(100);
+	const [isPaused, setIsPaused] = useState(false);
 	const [shareOpen, setShareOpen] = useState(false);
 	const slideRef = useRef<HTMLDivElement | null>(null);
 
@@ -265,6 +266,7 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 			setTimerPct(100);
 			return;
 		}
+		if (isPaused) return;
 		setTimerPct(100);
 		const start = Date.now();
 		const iv = setInterval(() => {
@@ -275,7 +277,7 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 			}
 		}, 120);
 		return () => clearInterval(iv);
-	}, [index, data, total]);
+	}, [index, data, total, isPaused]);
 
 	const applySwipe = useCallback(
 		(dx: number, dy: number) => {
@@ -335,7 +337,7 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 
 	const shareSeasonText = useMemo(() => {
 		if (!data) return "";
-		return `${data.playerName} - Dorkinians Wrapped ${data.season}\n${data.wrappedUrl}`;
+		return `${data.playerName} - Dorkinians Wrapped ${data.season}`;
 	}, [data]);
 
 	const shareSlideText = useMemo(() => {
@@ -383,11 +385,11 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 				});
 				return;
 			}
-			await navigator.clipboard.writeText(shareSeasonText);
+			await navigator.clipboard.writeText(`${shareSeasonText}\n${data.wrappedUrl}`);
 		} catch (e) {
 			console.warn("Share season failed", e);
 			try {
-				await navigator.clipboard.writeText(shareSeasonText);
+				await navigator.clipboard.writeText(`${shareSeasonText}\n${data.wrappedUrl}`);
 			} catch {
 				/* ignore */
 			}
@@ -421,12 +423,12 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 						<p className={`${ACCENT} text-xs sm:text-sm font-semibold uppercase tracking-wide mb-1`}>Overview</p>
 						<h2 className='text-xl md:text-3xl font-bold text-white mb-1 leading-tight'>Your {data.season} season</h2>
 						<div className='border-t border-white/10 my-2' />
-						<p className='text-white/55 text-xs sm:text-sm mb-0.5'>This season you played</p>
+						<p className='text-white/55 text-base mb-0.5'>This season you played</p>
 						<p className={`text-4xl sm:text-5xl md:text-6xl font-extrabold ${ACCENT} tabular-nums leading-none`}>
 							{data.totalMatches}
 						</p>
 						<p className={`text-base font-semibold ${ACCENT} mb-2`}>matches</p>
-						<p className='text-white/75 text-xs sm:text-sm leading-snug mb-2'>
+						<p className='text-white/75 text-base leading-snug mb-2'>
 							<span className='text-white/55'>{data.totalMinutes.toLocaleString()} minutes</span>
 							{" · "}
 							<span className={MINT}>{data.totalStarts}</span> starts
@@ -480,7 +482,7 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 				return (
 					<>
 						<p className={`${ACCENT} text-xs sm:text-sm font-semibold uppercase tracking-wide mb-1`}>Teammate</p>
-						<p className='text-white/50 text-xs sm:text-sm mb-2'>Your most trusted teammate</p>
+						<p className='text-white/50 text-base mb-2'>Your most trusted teammate</p>
 						<div className='border-t border-white/10 my-2' />
 						{data.topPartnerName === "-" ? (
 							<p className='text-white/85 text-lg leading-relaxed'>
@@ -506,7 +508,7 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 				return (
 					<>
 						<p className={`${ACCENT} text-xs sm:text-sm font-semibold uppercase tracking-wide mb-1`}>Player type</p>
-						<p className='text-white/50 text-xs sm:text-sm mb-2'>Your player type this season</p>
+						<p className='text-white/50 text-base mb-2'>Your player type this season</p>
 						<div className='border-t border-white/10 my-2' />
 						<h2 className={`text-xl md:text-3xl font-bold ${ACCENT} mb-2 leading-tight`}>{data.playerType}</h2>
 						<p className='text-white/70 text-sm sm:text-base leading-snug'>{data.playerTypeReason}</p>
@@ -595,7 +597,7 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 						<p className={`${ACCENT} text-xs sm:text-sm font-semibold uppercase tracking-wide mb-1`}>Veo</p>
 						<h2 className='text-xl md:text-3xl font-bold text-white mb-2'>Match videos</h2>
 						<div className='border-t border-white/10 my-2' />
-						<p className='text-white/70 text-xs sm:text-sm mb-2'>
+						<p className='text-white/70 text-base mb-2'>
 							Fixtures you played with a Veo recording this season.
 							{veoTotal > VEO_WRAP_PREVIEW_COUNT ? (
 								<>
@@ -605,7 +607,7 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 							) : null}
 						</p>
 						<ul
-							className='text-left space-y-2 max-h-[26vh] sm:max-h-[30vh] overflow-y-auto pr-1 touch-pan-y'
+							className='text-left space-y-2 pr-1 touch-pan-y'
 							style={{ touchAction: "pan-y" }}
 							data-testid='wrapped-veo-list'>
 							{veoRows.map((row) => {
@@ -667,6 +669,14 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 			</button>
 			<button
 				type='button'
+				onClick={() => setIsPaused((p) => !p)}
+				disabled={index >= total - 1}
+				className='text-xs sm:text-sm px-3 py-1.5 rounded-lg border border-white/15 text-white/90 disabled:opacity-30'
+				aria-label={isPaused ? "Resume autoplay" : "Pause autoplay"}>
+				{isPaused ? "▶" : "⏸"}
+			</button>
+			<button
+				type='button'
 				onClick={() => go(1)}
 				disabled={index >= total - 1}
 				className='text-xs sm:text-sm px-3 py-1.5 rounded-lg border border-white/15 text-white/90 disabled:opacity-30'>
@@ -679,6 +689,18 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 				className='text-xs sm:text-sm font-medium px-3 py-1.5 rounded-lg bg-[#E8C547] text-black hover:opacity-90'>
 				Share
 			</button>
+			{index >= total - 1 ? (
+				<button
+					type='button'
+					onClick={() => {
+						setIndex(0);
+						setTimerPct(100);
+						setIsPaused(false);
+					}}
+					className='text-xs sm:text-sm font-medium px-3 py-1.5 rounded-lg bg-[#5DCAA5] text-black hover:opacity-90'>
+					Restart
+				</button>
+			) : null}
 		</>
 	);
 

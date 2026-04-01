@@ -4,9 +4,17 @@
 
 **Last updated:** 2026-04-01
 
-**Current milestone:** Phase 8 UX polish Round 4 - profile nav intro, achievements/form/recordings/TOTW polish, club distribution loading, docs (see checklist below).
+**Current milestone:** Post-Phase 9 polish in progress - wrapped controls/mobile dropdown fixes, achievement taxonomy updates, club leaderboard/records copy and formatting pass.
 
-**Next focus:** Run Playwright stats/TOTW smoke on a seeded env; optional E2E for **See all** on club recordings (`club-recording-see-all`) when data exists; any follow-up from real-device tooltip/ring timing.
+**Next focus:** Verify wrapped pause/play/restart and share text behavior; validate achievement section renames/new categories/order on profile; confirm club information heading and record rounding updates on mobile and desktop.
+
+### Integration notes (2026-04-01 - in progress)
+
+- **Player Profile:** `Milestone Badges` renamed to `Achievement Badges`; category headings moved to achievement naming (`Appearance/Finisher/Creator/Defensive/Performance/Special`) with new **Keeping Achievements** section and performance-first ordering.
+- **Achievement logic:** mobile grid now 3-across; per-section ordering now earned-first by tier (diamond→gold→silver→bronze) then locked; circle values use `current/next` (diamond shows current only).
+- **Discipline fines source-of-truth:** yellow/red card costs centralized in `config/config.ts` and consumed by Player/Club stats card-cost displays.
+- **Season Wrapped:** profile “See other seasons” menu centers on mobile viewport; wrapped flow adds pause/play control, final-slide restart, reduced card height, increased Veo list height, and deduplicated season-share text payload.
+- **Club Information:** `Badge leaderboard` renamed to `Achievement Leaderboard`; most-badges rows no longer append tier text; records/leaderboard subheadings shifted to title-case white heading style; record display rounding adjusted for highest single-match FTP and scoreline record values.
 
 **Database repo:** When this website repo sits next to the seeding service, paths below use **`../database-dorkinians/`**. If you only have the database clone, open the copy of this file from the website repo or maintain a short pointer there.
 

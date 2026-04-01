@@ -1,7 +1,7 @@
 "use client";
 
 import { useNavigationStore, type TeamData } from "@/lib/stores/navigation";
-import { statObject, statsPageConfig, appConfig } from "@/config/config";
+import { statObject, statsPageConfig, appConfig, calculateCardFineTotal } from "@/config/config";
 import Image from "next/image";
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { cachedFetch, generatePageCacheKey } from "@/lib/utils/pageCache";
@@ -2625,7 +2625,11 @@ export default function ClubStats() {
 													<div className='flex-1 min-w-0'>
 														<div className='text-white/70 text-sm md:text-base mb-1'>Total Cards Cost</div>
 														<div className='text-white font-bold text-xl md:text-2xl'>
-															£{((toNumber(teamData.totalYellowCards || 0) * 13.5) + (toNumber(teamData.totalRedCards || 0) * 55)).toLocaleString()}
+															£
+															{calculateCardFineTotal(
+																toNumber(teamData.totalYellowCards || 0),
+																toNumber(teamData.totalRedCards || 0),
+															).toLocaleString()}
 														</div>
 														<div className='text-white/60 text-xs mt-1'>
 															Yellow + Red cards combined

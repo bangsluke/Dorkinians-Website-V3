@@ -24,7 +24,25 @@ export interface ClubRecordDTO {
 }
 
 function formatRecordValueDisplay(rec: ClubRecordDTO): string {
-	if (rec.recordValueDisplay != null && String(rec.recordValueDisplay).trim() !== "") return String(rec.recordValueDisplay);
+	const recordName = String(rec.recordName || "").toLowerCase();
+	if (rec.recordValueDisplay != null && String(rec.recordValueDisplay).trim() !== "") {
+		const rawDisplay = String(rec.recordValueDisplay).trim();
+		if (
+			(recordName.includes("biggest win") || recordName.includes("most goals in a match")) &&
+			rawDisplay.includes("-")
+		) {
+			const [lhs, rhs] = rawDisplay.split("-").map((part) => {
+				const n = Number(part.trim());
+				return Number.isFinite(n) ? String(Math.round(n)) : part.trim();
+			});
+			return `${lhs}-${rhs}`;
+		}
+		if (recordName.includes("highest single-match ftp")) {
+			const n = Number(rawDisplay);
+			if (Number.isFinite(n)) return String(Math.round(n));
+		}
+		return rawDisplay;
+	}
 	if (typeof rec.recordValue === "number" && Number.isFinite(rec.recordValue)) return String(Math.round(rec.recordValue));
 	return String(rec.recordValue ?? "-");
 }
@@ -161,7 +179,7 @@ export default function RecordsSection() {
 
 			{individual.length > 0 ? (
 				<div className='mb-6'>
-					<h4 className='text-dorkinians-yellow/90 text-xs md:text-sm font-semibold mb-3'>Individual records</h4>
+					<h4 className='text-base md:text-lg font-bold text-white mb-4'>Individual Records</h4>
 					<div className='rounded-lg border border-white/10 bg-white/[0.03] overflow-hidden divide-y divide-white/10'>
 						{individual.map((rec) => (
 							<RecordRow key={rec.id} rec={rec} onPlayerClick={goToPlayerStats} />
@@ -172,7 +190,7 @@ export default function RecordsSection() {
 
 			{team.length > 0 ? (
 				<div>
-					<h4 className='text-dorkinians-yellow/90 text-xs md:text-sm font-semibold mb-3'>Team records</h4>
+					<h4 className='text-base md:text-lg font-bold text-white mb-4'>Team Records</h4>
 					<div className='rounded-lg border border-white/10 bg-white/[0.03] overflow-hidden divide-y divide-white/10'>
 						{team.map((rec) => (
 							<RecordRow key={rec.id} rec={rec} onPlayerClick={goToPlayerStats} />
