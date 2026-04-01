@@ -51,8 +51,7 @@ function toDateValue(iso: string | null): number {
 }
 
 function getCategoryHeading(category: string): string {
-	const label = CATEGORY_LABELS[category] ?? category;
-	return label.toLowerCase().includes("milestone") ? label : `${label} milestones`;
+	return CATEGORY_LABELS[category] ?? category;
 }
 
 function tierThresholdLabel(def: BadgeDefinition, tier: string): string | undefined {
@@ -203,6 +202,42 @@ export default function PlayerBadgeMilestoneGrid({
 		[achieverCounts, leaders, statVals, tiers],
 	);
 
+	const getBadgeCurrentValue = useCallback(
+		(badgeKey: string, prog?: ProgressRow): number | null => {
+			const value = statVals[badgeKey];
+			if (typeof value === "number" && Number.isFinite(value)) return value;
+			if (prog && typeof prog.currentValue === "number" && Number.isFinite(prog.currentValue)) return prog.currentValue;
+			return null;
+		},
+		[statVals],
+	);
+
+	const nextThresholdAfterTier = (def: BadgeDefinition, tier: string): number | null => {
+		const order = ["bronze", "silver", "gold", "diamond"];
+		const idx = order.indexOf(tier);
+		if (idx < 0 || idx >= order.length - 1) return null;
+		const nextTier = order[idx + 1] as keyof typeof def.tiers;
+		const next = def.tiers[nextTier];
+		return next ? next.threshold : null;
+	};
+
+	const badgeValueLabel = (
+		def: BadgeDefinition,
+		badgeKey: string,
+		got: EarnedBadgeRow | undefined,
+		prog: ProgressRow | undefined,
+	): string => {
+		const current = getBadgeCurrentValue(badgeKey, prog);
+		if (current == null) return "-";
+		if (got) {
+			if (got.tier === "diamond") return formatBadgeNumber(current);
+			const next = nextThresholdAfterTier(def, got.tier);
+			return next == null ? formatBadgeNumber(current) : `${formatBadgeNumber(current)} / ${formatBadgeNumber(next)}`;
+		}
+		if (prog) return `${formatBadgeNumber(current)} / ${formatBadgeNumber(prog.targetValue)}`;
+		return formatBadgeNumber(current);
+	};
+
 	return (
 		<div id='player-achievement-badges' className='mt-3 space-y-4' data-testid='player-badge-milestones'>
 			{modalLines && typeof document !== "undefined"
@@ -303,8 +338,22 @@ export default function PlayerBadgeMilestoneGrid({
 				return (
 					<div key={category} className='rounded-xl border border-white/10 bg-black/15 p-3'>
 						<p className='text-white/90 text-sm font-semibold mb-3'>{getCategoryHeading(category)}</p>
-						<div className='grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3'>
-							{keys.map((badgeKey) => {
+						<div className='grid grid-cols-3 md:grid-cols-4 gap-3'>
+							{keys
+								.sort((a, b) => {
+									const defA = BADGE_DEFINITIONS[a];
+									const defB = BADGE_DEFINITIONS[b];
+									const gotA = earnedByKey.get(a);
+									const gotB = earnedByKey.get(b);
+									if (gotA && !gotB) return -1;
+									if (!gotA && gotB) return 1;
+									if (gotA && gotB) {
+										const tierCmp = tierRank(gotB.tier) - tierRank(gotA.tier);
+										if (tierCmp !== 0) return tierCmp;
+									}
+									return defA.name.localeCompare(defB.name);
+								})
+								.map((badgeKey) => {
 								const def = BADGE_DEFINITIONS[badgeKey];
 								if (!def) return null;
 								const got = earnedByKey.get(badgeKey);
@@ -312,9 +361,7 @@ export default function PlayerBadgeMilestoneGrid({
 								const ctx = buildCtx(badgeKey, got);
 								const lines = buildMilestoneTooltipLines(def, got, prog, ctx);
 								const aria = buildMilestoneBadgeTooltip(def, got, prog, ctx);
-								const earnedInner = got ? tierThresholdLabel(def, got.tier) : undefined;
-								const lockedInner =
-									prog && prog.remaining > 0 ? formatBadgeNumber(prog.targetValue) : prog ? "-" : "-";
+								const innerValue = badgeValueLabel(def, badgeKey, got, prog);
 								return (
 									<MilestoneHoverShell
 										key={badgeKey}
@@ -325,11 +372,11 @@ export default function PlayerBadgeMilestoneGrid({
 											got ? "bg-white/5 border border-white/10" : "border border-dashed border-white/25 bg-transparent"
 										} ${isSmallScreen ? "" : "cursor-help"}`}>
 										{got ? (
-											<BadgeDot tier={got.tier} title='' aria-label={aria} size='md' innerLabel={earnedInner} />
+											<BadgeDot tier={got.tier} title='' aria-label={aria} size='md' innerLabel={innerValue} />
 										) : (
 											<div className='h-9 w-9 min-h-[36px] min-w-[36px] rounded-full border-2 border-dashed border-white/30 flex items-center justify-center bg-black/15'>
-												<span className='text-[9px] font-bold text-white/80 tabular-nums px-0.5 text-center leading-none'>
-													{lockedInner}
+												<span className='text-[8px] font-bold text-white/80 tabular-nums px-0.5 text-center leading-none'>
+													{innerValue}
 												</span>
 											</div>
 										)}

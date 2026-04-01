@@ -1,7 +1,7 @@
 "use client";
 
 import { useNavigationStore, type PlayerData } from "@/lib/stores/navigation";
-import { statObject, statsPageConfig, appConfig } from "@/config/config";
+import { statObject, statsPageConfig, appConfig, calculateCardFineTotal } from "@/config/config";
 import Image from "next/image";
 import Link from "next/link";
 import { useState, useMemo, useRef, useEffect } from "react";
@@ -4224,7 +4224,11 @@ export default function PlayerStats() {
 						</svg>
 					</div>
 					<div className='text-white text-sm md:text-base mt-2 text-center'>
-						Total Cards Cost: £{((toNumber(validPlayerData.yellowCards) * 13.5) + (toNumber(validPlayerData.redCards) * 55)).toLocaleString()}
+						Total Cards Cost: £
+						{calculateCardFineTotal(
+							toNumber(validPlayerData.yellowCards),
+							toNumber(validPlayerData.redCards),
+						).toLocaleString()}
 					</div>
 				</div>
 			)}

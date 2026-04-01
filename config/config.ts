@@ -10,6 +10,15 @@ export const appConfig = {
 
 export type AppConfig = typeof appConfig;
 
+export const DISCIPLINE_FINE_CONFIG = {
+	yellowCard: 13.5,
+	redCard: 55,
+} as const;
+
+export function calculateCardFineTotal(yellowCards: number, redCards: number): number {
+	return yellowCards * DISCIPLINE_FINE_CONFIG.yellowCard + redCards * DISCIPLINE_FINE_CONFIG.redCard;
+}
+
 export interface HomepageQuestion {
 	id: string;
 	question: string;

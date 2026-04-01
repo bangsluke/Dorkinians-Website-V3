@@ -9,6 +9,7 @@
 - **Season Wrapped (UX pass):** autoplay (15s/slide, timer bar, stop on last slide); **Share** modal (full season URL vs slide image); season-scoped teammate stats; richer slides (overview minutes/starts/position, best-month apps/FTP, peak result/scoreline, league row on team season); swipe limited to one slide; `/wrapped/...` Open Graph image uses **overview** slide (slide `1`) for link previews.
 - **Player Profile milestones:** small-screen tooltips open as a **centered overlay** (avoid scroll clipping); tooltip lines: name, description, earned/current, next tier, peers at current tier, club leader; `player-badges` API adds tier-level achiever counts and per-milestone value leaders.
 - **Docs checklist:** see **`IMPLEMENTATION-STATUS.md` → Phase 9**.
+- **Post-Phase 9 amendments (in progress):** profile heading copy updated to **Achievement Badges**; achievement categories renamed/reordered with new **Keeping Achievements** group; mobile badge grid is **3 across** (desktop unchanged); earned badges are prioritized by tier before locked badges; badge circle values display `current/next` (diamond = current only). Wrapped UX adds pause/play and final-slide restart, centers profile season dropdown on mobile, raises Veo list visible height, trims wrapped card height by ~10vh, and fixes duplicated season-share text. Card-fine costs are centralized in **`config/config.ts`** as shared constants.
 
 ## Recent integration notes (2026-03-31)
 

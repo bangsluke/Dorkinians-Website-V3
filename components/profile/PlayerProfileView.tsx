@@ -61,7 +61,8 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 		const btn = seasonTriggerRef.current;
 		if (!btn) return;
 		const r = btn.getBoundingClientRect();
-		setSeasonMenuPos({ top: r.bottom + 8, left: r.left + r.width / 2 });
+		const isMobile = window.innerWidth < 640;
+		setSeasonMenuPos({ top: r.bottom + 8, left: isMobile ? window.innerWidth / 2 : r.left + r.width / 2 });
 	}, []);
 
 	useLayoutEffect(() => {
@@ -342,9 +343,10 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 																const btn = seasonTriggerRef.current;
 																if (btn) {
 																	const r = btn.getBoundingClientRect();
+															const isMobile = window.innerWidth < 640;
 																	setSeasonMenuPos({
 																		top: r.bottom + 8,
-																		left: r.left + r.width / 2,
+																left: isMobile ? window.innerWidth / 2 : r.left + r.width / 2,
 																	});
 																}
 															} else {
@@ -437,7 +439,7 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 							id='player-profile-milestone-badges'
 							data-testid='player-profile-milestones'
 							className='rounded-lg bg-white/10 backdrop-blur-sm p-4'>
-							<h3 className='text-white font-semibold text-sm md:text-base'>Milestone Badges</h3>
+							<h3 className='text-white font-semibold text-sm md:text-base'>Achievement Badges</h3>
 							{badgePayload ? (
 								<>
 									<p className='text-white/75 text-sm mt-1'>

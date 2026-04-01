@@ -4,6 +4,7 @@
  */
 
 import type { BadgePlayer } from "./neo4jProps";
+import { calculateCardFineTotal } from "@/config/config";
 
 export type BadgeTier = "bronze" | "silver" | "gold" | "diamond";
 
@@ -77,6 +78,66 @@ export const BADGE_DEFINITIONS: Record<string, BadgeDefinition> = {
 			diamond: { threshold: 10, description: "Play for 10 seasons" },
 		},
 		evaluate: (player) => Number(player.numberSeasonsPlayedFor ?? 0) || 0,
+	},
+	goalkeeper_appearances: {
+		name: "Goalkeeper Appearances",
+		category: "appearances",
+		description: "Make appearances while playing as a goalkeeper.",
+		tiers: {
+			bronze: { threshold: 10, description: "Make 10 appearances as a goalkeeper" },
+			silver: { threshold: 25, description: "Make 25 appearances as a goalkeeper" },
+			gold: { threshold: 50, description: "Make 50 appearances as a goalkeeper" },
+			diamond: { threshold: 100, description: "Make 100 appearances as a goalkeeper" },
+		},
+		evaluate: (player) => Number(player.gk ?? 0) || 0,
+	},
+	defender_appearances: {
+		name: "Defender Appearances",
+		category: "appearances",
+		description: "Make appearances while playing in defence.",
+		tiers: {
+			bronze: { threshold: 25, description: "Make 25 appearances as a defender" },
+			silver: { threshold: 50, description: "Make 50 appearances as a defender" },
+			gold: { threshold: 100, description: "Make 100 appearances as a defender" },
+			diamond: { threshold: 200, description: "Make 200 appearances as a defender" },
+		},
+		evaluate: (player) => Number(player.def ?? 0) || 0,
+	},
+	midfielder_appearances: {
+		name: "Midfielder Appearances",
+		category: "appearances",
+		description: "Make appearances while playing in midfield.",
+		tiers: {
+			bronze: { threshold: 25, description: "Make 25 appearances as a midfielder" },
+			silver: { threshold: 50, description: "Make 50 appearances as a midfielder" },
+			gold: { threshold: 100, description: "Make 100 appearances as a midfielder" },
+			diamond: { threshold: 200, description: "Make 200 appearances as a midfielder" },
+		},
+		evaluate: (player) => Number(player.mid ?? 0) || 0,
+	},
+	forward_appearances: {
+		name: "Forward Appearances",
+		category: "appearances",
+		description: "Make appearances while playing in attack.",
+		tiers: {
+			bronze: { threshold: 25, description: "Make 25 appearances as a forward" },
+			silver: { threshold: 50, description: "Make 50 appearances as a forward" },
+			gold: { threshold: 100, description: "Make 100 appearances as a forward" },
+			diamond: { threshold: 200, description: "Make 200 appearances as a forward" },
+		},
+		evaluate: (player) => Number(player.fwd ?? 0) || 0,
+	},
+	minutes_machine: {
+		name: "Minutes Machine",
+		category: "appearances",
+		description: "Accumulate total minutes played.",
+		tiers: {
+			bronze: { threshold: 1000, description: "Play 1,000 minutes" },
+			silver: { threshold: 5000, description: "Play 5,000 minutes" },
+			gold: { threshold: 10000, description: "Play 10,000 minutes" },
+			diamond: { threshold: 20000, description: "Play 20,000 minutes" },
+		},
+		evaluate: (player) => Number(player.minutes ?? 0) || 0,
 	},
 	goalscorer: {
 		name: "Goalscorer",
@@ -157,6 +218,18 @@ export const BADGE_DEFINITIONS: Record<string, BadgeDefinition> = {
 			diamond: { threshold: 1.0, description: "1.0+ goals per 90" },
 		},
 		evaluate: (player) => ((Number(player.minutes ?? 0) || 0) >= 360 ? Number(player.goalsPer90 ?? 0) || 0 : 0),
+	},
+	shootout_scorer: {
+		name: "Shootout Scorer",
+		category: "goals",
+		description: "Score penalties in shootouts.",
+		tiers: {
+			bronze: { threshold: 1, description: "Score 1 penalty in a shootout" },
+			silver: { threshold: 3, description: "Score 3 penalties in shootouts" },
+			gold: { threshold: 6, description: "Score 6 penalties in shootouts" },
+			diamond: { threshold: 10, description: "Score 10 penalties in shootouts" },
+		},
+		evaluate: (player) => Number(player.penaltyShootoutPenaltiesScored ?? 0) || 0,
 	},
 	provider: {
 		name: "Provider",
@@ -244,7 +317,7 @@ export const BADGE_DEFINITIONS: Record<string, BadgeDefinition> = {
 	},
 	shot_stopper: {
 		name: "Shot Stopper",
-		category: "defence",
+		category: "keeping",
 		description: "Make saves across your appearances.",
 		tiers: {
 			bronze: { threshold: 20, description: "Make 20 saves" },
@@ -256,7 +329,7 @@ export const BADGE_DEFINITIONS: Record<string, BadgeDefinition> = {
 	},
 	penalty_saver: {
 		name: "Penalty Saver",
-		category: "defence",
+		category: "keeping",
 		description: "Save penalties.",
 		tiers: {
 			bronze: { threshold: 1, description: "Save 1 penalty" },
@@ -265,6 +338,18 @@ export const BADGE_DEFINITIONS: Record<string, BadgeDefinition> = {
 			diamond: { threshold: 10, description: "Save 10 penalties" },
 		},
 		evaluate: (player) => Number(player.penaltiesSaved ?? 0) || 0,
+	},
+	shootout_penalty_saver: {
+		name: "Shootout Penalty Saver",
+		category: "keeping",
+		description: "Save penalties in shootouts.",
+		tiers: {
+			bronze: { threshold: 1, description: "Save 1 penalty in a shootout" },
+			silver: { threshold: 2, description: "Save 2 penalties in shootouts" },
+			gold: { threshold: 4, description: "Save 4 penalties in shootouts" },
+			diamond: { threshold: 8, description: "Save 8 penalties in shootouts" },
+		},
+		evaluate: (player) => Number(player.penaltyShootoutPenaltiesSaved ?? 0) || 0,
 	},
 	man_of_the_match: {
 		name: "Man of the Match",
@@ -434,6 +519,118 @@ export const BADGE_DEFINITIONS: Record<string, BadgeDefinition> = {
 		},
 		evaluate: (player) => Number(player.winsFromBench ?? 0) || 0,
 	},
+	home_wins: {
+		name: "Home Winner",
+		category: "performance",
+		description: "Win games when playing at home.",
+		tiers: {
+			bronze: { threshold: 10, description: "Win 10 home games" },
+			silver: { threshold: 25, description: "Win 25 home games" },
+			gold: { threshold: 50, description: "Win 50 home games" },
+			diamond: { threshold: 100, description: "Win 100 home games" },
+		},
+		evaluate: (player) => Number(player.homeWins ?? 0) || 0,
+	},
+	away_wins: {
+		name: "Away Winner",
+		category: "performance",
+		description: "Win games when playing away.",
+		tiers: {
+			bronze: { threshold: 10, description: "Win 10 away games" },
+			silver: { threshold: 25, description: "Win 25 away games" },
+			gold: { threshold: 50, description: "Win 50 away games" },
+			diamond: { threshold: 100, description: "Win 100 away games" },
+		},
+		evaluate: (player) => Number(player.awayWins ?? 0) || 0,
+	},
+	league_match_wins: {
+		name: "League Match Winner",
+		category: "performance",
+		description: "Win league matches.",
+		tiers: {
+			bronze: { threshold: 10, description: "Win 10 league matches" },
+			silver: { threshold: 25, description: "Win 25 league matches" },
+			gold: { threshold: 50, description: "Win 50 league matches" },
+			diamond: { threshold: 100, description: "Win 100 league matches" },
+		},
+		evaluate: (player) => Number(player.leagueWins ?? 0) || 0,
+	},
+	cup_match_wins: {
+		name: "Cup Match Winner",
+		category: "performance",
+		description: "Win cup matches.",
+		tiers: {
+			bronze: { threshold: 5, description: "Win 5 cup matches" },
+			silver: { threshold: 15, description: "Win 15 cup matches" },
+			gold: { threshold: 30, description: "Win 30 cup matches" },
+			diamond: { threshold: 60, description: "Win 60 cup matches" },
+		},
+		evaluate: (player) => Number(player.cupWins ?? 0) || 0,
+	},
+	friendly_match_wins: {
+		name: "Friendly Match Winner",
+		category: "performance",
+		description: "Win friendly matches.",
+		tiers: {
+			bronze: { threshold: 5, description: "Win 5 friendly matches" },
+			silver: { threshold: 15, description: "Win 15 friendly matches" },
+			gold: { threshold: 30, description: "Win 30 friendly matches" },
+			diamond: { threshold: 60, description: "Win 60 friendly matches" },
+		},
+		evaluate: (player) => Number(player.friendlyWins ?? 0) || 0,
+	},
+	shootout_wins: {
+		name: "Shootout Winner",
+		category: "performance",
+		description: "Win matches decided by shootout involvement.",
+		tiers: {
+			bronze: { threshold: 1, description: "Win 1 shootout match" },
+			silver: { threshold: 3, description: "Win 3 shootout matches" },
+			gold: { threshold: 6, description: "Win 6 shootout matches" },
+			diamond: { threshold: 10, description: "Win 10 shootout matches" },
+		},
+		evaluate: (player) => Number(player.penaltyShootoutWins ?? 0) || 0,
+	},
+	veo_recorded: {
+		name: "Veo Recorded",
+		category: "performance",
+		description: "Play in matches with a Veo recording.",
+		tiers: {
+			bronze: { threshold: 5, description: "Play in 5 recorded matches" },
+			silver: { threshold: 15, description: "Play in 15 recorded matches" },
+			gold: { threshold: 30, description: "Play in 30 recorded matches" },
+			diamond: { threshold: 60, description: "Play in 60 recorded matches" },
+		},
+		evaluate: (player) => Number(player.veoLinkedGames ?? 0) || 0,
+	},
+	fines_paid: {
+		name: "Fines Paid",
+		category: "performance",
+		description: "Contribute to the club kitty through card fines.",
+		tiers: {
+			bronze: { threshold: 50, description: "Pay £50 in card fines" },
+			silver: { threshold: 150, description: "Pay £150 in card fines" },
+			gold: { threshold: 300, description: "Pay £300 in card fines" },
+			diamond: { threshold: 500, description: "Pay £500 in card fines" },
+		},
+		evaluate: (player) =>
+			calculateCardFineTotal(
+				Number(player.yellowCards ?? 0) || 0,
+				Number(player.redCards ?? 0) || 0,
+			),
+	},
+	first_xi_appearances: {
+		name: "1st XI Appearances",
+		category: "performance",
+		description: "Build appearances for the 1st XI.",
+		tiers: {
+			bronze: { threshold: 10, description: "Make 10 appearances for the 1st XI" },
+			silver: { threshold: 25, description: "Make 25 appearances for the 1st XI" },
+			gold: { threshold: 50, description: "Make 50 appearances for the 1st XI" },
+			diamond: { threshold: 100, description: "Make 100 appearances for the 1st XI" },
+		},
+		evaluate: (player) => Number(player.firstXiGames ?? 0) || 0,
+	},
 	debut_scorer: {
 		name: "Debut Scorer",
 		category: "special",
@@ -599,7 +796,7 @@ export const BADGE_DEFINITIONS: Record<string, BadgeDefinition> = {
 	},
 	gk_clean_sheet_specilaist: {
 		name: "GK Clean Sheet Specilaist",
-		category: "special",
+		category: "keeping",
 		description: "Build clean sheets while playing as a goalkeeper.",
 		tiers: {
 			bronze: { threshold: 5, description: "Keep 5 goalkeeper clean sheets" },
@@ -611,7 +808,7 @@ export const BADGE_DEFINITIONS: Record<string, BadgeDefinition> = {
 	},
 	golden_gloves: {
 		name: "Golden Gloves",
-		category: "special",
+		category: "keeping",
 		description: "Accumulate big save totals.",
 		tiers: {
 			bronze: { threshold: 25, description: "Make 25 saves" },
@@ -646,15 +843,28 @@ export const BADGE_DEFINITIONS: Record<string, BadgeDefinition> = {
 			return seasonAppsPeak > 0 && bestNoCardRun >= seasonAppsPeak ? 1 : 0;
 		},
 	},
+	weekday_warrior: {
+		name: "Weekday Warrior",
+		category: "special",
+		description: "Play regularly in weekday fixtures.",
+		tiers: {
+			bronze: { threshold: 5, description: "Play 5 weekday matches" },
+			silver: { threshold: 15, description: "Play 15 weekday matches" },
+			gold: { threshold: 30, description: "Play 30 weekday matches" },
+			diamond: { threshold: 60, description: "Play 60 weekday matches" },
+		},
+		evaluate: (player) => Number(player.weekdayGames ?? 0) || 0,
+	},
 };
 
-export const BADGE_CATEGORY_ORDER = ["appearances", "goals", "assists", "defence", "performance", "special"] as const;
+export const BADGE_CATEGORY_ORDER = ["appearances", "performance", "goals", "assists", "defence", "keeping", "special"] as const;
 
 export const CATEGORY_LABELS: Record<string, string> = {
-	appearances: "Appearances",
-	goals: "Goals",
-	assists: "Assists",
-	defence: "Defence",
-	performance: "Performance",
-	special: "Special",
+	appearances: "Appearance Achievements",
+	goals: "Finisher Achievements",
+	assists: "Creator Achievements",
+	defence: "Defensive Achievements",
+	performance: "Performance Achievements",
+	keeping: "Keeping Achievements",
+	special: "Special Achievements",
 };
