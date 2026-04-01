@@ -1826,7 +1826,7 @@ export default function LeagueInformation() {
 																</tbody>
 															</table>
 														</div>
-														{/* League Table Link and Show Results — under table column only */}
+														{/* League Table Link and Show Results - under table column only */}
 														{((teamData.url && teamData.url.trim() !== "") || selectedSeason) && (
 															<div className='mt-4 text-center'>
 																{teamData.url && teamData.url.trim() !== "" && (

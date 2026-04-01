@@ -2,9 +2,9 @@
 
 **Purpose:** Running log of what is implemented vs still to do for the plan in **`NEW-FEATURES.md`** (same folder). Use this when resuming work across sessions. The plan file remains the detailed spec; this file is the checklist.
 
-**Last updated:** 2026-03-31
+**Last updated:** 2026-04-01
 
-**Current milestone:** Phase 8 UX polish Round 4 — profile nav intro, achievements/form/recordings/TOTW polish, club distribution loading, docs (see checklist below).
+**Current milestone:** Phase 8 UX polish Round 4 - profile nav intro, achievements/form/recordings/TOTW polish, club distribution loading, docs (see checklist below).
 
 **Next focus:** Run Playwright stats/TOTW smoke on a seeded env; optional E2E for **See all** on club recordings (`club-recording-see-all`) when data exists; any follow-up from real-device tooltip/ring timing.
 
@@ -30,28 +30,28 @@
 
 ## Completed (as of last update)
 
-### Foundation — Data layer (`../database-dorkinians/`)
+### Foundation - Data layer (`../database-dorkinians/`)
 
 | Area                                  | Notes                                                                                                                                                                                    |
 | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **`services/matchDerivedFields.js`**  | `inferFormation`, `getMatchDetailFixtureGroupKey`, `assignMatchDetailStarterFields`, `calculateMatchRating` (baseline, position weights, clamp 1–10).                                    |
 | **`services/dataProcessor.js`**       | Starter fields on grouped CSV rows; `matchRating` on MatchDetail create/bulk/MERGE paths.                                                                                                |
-| **`services/relationshipManager.js`** | `applyFoundationDerivedAggregates()` — fixture `inferredFormation`; Player aggregates (starts, ratings, etc.) from the graph.                                                            |
+| **`services/relationshipManager.js`** | `applyFoundationDerivedAggregates()` - fixture `inferredFormation`; Player aggregates (starts, ratings, etc.) from the graph.                                                            |
 | **`services/seedingOrchestrator.js`** | Calls `applyFoundationDerivedAggregates()` after relationships.                                                                                                                          |
 | **`config/schema.js`**                | `MatchDetail`: `started`, `playerOrder`, `matchRating`; `Fixture`: `inferredFormation`; `Player`: starter/rating aggregate fields per plan.                                              |
-| **Tests**                             | `services/matchDerivedFields.test.js` — `npm run test:match-derived`; Neo4j-backed integration: `scripts/test-foundation-derived-integration.js` — `npm run test:foundation-integration` |
+| **Tests**                             | `services/matchDerivedFields.test.js` - `npm run test:match-derived`; Neo4j-backed integration: `scripts/test-foundation-derived-integration.js` - `npm run test:foundation-integration` |
 
-### Foundation — Website (this repo)
+### Foundation - Website (this repo)
 
 | Area                 | Notes                                                                                                                                                                                                                                                                                                                                                                 |
 | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **APIs**             | `player-data`, `player-data-filtered` — starts, bench/start win rates, match-rating aggregates; `team-data-filtered` — `formationBreakdown`; `fixture-lineup` — `matchRating`, `started`, `playerOrder`; `top-players-stats` — `starts`, `avgMatchRating`, `matchesRated8Plus`; `player-season-games` — per-row `matchRating`, minutes, starter fields for All Games. |
-| **State / config**   | `lib/stores/navigation.ts` — `PlayerData` / `TeamData` extensions; `config/config.ts` — stat objects + `statsToDisplay` for starter/rating rows.                                                                                                                                                                                                                      |
-| **UI**               | `PlayerStats` — Key Performance (Starts, Avg Rtg), **Starting impact**, data table rows; `TeamStats` — Top Players stat types, **Formations used** chart; `AllGamesModal` — rating badges, season avg, lineup Rtg column; `PlayerDetailModal` (TOTW) — match rating line when present.                                                                                |
+| **APIs**             | `player-data`, `player-data-filtered` - starts, bench/start win rates, match-rating aggregates; `team-data-filtered` - `formationBreakdown`; `fixture-lineup` - `matchRating`, `started`, `playerOrder`; `top-players-stats` - `starts`, `avgMatchRating`, `matchesRated8Plus`; `player-season-games` - per-row `matchRating`, minutes, starter fields for All Games. |
+| **State / config**   | `lib/stores/navigation.ts` - `PlayerData` / `TeamData` extensions; `config/config.ts` - stat objects + `statsToDisplay` for starter/rating rows.                                                                                                                                                                                                                      |
+| **UI**               | `PlayerStats` - Key Performance (Starts, Avg Rtg), **Starting impact**, data table rows; `TeamStats` - Top Players stat types, **Formations used** chart; `AllGamesModal` - rating badges, season avg, lineup Rtg column; `PlayerDetailModal` (TOTW) - match rating line when present.                                                                                |
 | **`types/index.ts`** | Optional `matchRating` on `MatchDetail`.                                                                                                                                                                                                                                                                                                                              |
-| **Tests**            | Jest: `__tests__/unit/matchDerivedFields.test.ts` (loads sibling DB module), `__tests__/integration/top-players-stats.integration.test.ts`; Playwright: `__tests__/e2e/03-stats/stats.spec.ts` — `#starting-impact` in section sweep, test **3.19** for Starting impact / optional formations.                                                                        |
+| **Tests**            | Jest: `__tests__/unit/matchDerivedFields.test.ts` (loads sibling DB module), `__tests__/integration/top-players-stats.integration.test.ts`; Playwright: `__tests__/e2e/03-stats/stats.spec.ts` - `#starting-impact` in section sweep, test **3.19** for Starting impact / optional formations.                                                                        |
 
-### Derived analytics — Per-90 (partial)
+### Derived analytics - Per-90 (partial)
 
 | Area                                                         | Notes                                                                                                                                                                                       |
 | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -61,7 +61,7 @@
 | **UI**                                                       | `PlayerStats` data table includes per-90 rows and shows `Min. 360 mins` when below threshold; `TeamStats` top-player selector includes per-90 leaderboards.                                 |
 | **Tests**                                                    | Added integration coverage in `__tests__/integration/top-players-stats.integration.test.ts` for `goalsPer90`; existing foundation integration test remains green after aggregate extension. |
 
-### Derived analytics — Per-90 (complete)
+### Derived analytics - Per-90 (complete)
 
 | Area                       | Notes                                                                                                                                                                                                 |
 | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------- |
@@ -71,7 +71,7 @@
 | **Team Top Players**       | Added additional per-90 leaderboard options and formatting (goals/assists/GI/FTP/clean sheets/conceded/saves/cards/MoM per 90).                                                                       |
 | **Tests**                  | Added per-90 helper unit tests in `../database-dorkinians/services/matchDerivedFields.test.js`, integration checks for `goalsPer90` and `cleanSheetsPer90`, and a Playwright stats per-90 mode check. |
 
-### Derived analytics — Form curves
+### Derived analytics - Form curves
 
 | Area                                       | Notes                                                                                                                                                                                                                                                                         |
 | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -82,35 +82,35 @@
 | **Team Top Players**                       | Added `bestCurrentForm` stat option backed by `currentFormEwma`.                                                                                                                                                                                                              |
 | **Tests**                                  | Added targeted E2E check for Form section (`3.21`) and integration coverage for top players `bestCurrentForm`.                                                                                                                                                                |
 
-### Derived analytics — Streaks (Feature 5)
+### Derived analytics - Streaks (Feature 5)
 
 | Area                                       | Notes                                                                                                                                                                                                                                                                         |
 | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Data layer (`../database-dorkinians/`)** | `services/streakDetection.js` — `detectStreaks`, appearance streak vs primary-team fixtures, season-best (latest season in data) + all-time bests; `applyFoundationDerivedAggregates()` writes all `current*` / `seasonBest*` / `allTimeBest*` Player fields after form EWMA. |
+| **Data layer (`../database-dorkinians/`)** | `services/streakDetection.js` - `detectStreaks`, appearance streak vs primary-team fixtures, season-best (latest season in data) + all-time bests; `applyFoundationDerivedAggregates()` writes all `current*` / `seasonBest*` / `allTimeBest*` Player fields after form EWMA. |
 | **Schema**                                 | `TBL_Players.properties` extended per `NEW-FEATURES.md` Feature 5.                                                                                                                                                                                                            |
-| **Tests (DB)**                             | `npm run test:streak-detection` — unit tests on streak helpers; `scripts/test-foundation-derived-integration.js` asserts streak keys on Player after aggregates.                                                                                                              |
-| **Website API**                            | `player-data` / `player-data-filtered` RETURN + map streak fields from `p`; **`POST /api/player-streaks`** computes filter-scoped live streaks (same rules as foundation `streakDetection.js`); `GET /api/club-streaks-preview` — next fixture + squad streak highlights; `team-data-filtered` adds `streakLeaders` (single-XI) when `teamName !== "Whole Club"`.                                 |
-| **UI**                                     | `PlayerStats` — **Streaks** after Form (`#streaks-section`): live streak overlay + styled tile tooltips + full season/all-time columns for all cards; homepage `StreaksAtRiskBanner`; Team Stats `#team-streak-leaders` (longest active streaks for selected XI).                                                                                              |
+| **Tests (DB)**                             | `npm run test:streak-detection` - unit tests on streak helpers; `scripts/test-foundation-derived-integration.js` asserts streak keys on Player after aggregates.                                                                                                              |
+| **Website API**                            | `player-data` / `player-data-filtered` RETURN + map streak fields from `p`; **`POST /api/player-streaks`** computes filter-scoped live streaks (same rules as foundation `streakDetection.js`); `GET /api/club-streaks-preview` - next fixture + squad streak highlights; `team-data-filtered` adds `streakLeaders` (single-XI) when `teamName !== "Whole Club"`.                                 |
+| **UI**                                     | `PlayerStats` - **Streaks** after Form (`#streaks-section`): live streak overlay + styled tile tooltips + full season/all-time columns for all cards; homepage `StreaksAtRiskBanner`; Team Stats `#team-streak-leaders` (longest active streaks for selected XI).                                                                                              |
 | **Chatbot**                                | Streak metrics in `chatbotMetrics` / entity extraction / `mapStatTypeToKey`; `playerQueryBuilder` + `rankingQueryHandler` Player-node streak queries; single-value + ranking answers in `chatbotService`; integer formatting in `formattingUtils`.                            |
-| **Tests (site)**                           | Playwright `3.24` — streaks section visible; section id in desktop sweep list.                                                                                                                                                                                                |
+| **Tests (site)**                           | Playwright `3.24` - streaks section visible; section id in desktop sweep list.                                                                                                                                                                                                |
 
 ### Records wall (Feature 6)
 
 | Area                                       | Notes                                                                                                                                                                                                                                                                                                                           |
 | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Data layer (`../database-dorkinians/`)** | `config/schema.js` — `ClubRecord` node + constraint; `services/clubRecordsComputation.js` — individual + team records, 80% challenger flags (appearances, career goals, active scoring/appearance streaks); `relationshipManager.applyClubRecords()`; `seedingOrchestrator` runs it after `applyFoundationDerivedAggregates()`. |
-| **Tests (DB)**                             | `npm run test:club-records` — unit tests for slugify / team streak helper.                                                                                                                                                                                                                                                      |
+| **Data layer (`../database-dorkinians/`)** | `config/schema.js` - `ClubRecord` node + constraint; `services/clubRecordsComputation.js` - individual + team records, 80% challenger flags (appearances, career goals, active scoring/appearance streaks); `relationshipManager.applyClubRecords()`; `seedingOrchestrator` runs it after `applyFoundationDerivedAggregates()`. |
+| **Tests (DB)**                             | `npm run test:club-records` - unit tests for slugify / team streak helper.                                                                                                                                                                                                                                                      |
 | **Website**                                | `GET /api/club-records`; `components/club-info/RecordsSection.tsx` (initially under awards, moved in Feature 12 to Club Information above Milestones).                                                                                                                                                                          |
-| **Tests (site)**                           | Playwright `5.29`–`5.30` — Records section + optional holder → Player Stats navigation when data exists.                                                                                                                                                                                                                        |
+| **Tests (site)**                           | Playwright `5.29`–`5.30` - Records section + optional holder → Player Stats navigation when data exists.                                                                                                                                                                                                                        |
 
 ### Graph insights (Feature 7)
 
 | Area                                       | Notes                                                                                                                                                                                                                                                                                                                     |
 | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Data layer (`../database-dorkinians/`)** | `services/graphInsightsComputation.js` — partnership win rates (≥5 shared games), impact delta on `mostPlayedForTeam`; optional `gds.pageRank` + `gds.louvain` when `RETURN gds.version()` succeeds; `relationshipManager.applyGraphInsights()` after `applyClubRecords()`; `Player` schema fields per `NEW-FEATURES.md`. |
-| **Tests (DB)**                             | `npm run test:graph-insights` — adjacency / top-partner sorting helpers.                                                                                                                                                                                                                                                  |
+| **Data layer (`../database-dorkinians/`)** | `services/graphInsightsComputation.js` - partnership win rates (≥5 shared games), impact delta on `mostPlayedForTeam`; optional `gds.pageRank` + `gds.louvain` when `RETURN gds.version()` succeeds; `relationshipManager.applyGraphInsights()` after `applyClubRecords()`; `Player` schema fields per `NEW-FEATURES.md`. |
+| **Tests (DB)**                             | `npm run test:graph-insights` - adjacency / top-partner sorting helpers.                                                                                                                                                                                                                                                  |
 | **Website**                                | `player-data` + `player-data-filtered` return graph fields; Player Stats **Partnerships** (≥5 shared games, signed % delta vs baseline win rate) + **Impact** after Streaks; **Most Connected** UI/API removed (2026-03-31); data table rows (`PlayerGraph*` stats in `config.ts`); `GET /api/club-squad-backbone`; Club Stats **Squad backbone** (PageRank top 10, empty without GDS). See **`docs/Neo4j_Aura_GDS_Setup_Guide.md`** for Aura GDS enablement.                                          |
-| **Tests (site)**                           | Playwright `3.25` — headings for Partnerships / Impact; section ids in desktop sweep lists.                                                                                                                                                                                                                               |
+| **Tests (site)**                           | Playwright `3.25` - headings for Partnerships / Impact; section ids in desktop sweep lists.                                                                                                                                                                                                                               |
 | **GDS**                                    | PageRank / Louvain / squad rank skipped when `gds.version()` fails (e.g. Free tier or plugin off); logs `ℹ️ GRAPH_INSIGHTS: GDS not available`.                                                                                                                                                                           |
 
 **Deferred for later (owner):** **GDS is not set up yet** on your Neo4j Aura instance (Graph Analytics / Professional tier as per `NEW-FEATURES.md`). No action required for **7a/7b** (partnerships + impact). **Save for when you want 7c/7d:** enable GDS on Aura, then run a **full re-seed** so `squadInfluence`, `squadInfluenceRank`, `communityId`, and Club Stats **Squad backbone** populate.
@@ -119,10 +119,10 @@
 
 | Area       | Notes                                                                                                                                                                                |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Routes** | `app/wrapped/[playerSlug]/page.tsx` — Framer Motion slides, dots, share via `html-to-image`, WhatsApp copy block.                                                                    |
-| **API**    | `GET /api/wrapped/[playerSlug]` — optional `?season=`; slug = base64url of `playerName` (`lib/wrapped/slug.ts`).                                                                     |
-| **OG**     | `GET /api/wrapped/[playerSlug]/og/[slideNumber]` — `next/og` ImageResponse (slides 1–9).                                                                                             |
-| **Data**   | `lib/wrapped/computeWrappedData.ts` — season-scoped stats, club percentiles, best month, peak match, streaks (season-best fields on `Player`), partner fields, `classifyPlayerType`. |
+| **Routes** | `app/wrapped/[playerSlug]/page.tsx` - Framer Motion slides, dots, share via `html-to-image`, WhatsApp copy block.                                                                    |
+| **API**    | `GET /api/wrapped/[playerSlug]` - optional `?season=`; slug = base64url of `playerName` (`lib/wrapped/slug.ts`).                                                                     |
+| **OG**     | `GET /api/wrapped/[playerSlug]/og/[slideNumber]` - `next/og` ImageResponse (slides 1–9).                                                                                             |
+| **Data**   | `lib/wrapped/computeWrappedData.ts` - season-scoped stats, club percentiles, best month, peak match, streaks (season-best fields on `Player`), partner fields, `classifyPlayerType`. |
 | **Home**   | `SeasonWrappedBanner` after streaks banner; hide with `NEXT_PUBLIC_SEASON_WRAPPED_ACTIVE=false`.                                                                                     |
 | **Tests**  | Jest: `__tests__/unit/wrapped/*`, `wrapped-api.integration.test.ts`; Playwright: `__tests__/e2e/10-wrapped/wrapped.spec.ts`.                                                         |
 
@@ -132,9 +132,9 @@
 
 | Area                                       | Notes                                                                                                                                                                                                                                                                                                                                                                                                      |
 | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Data layer (`../database-dorkinians/`)** | `config/schema.js` — `PlayerBadge`, `HAS_BADGE`, extra `Player` fields; `services/badgeDefinitions.js`, `badgeComputation.js`, `playerBadgesComputation.js`; `relationshipManager.applyPlayerBadges()`; `seedingOrchestrator` runs it after `applyGraphInsights()`.                                                                                                                                        |
-| **Tests (DB)**                             | `npm run test:badges` — `services/badgeComputation.test.js`.                                                                                                                                                                                                                                                                                                                                               |
-| **Website**                                | `GET /api/player-badges?playerName=` — earned badges + progress; `GET /api/club-badge-leaderboard` — most badges / diamond / gold; `lib/badges/catalog.ts` (keep in sync with DB catalogue), `evaluate.ts`, `neo4jProps.ts`; `PlayerStats` — badge bar (`data-testid="player-badge-bar"`); milestone grid now lives on Player Profile (Feature 10); `BadgeLeaderboardSection` on Club Captains and Awards. |
+| **Data layer (`../database-dorkinians/`)** | `config/schema.js` - `PlayerBadge`, `HAS_BADGE`, extra `Player` fields; `services/badgeDefinitions.js`, `badgeComputation.js`, `playerBadgesComputation.js`; `relationshipManager.applyPlayerBadges()`; `seedingOrchestrator` runs it after `applyGraphInsights()`.                                                                                                                                        |
+| **Tests (DB)**                             | `npm run test:badges` - `services/badgeComputation.test.js`.                                                                                                                                                                                                                                                                                                                                               |
+| **Website**                                | `GET /api/player-badges?playerName=` - earned badges + progress; `GET /api/club-badge-leaderboard` - most badges / diamond / gold; `lib/badges/catalog.ts` (keep in sync with DB catalogue), `evaluate.ts`, `neo4jProps.ts`; `PlayerStats` - badge bar (`data-testid="player-badge-bar"`); milestone grid now lives on Player Profile (Feature 10); `BadgeLeaderboardSection` on Club Captains and Awards. |
 | **Tests (site)**                           | Jest: `__tests__/unit/badges/parseBadgeId.test.ts`; Playwright: `5.31` (club badge leaderboard), `3.26` (player milestones, skips until seed).                                                                                                                                                                                                                                                             |
 
 ### Player Profile + Captaincies link (Feature 10)
@@ -178,7 +178,7 @@
 
 **Follow-up (spec change, not implemented):** Show profile icon on **all** main app pages when a player is selected (not only `currentMainPage === "home"`); slightly reduce spacing between header/sidebar header icons. See **`NEW-FEATURES.md` Feature 13** amendment.
 
-### Feature 14 — Most Connected (retired 2026-03-31)
+### Feature 14 - Most Connected (retired 2026-03-31)
 
 | Area        | Notes                                                                                                                                                                                                 |
 | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -189,10 +189,10 @@
 
 | Area           | Notes                                                                                                                                                                                                 |
 | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Streaks**    | `POST /api/player-streaks` + `lib/stats/playerStreaksComputation.ts` — filter-scoped streaks; Player Stats merges live payload; tile tooltips styled (no native `title`).                              |
+| **Streaks**    | `POST /api/player-streaks` + `lib/stats/playerStreaksComputation.ts` - filter-scoped streaks; Player Stats merges live payload; tile tooltips styled (no native `title`).                              |
 | **Partnerships** | Cypher + UI require **≥5** shared games; delta copy `±X.X% vs your win rate` with negatives in red; info tooltip with exact spec copy.                                                            |
-| **Chatbot**    | **`STARTS`** metric: `entityExtraction`, `enhancedQuestionAnalysis.mapStatTypeToKey`, `chatbotMetrics`, `playerQueryBuilder` node + match-detail return clauses — supports “How many times have I started?”. |
-| **Docs**       | **`docs/Neo4j_Aura_GDS_Setup_Guide.md`** — Aura GDS enablement, verification, reseed, troubleshooting. Linked from `FEATURE-IMPLEMENTATION-REPORT.md` and this file.                                  |
+| **Chatbot**    | **`STARTS`** metric: `entityExtraction`, `enhancedQuestionAnalysis.mapStatTypeToKey`, `chatbotMetrics`, `playerQueryBuilder` node + match-detail return clauses - supports “How many times have I started?”. |
+| **Docs**       | **`docs/Neo4j_Aura_GDS_Setup_Guide.md`** - Aura GDS enablement, verification, reseed, troubleshooting. Linked from `FEATURE-IMPLEMENTATION-REPORT.md` and this file.                                  |
 
 ### TOTW previous 10 weeks strip (Feature 15)
 
@@ -241,7 +241,7 @@
 
 ### Optional foundation gap (non-blocking)
 
-- ~~**Chatbot** “how many times have I started?”~~ — **Done (2026-03-31)** via `STARTS` metric wiring.
+- ~~**Chatbot** “how many times have I started?”~~ - **Done (2026-03-31)** via `STARTS` metric wiring.
 
 ---
 
@@ -251,11 +251,11 @@
 
 - **Feature 2:** ✅ Completed.
 - **Feature 3:** ✅ Chatbot: `FORM_CURRENT` metric, ranking (best/worst form), single-player current form + baseline/trend; Player Stats form chart: golden cross caption + info tooltip.
-- **Feature 4 (automated match ratings):** ✅ Done in foundation — `calculateMatchRating` / `matchRating` on MatchDetail and aggregates surfaced on the site (see Completed sections above).
+- **Feature 4 (automated match ratings):** ✅ Done in foundation - `calculateMatchRating` / `matchRating` on MatchDetail and aggregates surfaced on the site (see Completed sections above).
 
 ### Records & graph
 
-- **Feature 7:** ✅ Initial delivery (7a/7b in use after re-seed). **7c/7d (GDS):** code paths exist; **Aura GDS not configured yet** — treat as a later infra task (see Completed → Graph insights). **Chatbot** questions for partners / impact / connectivity not done yet (spec lists them).
+- **Feature 7:** ✅ Initial delivery (7a/7b in use after re-seed). **7c/7d (GDS):** code paths exist; **Aura GDS not configured yet** - treat as a later infra task (see Completed → Graph insights). **Chatbot** questions for partners / impact / connectivity not done yet (spec lists them).
 
 ### Badges
 
@@ -265,24 +265,24 @@
 
 Spec source: **`NEW-FEATURES.md` Phase 6 (Features 10-19, plus Feature 20 UX polish)** (migrated from `New-Features-2.md`). Implement in order there; each item below lists **required tests** to add or extend when building.
 
-**CI / merge policy (Feature 17):** Gate merges to **`main`** on **≥ 90% automated test pass rate** in CI (`passed / (passed + failed)`, excluding skipped — align with workflow definition in repo). Dev pipeline: run **E2E on push to Dev** as specified in Phase 6.
+**CI / merge policy (Feature 17):** Gate merges to **`main`** on **≥ 90% automated test pass rate** in CI (`passed / (passed + failed)`, excluding skipped - align with workflow definition in repo). Dev pipeline: run **E2E on push to Dev** as specified in Phase 6.
 
 | Feature                                      | Summary                                                                                                                                                 | Tests to add or update                                                                                                                               |
 | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **10** — Player Profile + Captaincies link   | ✅ Website first cut done: profile route + section order + stats link migration                                                                         | **Superseded UX backlog:** see **Phase 6 UX polish** rows 2 and 4; add/confirm integration coverage if dedicated profile API is introduced later   |
-| **11** — Club Captains and Awards            | ✅ Website first cut done: merged page + single nav entry + legacy subpage-state mapping                                                                | Follow-up: run full Club Info Playwright flow against seeded env and decide if route-level redirects are required in any future URL-based routing    |
-| **12** — Records on Club Information         | ✅ Website first cut done: Records moved to Club Information above Milestones; removed from merged captains/awards page                                 | Follow-up: run full Club Info Playwright suite on seeded env to convert remaining data-dependent skips into hard assertions where possible           |
-| **13** — Home header profile icon            | ✅ Website first cut done: profile icon shown on Home when player selected, left of settings, routes to selected player profile                         | **Superseded UX backlog:** see **Phase 6 UX polish** row 7; optional polish for icon treatment consistency between mobile header and desktop sidebar   |
-| **14** — Most Connected                      | **Retired (2026-03-31):** section/API/tests removed; use **Partnerships** for co-appearance context                                                  | —                                                                                                                                                    |
-| **15** — TOTW previous 10 weeks              | ✅ Website first cut done: previous-week score strip under TOTW pitch with week-label boxes and click navigation to that week                           | Follow-up: add seeded-env assertion for exact 10 boxes + exact score values for deterministic regression checks                                      |
-| **16** — TOTW Share                          | ✅ Website first cut done: TOTW share button added with native share (when supported) and download fallback PNG                                         | Follow-up: optional utility extraction + unit tests for TOTW share filename/metadata constants if/when shared across views                           |
-| **17** — Dev branding + CI                   | ✅ Website/devops first cut done: dev icon + homepage Dev badge + develop push E2E + main PR pass-rate gate script/workflow                             | Follow-up: optionally tighten gate to parse test-level pass metrics (not suite-level summary) once unified machine-readable reports are standardized |
-| **18** — VEO LINK on fixtures                | ✅ Website + DB first cut done: schema/import path persists `Fixture.veoLink`, and website fixture APIs return normalized `veoLink`                     | Follow-up: run full production seeding job and spot-check real fixture pages with populated Veo links across multiple teams/seasons                  |
-| **19** — League Latest Result + modal parity | ✅ Website first cut done: per-team Latest Result cards + shared formation/rating details + modal parity with full-details toggle and optional Veo link | Follow-up: add deterministic seeded assertions for tooltip line content and exact formation/player ordering across desktop/mobile snapshots          |
+| **10** - Player Profile + Captaincies link   | ✅ Website first cut done: profile route + section order + stats link migration                                                                         | **Superseded UX backlog:** see **Phase 6 UX polish** rows 2 and 4; add/confirm integration coverage if dedicated profile API is introduced later   |
+| **11** - Club Captains and Awards            | ✅ Website first cut done: merged page + single nav entry + legacy subpage-state mapping                                                                | Follow-up: run full Club Info Playwright flow against seeded env and decide if route-level redirects are required in any future URL-based routing    |
+| **12** - Records on Club Information         | ✅ Website first cut done: Records moved to Club Information above Milestones; removed from merged captains/awards page                                 | Follow-up: run full Club Info Playwright suite on seeded env to convert remaining data-dependent skips into hard assertions where possible           |
+| **13** - Home header profile icon            | ✅ Website first cut done: profile icon shown on Home when player selected, left of settings, routes to selected player profile                         | **Superseded UX backlog:** see **Phase 6 UX polish** row 7; optional polish for icon treatment consistency between mobile header and desktop sidebar   |
+| **14** - Most Connected                      | **Retired (2026-03-31):** section/API/tests removed; use **Partnerships** for co-appearance context                                                  | -                                                                                                                                                    |
+| **15** - TOTW previous 10 weeks              | ✅ Website first cut done: previous-week score strip under TOTW pitch with week-label boxes and click navigation to that week                           | Follow-up: add seeded-env assertion for exact 10 boxes + exact score values for deterministic regression checks                                      |
+| **16** - TOTW Share                          | ✅ Website first cut done: TOTW share button added with native share (when supported) and download fallback PNG                                         | Follow-up: optional utility extraction + unit tests for TOTW share filename/metadata constants if/when shared across views                           |
+| **17** - Dev branding + CI                   | ✅ Website/devops first cut done: dev icon + homepage Dev badge + develop push E2E + main PR pass-rate gate script/workflow                             | Follow-up: optionally tighten gate to parse test-level pass metrics (not suite-level summary) once unified machine-readable reports are standardized |
+| **18** - VEO LINK on fixtures                | ✅ Website + DB first cut done: schema/import path persists `Fixture.veoLink`, and website fixture APIs return normalized `veoLink`                     | Follow-up: run full production seeding job and spot-check real fixture pages with populated Veo links across multiple teams/seasons                  |
+| **19** - League Latest Result + modal parity | ✅ Website first cut done: per-team Latest Result cards + shared formation/rating details + modal parity with full-details toggle and optional Veo link | Follow-up: add deterministic seeded assertions for tooltip line content and exact formation/player ordering across desktop/mobile snapshots          |
 
 ### Phase 6 UX polish (in progress)
 
-Spec source: **`NEW-FEATURES.md`** — amended Feature 8 / 10 / 13 plus **Feature 20: Navigation and Player Stats polish**. Rows **1–4** implemented as of 2026-03-30; use this checklist for remaining items.
+Spec source: **`NEW-FEATURES.md`** - amended Feature 8 / 10 / 13 plus **Feature 20: Navigation and Player Stats polish**. Rows **1–4** implemented as of 2026-03-30; use this checklist for remaining items.
 
 | # | Item | Status | Tests to add or update |
 |---|------|--------|-------------------------|
@@ -296,7 +296,7 @@ Spec source: **`NEW-FEATURES.md`** — amended Feature 8 / 10 / 13 plus **Featur
 
 ### Phase 7 UX polish Round 3 _(in progress)_
 
-Spec source: **`NEW-FEATURES.md` → Phase 7** (detail in repo plan **Phase 7 — UX polish and navigation parity**). Mark rows **✅** when shipped.
+Spec source: **`NEW-FEATURES.md` → Phase 7** (detail in repo plan **Phase 7 - UX polish and navigation parity**). Mark rows **✅** when shipped.
 
 | Phase | Item (summary) | Status |
 | ----- | ---------------- | ------ |
@@ -311,9 +311,21 @@ Spec source: **`NEW-FEATURES.md` → Phase 7** (detail in repo plan **Phase 7 �
 | **I** | Captains/Awards click-only modals; modal max-width | ✅ |
 | **J** | TOTW/POTM skeleton, dropdown width, week scores font; mobile share spacing | ✅ |
 
+### Phase 9 - Season Wrapped + Profile milestones _(shipped 2026-04-01)_
+
+| Item | Notes |
+| ---- | ----- |
+| Wrapped autoplay | 15s per slide, bottom-center timer bar; stops on final slide; manual nav resets timer |
+| Wrapped share | Single **Share** opens modal: **Share season wrapped** (URL + OG overview image via page metadata), **Share this slide** (PNG + WhatsApp-style text), **Close**; removed visible WhatsApp copy block |
+| Wrapped swipe | One slide per gesture (same as Back/Next) |
+| Wrapped data | Overview: minutes, starts, most-played position; best month: apps + FTP; peak match: result + scoreline; teammate: season-scoped partner; team season: no long explanatory bullets; league table row snapshot |
+| Player types | Expanded rules in `lib/wrapped/classifyPlayerType.ts` (+ FTP/distance percentiles from wrapped cohort) |
+| Profile | No skeleton inside Season Wrapped promo card; milestone tooltips use centered modal on small viewports; tooltip copy is multi-line spec; extra bottom padding when past-season wrapped footer absent |
+| Tests | Wrapped E2E + unit/integration updates |
+
 ### Phase 8 UX polish Round 4 _(shipped 2026-03-31)_
 
-Spec source: **`NEW-FEATURES.md` → Phase 8** (detail in workspace plan **Phase 8 — UX polish**).
+Spec source: **`NEW-FEATURES.md` → Phase 8** (detail in workspace plan **Phase 8 - UX polish**).
 
 | Item | Status |
 | ---- | ------ |

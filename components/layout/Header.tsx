@@ -34,7 +34,7 @@ export default function Header({
 	const [showMenuTooltip, setShowMenuTooltip] = useState(false);
 	const [showFilterTooltip, setShowFilterTooltip] = useState(false);
 	const [showProfileTooltip, setShowProfileTooltip] = useState(false);
-	/** Intro pulse finished or skipped (persisted) — avoids repeating pulse every Stats visit. */
+	/** Intro pulse finished or skipped (persisted) - avoids repeating pulse every Stats visit. */
 	const [menuIntroPulseDone, setMenuIntroPulseDone] = useState(false);
 	const [profileIntroPulse, setProfileIntroPulse] = useState(false);
 	const [isMobile, setIsMobile] = useState(false);

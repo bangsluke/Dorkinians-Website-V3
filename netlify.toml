@@ -8,7 +8,7 @@
 # (e.g. main). Base directory: leave empty when this repository root is the Next app.
 # Optional custom domain: Domain management → add e.g. develop.<your-domain> and set DNS per Netlify.
 # Secrets / API URLs that differ on develop: set in Netlify → Environment variables and scope to
-# Branch deploys (or this branch)—do not commit secrets to this file.
+# Branch deploys (or this branch)-do not commit secrets to this file.
 
 [context.develop.environment]
   NEXT_PUBLIC_SITE_VARIANT = "develop"

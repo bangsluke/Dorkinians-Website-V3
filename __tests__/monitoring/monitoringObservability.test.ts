@@ -10,7 +10,7 @@ jest.mock("@/lib/neo4j", () => ({
 }));
 
 // Observability contract: after a mocked-DB question, processing details include analysis and query breakdown keys.
-// ChatbotService runs with Neo4j jest mock—telemetry is local only. Useful when refactoring diagnostics surfaces.
+// ChatbotService runs with Neo4j jest mock-telemetry is local only. Useful when refactoring diagnostics surfaces.
 
 describe("Monitoring and Observability contracts", () => {
 	test("processing details expose expected monitoring fields", async () => {

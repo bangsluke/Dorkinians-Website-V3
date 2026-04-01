@@ -9,7 +9,7 @@ on:
   branches:
    - main
  schedule:
-  # Tuesday 02:17 UTC — weekly full suite (same as test:all on main)
+  # Tuesday 02:17 UTC - weekly full suite (same as test:all on main)
   - cron: "17 2 * * 2"
  workflow_dispatch:
 

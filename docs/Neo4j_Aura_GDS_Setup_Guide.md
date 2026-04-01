@@ -3,7 +3,7 @@
 This guide is for operators who need **Graph Analytics / GDS** on **Neo4j Aura** so Dorkinians features that depend on graph algorithms (e.g. **Squad Backbone**, PageRank / Louvain–backed fields on `Player`) can populate after seeding.
 
 **Scope:** AuraDB instance used by `database-dorkinians` and `V3-Dorkinians-Website`.  
-**Out of scope:** Editing `.env` or committing secrets—use your secret manager / Netlify env UI locally.
+**Out of scope:** Editing `.env` or committing secrets-use your secret manager / Netlify env UI locally.
 
 ---
 
@@ -18,7 +18,7 @@ This guide is for operators who need **Graph Analytics / GDS** on **Neo4j Aura**
 ## 2. Create or upgrade the Aura instance
 
 1. In [Neo4j Aura](https://neo4j.com/cloud/aura/), create an **AuraDB** instance (or open an existing one).
-2. Confirm **Graph Analytics** (GDS) is **enabled** for that instance (Aura UI typically shows this under instance capabilities / add-ons). If the toggle is missing, the tier may not support GDS—upgrade or create a Professional instance.
+2. Confirm **Graph Analytics** (GDS) is **enabled** for that instance (Aura UI typically shows this under instance capabilities / add-ons). If the toggle is missing, the tier may not support GDS-upgrade or create a Professional instance.
 3. Note the **Neo4j URI** (`neo4j+s://....databases.neo4j.io`), **username** (often `neo4j`), and **password** (generate and store securely).
 
 ---
@@ -57,7 +57,7 @@ Graph insight features (`graphInsightsComputation.js`, GDS-backed ranks) expect 
 
 1. Pull latest `database-dorkinians` and `V3-Dorkinians-Website`.
 2. Run your normal **full seed** / foundation pipeline (orchestrator that ends with `applyFoundationDerivedAggregates` and graph insight steps). Typical order is documented in `NEW-FEATURES.md` / `IMPLEMENTATION-STATUS.md` under **Feature 7** and foundation sections.
-3. Confirm `Player` nodes have expected graph fields (e.g. `squadInfluence`, `squadInfluenceRank`, `communityId` when Louvain is used)—either in Browser or via a small `MATCH (p:Player) RETURN p LIMIT 1` inspection.
+3. Confirm `Player` nodes have expected graph fields (e.g. `squadInfluence`, `squadInfluenceRank`, `communityId` when Louvain is used)-either in Browser or via a small `MATCH (p:Player) RETURN p LIMIT 1` inspection.
 
 ---
 
@@ -88,4 +88,4 @@ Graph insight features (`graphInsightsComputation.js`, GDS-backed ranks) expect 
 
 ---
 
-*Last updated: 2026-03-31 — align with your Aura console if Neo4j renames “Graph Analytics” or GDS entry points.*
+*Last updated: 2026-03-31 - align with your Aura console if Neo4j renames “Graph Analytics” or GDS entry points.*

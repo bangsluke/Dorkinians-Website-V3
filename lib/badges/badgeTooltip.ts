@@ -14,7 +14,7 @@ type Progress = {
 
 /** Stable display for badge metrics (avoids float junk like 0.09000000000000001). */
 export function formatBadgeNumber(n: number): string {
-	if (!Number.isFinite(n)) return "—";
+	if (!Number.isFinite(n)) return "-";
 	const nearInt = Math.abs(n - Math.round(n)) < 1e-6;
 	if (nearInt) return String(Math.round(n));
 	const rounded = Math.round(n * 10000) / 10000;
@@ -23,31 +23,102 @@ export function formatBadgeNumber(n: number): string {
 	return s || "0";
 }
 
+export type MilestoneTooltipContext = {
+	/** Count of club players who have earned this milestone at any tier (optional). */
+	achieverCountAnyTier?: number;
+	/** Count at the same tier as the current player (when earned). */
+	tierPeerCount?: number;
+	/** Player with the highest raw stat for this milestone’s measure. */
+	leader?: { playerName: string; value: number } | null;
+	/** Current player’s evaluated stat for this milestone (from API). */
+	currentStatValue?: number;
+};
+
+export type MilestoneTooltipLines = {
+	titleLine: string;
+	descriptionLine: string;
+	currentLine: string;
+	nextLine: string;
+	peersLine: string;
+	leaderLine: string;
+};
+
 /**
- * Accessible title/tooltip copy for milestone cells: what it measures, current value, progress to next tier.
+ * Six-line milestone tooltip layout for profile grid / modal.
  */
+export function buildMilestoneTooltipLines(
+	def: BadgeDefinition,
+	got: EarnedRow | undefined,
+	prog: Progress | undefined,
+	ctx: MilestoneTooltipContext = {},
+): MilestoneTooltipLines {
+	const titleLine = def.name;
+	const descriptionLine = def.description;
+
+	const rawVal =
+		ctx.currentStatValue != null && Number.isFinite(ctx.currentStatValue)
+			? ctx.currentStatValue
+			: prog?.currentValue;
+	const valueStr = rawVal != null && Number.isFinite(rawVal) ? formatBadgeNumber(rawVal) : "-";
+
+	let currentLine: string;
+	if (got) {
+		currentLine = `Earned ${got.tier}: ${got.description}. Current value: ${valueStr}.`;
+	} else if (prog) {
+		currentLine = `Current value: ${valueStr}.`;
+	} else {
+		currentLine = "Current value: -.";
+	}
+
+	let nextLine: string;
+	if (prog && prog.remaining > 0) {
+		nextLine = `Next tier: ${prog.nextTier} at ${formatBadgeNumber(prog.targetValue)} - ${formatBadgeNumber(prog.remaining)} to go.`;
+	} else if (got) {
+		nextLine = "Next tier: You’re at the highest tier for this milestone.";
+	} else {
+		nextLine = "Next tier: Keep playing to unlock progress.";
+	}
+
+	let peersLine: string;
+	if (got && typeof ctx.tierPeerCount === "number" && Number.isFinite(ctx.tierPeerCount)) {
+		peersLine = `${formatBadgeNumber(ctx.tierPeerCount)} club player${ctx.tierPeerCount === 1 ? "" : "s"} ${ctx.tierPeerCount === 1 ? "is" : "are"} at the same tier (${got.tier}) for this milestone.`;
+	} else if (typeof ctx.achieverCountAnyTier === "number" && Number.isFinite(ctx.achieverCountAnyTier)) {
+		peersLine = `${formatBadgeNumber(ctx.achieverCountAnyTier)} club player${ctx.achieverCountAnyTier === 1 ? "" : "s"} have earned this milestone (any tier).`;
+	} else {
+		peersLine = "Club milestone counts aren’t available.";
+	}
+
+	let leaderLine: string;
+	if (ctx.leader && ctx.leader.playerName.trim() !== "") {
+		leaderLine = `Club leader: ${ctx.leader.playerName} (${formatBadgeNumber(ctx.leader.value)}).`;
+	} else {
+		leaderLine = "Club leader: -";
+	}
+
+	return {
+		titleLine,
+		descriptionLine,
+		currentLine,
+		nextLine,
+		peersLine,
+		leaderLine,
+	};
+}
+
+/** Single string for aria-label / simple hover (newline-separated). */
 export function buildMilestoneBadgeTooltip(
 	def: BadgeDefinition,
 	got: EarnedRow | undefined,
 	prog: Progress | undefined,
-	achieverCount?: number,
+	ctx: MilestoneTooltipContext = {},
 ): string {
-	const achieverText =
-		typeof achieverCount === "number" && Number.isFinite(achieverCount)
-			? ` Achieved by ${formatBadgeNumber(achieverCount)} club player${achieverCount === 1 ? "" : "s"}.`
-			: "";
-	const measure = def.description;
-	if (got && prog && prog.remaining > 0) {
-		return `${measure} Earned ${got.tier} (${got.description}). Current value ${formatBadgeNumber(prog.currentValue)}. Next tier: ${prog.nextTier} at ${formatBadgeNumber(prog.targetValue)} — ${formatBadgeNumber(prog.remaining)} to go.${achieverText}`;
-	}
-	if (got) {
-		return `${measure} Earned ${got.tier}: ${got.description}. Highest tier achieved.${achieverText}`;
-	}
-	if (prog && prog.remaining > 0) {
-		return `${measure} Current value: ${formatBadgeNumber(prog.currentValue)}. Next: ${prog.nextTier} (target ${formatBadgeNumber(prog.targetValue)}). ${formatBadgeNumber(prog.remaining)} to go.${achieverText}`;
-	}
-	if (prog) {
-		return `${measure} Current value: ${formatBadgeNumber(prog.currentValue)}.${achieverText}`;
-	}
-	return `${measure} Highest tier achieved.${achieverText}`;
+	const lines = buildMilestoneTooltipLines(def, got, prog, ctx);
+	return [
+		lines.titleLine,
+		lines.descriptionLine,
+		lines.currentLine,
+		lines.nextLine,
+		lines.peersLine,
+		lines.leaderLine,
+	].join("\n");
 }

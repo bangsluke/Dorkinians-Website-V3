@@ -301,7 +301,7 @@ export default function PlayerRecentFormBoxes({ matchesNewestFirst }: Props) {
 							<div className='font-semibold mb-1 text-center'>{active.opposition || "Unknown"}</div>
 							<div className='text-[11px] text-white/80 mb-1 text-center'>{formatDate(active.date)}</div>
 							<div className='text-[11px] text-white/80 mb-2 text-center'>
-								{active.homeOrAway} · {active.compType || "—"} · {active.result} · {active.goalsScored}-{active.goalsConceded}
+								{active.homeOrAway} · {active.compType || "-"} · {active.result} · {active.goalsScored}-{active.goalsConceded}
 							</div>
 							<div className='text-[11px] text-dorkinians-yellow/90 mb-1 font-medium'>Match rating breakdown</div>
 							<ul className='text-[10px] text-white/85 space-y-0.5 font-mono'>

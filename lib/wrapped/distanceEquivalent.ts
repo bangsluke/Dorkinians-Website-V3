@@ -19,5 +19,5 @@ export function distanceMilesToEquivalent(totalMiles: number): string {
 			bestDiff = d;
 		}
 	}
-	return `About the same as ${best.label} (~${best.miles} mi) — you logged ${m} mi`;
+	return `About the same as ${best.label} (~${best.miles} mi) - you logged ${m} mi`;
 }

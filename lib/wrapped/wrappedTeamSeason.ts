@@ -1,5 +1,9 @@
 import { neo4jService } from "@/lib/neo4j";
-import { getSeasonDataFromJSON, normalizeSeasonFormat } from "@/lib/services/leagueTableService";
+import {
+	getSeasonDataFromJSON,
+	normalizeSeasonFormat,
+	type LeagueTableEntry,
+} from "@/lib/services/leagueTableService";
 
 /** Map fixture `f.team` labels to `LeagueTable.teamName` keys (`1s`…`8s`). */
 export function fixtureDisplayTeamToLeagueTableKey(team: string): string {
@@ -100,4 +104,21 @@ export async function fetchDorkiniansLeagueFinishForTeamSeason(options: {
 		return { position: null, division };
 	}
 	return { position: dorkiniansEntry.position, division };
+}
+
+/** Full league-table row for Dorkinians in the given XI's league file (JSON), when available. */
+export async function fetchDorkiniansLeagueTableRowForTeamSeason(options: {
+	seasonNorm: string;
+	leagueTableTeamKey: string;
+}): Promise<LeagueTableEntry | null> {
+	const { seasonNorm, leagueTableTeamKey } = options;
+	if (!leagueTableTeamKey) return null;
+	const hyphenFileSeason = normalizeSeasonFormat(seasonNorm, "hyphen");
+	const seasonData = await getSeasonDataFromJSON(hyphenFileSeason);
+	if (!seasonData?.teams?.[leagueTableTeamKey]?.table?.length) {
+		return null;
+	}
+	const teamData = seasonData.teams[leagueTableTeamKey];
+	const dorkiniansEntry = teamData.table.find((entry) => entry.team.toLowerCase().includes("dorkinians"));
+	return dorkiniansEntry ?? null;
 }

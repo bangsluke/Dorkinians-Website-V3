@@ -1,5 +1,5 @@
 // Unit tests for pwaUpdateService with jest.resetModules and synthetic window/navigator/serviceWorker globals.
-// Mocks fetch and service worker registration shapes only—no real SW lifecycle or network. Each test re-imports the module after env setup.
+// Mocks fetch and service worker registration shapes only-no real SW lifecycle or network. Each test re-imports the module after env setup.
 // Isolated globals per test; ordering matters because module state is reloaded when imports run.
 
 describe("Unit - pwaUpdateService", () => {

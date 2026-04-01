@@ -19,5 +19,5 @@ export function summarizeSeedingTriggerError(
 	if (parts.length === 0) {
 		return null;
 	}
-	return [...new Set(parts)].join(" — ");
+	return [...new Set(parts)].join(" - ");
 }

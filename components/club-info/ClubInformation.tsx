@@ -346,7 +346,7 @@ export default function ClubInformation() {
 				)}
 					</div>
 
-					{/* Milestones Section — left column below Club Achievements */}
+					{/* Milestones Section - left column below Club Achievements */}
 					<div>
 				<h3 className='text-lg md:text-xl font-bold text-dorkinians-yellow mb-4'>Milestones</h3>
 				

@@ -1669,7 +1669,7 @@ export default function TeamStats() {
 														} else if (selectedStatType === "distance") {
 															formattedStatValue = (Math.round(statValue * 10) / 10).toFixed(1);
 														} else if (selectedStatType === "avgMatchRating") {
-															formattedStatValue = player.averageMatchRating != null ? player.averageMatchRating.toFixed(1) : "—";
+															formattedStatValue = player.averageMatchRating != null ? player.averageMatchRating.toFixed(1) : "-";
 														} else if (["goalsPer90", "assistsPer90", "goalInvolvementsPer90", "ftpPer90", "cleanSheetsPer90", "concededPer90", "savesPer90", "cardsPer90", "momPer90"].includes(selectedStatType)) {
 															const per90Value =
 																selectedStatType === "goalsPer90" ? player.goalsPer90 :
@@ -1681,9 +1681,9 @@ export default function TeamStats() {
 																selectedStatType === "savesPer90" ? player.savesPer90 :
 																selectedStatType === "cardsPer90" ? player.cardsPer90 :
 																player.momPer90;
-															formattedStatValue = per90Value != null ? per90Value.toFixed(2) : "—";
+															formattedStatValue = per90Value != null ? per90Value.toFixed(2) : "-";
 														} else if (selectedStatType === "bestCurrentForm") {
-															formattedStatValue = player.currentFormEwma != null ? player.currentFormEwma.toFixed(1) : "—";
+															formattedStatValue = player.currentFormEwma != null ? player.currentFormEwma.toFixed(1) : "-";
 														} else {
 															formattedStatValue = statValue;
 														}
@@ -1891,13 +1891,13 @@ export default function TeamStats() {
 												>
 													<p className='font-semibold text-dorkinians-yellow'>Suggested setup</p>
 													<p className='mt-1'>
-														<strong>{formationRecommendation.formation}</strong> — best win rate in this sample (
+														<strong>{formationRecommendation.formation}</strong> - best win rate in this sample (
 														{formationRecommendation.winPercentage.toFixed(1)}% over {formationRecommendation.games} game
 														{formationRecommendation.games === 1 ? "" : "s"}, {formationRecommendation.wins} win
 														{formationRecommendation.wins === 1 ? "" : "s"}).
 													</p>
 													{formationRecommendation.lowSample ? (
-														<p className='mt-1 text-white/70'>Low sample size — treat as a hint, not a rule.</p>
+														<p className='mt-1 text-white/70'>Low sample size - treat as a hint, not a rule.</p>
 													) : null}
 												</div>
 											) : null}

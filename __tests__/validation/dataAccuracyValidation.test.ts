@@ -1,7 +1,7 @@
 import { ChatbotService } from "../../lib/services/chatbotService";
 
 // Lightweight contract that mocked repeated answers keep the same numeric token extraction path stable.
-// processQuestion is spied per test—no Neo4j or network. Validates regex parsing consistency, not live stats.
+// processQuestion is spied per test-no Neo4j or network. Validates regex parsing consistency, not live stats.
 // Trivial loop; failures point to answer formatting or mock drift.
 
 describe("Data Accuracy Validation contracts", () => {

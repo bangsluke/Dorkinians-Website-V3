@@ -878,7 +878,7 @@ export default function ClubStats() {
 		fetchUniqueStats();
 	}, [playerFilters, hasUnsavedFilters, isFilterSidebarOpen]);
 
-	// Club recordings (Veo) — whole club + filters; team column when no explicit team filter
+	// Club recordings (Veo) - whole club + filters; team column when no explicit team filter
 	useEffect(() => {
 		if (!playerFilters) {
 			setClubRecordings([]);
@@ -2006,7 +2006,7 @@ export default function ClubStats() {
 												</SkeletonTheme>
 											) : squadBackbone.length === 0 ? (
 												<p className='text-white/60 text-xs'>
-													No backbone ranking for this filter set yet — try including more seasons or teams, or check back after fixtures are loaded.
+													No backbone ranking for this filter set yet - try including more seasons or teams, or check back after fixtures are loaded.
 												</p>
 											) : (
 												<ol className='list-decimal list-inside space-y-2 text-white text-xs md:text-sm'>
@@ -2027,7 +2027,7 @@ export default function ClubStats() {
 																{row.playerName}
 															</button>
 															<span className='text-white/50 text-[11px] ml-2'>
-																rank {row.squadInfluenceRank ?? "—"}
+																rank {row.squadInfluenceRank ?? "-"}
 																{row.squadInfluence != null
 																	? ` · ${row.squadInfluence < 0.0001 ? row.squadInfluence.toExponential(2) : row.squadInfluence.toFixed(4)}`
 																	: ""}

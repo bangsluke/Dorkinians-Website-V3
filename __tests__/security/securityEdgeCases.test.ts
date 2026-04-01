@@ -9,7 +9,7 @@ jest.mock("@/lib/neo4j", () => ({
 	},
 }));
 
-// Feeds suspicious strings into ChatbotService with Neo4j mocked—validates the bot never crashes and returns text.
+// Feeds suspicious strings into ChatbotService with Neo4j mocked-validates the bot never crashes and returns text.
 // Not a substitute for dedicated security review; ensures basic prompt injection/HTML snippets degrade gracefully.
 // Assertions are presence/length only.
 

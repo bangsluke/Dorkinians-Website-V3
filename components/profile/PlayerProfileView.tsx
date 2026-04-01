@@ -2,8 +2,10 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useNavigationStore } from "@/lib/stores/navigation";
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import PlayerBadgeMilestoneGrid, {
@@ -22,9 +24,22 @@ type BadgePayload = {
 	earned: EarnedBadgeRow[];
 	progress: ProgressRow[];
 	achieverCountsByBadgeKey?: Record<string, number>;
+	tierCountsByBadgeKey?: Record<string, Record<string, number>>;
+	milestoneValuesByBadgeKey?: Record<string, number>;
+	milestoneLeadersByBadgeKey?: Record<string, { playerName: string; value: number }>;
 };
 
 export default function PlayerProfileView({ playerSlug }: { playerSlug: string }) {
+	const router = useRouter();
+	const enterEditMode = useNavigationStore((s) => s.enterEditMode);
+	const setMainPage = useNavigationStore((s) => s.setMainPage);
+
+	const handleEditPlayerClick = useCallback(() => {
+		enterEditMode();
+		setMainPage("home");
+		router.push("/");
+	}, [enterEditMode, setMainPage, router]);
+
 	const [playerData, setPlayerData] = useState<PlayerData | null>(null);
 	const [badgePayload, setBadgePayload] = useState<BadgePayload | null>(null);
 	const [wrappedSeasons, setWrappedSeasons] = useState<string[]>([]);
@@ -218,22 +233,48 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 		};
 	}, [playerName, wrappedSlug]);
 
+	const showPastWrappedFooter =
+		!seasonWrappedPromoActive && Boolean(wrappedSlug) && pastWrappedSeasons.length > 0;
+
 	return (
 		<div className='h-full px-4 py-6 md:px-8 md:py-8' data-testid='player-profile-page'>
-			<div className='mx-auto w-full max-w-5xl space-y-4'>
+			<div
+				className={`mx-auto w-full max-w-5xl space-y-4 ${showPastWrappedFooter ? "" : "pb-6 md:pb-8"}`}>
 				<div className='flex flex-col items-center justify-center text-center gap-2'>
-					<h1 className='text-xl md:text-2xl font-bold text-dorkinians-yellow'>
-						Player Profile{playerName ? ` - ${playerName}` : ""}
-					</h1>
+					<div className='flex items-center justify-center space-x-2 md:space-x-3'>
+						<h1 className='text-xl md:text-2xl font-semibold text-dorkinians-yellow'>
+							Profile{playerName ? ` - ${playerName}` : ""}
+						</h1>
+						{playerName ? (
+							<button
+								type='button'
+								data-testid='player-profile-edit-player-button'
+								onClick={handleEditPlayerClick}
+								className='p-1.5 md:p-2 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors shrink-0'
+								title='Edit player selection'>
+								<svg className='h-4 w-4 md:h-5 md:w-5' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+									<path
+										strokeLinecap='round'
+										strokeLinejoin='round'
+										strokeWidth={2}
+										d='M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z'
+									/>
+								</svg>
+							</button>
+						) : null}
+					</div>
 				</div>
 
 				{isLoading ? (
 					<SkeletonTheme baseColor='var(--skeleton-base)' highlightColor='var(--skeleton-highlight)'>
-						<div className='rounded-xl border-2 border-[#E8C547]/40 bg-[#E8C547]/12 p-4 md:p-5 space-y-3'>
-							<Skeleton height={22} width='40%' />
-							<Skeleton count={2} height={14} />
-							<Skeleton height={40} width={160} className='mx-auto' />
-						</div>
+						{seasonWrappedPromoActive ? (
+							<div
+								className='rounded-xl border-2 border-[#E8C547]/60 bg-gradient-to-br from-[#E8C547]/25 via-[#E8C547]/15 to-[#b8941f]/12 p-4 md:p-5 shadow-md ring-1 ring-inset ring-[#E8C547]/25'
+								data-testid='player-profile-season-wrapped-loading'>
+								<h3 className='text-dorkinians-yellow font-semibold text-base md:text-lg'>Season Wrapped</h3>
+								<p className='mt-2 text-white/75 text-sm'>Loading season options…</p>
+							</div>
+						) : null}
 						<div className='rounded-lg bg-white/10 backdrop-blur-sm p-4 mt-4 space-y-3'>
 							<Skeleton height={20} width='30%' />
 							<div className='grid grid-cols-2 md:grid-cols-4 gap-2'>
@@ -242,12 +283,27 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 								))}
 							</div>
 						</div>
-						<div className='rounded-lg bg-white/10 backdrop-blur-sm p-4 mt-4 space-y-2'>
-							<Skeleton height={20} width='35%' />
-							<div className='grid grid-cols-3 sm:grid-cols-4 gap-2'>
-								{Array.from({ length: 8 }).map((_, i) => (
-									<Skeleton key={i} height={72} className='rounded-lg' />
-								))}
+						<div className='rounded-lg bg-white/10 backdrop-blur-sm p-4 mt-4'>
+							<Skeleton height={18} width='38%' className='mb-1' />
+							<Skeleton height={13} width='55%' className='mb-3' />
+							<div className='rounded-xl border border-white/10 bg-black/15 p-3 mb-3'>
+								<div className='flex items-center justify-between mb-2'>
+									<Skeleton height={16} width={110} />
+									<Skeleton height={16} width={44} />
+								</div>
+								<Skeleton height={6} className='rounded-full w-full' />
+							</div>
+							<div className='rounded-xl border border-white/10 bg-black/15 p-3'>
+								<Skeleton height={16} width='42%' className='mb-3' />
+								<div className='grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3'>
+									{Array.from({ length: 8 }).map((_, i) => (
+										<div key={i} className='flex flex-col items-center text-center gap-1.5 p-2 rounded-lg'>
+											<Skeleton circle height={36} width={36} />
+											<Skeleton height={10} width='75%' />
+											<Skeleton height={10} width='45%' />
+										</div>
+									))}
+								</div>
 							</div>
 						</div>
 					</SkeletonTheme>
@@ -372,7 +428,7 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 								<HeadlineStat label='Minutes' value={playerData?.minutes ?? 0} />
 								<HeadlineStat label='MoM' value={playerData?.mom ?? 0} />
 								<HeadlineStat label='Fantasy points' value={playerData?.fantasyPoints ?? 0} />
-								<HeadlineStat label='Avg rating' value={playerData?.averageMatchRating ?? "—"} />
+								<HeadlineStat label='Avg rating' value={playerData?.averageMatchRating ?? "-"} />
 								<HeadlineStat label='Teams played for' value={playerData?.numberTeamsPlayedFor ?? 0} />
 							</div>
 						</div>
@@ -397,6 +453,9 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 										earned={badgePayload.earned}
 										progress={badgePayload.progress}
 										achieverCountsByBadgeKey={badgePayload.achieverCountsByBadgeKey}
+										tierCountsByBadgeKey={badgePayload.tierCountsByBadgeKey}
+										milestoneValuesByBadgeKey={badgePayload.milestoneValuesByBadgeKey}
+										milestoneLeadersByBadgeKey={badgePayload.milestoneLeadersByBadgeKey}
 									/>
 								</>
 							) : (

@@ -1014,7 +1014,7 @@ export class ChatbotService {
 
 			// Check for hat-trick questions (year-wide, team-specific, or date-filtered) BEFORE routing to handlers
 			// This prevents "hat‑tricks" from being treated as a player entity
-			// Handles various dash characters: regular hyphen (-), non-breaking hyphen (\u2011), en dash (–), em dash (—), and spaces
+			// Handles various dash characters: regular hyphen (-), non-breaking hyphen (\u2011), en dash (–), em dash (-), and spaces
 			const hatTrickPattern = /hat[-\u2011\u2013\u2014 ]?trick/i;
 			const isHatTrickQuestion = hatTrickPattern.test(question) && 
 				(question.includes("how many") || question.includes("count"));
@@ -7573,7 +7573,7 @@ export class ChatbotService {
 									},
 								],
 								config: {
-									title: `${playerName} — current form`,
+									title: `${playerName} - current form`,
 									type: "bar",
 								},
 							};
@@ -7599,7 +7599,7 @@ export class ChatbotService {
 									},
 								],
 								config: {
-									title: `${playerName} — ${label}`,
+									title: `${playerName} - ${label}`,
 									type: "bar",
 								},
 							};

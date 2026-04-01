@@ -3,7 +3,7 @@ import { fetchTestData, getAllStatConfigs, validateResponse, TestPlayerData } fr
 
 // End-to-end chatbot validation against the real production Neo4j pipeline (no mocks) for curated player/stat questions.
 // beforeAll loads reference rows and stat configs from test utilities; per-test timeouts default to 30s where set.
-// Sensitive to DB availability, data drift, and the fixed expected stat count—treat failures as integration signals.
+// Sensitive to DB availability, data drift, and the fixed expected stat count-treat failures as integration signals.
 
 describe("Chatbot Comprehensive Validation Tests", () => {
 	let chatbotService: ChatbotService;

@@ -6,8 +6,8 @@ Canonical narrative and maintenance notes: [docs/Testing_Documentation.md](../..
 
 | Entry point | Command | Email template |
 |-------------|---------|----------------|
-| GitHub Actions ([`.github/workflows/full-test-suite-and-email.yml`](../../.github/workflows/full-test-suite-and-email.yml)) — `push` to `develop`, `pull_request` to `main`, weekly schedule, `workflow_dispatch` | `npm run test:weekly:email` ([test-weekly-consolidated-email.js](../scripts/test-weekly-consolidated-email.js)) | “Test summary” HTML — sections Unit, Integration, E2E sub-runs, Reports; subject includes run context when run in CI |
-| Manual / optional E2E runner | `npm run test:e2e:email` ([test-e2e-email-report.js](../e2e/scripts/test-e2e-email-report.js)) | “E2E Test Results” — parsed list output grouped by Playwright `describe` title |
+| GitHub Actions ([`.github/workflows/full-test-suite-and-email.yml`](../../.github/workflows/full-test-suite-and-email.yml)) - `push` to `develop`, `pull_request` to `main`, weekly schedule, `workflow_dispatch` | `npm run test:weekly:email` ([test-weekly-consolidated-email.js](../scripts/test-weekly-consolidated-email.js)) | “Test summary” HTML - sections Unit, Integration, E2E sub-runs, Reports; subject includes run context when run in CI |
+| Manual / optional E2E runner | `npm run test:e2e:email` ([test-e2e-email-report.js](../e2e/scripts/test-e2e-email-report.js)) | “E2E Test Results” - parsed list output grouped by Playwright `describe` title |
 
 Configure **branch protection on `main`** to require the check **“Full test suite and email”** so merges are blocked when this workflow fails (GitHub setting; not in YAML).
 
@@ -29,4 +29,4 @@ Playwright reads `WEBSITE_URL` then `BASE_URL` for `baseURL` ([playwright.config
 
 ## Environment
 
-- `E2E_PLAYER_NAME` — optional; defaults to `Luke Bangs` in Home/Stats tests that need a real roster name.
+- `E2E_PLAYER_NAME` - optional; defaults to `Luke Bangs` in Home/Stats tests that need a real roster name.

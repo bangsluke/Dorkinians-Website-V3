@@ -63,7 +63,7 @@ export function sanitizeLogData(data: any): any {
 
 	if (typeof data === 'string') {
 		// Remove assignment-style secrets only (e.g. KEY=value). Do not use `:` as a
-		// separator — Zod/env errors look like "SEED_API_KEY: SEED_API_KEY must be ..." and
+		// separator - Zod/env errors look like "SEED_API_KEY: SEED_API_KEY must be ..." and
 		// would be mangled into misleading text.
 		return data
 			.replace(/api[_-]?key\s*=\s*['"]?[\w.-]+['"]?/gi, 'api_key=***')

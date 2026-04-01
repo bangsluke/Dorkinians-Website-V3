@@ -10,6 +10,20 @@ export interface WrappedVeoFixture {
 	goalsConceded: number;
 }
 
+/** One row from the JSON league table (Dorkinians row for the dominant XI), when available. */
+export interface WrappedLeagueTableRow {
+	position: number;
+	team: string;
+	played: number;
+	won: number;
+	drawn: number;
+	lost: number;
+	goalsFor: number;
+	goalsAgainst: number;
+	goalDifference: number;
+	points: number;
+}
+
 export interface WrappedData {
 	playerName: string;
 	season: string;
@@ -18,6 +32,12 @@ export interface WrappedData {
 	/** Veo-linked fixtures for this player in the wrapped `season` only; empty when none. */
 	veoFixtures: WrappedVeoFixture[];
 	totalMatches: number;
+	/** Minutes played in the wrapped season. */
+	totalMinutes: number;
+	/** Starts in the wrapped season (`MatchDetail.started`). */
+	totalStarts: number;
+	/** Most common position class in the wrapped season (e.g. `MID`). */
+	mostPlayedPosition: string;
 	totalGoals: number;
 	totalAssists: number;
 	totalMom: number;
@@ -25,6 +45,10 @@ export interface WrappedData {
 	bestMonth: string;
 	bestMonthGoals: number;
 	bestMonthAssists: number;
+	/** Appearances in the player’s best month bucket. */
+	bestMonthMatches: number;
+	/** Sum of fantasy (FTP) points in the best month bucket. */
+	bestMonthFantasyPoints: number;
 	topPartnerName: string;
 	topPartnerMatches: number;
 	topPartnerWinRate: number;
@@ -34,6 +58,10 @@ export interface WrappedData {
 	peakMatchOpposition: string;
 	peakMatchGoals: number;
 	peakMatchAssists: number;
+	/** Short result label for the peak match (e.g. Win / Draw / Loss). */
+	peakMatchResultLabel: string;
+	/** Scoreline from the club’s perspective (e.g. `3-1`). */
+	peakMatchScoreline: string;
 	longestStreakType: string | null;
 	longestStreakValue: number | null;
 	totalDistance: number;
@@ -49,4 +77,6 @@ export interface WrappedData {
 	wrappedDominantTeamLeaguePosition: number | null;
 	/** Division label from league table data when available. */
 	wrappedDominantTeamLeagueDivision: string;
+	/** Dorkinians’ league table row for that XI/league file when available. */
+	wrappedDominantTeamLeagueRow: WrappedLeagueTableRow | null;
 }

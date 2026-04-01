@@ -15,7 +15,7 @@ export interface RecordingFixture {
 }
 
 export function formatRecordingDateDesktop(dateString: string): string {
-	if (!dateString) return "—";
+	if (!dateString) return "-";
 	try {
 		const date = new Date(dateString);
 		return date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
@@ -26,7 +26,7 @@ export function formatRecordingDateDesktop(dateString: string): string {
 
 /** Mobile: dd/mm/yy */
 export function formatRecordingDateMobile(dateString: string): string {
-	if (!dateString) return "—";
+	if (!dateString) return "-";
 	try {
 		const date = new Date(dateString);
 		const d = date.getDate().toString().padStart(2, "0");
@@ -64,12 +64,12 @@ export function recordingLocLabelMobile(homeOrAway: string): string {
 	const h = homeOrAway?.trim().toLowerCase();
 	if (h === "home") return "H";
 	if (h === "away") return "A";
-	return "—";
+	return "-";
 }
 
 export function recordingLocLabelDesktop(homeOrAway: string): string {
 	const v = (homeOrAway || "").trim();
-	return v || "—";
+	return v || "-";
 }
 
 export function recordingCompLabelMobile(compType: string): string {
@@ -78,9 +78,9 @@ export function recordingCompLabelMobile(compType: string): string {
 	if (c === "cup") return "C";
 	if (c === "friendly") return "F";
 	const raw = (compType || "").trim();
-	return raw ? raw.charAt(0).toUpperCase() : "—";
+	return raw ? raw.charAt(0).toUpperCase() : "-";
 }
 
 export function recordingCompLabelDesktop(compType: string): string {
-	return (compType || "").trim() || "—";
+	return (compType || "").trim() || "-";
 }

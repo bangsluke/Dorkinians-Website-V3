@@ -65,7 +65,7 @@ export default function StreaksAtRiskBanner() {
 	}
 
 	const venue =
-		upcoming.homeOrAway.toLowerCase() === "home" ? "vs" : upcoming.homeOrAway.toLowerCase() === "away" ? "@" : "—";
+		upcoming.homeOrAway.toLowerCase() === "home" ? "vs" : upcoming.homeOrAway.toLowerCase() === "away" ? "@" : "-";
 
 	return (
 		<div
@@ -81,7 +81,7 @@ export default function StreaksAtRiskBanner() {
 				{highlights.map((h) => (
 					<li key={h.playerName}>
 						<span className='font-medium'>{h.playerName}</span>
-						<span className='text-white/70'> — {streakBits(h).join(", ")}</span>
+						<span className='text-white/70'> - {streakBits(h).join(", ")}</span>
 					</li>
 				))}
 			</ul>

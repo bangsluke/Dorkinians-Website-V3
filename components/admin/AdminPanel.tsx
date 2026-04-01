@@ -519,7 +519,7 @@ export default function AdminPanel() {
 				if (lastFailureMessage) {
 					addDebugLog(`💡 Detail: ${lastFailureMessage}`, 'info');
 					throw new Error(
-						`Failed to trigger seeding — ${lastFailureMessage}`,
+						`Failed to trigger seeding - ${lastFailureMessage}`,
 					);
 				}
 				addDebugLog(
@@ -527,7 +527,7 @@ export default function AdminPanel() {
 					"info",
 				);
 				throw new Error(
-					"Failed to trigger seeding — no endpoint accepted the request. If Heroku shows 401 on POST /seed, SEED_API_KEY must match exactly on both sides.",
+					"Failed to trigger seeding - no endpoint accepted the request. If Heroku shows 401 on POST /seed, SEED_API_KEY must match exactly on both sides.",
 				);
 			}
 		} catch (err) {
@@ -979,7 +979,7 @@ export default function AdminPanel() {
 		if (result?.status === "pending" || result?.status === "running") {
 			return { display: "⏳", label: `${label} (Pending)` };
 		}
-		const display = value != null && typeof value === "object" ? String((value as { toString?: () => string }).toString?.() ?? JSON.stringify(value)) : String(value ?? "—");
+		const display = value != null && typeof value === "object" ? String((value as { toString?: () => string }).toString?.() ?? JSON.stringify(value)) : String(value ?? "-");
 		return { display, label };
 	};
 
@@ -1284,7 +1284,7 @@ export default function AdminPanel() {
 								className='mr-2 h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded disabled:cursor-not-allowed'
 							/>
 							<label htmlFor='blueGreenCutover' className='text-sm text-gray-700'>
-								Blue/green cutover (build new graph first, then swap — less downtime)
+								Blue/green cutover (build new graph first, then swap - less downtime)
 							</label>
 						</div>
 						<div className='flex items-center'>
@@ -1621,7 +1621,7 @@ export default function AdminPanel() {
 						</div>
 						<div>
 							<p className='text-sm text-gray-800 font-medium'>Timestamp</p>
-							<p className='font-semibold text-gray-900'>{result.timestamp ? new Date(result.timestamp).toLocaleString() : "—"}</p>
+							<p className='font-semibold text-gray-900'>{result.timestamp ? new Date(result.timestamp).toLocaleString() : "-"}</p>
 						</div>
 						<div>
 							<p className='text-sm text-gray-800 font-medium'>Elapsed Time</p>
@@ -1718,11 +1718,11 @@ export default function AdminPanel() {
 											<> | Expected end: {(() => {
 												const startTime = new Date(result.timestamp);
 												const startMs = startTime.getTime();
-												if (Number.isNaN(startMs)) return "—";
+												if (Number.isNaN(startMs)) return "-";
 												const expectedDurationMinutes = lastCompletedJobDuration !== null ? 
 													Math.floor(lastCompletedJobDuration / 60) : 20;
 												const expectedEndTime = new Date(startMs + (expectedDurationMinutes * 60 * 1000));
-												return Number.isNaN(expectedEndTime.getTime()) ? "—" : expectedEndTime.toLocaleTimeString();
+												return Number.isNaN(expectedEndTime.getTime()) ? "-" : expectedEndTime.toLocaleTimeString();
 											})()}</>
 										)}
 									</p>
@@ -2122,7 +2122,7 @@ export default function AdminPanel() {
 																						? "text-orange-600"
 																						: "text-gray-600"
 																	}`}>
-																	{typeof jobData.status === "string" ? jobData.status : String(jobData.status ?? "—")}
+																	{typeof jobData.status === "string" ? jobData.status : String(jobData.status ?? "-")}
 																</span>
 															</p>
 															{jobData.currentStep != null && String(jobData.currentStep) !== "" && <p className='text-sm text-gray-600'>Current Step: {String(jobData.currentStep)}</p>}

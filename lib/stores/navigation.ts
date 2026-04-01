@@ -154,7 +154,7 @@ export interface PlayerData {
 	allTimeBestMomStreak?: number;
 	allTimeBestDisciplineStreak?: number;
 	allTimeBestWinStreak?: number;
-	/** Feature 7 — graph insights (full graph; not filter-dependent) */
+	/** Feature 7 - graph insights (full graph; not filter-dependent) */
 	bestPartnerName?: string | null;
 	bestPartnerWinRate?: number | null;
 	bestPartnerMatches?: number | null;

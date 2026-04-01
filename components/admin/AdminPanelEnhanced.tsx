@@ -380,8 +380,8 @@ export default function AdminPanelEnhanced() {
 			} else {
 				throw new Error(
 					lastFailureMessage
-						? `Failed to trigger seeding — ${lastFailureMessage}`
-						: "Failed to trigger seeding — no endpoint accepted the request. If Heroku logs show 401 on POST /seed, SEED_API_KEY must match exactly on Netlify/Vercel and Heroku.",
+						? `Failed to trigger seeding - ${lastFailureMessage}`
+						: "Failed to trigger seeding - no endpoint accepted the request. If Heroku logs show 401 on POST /seed, SEED_API_KEY must match exactly on Netlify/Vercel and Heroku.",
 				);
 			}
 		} catch (err) {
@@ -730,7 +730,7 @@ export default function AdminPanelEnhanced() {
 							className='mr-2 h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded disabled:cursor-not-allowed'
 						/>
 						<label htmlFor='blueGreenCutoverEnhanced' className='text-sm text-gray-700'>
-							Blue/green cutover (build new graph first, then swap — less downtime)
+							Blue/green cutover (build new graph first, then swap - less downtime)
 						</label>
 					</div>
 				</div>

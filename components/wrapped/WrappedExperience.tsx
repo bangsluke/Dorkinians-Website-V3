@@ -18,10 +18,11 @@ import { toBlob } from "html-to-image";
 import { getPlayerProfileHref } from "@/lib/profile/slug";
 import { getPublicSiteRoot } from "@/lib/utils/publicSiteUrl";
 import { formatRecordingDateMobile, formatRecordingScore } from "@/lib/utils/recordingsDisplay";
-import type { WrappedData } from "@/lib/wrapped/types";
+import type { WrappedData, WrappedLeagueTableRow } from "@/lib/wrapped/types";
 
 const SWIPE_PX = 56;
 const VEO_WRAP_PREVIEW_COUNT = 5;
+const AUTOPLAY_MS = 15_000;
 
 function formatOrdinal(n: number): string {
 	const abs = Math.floor(Math.abs(n));
@@ -33,86 +34,125 @@ function formatOrdinal(n: number): string {
 	return `${abs}th`;
 }
 
-const CARD =
-	"rounded-2xl border border-white/[0.08] bg-[rgba(30,35,25,0.75)] p-6 md:p-10 shadow-xl max-w-lg w-full mx-auto";
+function partnerInitials(name: string): string {
+	if (!name || name === "-") return "?";
+	const parts = name.trim().split(/\s+/).filter(Boolean);
+	if (parts.length === 0) return "?";
+	if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+	return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
 
-function SlideFrame({
-	children,
-	footerUrl,
-	slideRef,
-	topRight,
-}: {
-	children: ReactNode;
-	footerUrl: string;
-	slideRef: LegacyRef<HTMLDivElement>;
-	topRight?: ReactNode;
-}) {
+function formatWrappedShareFilename(playerName: string, season: string, slideId: number): string {
+	const namePart = playerName
+		.trim()
+		.replace(/\s+/g, "_")
+		.replace(/[^\w\-]+/g, "");
+	const seasonPart = season.trim().replace(/\//g, "_").replace(/-/g, "_");
+	return `${namePart}_Dorkinians_Wrapped_${seasonPart}_Slide_${slideId}`;
+}
+
+function formatLeagueGoalDiff(gd: number): string {
+	return gd > 0 ? `+${gd}` : `${gd}`;
+}
+
+function WrappedLeagueSnapshotTable({ row }: { row: WrappedLeagueTableRow }) {
 	return (
-		<div
-			ref={slideRef}
-			className={`${CARD} relative flex flex-col min-h-[70vh] md:min-h-[420px] justify-between`}
-			data-testid='wrapped-slide-card'>
-			{topRight ? (
-				<div className='pointer-events-none absolute top-4 right-4 z-10 md:top-6 md:right-6'>{topRight}</div>
-			) : null}
-			<div className='flex-1 flex flex-col justify-center'>{children}</div>
-			<p className='text-center text-[10px] md:text-xs text-white/45 mt-6 break-all' data-testid='wrapped-slide-url'>
-				{footerUrl}
-			</p>
+		<div className='mt-3 rounded-lg border border-white/10 bg-black/20 overflow-x-auto' data-testid='wrapped-league-snapshot-table'>
+			<table className='w-full min-w-[280px] border-collapse text-left text-[10px] sm:text-xs text-white/90'>
+				<thead>
+					<tr className='border-b border-white/15 text-white/55'>
+						<th scope='col' className='py-1.5 pr-1 font-semibold'>
+							#
+						</th>
+						<th scope='col' className='py-1.5 pr-1 font-semibold'>
+							Team
+						</th>
+						<th scope='col' className='py-1.5 px-0.5 text-center font-semibold'>
+							P
+						</th>
+						<th scope='col' className='py-1.5 px-0.5 text-center font-semibold'>
+							W
+						</th>
+						<th scope='col' className='py-1.5 px-0.5 text-center font-semibold'>
+							D
+						</th>
+						<th scope='col' className='py-1.5 px-0.5 text-center font-semibold'>
+							L
+						</th>
+						<th scope='col' className='py-1.5 px-0.5 text-center font-semibold'>
+							GF
+						</th>
+						<th scope='col' className='py-1.5 px-0.5 text-center font-semibold'>
+							GA
+						</th>
+						<th scope='col' className='py-1.5 px-0.5 text-center font-semibold'>
+							GD
+						</th>
+						<th scope='col' className='py-1.5 pl-0.5 text-center font-semibold'>
+							Pts
+						</th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr className='border-b border-white/5'>
+						<td className='py-1.5 pr-1 tabular-nums text-white font-medium'>{row.position}</td>
+						<td className='py-1.5 pr-1 max-w-[7rem] sm:max-w-none break-words'>{row.team}</td>
+						<td className='py-1.5 px-0.5 text-center tabular-nums'>{row.played}</td>
+						<td className='py-1.5 px-0.5 text-center tabular-nums'>{row.won}</td>
+						<td className='py-1.5 px-0.5 text-center tabular-nums'>{row.drawn}</td>
+						<td className='py-1.5 px-0.5 text-center tabular-nums'>{row.lost}</td>
+						<td className='py-1.5 px-0.5 text-center tabular-nums'>{row.goalsFor}</td>
+						<td className='py-1.5 px-0.5 text-center tabular-nums'>{row.goalsAgainst}</td>
+						<td className='py-1.5 px-0.5 text-center tabular-nums'>{formatLeagueGoalDiff(row.goalDifference)}</td>
+						<td className='py-1.5 pl-0.5 text-center tabular-nums font-medium text-white'>{row.points}</td>
+					</tr>
+				</tbody>
+			</table>
 		</div>
 	);
 }
 
-function ShareSlideButton({
+const CARD =
+	"rounded-2xl border border-[#E8C547]/20 bg-[rgba(18,24,14,0.88)] backdrop-blur-md p-4 md:p-7 shadow-[0_20px_60px_rgba(0,0,0,0.45)] max-w-lg w-full mx-auto ring-1 ring-inset ring-white/[0.06] min-h-[70vh] md:min-h-[420px] flex flex-col";
+
+const ACCENT = "text-[#E8C547]";
+const MINT = "text-[#5DCAA5]";
+
+function SlideFrame({
+	children,
 	slideRef,
-	playerName,
-	slideNumber,
-	shareUrl,
+	topRight,
+	timerPct,
+	showTimer,
+	footerControls,
 }: {
+	children: ReactNode;
 	slideRef: LegacyRef<HTMLDivElement>;
-	playerName: string;
-	slideNumber: number;
-	/** Public wrapped URL including path and `?season=` when applicable */
-	shareUrl: string;
+	topRight?: ReactNode;
+	timerPct: number;
+	showTimer: boolean;
+	footerControls: ReactNode;
 }) {
-	const share = useCallback(async () => {
-		const el = slideRef.current;
-		if (!el) return;
-		try {
-			const blob = await toBlob(el, { pixelRatio: 2, backgroundColor: "#1c2418" });
-			if (!blob) return;
-			const safe = playerName.replace(/[^\w\-]+/g, "_").slice(0, 40);
-			const file = new File([blob], `${safe}-wrapped-${slideNumber}.png`, { type: "image/png" });
-			const shareText = `Check out my season stats! ${shareUrl.replace(/^https?:\/\//, "")}`;
-
-			if (navigator.canShare?.({ files: [file] })) {
-				await navigator.share({
-					files: [file],
-					title: `${playerName} — Dorkinians Wrapped`,
-					text: shareText,
-				});
-				return;
-			}
-
-			const url = URL.createObjectURL(blob);
-			const a = document.createElement("a");
-			a.href = url;
-			a.download = file.name;
-			a.click();
-			URL.revokeObjectURL(url);
-		} catch (e) {
-			console.warn("Share slide failed", e);
-		}
-	}, [playerName, shareUrl, slideNumber, slideRef]);
-
 	return (
-		<button
-			type='button'
-			onClick={() => void share()}
-			data-testid='wrapped-share-slide'
-			className='text-sm font-medium px-4 py-2 rounded-lg bg-[#E8C547] text-black hover:opacity-90'>
-			Share this slide
-		</button>
+		<div ref={slideRef} className={`${CARD} relative flex-1`} data-testid='wrapped-slide-card'>
+			{topRight ? (
+				<div className='pointer-events-none absolute top-4 right-4 z-10 md:top-6 md:right-6'>{topRight}</div>
+			) : null}
+			<div className='flex-1 flex flex-col justify-center min-h-0 overflow-y-auto'>{children}</div>
+			<div className='mt-2 pt-2 border-t border-white/10 shrink-0' data-wrapped-no-swipe>
+				{showTimer ? (
+					<div className='flex justify-center mb-2' data-testid='wrapped-slide-timer'>
+						<div className='relative h-1 w-48 max-w-[88%] rounded-full bg-white/25 overflow-hidden'>
+							<div
+								className='absolute top-0 right-0 h-full rounded-full bg-white transition-[width] duration-150 ease-linear'
+								style={{ width: `${timerPct}%` }}
+							/>
+						</div>
+					</div>
+				) : null}
+				<div className='flex flex-wrap items-center justify-center gap-2'>{footerControls}</div>
+			</div>
+		</div>
 	);
 }
 
@@ -120,8 +160,8 @@ function FinalSlideFullSiteLink() {
 	const root = getPublicSiteRoot();
 	return (
 		<>
-			<p className='text-[#E8C547] text-sm font-semibold uppercase tracking-wide mb-2'>That&apos;s a wrap</p>
-			<h2 className='text-2xl md:text-3xl font-bold text-white mb-4'>Thanks for the season</h2>
+			<p className={`${ACCENT} text-sm font-semibold uppercase tracking-wide mb-1`}>That&apos;s a wrap</p>
+			<h2 className='text-xl md:text-3xl font-bold text-white mb-2'>Thanks for the season</h2>
 			<p className='text-white/80 text-sm'>
 				Share your story and come back for more stats on the{" "}
 				<a
@@ -146,10 +186,13 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 	const [error, setError] = useState<string | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [index, setIndex] = useState(0);
+	const [timerPct, setTimerPct] = useState(100);
+	const [shareOpen, setShareOpen] = useState(false);
 	const slideRef = useRef<HTMLDivElement | null>(null);
 
 	const pointerSwipe = useRef<{ x: number; y: number; pointerId: number } | null>(null);
 	const touchStart = useRef<{ x: number; y: number } | null>(null);
+	const swipeLockUntil = useRef(0);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -183,7 +226,6 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 		setIndex(0);
 	}, [seasonQ, playerSlug]);
 
-	/** Prevent horizontal rubber-banding / scroll revealing content beside the wrapped shell */
 	useEffect(() => {
 		const html = document.documentElement;
 		const body = document.body;
@@ -213,16 +255,39 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 	const total = slideIds.length;
 	const currentSlideId = slideIds[index] ?? 1;
 
-	const go = (dir: -1 | 1) => {
+	const go = useCallback((dir: -1 | 1) => {
 		setIndex((i) => Math.min(total - 1, Math.max(0, i + dir)));
-	};
+	}, [total]);
 
-	const applySwipe = (dx: number, dy: number) => {
-		if (Math.abs(dx) < SWIPE_PX) return;
-		if (Math.abs(dx) < Math.abs(dy)) return;
-		if (dx < 0) go(1);
-		else go(-1);
-	};
+	useEffect(() => {
+		if (!data || total <= 0) return;
+		if (index >= total - 1) {
+			setTimerPct(100);
+			return;
+		}
+		setTimerPct(100);
+		const start = Date.now();
+		const iv = setInterval(() => {
+			const elapsed = Date.now() - start;
+			setTimerPct(Math.max(0, 100 - (elapsed / AUTOPLAY_MS) * 100));
+			if (elapsed >= AUTOPLAY_MS) {
+				setIndex((i) => Math.min(total - 1, i + 1));
+			}
+		}, 120);
+		return () => clearInterval(iv);
+	}, [index, data, total]);
+
+	const applySwipe = useCallback(
+		(dx: number, dy: number) => {
+			if (Date.now() < swipeLockUntil.current) return;
+			if (Math.abs(dx) < SWIPE_PX) return;
+			if (Math.abs(dx) < Math.abs(dy)) return;
+			swipeLockUntil.current = Date.now() + 450;
+			if (dx < 0) go(1);
+			else go(-1);
+		},
+		[go],
+	);
 
 	const onTouchStartSwipe = (e: React.TouchEvent) => {
 		const t = e.changedTouches[0];
@@ -268,14 +333,70 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 		if (pointerSwipe.current?.pointerId === e.pointerId) pointerSwipe.current = null;
 	};
 
-	const whatsappBlock = useMemo(() => {
+	const shareSeasonText = useMemo(() => {
 		if (!data) return "";
-		return `${data.playerName} — Dorkinians Wrapped ${data.season}\n${data.wrappedUrl}`;
+		return `${data.playerName} - Dorkinians Wrapped ${data.season}\n${data.wrappedUrl}`;
 	}, [data]);
+
+	const shareSlideText = useMemo(() => {
+		if (!data) return "";
+		return `Check out my season stats! ${data.wrappedUrl.replace(/^https?:\/\//, "")}`;
+	}, [data]);
+
+	const captureAndShareSlide = useCallback(async () => {
+		const el = slideRef.current;
+		if (!el || !data) return;
+		try {
+			const blob = await toBlob(el, { pixelRatio: 2, backgroundColor: "#141a10" });
+			if (!blob) return;
+			const fname = `${formatWrappedShareFilename(data.playerName, data.season, currentSlideId)}.png`;
+			const file = new File([blob], fname, { type: "image/png" });
+
+			if (navigator.canShare?.({ files: [file] })) {
+				await navigator.share({
+					files: [file],
+					title: `${data.playerName} - Dorkinians Wrapped`,
+					text: shareSlideText,
+				});
+				return;
+			}
+
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement("a");
+			a.href = url;
+			a.download = fname;
+			a.click();
+			URL.revokeObjectURL(url);
+		} catch (e) {
+			console.warn("Share slide failed", e);
+		}
+	}, [data, currentSlideId, shareSlideText]);
+
+	const shareSeasonWrapped = useCallback(async () => {
+		if (!data) return;
+		try {
+			if (navigator.share) {
+				await navigator.share({
+					title: `${data.playerName} - Dorkinians Wrapped ${data.season}`,
+					text: shareSeasonText,
+					url: data.wrappedUrl,
+				});
+				return;
+			}
+			await navigator.clipboard.writeText(shareSeasonText);
+		} catch (e) {
+			console.warn("Share season failed", e);
+			try {
+				await navigator.clipboard.writeText(shareSeasonText);
+			} catch {
+				/* ignore */
+			}
+		}
+	}, [data, shareSeasonText]);
 
 	if (loading) {
 		return (
-			<div className='relative min-h-screen min-h-[100dvh] w-full max-w-[100dvw] overflow-x-hidden overscroll-x-none flex items-center justify-center bg-[#1a2218] bg-gradient-to-b from-[#1c2418] to-[#2a3220] text-white'>
+			<div className='relative min-h-screen min-h-[100dvh] w-full max-w-[100dvw] overflow-x-hidden overscroll-x-none flex items-center justify-center bg-[#12180e] text-white'>
 				<p className='text-white/70'>Loading your season…</p>
 			</div>
 		);
@@ -283,7 +404,7 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 
 	if (error || !data) {
 		return (
-			<div className='relative min-h-screen min-h-[100dvh] w-full max-w-[100dvw] overflow-x-hidden overscroll-x-none flex flex-col items-center justify-center gap-4 px-6 bg-[#1a2218] bg-gradient-to-b from-[#1c2418] to-[#2a3220] text-white'>
+			<div className='relative min-h-screen min-h-[100dvh] w-full max-w-[100dvw] overflow-x-hidden overscroll-x-none flex flex-col items-center justify-center gap-4 px-6 bg-[#12180e] text-white'>
 				<p className='text-center text-white/85'>{error || "Something went wrong"}</p>
 				<a href='/' className='text-[#E8C547] underline'>
 					Back to home
@@ -297,24 +418,45 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 			case 1:
 				return (
 					<>
-						<p className='text-[#E8C547] text-sm font-semibold uppercase tracking-wide mb-2'>Overview</p>
-						<h2 className='text-2xl md:text-3xl font-bold text-white mb-6'>Your {data.season} season</h2>
-						<ul className='text-white/90 space-y-3 text-lg'>
-							<li>{data.totalMatches} appearances</li>
-							<li>
-								{data.totalGoals} goals · {data.totalAssists} assists
-							</li>
-							<li>{data.totalMom} Man of the Match</li>
-						</ul>
+						<p className={`${ACCENT} text-xs sm:text-sm font-semibold uppercase tracking-wide mb-1`}>Overview</p>
+						<h2 className='text-xl md:text-3xl font-bold text-white mb-1 leading-tight'>Your {data.season} season</h2>
+						<div className='border-t border-white/10 my-2' />
+						<p className='text-white/55 text-xs sm:text-sm mb-0.5'>This season you played</p>
+						<p className={`text-4xl sm:text-5xl md:text-6xl font-extrabold ${ACCENT} tabular-nums leading-none`}>
+							{data.totalMatches}
+						</p>
+						<p className={`text-base font-semibold ${ACCENT} mb-2`}>matches</p>
+						<p className='text-white/75 text-xs sm:text-sm leading-snug mb-2'>
+							<span className='text-white/55'>{data.totalMinutes.toLocaleString()} minutes</span>
+							{" · "}
+							<span className={MINT}>{data.totalStarts}</span> starts
+							{" · "}
+							Most played: <span className='text-white font-medium'>{data.mostPlayedPosition}</span>
+						</p>
+						<div className='grid grid-cols-3 gap-1.5 text-center border-y border-white/10 py-2.5'>
+							<div>
+								<p className={`text-2xl font-bold ${ACCENT}`}>{data.totalGoals}</p>
+								<p className='text-white/45 text-[10px] sm:text-xs mt-0.5'>Goals</p>
+							</div>
+							<div className='border-l border-r border-white/10'>
+								<p className={`text-2xl font-bold ${ACCENT}`}>{data.totalAssists}</p>
+								<p className='text-white/45 text-[10px] sm:text-xs mt-0.5'>Assists</p>
+							</div>
+							<div>
+								<p className={`text-2xl font-bold ${ACCENT}`}>{data.totalMom}</p>
+								<p className='text-white/45 text-[10px] sm:text-xs mt-0.5'>MoM</p>
+							</div>
+						</div>
 					</>
 				);
 			case 2:
 				return (
 					<>
-						<p className='text-[#E8C547] text-sm font-semibold uppercase tracking-wide mb-2'>Percentile</p>
-						<h2 className='text-2xl md:text-3xl font-bold text-white mb-4'>Versus the squad</h2>
-						<p className='text-white/85 text-lg leading-relaxed'>
-							You played more matches than <span className='text-[#5DCAA5] font-semibold'>{data.matchesPercentile}%</span> of
+						<p className={`${ACCENT} text-xs sm:text-sm font-semibold uppercase tracking-wide mb-1`}>Percentile</p>
+						<h2 className='text-xl md:text-3xl font-bold text-white mb-2'>Versus the squad</h2>
+						<div className='border-t border-white/10 my-2' />
+						<p className='text-white/85 text-base sm:text-lg leading-snug'>
+							You played more matches than <span className={`${MINT} font-semibold`}>{data.matchesPercentile}%</span> of
 							the club this season.
 						</p>
 					</>
@@ -322,9 +464,14 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 			case 3:
 				return (
 					<>
-						<p className='text-[#E8C547] text-sm font-semibold uppercase tracking-wide mb-2'>Best month</p>
-						<h2 className='text-2xl md:text-3xl font-bold text-white mb-4'>{data.bestMonth}</h2>
-						<p className='text-white/85 text-lg'>
+						<p className={`${ACCENT} text-xs sm:text-sm font-semibold uppercase tracking-wide mb-1`}>Best month</p>
+						<h2 className='text-xl md:text-3xl font-bold text-white mb-2'>{data.bestMonth}</h2>
+						<div className='border-t border-white/10 my-2' />
+						<p className='text-white/75 text-xs sm:text-sm mb-2'>
+							<span className={MINT}>{data.bestMonthMatches}</span> games · FTP{" "}
+							<span className={MINT}>{data.bestMonthFantasyPoints}</span>
+						</p>
+						<p className='text-white/85 text-base sm:text-lg'>
 							{data.bestMonthGoals} goals · {data.bestMonthAssists} assists
 						</p>
 					</>
@@ -332,36 +479,54 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 			case 4:
 				return (
 					<>
-						<p className='text-[#E8C547] text-sm font-semibold uppercase tracking-wide mb-2'>Teammate</p>
-						<h2 className='text-2xl md:text-3xl font-bold text-white mb-4'>Chemistry</h2>
-						<p className='text-white/85 text-lg leading-relaxed'>
-							{data.topPartnerName === "—" ? (
-								"Partnership stats will show here once the graph has enough shared games."
-							) : (
-								<>
-									With <span className='text-[#E8C547] font-semibold'>{data.topPartnerName}</span>:{" "}
-									<span className='text-[#5DCAA5]'>{data.topPartnerWinRate}%</span> win rate across{" "}
-									{data.topPartnerMatches} games.
-								</>
-							)}
-						</p>
+						<p className={`${ACCENT} text-xs sm:text-sm font-semibold uppercase tracking-wide mb-1`}>Teammate</p>
+						<p className='text-white/50 text-xs sm:text-sm mb-2'>Your most trusted teammate</p>
+						<div className='border-t border-white/10 my-2' />
+						{data.topPartnerName === "-" ? (
+							<p className='text-white/85 text-lg leading-relaxed'>
+								Partnership stats will show here once you have shared games this season.
+							</p>
+						) : (
+							<div className='flex flex-col items-center text-center gap-2'>
+								<div
+									className={`flex h-20 w-20 sm:h-24 sm:w-24 items-center justify-center rounded-full border-2 border-[#5DCAA5]/50 bg-[rgba(30,45,30,0.6)] text-2xl sm:text-3xl font-bold ${MINT}`}>
+									{partnerInitials(data.topPartnerName)}
+								</div>
+								<h2 className='text-lg md:text-2xl font-bold text-white leading-tight'>{data.topPartnerName}</h2>
+								<p className='text-white/80 text-sm sm:text-base leading-snug'>
+									You played <span className={MINT}>{data.topPartnerMatches} matches</span> together
+									<br />
+									Win rate together: <span className={MINT}>{data.topPartnerWinRate}%</span>
+								</p>
+							</div>
+						)}
 					</>
 				);
 			case 5:
 				return (
 					<>
-						<p className='text-[#E8C547] text-sm font-semibold uppercase tracking-wide mb-2'>Player type</p>
-						<h2 className='text-2xl md:text-3xl font-bold text-white mb-4'>{data.playerType}</h2>
-						<p className='text-white/80 text-base leading-relaxed'>{data.playerTypeReason}</p>
+						<p className={`${ACCENT} text-xs sm:text-sm font-semibold uppercase tracking-wide mb-1`}>Player type</p>
+						<p className='text-white/50 text-xs sm:text-sm mb-2'>Your player type this season</p>
+						<div className='border-t border-white/10 my-2' />
+						<h2 className={`text-xl md:text-3xl font-bold ${ACCENT} mb-2 leading-tight`}>{data.playerType}</h2>
+						<p className='text-white/70 text-sm sm:text-base leading-snug'>{data.playerTypeReason}</p>
 					</>
 				);
 			case 6:
 				return (
 					<>
-						<p className='text-[#E8C547] text-sm font-semibold uppercase tracking-wide mb-2'>Peak match</p>
-						<h2 className='text-2xl md:text-3xl font-bold text-white mb-4'>Match rating {data.peakMatchRating}</h2>
-						<p className='text-white/85 text-lg'>
-							vs {data.peakMatchOpposition} — {data.peakMatchGoals}G {data.peakMatchAssists}A
+						<p className={`${ACCENT} text-xs sm:text-sm font-semibold uppercase tracking-wide mb-1`}>Peak match</p>
+						<h2 className='text-xl md:text-3xl font-bold text-white mb-1 leading-tight'>
+							Match rating <span className={ACCENT}>{data.peakMatchRating}</span>
+						</h2>
+						<div className='border-t border-white/10 my-2' />
+						<p className='text-white/85 text-base sm:text-lg mb-1'>
+							vs {data.peakMatchOpposition} - {data.peakMatchGoals}G {data.peakMatchAssists}A
+						</p>
+						<p className='text-white/75 text-sm sm:text-base'>
+							Result: <span className={`font-semibold ${MINT}`}>{data.peakMatchResultLabel}</span>
+							{" · "}
+							<span className='text-white font-medium'>{data.peakMatchScoreline}</span>
 						</p>
 					</>
 				);
@@ -371,43 +536,52 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 					data.wrappedDominantTeamLeagueDivision?.trim() ?
 						` (${data.wrappedDominantTeamLeagueDivision.trim()})`
 					:	"";
-				const pos = data.wrappedDominantTeamLeaguePosition;
-				const leagueLine =
-					pos != null && pos > 0 ?
-						`${teamLabel} finished ${formatOrdinal(pos)} in the league${divSuffix}.`
-					:	`League table position wasn’t available for ${teamLabel} this season.`;
+				const row = data.wrappedDominantTeamLeagueRow;
+				const leagueFinishLine =
+					row && row.position > 0 ?
+						`${teamLabel} finished ${formatOrdinal(row.position)} in the league${divSuffix}.`
+					:	null;
 				return (
 					<>
-						<p className='text-[#E8C547] text-sm font-semibold uppercase tracking-wide mb-2'>Team season</p>
-						<h2 className='text-2xl md:text-3xl font-bold text-white mb-4'>Points, cups, table</h2>
-						<ul className='text-white/85 text-sm md:text-base space-y-3 text-left' data-testid='wrapped-team-season-slide'>
+						<p className={`${ACCENT} text-xs sm:text-sm font-semibold uppercase tracking-wide mb-1`}>Team season</p>
+						<h2 className='text-xl md:text-3xl font-bold text-white mb-2'>Points, cups, table</h2>
+						<div className='border-t border-white/10 my-2' />
+						<ul className='text-white/85 text-xs sm:text-sm md:text-base space-y-2 text-left' data-testid='wrapped-team-season-slide'>
 							<li>
-								<span className='text-[#5DCAA5] font-semibold'>{data.wrappedLeaguePointsContributed}</span> league points from
-								games you played (3 for a win, 1 for a draw).
+								<span className={`${MINT} font-semibold`}>{data.wrappedLeaguePointsContributed}</span> league points from
+								games you played.
 							</li>
 							<li>
-								<span className='text-[#5DCAA5] font-semibold'>{data.wrappedCupTiesAdvanced}</span> cup ties advanced — matches
-								where the club went through (including wins on penalties after a draw).
+								<span className={`${MINT} font-semibold`}>{data.wrappedCupTiesAdvanced}</span> cup ties advanced.
 							</li>
-							<li>{leagueLine}</li>
+							{leagueFinishLine ? <li className='text-white/70'>{leagueFinishLine}</li> : null}
 						</ul>
+						{row ? <WrappedLeagueSnapshotTable row={row} /> : null}
 					</>
 				);
 			}
-			case 7:
+			case 7: {
+				const streakType = data.longestStreakType ?? "";
+				const isDisciplineNoCardsStreak = /discipline|no\s*cards/i.test(streakType);
 				return (
 					<>
-						<p className='text-[#E8C547] text-sm font-semibold uppercase tracking-wide mb-2'>Streak</p>
-						<h2 className='text-2xl md:text-3xl font-bold text-white mb-4'>{data.longestStreakType}</h2>
-						<p className='text-white/85 text-4xl font-bold text-[#5DCAA5]'>{data.longestStreakValue}</p>
+						<p className={`${ACCENT} text-xs sm:text-sm font-semibold uppercase tracking-wide mb-1`}>Streak</p>
+						<h2 className='text-xl md:text-3xl font-bold text-white mb-2 leading-tight'>{data.longestStreakType}</h2>
+						<div className='border-t border-white/10 my-2' />
+						<p className={`text-white/85 text-3xl sm:text-4xl font-bold ${MINT}`}>
+							{data.longestStreakValue}
+							{isDisciplineNoCardsStreak ? " games" : ""}
+						</p>
 					</>
 				);
+			}
 			case 8:
 				return (
 					<>
-						<p className='text-[#E8C547] text-sm font-semibold uppercase tracking-wide mb-2'>Distance</p>
-						<h2 className='text-2xl md:text-3xl font-bold text-white mb-4'>On the road</h2>
-						<p className='text-white/85 text-base leading-relaxed'>{data.distanceEquivalent}</p>
+						<p className={`${ACCENT} text-xs sm:text-sm font-semibold uppercase tracking-wide mb-1`}>Distance</p>
+						<h2 className='text-xl md:text-3xl font-bold text-white mb-2'>On the road</h2>
+						<div className='border-t border-white/10 my-2' />
+						<p className='text-white/85 text-sm sm:text-base leading-snug'>{data.distanceEquivalent}</p>
 					</>
 				);
 			case 10: {
@@ -418,9 +592,10 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 				const recordingsHref = `${statsHref}#player-recordings`;
 				return (
 					<>
-						<p className='text-[#E8C547] text-sm font-semibold uppercase tracking-wide mb-2'>Veo</p>
-						<h2 className='text-2xl md:text-3xl font-bold text-white mb-4'>Match videos</h2>
-						<p className='text-white/70 text-sm mb-4'>
+						<p className={`${ACCENT} text-xs sm:text-sm font-semibold uppercase tracking-wide mb-1`}>Veo</p>
+						<h2 className='text-xl md:text-3xl font-bold text-white mb-2'>Match videos</h2>
+						<div className='border-t border-white/10 my-2' />
+						<p className='text-white/70 text-xs sm:text-sm mb-2'>
 							Fixtures you played with a Veo recording this season.
 							{veoTotal > VEO_WRAP_PREVIEW_COUNT ? (
 								<>
@@ -430,7 +605,7 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 							) : null}
 						</p>
 						<ul
-							className='text-left space-y-3 max-h-[42vh] overflow-y-auto pr-1 touch-pan-y'
+							className='text-left space-y-2 max-h-[26vh] sm:max-h-[30vh] overflow-y-auto pr-1 touch-pan-y'
 							style={{ touchAction: "pan-y" }}
 							data-testid='wrapped-veo-list'>
 							{veoRows.map((row) => {
@@ -453,7 +628,7 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 								);
 							})}
 						</ul>
-						<p className='text-white/55 text-xs mt-4 leading-relaxed' data-wrapped-no-swipe>
+						<p className='text-white/55 text-[10px] sm:text-xs mt-2 leading-snug' data-wrapped-no-swipe>
 							See more on{" "}
 							<Link
 								href={statsHref}
@@ -474,19 +649,44 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 				);
 			}
 			default:
-				return (
-					<FinalSlideFullSiteLink />
-				);
+				return <FinalSlideFullSiteLink />;
 		}
 	};
 
 	const profileHref = getPlayerProfileHref(data.playerName);
+	const showTimer = index < total - 1;
+
+	const wrappedNavControls = (
+		<>
+			<button
+				type='button'
+				onClick={() => go(-1)}
+				disabled={index <= 0}
+				className='text-xs sm:text-sm px-3 py-1.5 rounded-lg border border-white/15 text-white/90 disabled:opacity-30'>
+				Back
+			</button>
+			<button
+				type='button'
+				onClick={() => go(1)}
+				disabled={index >= total - 1}
+				className='text-xs sm:text-sm px-3 py-1.5 rounded-lg border border-white/15 text-white/90 disabled:opacity-30'>
+				Next
+			</button>
+			<button
+				type='button'
+				data-testid='wrapped-share-open'
+				onClick={() => setShareOpen(true)}
+				className='text-xs sm:text-sm font-medium px-3 py-1.5 rounded-lg bg-[#E8C547] text-black hover:opacity-90'>
+				Share
+			</button>
+		</>
+	);
 
 	return (
 		<div
-			className='relative min-h-screen min-h-[100dvh] w-full max-w-[100dvw] overflow-x-hidden overscroll-x-none flex flex-col bg-[#1a2218] bg-gradient-to-b from-[#1c2418] via-[#232b1c] to-[#1a2218] text-white px-4 py-6 md:py-10 touch-pan-y'
+			className='relative h-[100dvh] max-h-[100dvh] min-h-0 w-full max-w-[100dvw] overflow-x-hidden overflow-y-hidden overscroll-x-none flex flex-col text-white px-4 py-6 md:py-10 touch-pan-y bg-[#12180e] bg-[radial-gradient(ellipse_100%_70%_at_50%_-5%,rgba(72,92,48,0.45)_0%,transparent_55%),linear-gradient(180deg,#1a2212_0%,#0f140c_50%,#1a2212_100%)]'
 			data-testid='wrapped-page'>
-			<header className='max-w-xl mx-auto w-full mb-6 relative pr-14 sm:pr-24'>
+			<header className='max-w-xl mx-auto w-full mb-6 shrink-0 relative pr-14 sm:pr-24'>
 				<Link
 					href={profileHref}
 					data-testid='wrapped-exit-profile'
@@ -501,17 +701,18 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 						alt='Dorkinians FC'
 						width={44}
 						height={44}
-						className='rounded-full shrink-0'
+						className='rounded-full shrink-0 ring-2 ring-[#E8C547]/30'
 					/>
 					<div className='text-left min-w-0'>
-						<p className='text-xs text-white/50 uppercase tracking-widest'>Dorkinians Wrapped</p>
+						<p className='text-xs text-[#E8C547]/90 uppercase tracking-widest font-semibold'>
+							Dorkinians Wrapped {data.season}
+						</p>
 						<h1 className='text-xl md:text-2xl font-bold text-white mt-1'>{data.playerName}</h1>
-						<p className='text-sm text-white/45 mt-1'>{data.season}</p>
 					</div>
 				</div>
 			</header>
 
-			<div className='flex justify-center gap-2 mb-6 flex-wrap'>
+			<div className='flex justify-center gap-2 mb-6 flex-wrap shrink-0'>
 				{slideIds.map((id, i) => (
 					<button
 						key={id}
@@ -524,8 +725,8 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 				))}
 			</div>
 
-			<div className='flex-1 flex flex-col items-center justify-center max-w-2xl mx-auto w-full min-w-0 relative overflow-x-hidden'>
-				<div className='relative w-full min-w-0 overflow-x-hidden'>
+			<div className='flex-1 flex flex-col min-h-0 max-w-2xl mx-auto w-full min-w-0 relative overflow-x-hidden overflow-y-hidden'>
+				<div className='relative w-full min-h-0 flex-1 flex flex-col overflow-hidden'>
 					<AnimatePresence mode='wait'>
 						<motion.div
 							key={currentSlideId}
@@ -533,69 +734,78 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 							animate={{ opacity: 1 }}
 							exit={{ opacity: 0 }}
 							transition={{ duration: 0.2 }}
-							className='w-full min-w-0'
-						onPointerDown={onPointerDownSwipe}
-						onPointerUp={onPointerUpSwipe}
-						onPointerCancel={onPointerCancelSwipe}
-						onTouchStart={onTouchStartSwipe}
-						onTouchEnd={onTouchEndSwipe}
-						data-testid='wrapped-slide-swipe-area'>
-						<SlideFrame
-							footerUrl={data.wrappedUrl}
-							slideRef={slideRef}
-							topRight={
-								currentSlideId === 10 ? (
-									<img
-										src='/icons/veo.svg'
-										alt='Veo'
-										className='h-7 w-auto opacity-95 brightness-0 invert md:h-8'
-									/>
-								) : undefined
-							}>
-							{renderSlide()}
-						</SlideFrame>
+							className='w-full min-h-0 flex-1 flex flex-col overflow-hidden'
+							onPointerDown={onPointerDownSwipe}
+							onPointerUp={onPointerUpSwipe}
+							onPointerCancel={onPointerCancelSwipe}
+							onTouchStart={onTouchStartSwipe}
+							onTouchEnd={onTouchEndSwipe}
+							data-testid='wrapped-slide-swipe-area'>
+							<SlideFrame
+								slideRef={slideRef}
+								timerPct={timerPct}
+								showTimer={showTimer}
+								footerControls={wrappedNavControls}
+								topRight={
+									currentSlideId === 10 ? (
+										<img
+											src='/icons/veo.svg'
+											alt='Veo'
+											className='h-7 w-auto opacity-95 brightness-0 invert md:h-8'
+										/>
+									) : undefined
+								}>
+								{renderSlide()}
+							</SlideFrame>
 						</motion.div>
 					</AnimatePresence>
 				</div>
-
-				<div className='flex flex-wrap items-center justify-center gap-3 mt-8' data-wrapped-no-swipe>
-					<button
-						type='button'
-						onClick={() => go(-1)}
-						disabled={index <= 0}
-						className='text-sm px-4 py-2 rounded-lg border border-white/15 text-white/90 disabled:opacity-30'>
-						Back
-					</button>
-					<button
-						type='button'
-						onClick={() => go(1)}
-						disabled={index >= total - 1}
-						className='text-sm px-4 py-2 rounded-lg border border-white/15 text-white/90 disabled:opacity-30'>
-						Next
-					</button>
-					<ShareSlideButton
-						slideRef={slideRef}
-						playerName={data.playerName}
-						slideNumber={currentSlideId}
-						shareUrl={data.wrappedUrl}
-					/>
-				</div>
 			</div>
 
-			<section className='max-w-xl mx-auto w-full mt-10 mb-8'>
-				<p className='text-xs text-white/45 mb-2'>WhatsApp-friendly text</p>
-				<pre
-					data-testid='wrapped-whatsapp-block'
-					className='text-xs text-white/75 bg-black/25 rounded-lg p-3 whitespace-pre-wrap break-words border border-white/10'>
-					{whatsappBlock}
-				</pre>
-				<button
-					type='button'
-					className='mt-2 text-sm text-[#E8C547] underline'
-					onClick={() => void navigator.clipboard.writeText(whatsappBlock)}>
-					Copy text
-				</button>
-			</section>
+			{shareOpen ? (
+				<div
+					className='fixed inset-0 z-[400] flex items-center justify-center bg-black/70 p-4'
+					role='dialog'
+					aria-modal='true'
+					aria-label='Share options'
+					data-testid='wrapped-share-modal'
+					onClick={() => setShareOpen(false)}>
+					<div
+						className='w-full max-w-sm rounded-xl border border-white/15 bg-[#1a2210] p-5 shadow-2xl'
+						onClick={(e) => e.stopPropagation()}>
+						<p className='text-white font-semibold mb-4'>Share</p>
+						<div className='flex flex-col gap-2'>
+							<button
+								type='button'
+								className='rounded-lg bg-[#E8C547] text-black font-medium py-2.5 px-3 text-sm'
+								data-testid='wrapped-share-season'
+								onClick={() => {
+									setShareOpen(false);
+									void shareSeasonWrapped();
+								}}>
+								Share season wrapped
+							</button>
+							<button
+								type='button'
+								className='rounded-lg border border-white/20 text-white py-2.5 px-3 text-sm font-medium hover:bg-white/10'
+								data-testid='wrapped-share-slide'
+								onClick={() => {
+									setShareOpen(false);
+									void captureAndShareSlide();
+								}}>
+								Share this slide
+							</button>
+							<button
+								type='button'
+								className='mt-2 text-sm text-white/70 underline'
+								data-testid='wrapped-share-close'
+								onClick={() => setShareOpen(false)}>
+								Close
+							</button>
+						</div>
+					</div>
+				</div>
+			) : null}
 		</div>
 	);
 }

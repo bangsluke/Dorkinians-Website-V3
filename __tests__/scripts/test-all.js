@@ -5,7 +5,7 @@
  * Runs all test suites in sequence with clear differentiation:
  * 1. Unit Tests
  * 2. Integration Tests
- * 3. Database package (../database-dorkinians) — Node tests when sibling repo is present
+ * 3. Database package (../database-dorkinians) - Node tests when sibling repo is present
  * 4. Other Jest Tests (comprehensive, advanced, performance, validation, ux, security, monitoring)
  * 5. E2E Tests (Playwright)
  * 6. Chatbot Report
@@ -208,7 +208,7 @@ async function runAllSuites() {
 		hasFailures = true;
 	}
 
-	// 3. Sibling database-dorkinians repo — Node built-in tests (club records, graph insights, match-derived, streaks)
+	// 3. Sibling database-dorkinians repo - Node built-in tests (club records, graph insights, match-derived, streaks)
 	printSectionHeader("DATABASE PACKAGE (NODE TESTS)");
 	const dbRepoAbs = path.resolve(REPO_ROOT, "..", "database-dorkinians");
 	const dbPackageJson = path.join(dbRepoAbs, "package.json");
@@ -216,7 +216,7 @@ async function runAllSuites() {
 		results.databaseSiblingSkipped = true;
 		results.databaseSibling = true;
 		printInfo("Skipped: ../database-dorkinians not found (optional sibling checkout).");
-		printSuccess("Database package tests skipped — not counted as failure");
+		printSuccess("Database package tests skipped - not counted as failure");
 	} else {
 		const quoteForShell = (absPath) => `"${String(absPath).replace(/"/g, '\\"')}"`;
 		const prefix = quoteForShell(dbRepoAbs);
@@ -251,7 +251,7 @@ async function runAllSuites() {
 		hasFailures = true;
 	}
 
-	// 5. E2E Tests — use playwright.config reporters (list + html); stream stdout so progress is visible live
+	// 5. E2E Tests - use playwright.config reporters (list + html); stream stdout so progress is visible live
 	printSectionHeader("E2E TESTS (PLAYWRIGHT)");
 	const playwrightCommand = "playwright test";
 	results.e2e = await runCommand(playwrightCommand, "E2E Tests (Playwright)");

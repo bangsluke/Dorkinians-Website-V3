@@ -1,6 +1,6 @@
 /**
  * Live streak computation for Player Stats (aligned with database-dorkinians/services/streakDetection.js).
- * Pure functions — callers supply match rows and appearance slots from Neo4j (optionally filtered).
+ * Pure functions - callers supply match rows and appearance slots from Neo4j (optionally filtered).
  */
 
 export type NormalizedMatch = {

@@ -501,7 +501,7 @@
 		box-sizing: border-box;
 	}
 
-	/* KPI + Form share one masonry cell. Use margin on KPI (md:mb-4) for vertical rhythm — same as masonry > * margin-bottom — not flex gap, so spacing matches full-page skeleton + other cards once content loads. */
+	/* KPI + Form share one masonry cell. Use margin on KPI (md:mb-4) for vertical rhythm - same as masonry > * margin-bottom - not flex gap, so spacing matches full-page skeleton + other cards once content loads. */
 	.player-stats-masonry > .player-stats-kpi-form-group {
 		display: flex !important;
 		flex-direction: column !important;

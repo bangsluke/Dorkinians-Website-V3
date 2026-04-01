@@ -11,7 +11,7 @@ jest.mock("@/lib/neo4j", () => ({
 
 // Lightweight timing and concurrency checks around ChatbotService with Neo4j mocked (deterministic latency).
 // Uses wall-clock thresholds (<7s) and Promise.all fan-out; not a full load test harness.
-// CI machine variance can occasionally borderline-flake strict timing—watch for environmental noise.
+// CI machine variance can occasionally borderline-flake strict timing-watch for environmental noise.
 
 describe("Performance and Load Testing", () => {
 	let chatbotService: ChatbotService;

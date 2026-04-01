@@ -1202,7 +1202,7 @@ NEXT_PUBLIC_UMAMI_WEBSITE_ID=your-website-id-here
 # App Version (auto-populated from package.json at build time)
 NEXT_PUBLIC_APP_VERSION=1.1.21
 
-# Server-only (Netlify Functions — weekly report). Never prefix with NEXT_PUBLIC_.
+# Server-only (Netlify Functions - weekly report). Never prefix with NEXT_PUBLIC_.
 # UMAMI_API_KEY=...
 # UMAMI_WEBSITE_ID=...  # usually same UUID as NEXT_PUBLIC_UMAMI_WEBSITE_ID
 # UMAMI_BASE_URL=https://api.umami.is/v1
@@ -1215,7 +1215,7 @@ NEXT_PUBLIC_APP_VERSION=1.1.21
    - `NEXT_PUBLIC_UMAMI_SCRIPT_URL`
    - `NEXT_PUBLIC_UMAMI_WEBSITE_ID`
    - `NEXT_PUBLIC_APP_VERSION` (will be auto-populated from package.json)
-   - `UMAMI_API_KEY`, `UMAMI_WEBSITE_ID` (and optional `UMAMI_BASE_URL`) if using the scheduled `umami-weekly-report` function — see [UMAMI_ANALYTICS.md](./UMAMI_ANALYTICS.md)
+   - `UMAMI_API_KEY`, `UMAMI_WEBSITE_ID` (and optional `UMAMI_BASE_URL`) if using the scheduled `umami-weekly-report` function - see [UMAMI_ANALYTICS.md](./UMAMI_ANALYTICS.md)
 
 **Note:** The `NEXT_PUBLIC_APP_VERSION` is automatically set from your `package.json` during build, so you don't need to manually update it.
 
@@ -1246,7 +1246,7 @@ NEXT_PUBLIC_UMAMI_WEBSITE_ID=your-website-id-here
 # App Version (auto-populated from package.json at build time)
 NEXT_PUBLIC_APP_VERSION=1.1.21
 
-# Server-only weekly report (Netlify Functions) — see UMAMI_ANALYTICS.md
+# Server-only weekly report (Netlify Functions) - see UMAMI_ANALYTICS.md
 # UMAMI_API_KEY=...
 # UMAMI_WEBSITE_ID=...
 ```

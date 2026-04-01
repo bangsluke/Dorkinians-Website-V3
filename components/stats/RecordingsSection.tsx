@@ -120,7 +120,7 @@ export default function RecordingsSection({
 										className='py-1.5 pl-1 pr-0.5 align-middle sm:py-2 sm:px-2'
 										title={fx.team || ""}>
 										<div className='max-w-[4rem] truncate text-[9px] font-normal leading-tight sm:max-w-none sm:text-xs'>
-											{fx.team || "—"}
+											{fx.team || "-"}
 										</div>
 									</td>
 								) : null}
@@ -158,7 +158,7 @@ export default function RecordingsSection({
 								<td
 									className={`min-w-0 max-w-none py-1.5 align-middle sm:py-2 sm:px-2 ${teamColumn ? "px-0.5 text-[9px] font-normal sm:text-xs" : "px-1"}`}
 									title={fx.opposition || ""}>
-									<div className='truncate'>{fx.opposition || "—"}</div>
+									<div className='truncate'>{fx.opposition || "-"}</div>
 								</td>
 								<td
 									className={`whitespace-nowrap py-1.5 px-0.5 align-middle font-mono tabular-nums sm:py-2 sm:px-2 ${teamColumn ? "max-sm:text-[9px]" : ""}`}>

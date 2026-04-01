@@ -76,7 +76,7 @@ function getPositionBadge(position: string): { label: string; className: string 
 		return { label: "MID", className: "px-2 py-1 rounded text-xs font-medium bg-green-600/30 text-green-300" };
 	if (p.includes("FWD") || p.includes("FORWARD"))
 		return { label: "FWD", className: "px-2 py-1 rounded text-xs font-medium bg-teal-600/30 text-teal-300" };
-	return { label: position || "—", className: "px-2 py-1 rounded text-xs font-medium bg-gray-700 text-gray-300" };
+	return { label: position || "-", className: "px-2 py-1 rounded text-xs font-medium bg-gray-700 text-gray-300" };
 }
 
 function normalizePositionBucket(position: string): "GK" | "DEF" | "MID" | "FWD" | "OTHER" {
@@ -127,7 +127,7 @@ const FORMATION_ROW_ORDER = ["FWD", "MID", "DEF", "GK"] as const;
 
 /** Outfield starter counts only (GK excluded), e.g. 4-4-2. */
 function formatOutfieldFormation(def: number, mid: number, fwd: number): string {
-	if (def === 0 && mid === 0 && fwd === 0) return "—";
+	if (def === 0 && mid === 0 && fwd === 0) return "-";
 	return `${def}-${mid}-${fwd}`;
 }
 

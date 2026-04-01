@@ -2,7 +2,7 @@ import Skeleton from "react-loading-skeleton";
 
 type StatCardSkeletonProps = {
 	count?: number;
-	/** Grid only — use inside an existing frosted card (e.g. Key Performance Stats) so layout matches loaded content */
+	/** Grid only - use inside an existing frosted card (e.g. Key Performance Stats) so layout matches loaded content */
 	variant?: "full" | "embedded";
 };
 

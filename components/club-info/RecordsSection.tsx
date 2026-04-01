@@ -26,7 +26,7 @@ export interface ClubRecordDTO {
 function formatRecordValueDisplay(rec: ClubRecordDTO): string {
 	if (rec.recordValueDisplay != null && String(rec.recordValueDisplay).trim() !== "") return String(rec.recordValueDisplay);
 	if (typeof rec.recordValue === "number" && Number.isFinite(rec.recordValue)) return String(Math.round(rec.recordValue));
-	return String(rec.recordValue ?? "—");
+	return String(rec.recordValue ?? "-");
 }
 
 function RecordRow({ rec, onPlayerClick }: { rec: ClubRecordDTO; onPlayerClick: (name: string) => void }) {
@@ -56,7 +56,7 @@ function RecordRow({ rec, onPlayerClick }: { rec: ClubRecordDTO; onPlayerClick: 
 					) : teamLine ? (
 						<span className='text-[#E8C547] text-xs md:text-sm font-semibold'>{teamLine}</span>
 					) : (
-						<span className='text-white/50 text-xs'>—</span>
+						<span className='text-white/50 text-xs'>-</span>
 					)}
 					{teamLine && rec.holderName ? (
 						<span className='text-white/45 text-[10px] md:text-xs mt-0.5'>{teamLine}</span>
@@ -66,7 +66,7 @@ function RecordRow({ rec, onPlayerClick }: { rec: ClubRecordDTO; onPlayerClick: 
 			</div>
 			{hasChallenger ? (
 				<p className='text-[#E8C547]/90 text-[10px] md:text-xs mt-2'>
-					⚠ Under threat — {rec.currentChallenger} on{" "}
+					⚠ Under threat - {rec.currentChallenger} on{" "}
 					{typeof rec.challengerValue === "number" ? Math.round(rec.challengerValue) : rec.challengerValue}
 				</p>
 			) : null}

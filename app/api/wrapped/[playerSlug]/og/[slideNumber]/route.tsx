@@ -22,7 +22,7 @@ function slideTitle(n: number, data: WrappedData): { title: string; subtitle: st
 		case 1:
 			return {
 				title: "Season overview",
-				subtitle: `${data.totalMatches} apps · ${data.totalGoals} goals · ${data.totalAssists} assists · ${data.totalMom} MoM`,
+				subtitle: `${data.totalMatches} apps · ${data.totalMinutes} mins · ${data.totalStarts} starts · ${data.mostPlayedPosition} · ${data.totalGoals}G ${data.totalAssists}A · ${data.totalMom} MoM`,
 			};
 		case 2:
 			return {
@@ -30,12 +30,15 @@ function slideTitle(n: number, data: WrappedData): { title: string; subtitle: st
 				subtitle: `More appearances than ${data.matchesPercentile}% of the club this season`,
 			};
 		case 3:
-			return { title: "Best month", subtitle: `${data.bestMonth} · ${data.bestMonthGoals}G ${data.bestMonthAssists}A` };
+			return {
+				title: "Best month",
+				subtitle: `${data.bestMonth} · ${data.bestMonthMatches} games · FTP ${data.bestMonthFantasyPoints} · ${data.bestMonthGoals}G ${data.bestMonthAssists}A`,
+			};
 		case 4:
 			return {
 				title: "Teammate chemistry",
 				subtitle:
-					data.topPartnerName === "—"
+					data.topPartnerName === "-"
 						? "Partnership data still loading in the graph"
 						: `With ${data.topPartnerName}: ${data.topPartnerWinRate}% wins in ${data.topPartnerMatches} games`,
 			};
@@ -44,23 +47,30 @@ function slideTitle(n: number, data: WrappedData): { title: string; subtitle: st
 		case 6:
 			return {
 				title: "Peak performance",
-				subtitle: `${data.peakMatchRating} vs ${data.peakMatchOpposition} (${data.peakMatchGoals}G ${data.peakMatchAssists}A)`,
+				subtitle: `${data.peakMatchRating} vs ${data.peakMatchOpposition} (${data.peakMatchGoals}G ${data.peakMatchAssists}A) · ${data.peakMatchResultLabel} ${data.peakMatchScoreline}`,
 			};
 		case 11: {
-			const pos = data.wrappedDominantTeamLeaguePosition;
+			const row = data.wrappedDominantTeamLeagueRow;
 			const posBit =
-				pos != null && pos > 0 ?
-					` · ${data.wrappedDominantTeam || "XI"} ${pos}${ordinalSuffix(pos)}`
+				row && row.position > 0 ?
+					` · ${data.wrappedDominantTeam || "XI"} ${row.position}${ordinalSuffix(row.position)}`
 				:	"";
 			return {
 				title: "Team season",
 				subtitle: `${data.wrappedLeaguePointsContributed} league pts · ${data.wrappedCupTiesAdvanced} cup ties advanced${posBit}`,
 			};
 		}
-		case 7:
+		case 7: {
+			const streakType = data.longestStreakType ?? "";
+			const disciplineGames =
+				/discipline|no\s*cards/i.test(streakType) && data.longestStreakValue != null ? " games" : "";
 			return data.longestStreakType
-				? { title: "Streak spotlight", subtitle: `${data.longestStreakType}: ${data.longestStreakValue}` }
+				? {
+						title: "Streak spotlight",
+						subtitle: `${data.longestStreakType}: ${data.longestStreakValue}${disciplineGames}`,
+					}
 				: { title: "Streak spotlight", subtitle: "No 3+ game season streak — room to start one next year" };
+		}
 		case 8:
 			return { title: "Distance", subtitle: data.distanceEquivalent };
 		case 10: {

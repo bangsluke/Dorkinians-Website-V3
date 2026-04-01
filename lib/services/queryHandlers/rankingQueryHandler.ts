@@ -44,7 +44,7 @@ export class RankingQueryHandler {
 		// Determine if this is a GperAPP question (check before early return)
 		const isGperAPPQuestion = hasGoalPerGameKeyword || (metrics.length > 0 && metrics[0].toUpperCase() === "GPERAPP");
 
-		// "Who's in the best/worst form?" style questions (Feature 3) — avoid "formation" / "information" false positives
+		// "Who's in the best/worst form?" style questions (Feature 3) - avoid "formation" / "information" false positives
 		const isFormRankingQuestion =
 			metrics.length === 0 &&
 			(lowerQuestion.includes("who") || lowerQuestion.includes("which")) &&

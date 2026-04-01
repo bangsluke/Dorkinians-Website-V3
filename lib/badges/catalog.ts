@@ -1,5 +1,5 @@
 /**
- * Feature 9 — achievement badge catalogue for the website (progress UI).
+ * Feature 9 - achievement badge catalogue for the website (progress UI).
  * Keep in sync with `database-dorkinians/services/badgeDefinitions.js`.
  */
 

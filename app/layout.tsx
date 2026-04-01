@@ -88,7 +88,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 	const headersList = await headers();
 	const nonce = headersList.get("x-csp-nonce") || "";
 
-	/* Body only: inline bg prevents white FOUC. Do not set html backgroundColor — WebKit
+	/* Body only: inline bg prevents white FOUC. Do not set html backgroundColor - WebKit
 	   paints html above body::before (z-index: -1), which hides the gradient. */
 	const criticalBodyPaint = {
 		backgroundColor: "#0f0f0f",

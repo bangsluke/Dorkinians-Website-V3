@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
 
 				const keyHint =
 					herokuStatus === 401
-						? "Heroku rejected the API key (401). Set SEED_API_KEY on this deployment to exactly match SEED_API_KEY on the Heroku database app — same characters and length. Heroku logs say \"Invalid API key length\" when the keys differ."
+						? "Heroku rejected the API key (401). Set SEED_API_KEY on this deployment to exactly match SEED_API_KEY on the Heroku database app - same characters and length. Heroku logs say \"Invalid API key length\" when the keys differ."
 						: `Heroku returned HTTP ${herokuStatus}.`;
 
 				return NextResponse.json(
