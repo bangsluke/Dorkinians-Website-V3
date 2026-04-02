@@ -8,6 +8,7 @@ import { useNavigationStore } from "@/lib/stores/navigation";
 import { getActiveFilterCount } from "@/lib/utils/filterUtils";
 import Image from "next/image";
 import { getPlayerProfileHref } from "@/lib/profile/slug";
+import { featureFlags } from "@/config/config";
 import { isDevelopBranchDeploy } from "@/lib/utils/isDevelopBranchDeploy";
 import { usePathname } from "next/navigation";
 import { scheduleProfileIntroBursts, shouldRunProfileIntro } from "@/lib/utils/profileNavIntro";
@@ -45,7 +46,8 @@ export default function Header({
 	const profileIntroCleanupRef = useRef<(() => void) | null>(null);
 
 	const isProfileRoute = pathname?.startsWith("/profile/") ?? false;
-	const showProfileIcon = isProfileRoute || (isPlayerSelected && !!selectedPlayer);
+	const showProfileIcon =
+		featureFlags.playerProfile && (isProfileRoute || (isPlayerSelected && !!selectedPlayer));
 
 	// Dismiss tooltips
 	const dismissMenuTooltip = () => {

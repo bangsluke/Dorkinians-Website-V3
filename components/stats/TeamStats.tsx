@@ -1,7 +1,7 @@
 "use client";
 
 import { useNavigationStore, type TeamData } from "@/lib/stores/navigation";
-import { statObject, statsPageConfig, appConfig } from "@/config/config";
+import { statObject, statsPageConfig, appConfig, featureFlags } from "@/config/config";
 import Image from "next/image";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { cachedFetch, generatePageCacheKey } from "@/lib/utils/pageCache";
@@ -811,6 +811,10 @@ export default function TeamStats() {
 			setTeamRecordings([]);
 			return;
 		}
+		if (!featureFlags.teamStatsTeamRecordings) {
+			setTeamRecordings([]);
+			return;
+		}
 		if (hasUnsavedFilters || isFilterSidebarOpen) return;
 
 		const fetchTeamRecordings = async () => {
@@ -840,6 +844,12 @@ export default function TeamStats() {
 
 		fetchTeamRecordings();
 	}, [selectedTeam, playerFilters, hasUnsavedFilters, isFilterSidebarOpen, getCachedPageData, setCachedPageData]);
+
+	useEffect(() => {
+		if (!featureFlags.teamStatsStreakAndForm && selectedStatType === "bestCurrentForm") {
+			setSelectedStatType("appearances");
+		}
+	}, [selectedStatType]);
 
 	// Priority 3: Below fold - Best Season Finish section
 	// Fetch best season finish data when team selected and filters change
@@ -1547,7 +1557,10 @@ export default function TeamStats() {
 									</div>
 								)}
 
-								{!isDataTableMode && teamData.streakLeaders && teamData.streakLeaders.length > 0 && (
+								{!isDataTableMode &&
+									featureFlags.teamStatsStreakAndForm &&
+									teamData.streakLeaders &&
+									teamData.streakLeaders.length > 0 && (
 									<div id='team-streak-leaders' className='md:break-inside-avoid md:mb-4'>
 										<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 											<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Longest active streaks (this XI)</h3>
@@ -1622,7 +1635,7 @@ export default function TeamStats() {
 															"savesPer90",
 															"cardsPer90",
 															"momPer90",
-															"bestCurrentForm",
+															...(featureFlags.teamStatsStreakAndForm ? (["bestCurrentForm"] as const) : []),
 														] as StatType[]).map((statType) => (
 															<Listbox.Option
 																key={statType}
@@ -1879,7 +1892,10 @@ export default function TeamStats() {
 									);
 								})()}
 
-								{!isDataTableMode && teamData.formationBreakdown && teamData.formationBreakdown.length > 0 && (
+								{!isDataTableMode &&
+									featureFlags.teamStatsFormationsUsed &&
+									teamData.formationBreakdown &&
+									teamData.formationBreakdown.length > 0 && (
 									<div id='team-formation-breakdown' className='md:break-inside-avoid md:mb-4'>
 										<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 											<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Formations Used</h3>
@@ -2070,14 +2086,14 @@ export default function TeamStats() {
 												<div className='flex-shrink-0'>
 													<Image
 														src='/stat-icons/GoalsPerAppearance-Icon.svg'
-														alt='Goals/Game'
+														alt='Goals / Game'
 														width={40}
 														height={40}
 														className='w-8 h-8 md:w-10 md:h-10 object-contain'
 													/>
 												</div>
 												<div className='flex-1 min-w-0'>
-													<div className='text-white/70 text-sm md:text-base mb-1'>Goals/Game</div>
+													<div className='text-white/70 text-sm md:text-base mb-1'>Goals / Game</div>
 													<div className='text-white font-bold text-xl md:text-2xl'>{toNumber(teamData.goalsPerGame).toFixed(2)}</div>
 												</div>
 											</div>
@@ -2085,14 +2101,14 @@ export default function TeamStats() {
 												<div className='flex-shrink-0'>
 													<Image
 														src='/stat-icons/ConcededPerAppearance-Icon.svg'
-														alt='Conceded/Game'
+														alt='Conceded / Game'
 														width={40}
 														height={40}
 														className='w-8 h-8 md:w-10 md:h-10 object-contain'
 													/>
 												</div>
 												<div className='flex-1 min-w-0'>
-													<div className='text-white/70 text-sm md:text-base mb-1'>Conceded/Game</div>
+													<div className='text-white/70 text-sm md:text-base mb-1'>Conceded / Game</div>
 													<div className='text-white font-bold text-xl md:text-2xl'>{toNumber(teamData.goalsConcededPerGame).toFixed(2)}</div>
 												</div>
 											</div>
@@ -2260,7 +2276,7 @@ export default function TeamStats() {
 									</div>
 								)}
 
-								{selectedTeam && teamRecordings.length > 0 && (
+								{featureFlags.teamStatsTeamRecordings && selectedTeam && teamRecordings.length > 0 && (
 									<RecordingsSection
 										id='team-recordings'
 										title='Team Recordings'

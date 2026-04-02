@@ -1,6 +1,6 @@
 /**
  * Jest mirror of database-dorkinians `services/matchDerivedFields.test.js` against the same
- * implementation file (single source of truth). Keeps NEW-FEATURES “Jest unit tests” satisfied.
+ * implementation file (single source of truth). Aligns with foundation / Feature 1 + 4 in FEATURES-MASTER-STATUS.md.
  */
 import path from "path";
 

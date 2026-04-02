@@ -56,7 +56,7 @@ CALL gds.graph.list() YIELD graphName RETURN graphName;
 Graph insight features (`graphInsightsComputation.js`, GDS-backed ranks) expect **data + relationships** to exist before algorithms run.
 
 1. Pull latest `database-dorkinians` and `V3-Dorkinians-Website`.
-2. Run your normal **full seed** / foundation pipeline (orchestrator that ends with `applyFoundationDerivedAggregates` and graph insight steps). Typical order is documented in `NEW-FEATURES.md` / `IMPLEMENTATION-STATUS.md` under **Feature 7** and foundation sections.
+2. Run your normal **full seed** / foundation pipeline (orchestrator that ends with `applyFoundationDerivedAggregates` and graph insight steps). Typical order is documented in `FEATURES-MASTER-STATUS.md` under **Feature 7** and foundation sections.
 3. Confirm `Player` nodes have expected graph fields (e.g. `squadInfluence`, `squadInfluenceRank`, `communityId` when Louvain is used)-either in Browser or via a small `MATCH (p:Player) RETURN p LIMIT 1` inspection.
 
 ---
@@ -84,7 +84,7 @@ Graph insight features (`graphInsightsComputation.js`, GDS-backed ranks) expect 
 
 - **DB:** `database-dorkinians/services/graphInsightsComputation.js` (and callers from `relationshipManager` / orchestrator).
 - **Site:** `app/api/club-squad-backbone/route.ts`, Club Stats UI consuming backbone data.
-- **Status / spec:** `IMPLEMENTATION-STATUS.md` (Feature 7), `FEATURE-IMPLEMENTATION-REPORT.md` §3.6.
+- **Status / spec:** `FEATURES-MASTER-STATUS.md` (Feature 7, graph insights, Squad Backbone).
 
 ---
 

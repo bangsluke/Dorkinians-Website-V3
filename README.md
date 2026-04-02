@@ -764,8 +764,7 @@ The project uses a unified schema system where configuration files are synchroni
 
 ## Additional Documentation
 
-- **[NEW-FEATURES.md](./NEW-FEATURES.md)** - phased feature spec (database + website).
-- **[IMPLEMENTATION-STATUS.md](./IMPLEMENTATION-STATUS.md)** - what is done vs remaining for that plan (update after each implementation session).
+- **[FEATURES-MASTER-STATUS.md](./FEATURES-MASTER-STATUS.md)** - canonical feature summary, per-item implementation status, setup outside the codebase, and AI handoff (update after each implementation session).
 
 ## Testing Commands and Coverage
 

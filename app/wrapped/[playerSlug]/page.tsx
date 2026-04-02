@@ -1,4 +1,6 @@
 import WrappedExperience from "@/components/wrapped/WrappedExperience";
+import { notFound } from "next/navigation";
+import { featureFlags } from "@/config/config";
 import { getPublicSiteRoot } from "@/lib/utils/publicSiteUrl";
 import { wrappedSlugToPlayerName } from "@/lib/wrapped/slug";
 import type { Metadata } from "next";
@@ -10,6 +12,9 @@ type WrappedPageProps = {
 };
 
 export async function generateMetadata({ params, searchParams }: WrappedPageProps): Promise<Metadata> {
+	if (!featureFlags.seasonWrapped) {
+		return { title: "Not found" };
+	}
 	const { playerSlug } = await params;
 	const sp = await searchParams;
 	const season = typeof sp.season === "string" ? sp.season : undefined;
@@ -54,6 +59,9 @@ function WrappedFallback() {
 }
 
 export default async function WrappedPage({ params }: { params: Promise<{ playerSlug: string }> }) {
+	if (!featureFlags.seasonWrapped) {
+		notFound();
+	}
 	const { playerSlug } = await params;
 	return (
 		<Suspense fallback={<WrappedFallback />}>

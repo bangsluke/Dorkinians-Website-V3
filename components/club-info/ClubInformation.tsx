@@ -7,7 +7,7 @@ import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { MilestonesTableSkeleton } from "@/components/skeletons";
-import { appConfig } from "@/config/config";
+import { appConfig, featureFlags } from "@/config/config";
 import SquadPlayersModal from "./SquadPlayersModal";
 import RecordsSection from "./RecordsSection";
 import BadgeLeaderboardSection from "./BadgeLeaderboardSection";
@@ -477,8 +477,8 @@ export default function ClubInformation() {
 				</div>
 
 				<div className='min-w-0 space-y-8 mt-8 lg:mt-0'>
-					<RecordsSection />
-					<BadgeLeaderboardSection />
+					{featureFlags.clubInfoRecords ? <RecordsSection /> : null}
+					{featureFlags.achievementBadges ? <BadgeLeaderboardSection /> : null}
 				</div>
 			</div>
 		</div>
