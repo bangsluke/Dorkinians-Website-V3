@@ -30,11 +30,10 @@ export default function UsefulLinks() {
 	const categoryOrder = ["official", "social", "other"];
 
 	return (
-		<div className='p-2 md:p-4 flex flex-col md:max-w-2xl md:mx-auto w-full'>
+		<div className='flex w-full flex-col px-3 py-2 pb-6 md:px-4 md:py-4 lg:px-6'>
 			<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-4 md:mb-6 text-center'>Useful Links</h2>
 
-			<div 
-				className='pr-2 pb-4 space-y-6 md:space-y-8'>
+			<div className='grid grid-cols-1 gap-6 pb-4 pr-2 lg:grid-cols-2 lg:gap-8'>
 				{categoryOrder.map((category, categoryIndex) => {
 					const links = groupedLinks[category];
 					if (!links || links.length === 0) return null;
@@ -50,7 +49,7 @@ export default function UsefulLinks() {
 								{categoryLabels[category as keyof typeof categoryLabels]}
 							</h3>
 
-							<div className='grid gap-2 md:gap-3 md:grid-cols-2 lg:grid-cols-1'>
+							<div className='grid grid-cols-1 gap-2 md:gap-3'>
 								{links.map((link, linkIndex) => (
 									<motion.a
 										key={link.id}

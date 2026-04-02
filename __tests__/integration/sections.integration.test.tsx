@@ -33,7 +33,7 @@ jest.mock("@/lib/services/seedingStatusService", () => ({
 
 // jsdom integration for TOTW container subpage switching and Settings navigation shortcuts with navigation store mocked.
 // Heavy child components (TOTW pages, PWA button) are stubbed; seedingStatusService returns static success metadata.
-// Exercises store wiring and testids only—no real routing or API.
+// Exercises store wiring and testids only-no real routing or API.
 
 describe("Integration - TOTW/Club/Settings sections", () => {
 	beforeEach(() => {

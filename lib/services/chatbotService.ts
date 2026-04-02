@@ -1,5 +1,6 @@
 import { neo4jService } from "../../netlify/functions/lib/neo4j.js";
 import { findMetricByAlias, getMetricDisplayName } from "../config/chatbotMetrics";
+import { isStreakMetricKey } from "../config/streakMetrics";
 import { getZeroStatResponse } from "./zeroStatResponses";
 import { statObject, VisualizationType } from "../../config/config";
 import { getAppropriateVerb, getResponseTemplate, formatNaturalResponse } from "../config/naturalLanguageResponses";
@@ -1013,7 +1014,7 @@ export class ChatbotService {
 
 			// Check for hat-trick questions (year-wide, team-specific, or date-filtered) BEFORE routing to handlers
 			// This prevents "hat‑tricks" from being treated as a player entity
-			// Handles various dash characters: regular hyphen (-), non-breaking hyphen (\u2011), en dash (–), em dash (—), and spaces
+			// Handles various dash characters: regular hyphen (-), non-breaking hyphen (\u2011), en dash (–), em dash (-), and spaces
 			const hatTrickPattern = /hat[-\u2011\u2013\u2014 ]?trick/i;
 			const isHatTrickQuestion = hatTrickPattern.test(question) && 
 				(question.includes("how many") || question.includes("count"));
@@ -4740,7 +4741,24 @@ export class ChatbotService {
 					
 					// Show initial limit in answer (for worst/best penalty record, show actual count up to 5)
 					const displayCount = isPenaltyRecord ? Math.min(rankingData.length, 5) : Math.min(rankingData.length, requestedLimit);
-					answer = `Here are the top ${displayCount} players${teamText}:`;
+					const qLowerForm = question.toLowerCase();
+					const formRankingAscending =
+						metric.toUpperCase() === "FORM_CURRENT" &&
+						!qLowerForm.includes("best") &&
+						(qLowerForm.includes("worst") ||
+							qLowerForm.includes("poor") ||
+							qLowerForm.includes("lowest") ||
+							(/\bbad\b/.test(qLowerForm) && /\bform\b/.test(qLowerForm)));
+					const streakRankMetric = metric && isStreakMetricKey(metric.toUpperCase());
+					const streakRankLabel = streakRankMetric ? findMetricByAlias(metric)?.displayName : null;
+					answer =
+						metric.toUpperCase() === "FORM_CURRENT"
+							? formRankingAscending
+								? `Here are the ${displayCount} players with the lowest current form (reactive EWMA)${teamText}:`
+								: `Here are the top ${displayCount} players by current form (reactive EWMA)${teamText}:`
+							: streakRankMetric && streakRankLabel
+								? `Here are the top ${displayCount} players by ${streakRankLabel}${teamText}:`
+								: `Here are the top ${displayCount} players${teamText}:`;
 					answerValue = topRanking.playerName || topRanking.teamName || "";
 					
 					// Create table visualization with full data (for expansion), but mark initial display limit
@@ -7531,8 +7549,62 @@ export class ChatbotService {
 					const hasCompetitionTypeFilter = competitionTypes.length > 0;
 
 					if (value !== undefined && value !== null) {
-						// Special handling for NumberTeamsPlayedFor - format as "X of the clubs Y teams"
-						if (metric && (metric === "NUMBERTEAMSPLAYEDFOR" || metric === "NumberTeamsPlayedFor")) {
+						if (metric && metric.toUpperCase() === "FORM_CURRENT") {
+							const row = playerData[0] as { value?: number; formBaseline?: number; formTrend?: string };
+							const v = typeof row.value === "number" ? row.value : Number(row.value ?? 0);
+							const baseline =
+								typeof row.formBaseline === "number" && !Number.isNaN(row.formBaseline)
+									? row.formBaseline.toFixed(1)
+									: null;
+							const trend = (row.formTrend || "stable").toLowerCase();
+							const arrow = trend === "rising" ? "↑" : trend === "declining" ? "↓" : "→";
+							answer = `${playerName}'s current form is ${v.toFixed(1)} ${arrow}${
+								baseline != null ? ` (baseline ${baseline}, from club-wide match history).` : "."
+							}`;
+							answerValue = v;
+							visualization = {
+								type: "NumberCard",
+								data: [
+									{
+										name: "Current form",
+										value: parseFloat(v.toFixed(1)),
+										wordedText: "current form (EWMA)",
+										iconName: "FantasyPoints-Icon",
+									},
+								],
+								config: {
+									title: `${playerName} - current form`,
+									type: "bar",
+								},
+							};
+						} else if (metric && isStreakMetricKey(metric.toUpperCase())) {
+							const v = Math.round(typeof value === "number" ? value : Number(value ?? 0));
+							const label =
+								findMetricByAlias(metric)?.displayName ||
+								metric.replace(/_/g, " ").toLowerCase();
+							const unit = v === 1 ? "game" : "games";
+							answer =
+								v > 0
+									? `${playerName}'s ${label} is ${v} ${unit} (primary XI streak data from club aggregates).`
+									: `${playerName} has no ${label} recorded (or streak is zero).`;
+							answerValue = v;
+							visualization = {
+								type: "NumberCard",
+								data: [
+									{
+										name: label,
+										value: v,
+										wordedText: label,
+										iconName: "TeamAppearance-Icon",
+									},
+								],
+								config: {
+									title: `${playerName} - ${label}`,
+									type: "bar",
+								},
+							};
+						} else if (metric && (metric === "NUMBERTEAMSPLAYEDFOR" || metric === "NumberTeamsPlayedFor")) {
+							// Special handling for NumberTeamsPlayedFor - format as "X of the clubs Y teams"
 							const playerTeamCount = typeof value === "number" ? value : 0;
 							const totalTeamCount = (playerData[0] as any)?.totalTeamCount || 9; // Default to 9 if not provided
 							answer = `${playerName} has played for ${playerTeamCount} of the clubs ${totalTeamCount} teams.`;

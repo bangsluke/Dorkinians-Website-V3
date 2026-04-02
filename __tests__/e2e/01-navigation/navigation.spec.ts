@@ -1,19 +1,19 @@
 import { test, expect } from "@playwright/test";
 import { clickStatsSubPage, getVisibleNavButton, isMobileProject } from "../utils/testHelpers";
 
-// Minimal shell readiness after goto — avoids waiting on networkidle (analytics, etc.).
+// Minimal shell readiness after goto - avoids waiting on networkidle (analytics, etc.).
 async function expectMainPageReady(page: import("@playwright/test").Page) {
 	await page.waitForLoadState("domcontentloaded");
 	await expect(page.locator("body")).toBeVisible();
 }
 
-// Footer icons on narrow viewports vs left sidebar on desktop; Stats/TOTW/Club Info keep you on `/` with client state — only Settings uses `/settings`.
+// Footer icons on narrow viewports vs left sidebar on desktop; Stats/TOTW/Club Info keep you on `/` with client state - only Settings uses `/settings`.
 test.describe("Navigation Tests", () => {
 	test("1.1. should navigate to Home page", async ({ page }) => {
 		await page.goto("/");
 		await expectMainPageReady(page);
 		await expect(page).toHaveURL(/\/?$/);
-		// Home is identified by the player picker hero — user has not entered Stats yet.
+		// Home is identified by the player picker hero - user has not entered Stats yet.
 		await expect(page.getByTestId("player-selection-button").or(page.getByRole("button", { name: /Choose a player/i }))).toBeVisible({
 			timeout: 15000,
 		});
@@ -52,7 +52,7 @@ test.describe("Navigation Tests", () => {
 		test("1.5. should navigate to Settings page on desktop", async ({ page }) => {
 			await page.goto("/");
 			await expectMainPageReady(page);
-			// Gear at bottom of the persistent left nav — only settings uses a real Next.js route change.
+			// Gear at bottom of the persistent left nav - only settings uses a real Next.js route change.
 			await page.getByTestId("nav-sidebar-settings").click({ timeout: 15000 });
 			await expect(page).toHaveURL(/\/settings/, { timeout: 15000 });
 			await expect(page.locator("body")).toBeVisible();
@@ -122,7 +122,7 @@ test.describe("Navigation Tests", () => {
 		} else {
 			await page.getByTestId("nav-sidebar-players-of-month").click({ timeout: 15000 });
 			await page.waitForTimeout(800);
-			// Parent TOTW control shares test id with "Team of the Week" sub-link — use the first match (parent).
+			// Parent TOTW control shares test id with "Team of the Week" sub-link - use the first match (parent).
 			await page.getByTestId("nav-sidebar-totw").first().click({ timeout: 15000 });
 		}
 		await expect(page.locator("body")).toBeVisible();

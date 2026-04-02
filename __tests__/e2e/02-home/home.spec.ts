@@ -5,6 +5,16 @@ const DEFAULT_PLAYER = process.env.E2E_PLAYER_NAME || "Luke Bangs";
 
 // Home: hero + player Listbox, then chatbot panel below once a player is chosen. selectPlayer may use localStorage fallback on flaky mobile dropdowns.
 test.describe("Home Page Tests", () => {
+	test("2.0. profile icon is hidden on home when no player is selected", async ({ page }, testInfo) => {
+		await page.goto("/");
+		const mobile = isMobileProject(testInfo);
+		if (mobile) {
+			await expect(page.getByTestId("header-profile")).toHaveCount(0);
+		} else {
+			await expect(page.getByTestId("nav-sidebar-profile")).toHaveCount(0);
+		}
+	});
+
 	test("2.1. should display home page with player selection", async ({ page }) => {
 		await page.goto("/");
 		// Welcome strip at top of the landing column.
@@ -29,6 +39,17 @@ test.describe("Home Page Tests", () => {
 		// Waits until edit control exists, then for the chat composer input (shorter timeout on mobile in helper).
 		await waitForChatbot(page);
 		await expect(page.getByTestId("chatbot-input")).toBeVisible({ timeout: 15000 });
+	});
+
+	test("2.3a. profile icon navigates to Player Profile for selected player", async ({ page }, testInfo) => {
+		await page.goto("/");
+		await selectPlayer(page, DEFAULT_PLAYER);
+		const mobile = isMobileProject(testInfo);
+		const profileBtn = mobile ? page.getByTestId("header-profile") : page.getByTestId("nav-sidebar-profile");
+		await expect(profileBtn).toBeVisible({ timeout: 15000 });
+		await profileBtn.click();
+		await expect(page.getByTestId("player-profile-page")).toBeVisible({ timeout: 20000 });
+		await expect(page.getByRole("heading", { name: DEFAULT_PLAYER })).toBeVisible({ timeout: 15000 });
 	});
 
 	test("2.4. should submit chatbot query and receive response", async ({ page }) => {
@@ -78,13 +99,18 @@ test.describe("Home Page Tests", () => {
 		await expect(page.getByRole("button", { name: /Select question:/i }).first()).toBeVisible({ timeout: 10000 });
 	});
 
-	test("2.9. when an example question is clicked in the example questions modal, it should close the modal, load the question into the chatbot input and submit the question", async ({ page }) => {
+	test("2.9. when an example question is clicked in the example questions modal, it should close the modal, load the question into the chatbot input and submit the question", async ({
+		page,
+	}) => {
 		await page.goto("/");
 		await selectPlayer(page, DEFAULT_PLAYER);
 		await waitForChatbot(page);
 		await page.getByTestId("chatbot-show-more-example-questions").click({ timeout: 15000 });
 		// Choosing a row should close modal and pipeline the same path as manual submit.
-		await page.getByRole("button", { name: /Select question:/i }).first().click({ timeout: 15000 });
+		await page
+			.getByRole("button", { name: /Select question:/i })
+			.first()
+			.click({ timeout: 15000 });
 		await waitForChatbot(page);
 		await expect(page.getByTestId("chatbot-answer")).toBeVisible({ timeout: 120000 });
 	});
@@ -99,9 +125,24 @@ test.describe("Home Page Tests", () => {
 			await expect(page.getByTestId("header-filter")).toHaveCount(0);
 			await expect(page.getByTestId("header-menu")).toHaveCount(0);
 		} else {
-			// Desktop: left rail is Home nav only — no stats sidebar filter/menu test ids mounted.
+			// Desktop: left rail is Home nav only - no stats sidebar filter/menu test ids mounted.
 			await expect(page.getByTestId("nav-sidebar-filter")).toHaveCount(0);
 			await expect(page.getByTestId("nav-sidebar-menu")).toHaveCount(0);
+		}
+	});
+
+	test("2.11. develop deploy shows Dev badge on home header", async ({ page }, testInfo) => {
+		const isDevelopVariant = process.env.BRANCH === "develop" || process.env.NEXT_PUBLIC_SITE_VARIANT === "develop";
+		if (!isDevelopVariant) {
+			test.skip(true, "Dev badge assertion is only applicable on develop deploy variant.");
+			return;
+		}
+		await page.goto("/");
+		const mobile = isMobileProject(testInfo);
+		if (mobile) {
+			await expect(page.getByTestId("home-dev-badge")).toBeVisible({ timeout: 15000 });
+		} else {
+			await expect(page.getByTestId("home-dev-badge-sidebar")).toBeVisible({ timeout: 15000 });
 		}
 	});
 });

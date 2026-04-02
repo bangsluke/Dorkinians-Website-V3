@@ -1,7 +1,7 @@
 "use client";
 
 import { useNavigationStore, type TeamData } from "@/lib/stores/navigation";
-import { statObject, statsPageConfig, appConfig } from "@/config/config";
+import { statObject, statsPageConfig, appConfig, featureFlags } from "@/config/config";
 import Image from "next/image";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { cachedFetch, generatePageCacheKey } from "@/lib/utils/pageCache";
@@ -23,6 +23,8 @@ import Button from "@/components/ui/Button";
 import { UmamiEvents } from "@/lib/analytics/events";
 import { trackStatsStatSelected, trackTeamStatsTeamSelected } from "@/lib/analytics/statsTracking";
 import { trackEvent } from "@/lib/utils/trackEvent";
+import RecordingsSection from "@/components/stats/RecordingsSection";
+import type { RecordingFixture } from "@/lib/utils/recordingsDisplay";
 
 
 interface TopPlayer {
@@ -50,9 +52,19 @@ interface TopPlayer {
 	starts: number;
 	averageMatchRating: number | null;
 	matchesRated8Plus: number;
+	goalsPer90: number | null;
+	assistsPer90: number | null;
+	goalInvolvementsPer90: number | null;
+	ftpPer90: number | null;
+	cleanSheetsPer90: number | null;
+	concededPer90: number | null;
+	savesPer90: number | null;
+	cardsPer90: number | null;
+	momPer90: number | null;
+	currentFormEwma: number | null;
 }
 
-type StatType = "appearances" | "starts" | "goals" | "assists" | "cleanSheets" | "mom" | "saves" | "yellowCards" | "redCards" | "penaltiesScored" | "fantasyPoints" | "goalInvolvements" | "minutes" | "ownGoals" | "conceded" | "penaltiesMissed" | "penaltiesConceded" | "penaltiesSaved" | "distance" | "avgMatchRating" | "matchesRated8Plus";
+type StatType = "appearances" | "starts" | "goals" | "assists" | "cleanSheets" | "mom" | "saves" | "yellowCards" | "redCards" | "penaltiesScored" | "fantasyPoints" | "goalInvolvements" | "minutes" | "ownGoals" | "conceded" | "penaltiesMissed" | "penaltiesConceded" | "penaltiesSaved" | "distance" | "avgMatchRating" | "matchesRated8Plus" | "goalsPer90" | "assistsPer90" | "goalInvolvementsPer90" | "ftpPer90" | "cleanSheetsPer90" | "concededPer90" | "savesPer90" | "cardsPer90" | "momPer90" | "bestCurrentForm";
 
 function StatRow({ stat, value, teamData }: { stat: any; value: any; teamData: TeamData }) {
 	const [showTooltip, setShowTooltip] = useState(false);
@@ -400,7 +412,7 @@ export default function TeamStats() {
 	const [selectedStatType, setSelectedStatType] = useState<StatType>(() => {
 		if (typeof window !== "undefined") {
 			const saved = safeLocalStorageGet("team-stats-top-players-stat-type");
-			const validStatTypes: StatType[] = ["appearances", "starts", "goals", "assists", "cleanSheets", "mom", "saves", "yellowCards", "redCards", "penaltiesScored", "fantasyPoints", "goalInvolvements", "minutes", "ownGoals", "conceded", "penaltiesMissed", "penaltiesConceded", "penaltiesSaved", "distance", "avgMatchRating", "matchesRated8Plus"];
+			const validStatTypes: StatType[] = ["appearances", "starts", "goals", "assists", "cleanSheets", "mom", "saves", "yellowCards", "redCards", "penaltiesScored", "fantasyPoints", "goalInvolvements", "minutes", "ownGoals", "conceded", "penaltiesMissed", "penaltiesConceded", "penaltiesSaved", "distance", "avgMatchRating", "matchesRated8Plus", "goalsPer90", "assistsPer90", "goalInvolvementsPer90", "ftpPer90", "cleanSheetsPer90", "concededPer90", "savesPer90", "cardsPer90", "momPer90", "bestCurrentForm"];
 			if (saved && validStatTypes.includes(saved as StatType)) {
 				return saved as StatType;
 			}
@@ -444,6 +456,9 @@ export default function TeamStats() {
 	// State for unique player stats
 	const [uniquePlayerStats, setUniquePlayerStats] = useState<any>(null);
 	const [isLoadingUniqueStats, setIsLoadingUniqueStats] = useState(false);
+
+	// Veo / match recordings for current team + filters
+	const [teamRecordings, setTeamRecordings] = useState<RecordingFixture[]>([]);
 
 	// State for best season finish
 	const [bestSeasonFinishData, setBestSeasonFinishData] = useState<{
@@ -680,6 +695,16 @@ export default function TeamStats() {
 						starts: typeof p.starts === "number" ? p.starts : 0,
 						averageMatchRating: p.averageMatchRating ?? null,
 						matchesRated8Plus: typeof p.matchesRated8Plus === "number" ? p.matchesRated8Plus : 0,
+						goalsPer90: typeof p.goalsPer90 === "number" ? p.goalsPer90 : null,
+						assistsPer90: typeof p.assistsPer90 === "number" ? p.assistsPer90 : null,
+						goalInvolvementsPer90: typeof p.goalInvolvementsPer90 === "number" ? p.goalInvolvementsPer90 : null,
+						ftpPer90: typeof p.ftpPer90 === "number" ? p.ftpPer90 : null,
+						cleanSheetsPer90: typeof p.cleanSheetsPer90 === "number" ? p.cleanSheetsPer90 : null,
+						concededPer90: typeof p.concededPer90 === "number" ? p.concededPer90 : null,
+						savesPer90: typeof p.savesPer90 === "number" ? p.savesPer90 : null,
+						cardsPer90: typeof p.cardsPer90 === "number" ? p.cardsPer90 : null,
+						momPer90: typeof p.momPer90 === "number" ? p.momPer90 : null,
+						currentFormEwma: typeof p.currentFormEwma === "number" ? p.currentFormEwma : null,
 					}))
 				);
 			} catch (error) {
@@ -779,6 +804,52 @@ export default function TeamStats() {
 
 		fetchUniqueStats();
 	}, [selectedTeam, apiFilters, hasUnsavedFilters, isFilterSidebarOpen]);
+
+	// Team recordings (fixtures with Veo/video links) for current team + filters
+	useEffect(() => {
+		if (!selectedTeam || !playerFilters) {
+			setTeamRecordings([]);
+			return;
+		}
+		if (!featureFlags.teamStatsTeamRecordings) {
+			setTeamRecordings([]);
+			return;
+		}
+		if (hasUnsavedFilters || isFilterSidebarOpen) return;
+
+		const fetchTeamRecordings = async () => {
+			setTeamRecordings([]);
+			try {
+				const requestBody = {
+					teamName: selectedTeam,
+					filters: {
+						...playerFilters,
+						teams: [],
+					},
+				};
+				const cacheKey = generatePageCacheKey("stats", "team-stats", "team-recordings", requestBody);
+				const data = await cachedFetch("/api/team-recordings", {
+					method: "POST",
+					body: requestBody,
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
+				});
+				setTeamRecordings((data.fixtures || []) as RecordingFixture[]);
+			} catch (err) {
+				log("error", "Error fetching team recordings:", err);
+				setTeamRecordings([]);
+			}
+		};
+
+		fetchTeamRecordings();
+	}, [selectedTeam, playerFilters, hasUnsavedFilters, isFilterSidebarOpen, getCachedPageData, setCachedPageData]);
+
+	useEffect(() => {
+		if (!featureFlags.teamStatsStreakAndForm && selectedStatType === "bestCurrentForm") {
+			setSelectedStatType("appearances");
+		}
+	}, [selectedStatType]);
 
 	// Priority 3: Below fold - Best Season Finish section
 	// Fetch best season finish data when team selected and filters change
@@ -968,6 +1039,26 @@ export default function TeamStats() {
 				return player.averageMatchRating ?? 0;
 			case "matchesRated8Plus":
 				return player.matchesRated8Plus;
+			case "goalsPer90":
+				return player.goalsPer90 ?? 0;
+			case "assistsPer90":
+				return player.assistsPer90 ?? 0;
+			case "goalInvolvementsPer90":
+				return player.goalInvolvementsPer90 ?? 0;
+			case "ftpPer90":
+				return player.ftpPer90 ?? 0;
+			case "cleanSheetsPer90":
+				return player.cleanSheetsPer90 ?? 0;
+			case "concededPer90":
+				return player.concededPer90 ?? 0;
+			case "savesPer90":
+				return player.savesPer90 ?? 0;
+			case "cardsPer90":
+				return player.cardsPer90 ?? 0;
+			case "momPer90":
+				return player.momPer90 ?? 0;
+			case "bestCurrentForm":
+				return player.currentFormEwma ?? 0;
 			default:
 				return 0;
 		}
@@ -1030,6 +1121,26 @@ export default function TeamStats() {
 				return ar != null ? `Average rating ${ar.toFixed(1)} in ${apps}` : apps;
 			case "matchesRated8Plus":
 				return `${player.matchesRated8Plus} ${player.matchesRated8Plus === 1 ? "game" : "games"} rated 8+ in ${apps}`;
+			case "goalsPer90":
+				return player.goalsPer90 != null ? `${player.goalsPer90.toFixed(2)} goals per 90 (${apps})` : `Needs 360+ minutes`;
+			case "assistsPer90":
+				return player.assistsPer90 != null ? `${player.assistsPer90.toFixed(2)} assists per 90 (${apps})` : `Needs 360+ minutes`;
+			case "goalInvolvementsPer90":
+				return player.goalInvolvementsPer90 != null ? `${player.goalInvolvementsPer90.toFixed(2)} GI per 90 (${apps})` : `Needs 360+ minutes`;
+			case "ftpPer90":
+				return player.ftpPer90 != null ? `${player.ftpPer90.toFixed(2)} FTP per 90 (${apps})` : `Needs 360+ minutes`;
+			case "cleanSheetsPer90":
+				return player.cleanSheetsPer90 != null ? `${player.cleanSheetsPer90.toFixed(2)} clean sheets per 90 (${apps})` : `Needs 360+ minutes`;
+			case "concededPer90":
+				return player.concededPer90 != null ? `${player.concededPer90.toFixed(2)} conceded per 90 (${apps})` : `Needs 360+ minutes`;
+			case "savesPer90":
+				return player.savesPer90 != null ? `${player.savesPer90.toFixed(2)} saves per 90 (${apps})` : `Needs 360+ minutes`;
+			case "cardsPer90":
+				return player.cardsPer90 != null ? `${player.cardsPer90.toFixed(2)} cards per 90 (${apps})` : `Needs 360+ minutes`;
+			case "momPer90":
+				return player.momPer90 != null ? `${player.momPer90.toFixed(2)} MoM per 90 (${apps})` : `Needs 360+ minutes`;
+			case "bestCurrentForm":
+				return player.currentFormEwma != null ? `Current form ${player.currentFormEwma.toFixed(1)} (${apps})` : apps;
 			default:
 				return apps;
 		}
@@ -1080,6 +1191,26 @@ export default function TeamStats() {
 				return "Avg match rating";
 			case "matchesRated8Plus":
 				return "Matches rated 8+";
+			case "goalsPer90":
+				return "Goals per 90";
+			case "assistsPer90":
+				return "Assists per 90";
+			case "goalInvolvementsPer90":
+				return "Goal involvements per 90";
+			case "ftpPer90":
+				return "FTP per 90";
+			case "cleanSheetsPer90":
+				return "Clean sheets per 90";
+			case "concededPer90":
+				return "Conceded per 90";
+			case "savesPer90":
+				return "Saves per 90";
+			case "cardsPer90":
+				return "Cards per 90";
+			case "momPer90":
+				return "MoM per 90";
+			case "bestCurrentForm":
+				return "Best current form";
 			default:
 				return "Appearances";
 		}
@@ -1139,6 +1270,23 @@ export default function TeamStats() {
 			{ name: "Clean Sheets", value: toNumber(teamData.cleanSheets) },
 			{ name: "Points/Game", value: Number(toNumber(teamData.pointsPerGame).toFixed(2)) },
 		];
+	}, [teamData]);
+
+	const formationRecommendation = useMemo(() => {
+		const rows = teamData?.formationBreakdown;
+		if (!rows || rows.length === 0) return null;
+		const sorted = [...rows].sort((a, b) => {
+			const wp = toNumber(b.winPercentage) - toNumber(a.winPercentage);
+			if (wp !== 0) return wp;
+			const g = toNumber(b.games) - toNumber(a.games);
+			if (g !== 0) return g;
+			return toNumber(b.wins) - toNumber(a.wins);
+		});
+		const top = sorted[0];
+		if (!top?.formation) return null;
+		const games = toNumber(top.games);
+		const lowSample = games < 5;
+		return { formation: top.formation, winPercentage: toNumber(top.winPercentage), games, wins: toNumber(top.wins), lowSample };
 	}, [teamData]);
 
 	const tooltipStyle = {
@@ -1409,45 +1557,26 @@ export default function TeamStats() {
 									</div>
 								)}
 
-								{!isDataTableMode && teamData.formationBreakdown && teamData.formationBreakdown.length > 0 && (
-									<div id='team-formation-breakdown' className='md:break-inside-avoid md:mb-4'>
+								{!isDataTableMode &&
+									featureFlags.teamStatsStreakAndForm &&
+									teamData.streakLeaders &&
+									teamData.streakLeaders.length > 0 && (
+									<div id='team-streak-leaders' className='md:break-inside-avoid md:mb-4'>
 										<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-											<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Formations used</h3>
-											<p className='text-white/60 text-xs mb-3'>Games and win % by inferred formation (from starting XI)</p>
-											<div className='chart-container -my-2' style={{ touchAction: 'pan-y' }}>
-												<ResponsiveContainer width='100%' height={280}>
-													<BarChart
-														data={teamData.formationBreakdown}
-														margin={{ top: 8, right: 12, left: 0, bottom: 4 }}>
-														<CartesianGrid strokeDasharray='3 3' stroke='#ffffff22' />
-														<XAxis
-															dataKey='formation'
-															tick={{ fill: '#e5e5e5', fontSize: 10 }}
-															interval={0}
-															angle={-30}
-															textAnchor='end'
-															height={72}
-														/>
-														<YAxis yAxisId='games' tick={{ fill: '#e5e5e5', fontSize: 11 }} allowDecimals={false} width={36} />
-														<YAxis
-															yAxisId='pct'
-															orientation='right'
-															tick={{ fill: '#e5e5e5', fontSize: 11 }}
-															domain={[0, 100]}
-															width={40}
-															unit='%'
-														/>
-														<Tooltip
-															contentStyle={{ backgroundColor: '#1a1a1a', border: '1px solid #444' }}
-															labelStyle={{ color: '#fff' }}
-															formatter={(value: number, name: string) =>
-																name === 'Win %' ? [`${value}%`, name] : [value, name]
-															}
-														/>
-														<Bar yAxisId='games' dataKey='games' name='Games' fill='#d4a012' radius={[4, 4, 0, 0]} />
-														<Bar yAxisId='pct' dataKey='winPercentage' name='Win %' fill='#22c55e' radius={[4, 4, 0, 0]} />
-													</BarChart>
-												</ResponsiveContainer>
+											<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Longest active streaks (this XI)</h3>
+											<p className='text-white/60 text-xs mb-3'>
+												Players listed by primary team; value is consecutive games for that streak type.
+											</p>
+											<div className='grid grid-cols-1 sm:grid-cols-2 gap-2'>
+												{teamData.streakLeaders.map((row) => (
+													<div
+														key={row.category}
+														className='bg-white/5 rounded-lg px-3 py-2 flex flex-col gap-0.5'>
+														<span className='text-white/70 text-xs'>{row.label}</span>
+														<span className='text-white font-semibold text-sm md:text-base'>{row.playerName}</span>
+														<span className='text-dorkinians-yellow text-xs md:text-sm'>{row.value} in a row</span>
+													</div>
+												))}
 											</div>
 										</div>
 									</div>
@@ -1497,6 +1626,16 @@ export default function TeamStats() {
 															"distance",
 															"avgMatchRating",
 															"matchesRated8Plus",
+															"goalsPer90",
+															"assistsPer90",
+															"goalInvolvementsPer90",
+															"ftpPer90",
+															"cleanSheetsPer90",
+															"concededPer90",
+															"savesPer90",
+															"cardsPer90",
+															"momPer90",
+															...(featureFlags.teamStatsStreakAndForm ? (["bestCurrentForm"] as const) : []),
 														] as StatType[]).map((statType) => (
 															<Listbox.Option
 																key={statType}
@@ -1543,7 +1682,21 @@ export default function TeamStats() {
 														} else if (selectedStatType === "distance") {
 															formattedStatValue = (Math.round(statValue * 10) / 10).toFixed(1);
 														} else if (selectedStatType === "avgMatchRating") {
-															formattedStatValue = player.averageMatchRating != null ? player.averageMatchRating.toFixed(1) : "—";
+															formattedStatValue = player.averageMatchRating != null ? player.averageMatchRating.toFixed(1) : "-";
+														} else if (["goalsPer90", "assistsPer90", "goalInvolvementsPer90", "ftpPer90", "cleanSheetsPer90", "concededPer90", "savesPer90", "cardsPer90", "momPer90"].includes(selectedStatType)) {
+															const per90Value =
+																selectedStatType === "goalsPer90" ? player.goalsPer90 :
+																selectedStatType === "assistsPer90" ? player.assistsPer90 :
+																selectedStatType === "goalInvolvementsPer90" ? player.goalInvolvementsPer90 :
+																selectedStatType === "ftpPer90" ? player.ftpPer90 :
+																selectedStatType === "cleanSheetsPer90" ? player.cleanSheetsPer90 :
+																selectedStatType === "concededPer90" ? player.concededPer90 :
+																selectedStatType === "savesPer90" ? player.savesPer90 :
+																selectedStatType === "cardsPer90" ? player.cardsPer90 :
+																player.momPer90;
+															formattedStatValue = per90Value != null ? per90Value.toFixed(2) : "-";
+														} else if (selectedStatType === "bestCurrentForm") {
+															formattedStatValue = player.currentFormEwma != null ? player.currentFormEwma.toFixed(1) : "-";
 														} else {
 															formattedStatValue = statValue;
 														}
@@ -1739,6 +1892,70 @@ export default function TeamStats() {
 									);
 								})()}
 
+								{!isDataTableMode &&
+									featureFlags.teamStatsFormationsUsed &&
+									teamData.formationBreakdown &&
+									teamData.formationBreakdown.length > 0 && (
+									<div id='team-formation-breakdown' className='md:break-inside-avoid md:mb-4'>
+										<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+											<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Formations Used</h3>
+											<p className='text-white/60 text-xs mb-3'>Games and win % by formation (from starting XI)</p>
+											{formationRecommendation ? (
+												<div
+													data-testid='formation-recommendation'
+													className='mb-3 rounded-md border border-dorkinians-yellow/40 bg-yellow-400/10 px-3 py-2 text-xs text-white'
+												>
+													<p className='font-semibold text-dorkinians-yellow'>Suggested setup</p>
+													<p className='mt-1'>
+														<strong>{formationRecommendation.formation}</strong> - best win rate in this sample (
+														{formationRecommendation.winPercentage.toFixed(1)}% over {formationRecommendation.games} game
+														{formationRecommendation.games === 1 ? "" : "s"}, {formationRecommendation.wins} win
+														{formationRecommendation.wins === 1 ? "" : "s"}).
+													</p>
+													{formationRecommendation.lowSample ? (
+														<p className='mt-1 text-white/70'>Low sample size - treat as a hint, not a rule.</p>
+													) : null}
+												</div>
+											) : null}
+											<div className='chart-container -my-2' style={{ touchAction: 'pan-y' }}>
+												<ResponsiveContainer width='100%' height={280}>
+													<BarChart
+														data={teamData.formationBreakdown}
+														margin={{ top: 8, right: 12, left: 0, bottom: 4 }}>
+														<CartesianGrid strokeDasharray='3 3' stroke='#ffffff22' />
+														<XAxis
+															dataKey='formation'
+															tick={{ fill: '#e5e5e5', fontSize: 10 }}
+															interval={0}
+															angle={-30}
+															textAnchor='end'
+															height={72}
+														/>
+														<YAxis yAxisId='games' tick={{ fill: '#e5e5e5', fontSize: 11 }} allowDecimals={false} width={36} />
+														<YAxis
+															yAxisId='pct'
+															orientation='right'
+															tick={{ fill: '#e5e5e5', fontSize: 11 }}
+															domain={[0, 100]}
+															width={40}
+															unit='%'
+														/>
+														<Tooltip
+															contentStyle={{ backgroundColor: '#1a1a1a', border: '1px solid #444' }}
+															labelStyle={{ color: '#fff' }}
+															formatter={(value: number, name: string) =>
+																name === 'Win %' ? [`${value}%`, name] : [value, name]
+															}
+														/>
+														<Bar yAxisId='games' dataKey='games' name='Games' fill='#d4a012' radius={[4, 4, 0, 0]} />
+														<Bar yAxisId='pct' dataKey='winPercentage' name='Win %' fill='#22c55e' radius={[4, 4, 0, 0]} />
+													</BarChart>
+												</ResponsiveContainer>
+											</div>
+										</div>
+									</div>
+								)}
+
 								{/* Goals Scored vs Conceded Waterfall Chart */}
 								{(toNumber(teamData.goalsScored) > 0 || toNumber(teamData.goalsConceded) > 0) && (
 									<div id='team-goals-scored-conceded' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
@@ -1869,14 +2086,14 @@ export default function TeamStats() {
 												<div className='flex-shrink-0'>
 													<Image
 														src='/stat-icons/GoalsPerAppearance-Icon.svg'
-														alt='Goals/Game'
+														alt='Goals / Game'
 														width={40}
 														height={40}
 														className='w-8 h-8 md:w-10 md:h-10 object-contain'
 													/>
 												</div>
 												<div className='flex-1 min-w-0'>
-													<div className='text-white/70 text-sm md:text-base mb-1'>Goals/Game</div>
+													<div className='text-white/70 text-sm md:text-base mb-1'>Goals / Game</div>
 													<div className='text-white font-bold text-xl md:text-2xl'>{toNumber(teamData.goalsPerGame).toFixed(2)}</div>
 												</div>
 											</div>
@@ -1884,14 +2101,14 @@ export default function TeamStats() {
 												<div className='flex-shrink-0'>
 													<Image
 														src='/stat-icons/ConcededPerAppearance-Icon.svg'
-														alt='Conceded/Game'
+														alt='Conceded / Game'
 														width={40}
 														height={40}
 														className='w-8 h-8 md:w-10 md:h-10 object-contain'
 													/>
 												</div>
 												<div className='flex-1 min-w-0'>
-													<div className='text-white/70 text-sm md:text-base mb-1'>Conceded/Game</div>
+													<div className='text-white/70 text-sm md:text-base mb-1'>Conceded / Game</div>
 													<div className='text-white font-bold text-xl md:text-2xl'>{toNumber(teamData.goalsConcededPerGame).toFixed(2)}</div>
 												</div>
 											</div>
@@ -2057,6 +2274,16 @@ export default function TeamStats() {
 											</table>
 										</div>
 									</div>
+								)}
+
+								{featureFlags.teamStatsTeamRecordings && selectedTeam && teamRecordings.length > 0 && (
+									<RecordingsSection
+										id='team-recordings'
+										title='Team Recordings'
+										subtitle='All matches with a recording link for the selected team and current filters.'
+										fixtures={teamRecordings}
+										testIdPrefix='team-recording'
+									/>
 								)}
 
 								{/* Best Season Finish Section */}

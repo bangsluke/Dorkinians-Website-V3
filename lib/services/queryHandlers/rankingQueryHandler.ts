@@ -1,6 +1,7 @@
 import type { EnhancedQuestionAnalysis } from "../../config/enhancedQuestionAnalysis";
 import { neo4jService } from "../../../netlify/functions/lib/neo4j.js";
 import { findMetricByAlias } from "../../config/chatbotMetrics";
+import { playerPropForStreakMetric } from "../../config/streakMetrics";
 import { loggingService } from "../loggingService";
 import { ChatbotService } from "../chatbotService";
 import { TeamMappingUtils } from "../chatbotUtils/teamMappingUtils";
@@ -42,13 +43,33 @@ export class RankingQueryHandler {
 		
 		// Determine if this is a GperAPP question (check before early return)
 		const isGperAPPQuestion = hasGoalPerGameKeyword || (metrics.length > 0 && metrics[0].toUpperCase() === "GPERAPP");
+
+		// "Who's in the best/worst form?" style questions (Feature 3) - avoid "formation" / "information" false positives
+		const isFormRankingQuestion =
+			metrics.length === 0 &&
+			(lowerQuestion.includes("who") || lowerQuestion.includes("which")) &&
+			/\bform\b/.test(lowerQuestion) &&
+			!lowerQuestion.includes("formation") &&
+			!lowerQuestion.includes("information") &&
+			(hasBestKeyword ||
+				hasWorstKeyword ||
+				lowerQuestion.includes("good") ||
+				lowerQuestion.includes("top") ||
+				lowerQuestion.includes("hottest") ||
+				lowerQuestion.includes("poor") ||
+				lowerQuestion.includes("bad") ||
+				lowerQuestion.includes("lowest"));
 		
 		// Only return early if no metrics AND no special metric detected in question text
-		if (metrics.length === 0 && !isGperAPPQuestion && !hasPenaltyKeyword) {
+		if (metrics.length === 0 && !isGperAPPQuestion && !hasPenaltyKeyword && !isFormRankingQuestion) {
 			return { type: "no_metrics", data: [], message: "No metrics specified for ranking" };
 		}
 
 		let metric = metrics.length > 0 ? metrics[0] : "";
+		if (isFormRankingQuestion) {
+			metric = "FORM_CURRENT";
+			loggingService.log(`✅ Detected FORM_CURRENT ranking from question text`, null, "log");
+		}
 		
 		// Extract minimum appearance threshold from question (e.g., "more than 5 games" → minAppearances = 6)
 		let minAppearances: number | null = null;
@@ -134,12 +155,16 @@ export class RankingQueryHandler {
 			return { type: "unknown_metric", data: [], message: `Unknown metric: ${metric}` };
 		}
 
+		const isFormRankingMetric = metricConfig.key === "FORM_CURRENT";
+		const streakRankingProp = playerPropForStreakMetric(metricConfig.key);
+		const isStreakRankingMetric = streakRankingProp != null;
+
 		let query: string;
 		let returnClause: string;
 
 		// Build the appropriate query based on metric
 		// Special case: worst and best penalty record use conversion rate calculation
-		if (isWorstPenaltyRecord || isBestPenaltyRecord) {
+		if (!isFormRankingMetric && !isStreakRankingMetric && (isWorstPenaltyRecord || isBestPenaltyRecord)) {
 			// For worst penalty record, we need to return conversion rate, penaltiesScored, and penaltiesMissed
 			returnClause = `sum(coalesce(md.penaltiesScored, 0)) as penaltiesScored,
 				sum(coalesce(md.penaltiesMissed, 0)) as penaltiesMissed,
@@ -148,13 +173,13 @@ export class RankingQueryHandler {
 					THEN toFloat(sum(coalesce(md.penaltiesScored, 0))) / (sum(coalesce(md.penaltiesScored, 0)) + sum(coalesce(md.penaltiesMissed, 0)))
 					ELSE NULL
 				END as value`;
-		} else if (isGperAPPQuestion || metric === "GPERAPP") {
+		} else if (!isFormRankingMetric && !isStreakRankingMetric && (isGperAPPQuestion || metric === "GPERAPP")) {
 			// For GperAPP, we need to calculate (goals + penaltiesScored) / appearances
 			// This will be handled in a special query structure similar to penalty records
 			// Note: We calculate totalGoals and appearances, then use them in a second WITH clause for value calculation
 			returnClause = `sum(coalesce(md.goals, 0)) + sum(coalesce(md.penaltiesScored, 0)) as totalGoals,
 				count(md) as appearances`;
-		} else {
+		} else if (!isFormRankingMetric && !isStreakRankingMetric) {
 			switch (metric) {
 				case "G":
 				case "goals":
@@ -183,6 +208,8 @@ export class RankingQueryHandler {
 				default:
 					return { type: "unsupported_metric", data: [], message: `Ranking not supported for metric: ${metric}` };
 			}
+		} else {
+			returnClause = "";
 		}
 
 		// Extract team name from teamEntities if present
@@ -307,7 +334,45 @@ export class RankingQueryHandler {
 		                          isBestPenaltyRecord ? "ORDER BY value DESC" : 
 		                          "ORDER BY value DESC";
 
-		if (isPlayerQuestion) {
+		if (isFormRankingMetric) {
+			if (!isPlayerQuestion) {
+				return { type: "unsupported_metric", data: [], message: "Form ranking supports player leaderboards only" };
+			}
+			const formRankAscending =
+				!hasBestKeyword &&
+				(hasWorstKeyword ||
+					lowerQuestion.includes("poor") ||
+					lowerQuestion.includes("lowest") ||
+					(/\bbad\b/.test(lowerQuestion) && /\bform\b/.test(lowerQuestion)));
+			const formOrderBy = formRankAscending ? "ORDER BY value ASC, appearances DESC" : "ORDER BY value DESC, appearances DESC";
+			let teamExistsClause = "";
+			if (teamName) {
+				teamExistsClause = `AND EXISTS { MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel}) WHERE md.team = $teamName }`;
+			}
+			query = `
+				MATCH (p:Player {graphLabel: $graphLabel})
+				WHERE p.allowOnSite = true AND p.formCurrent IS NOT NULL ${teamExistsClause}
+				RETURN p.playerName as playerName, p.formCurrent as value, coalesce(p.appearances, 0) as appearances
+				${formOrderBy}
+				LIMIT ${maxLimit}
+			`;
+		} else if (isStreakRankingMetric) {
+			if (!isPlayerQuestion) {
+				return { type: "unsupported_metric", data: [], message: "Streak ranking supports player leaderboards only" };
+			}
+			const prop = streakRankingProp as string;
+			let teamExistsClause = "";
+			if (teamName) {
+				teamExistsClause = `AND EXISTS { MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel}) WHERE md.team = $teamName }`;
+			}
+			query = `
+				MATCH (p:Player {graphLabel: $graphLabel})
+				WHERE p.allowOnSite = true AND coalesce(p.${prop}, 0) > 0 ${teamExistsClause}
+				RETURN p.playerName as playerName, p.${prop} as value, coalesce(p.appearances, 0) as appearances
+				ORDER BY value DESC, appearances DESC
+				LIMIT ${maxLimit}
+			`;
+		} else if (isPlayerQuestion) {
 			if (isWorstPenaltyRecord || isBestPenaltyRecord) {
 				query = `
 					MATCH (p:Player {graphLabel: $graphLabel})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})

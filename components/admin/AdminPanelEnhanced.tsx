@@ -74,6 +74,9 @@ export default function AdminPanelEnhanced() {
 	const [sendEmailAtStart, setSendEmailAtStart] = useState(false);
 	const [sendEmailAtCompletion, setSendEmailAtCompletion] = useState(true);
 	const [saveLogs, setSaveLogs] = useState(false);
+	/** When full rebuild is used, seed staging graph first then swap (default on). */
+	const [blueGreenCutover, setBlueGreenCutover] = useState(true);
+	const [fullRebuild, setFullRebuild] = useState(true);
 
 	// Chatbot test state
 	const [chatbotTestLoading, setChatbotTestLoading] = useState(false);
@@ -257,7 +260,8 @@ export default function AdminPanelEnhanced() {
 							seasonConfig: {
 								currentSeason: null,
 								useSeasonOverride: false,
-								fullRebuild: false,
+								fullRebuild: fullRebuild,
+								blueGreenCutover: fullRebuild ? blueGreenCutover : false,
 								loggingConfig: {
 									saveLogs: saveLogs,
 								},
@@ -376,8 +380,8 @@ export default function AdminPanelEnhanced() {
 			} else {
 				throw new Error(
 					lastFailureMessage
-						? `Failed to trigger seeding — ${lastFailureMessage}`
-						: "Failed to trigger seeding — no endpoint accepted the request. If Heroku logs show 401 on POST /seed, SEED_API_KEY must match exactly on Netlify/Vercel and Heroku.",
+						? `Failed to trigger seeding - ${lastFailureMessage}`
+						: "Failed to trigger seeding - no endpoint accepted the request. If Heroku logs show 401 on POST /seed, SEED_API_KEY must match exactly on Netlify/Vercel and Heroku.",
 				);
 			}
 		} catch (err) {
@@ -702,6 +706,31 @@ export default function AdminPanelEnhanced() {
 						/>
 						<label htmlFor='saveLogs' className='text-sm text-gray-700'>
 							Save the logs for this run
+						</label>
+					</div>
+					<div className='flex items-center'>
+						<input
+							type='checkbox'
+							id='fullRebuildEnhanced'
+							checked={fullRebuild}
+							onChange={(e) => setFullRebuild(e.target.checked)}
+							className='mr-2 h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded'
+						/>
+						<label htmlFor='fullRebuildEnhanced' className='text-sm text-gray-700'>
+							Full rebuild (clear all Dorkinians website graph data)
+						</label>
+					</div>
+					<div className={`flex items-center ${!fullRebuild ? "opacity-50" : ""}`}>
+						<input
+							type='checkbox'
+							id='blueGreenCutoverEnhanced'
+							checked={blueGreenCutover}
+							disabled={!fullRebuild}
+							onChange={(e) => setBlueGreenCutover(e.target.checked)}
+							className='mr-2 h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded disabled:cursor-not-allowed'
+						/>
+						<label htmlFor='blueGreenCutoverEnhanced' className='text-sm text-gray-700'>
+							Blue/green cutover (build new graph first, then swap - less downtime)
 						</label>
 					</div>
 				</div>

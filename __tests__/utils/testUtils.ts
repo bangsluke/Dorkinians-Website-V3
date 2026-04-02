@@ -2,7 +2,7 @@ import Papa from "papaparse";
 import { STAT_TEST_CONFIGS, TestConfig } from "../chatbot-tests-config";
 
 // Jest/chatbot test utilities: build questions from STAT_TEST_CONFIGS, parse answers, and load reference player
-// rows from a published Google Sheet CSV (network — may fail in CI/offline; fetchTestData throws on error).
+// rows from a published Google Sheet CSV (network - may fail in CI/offline; fetchTestData throws on error).
 // FALLBACK_TEST_DATA is static sample rows for scenarios that import it explicitly.
 
 // Re-export STAT_TEST_CONFIGS for use in test files

@@ -935,7 +935,7 @@ function generateEmailContent(testResults) {
 		<p style="margin:0 0 6px 0;"><strong>Test suite:</strong> Comprehensive stat testing</p>
 		${
 			hidePassedTests
-				? `<p style="margin:0;"><strong>Note:</strong> Failed tests only — ${passedTestsCount} passed tests hidden from the table.</p>`
+				? `<p style="margin:0;"><strong>Note:</strong> Failed tests only - ${passedTestsCount} passed tests hidden from the table.</p>`
 				: ""
 		}`;
 
@@ -1581,7 +1581,7 @@ async function sendEmailReport(testResults) {
 
 	try {
 		const dateStr = new Date().toLocaleDateString();
-		const subjectTail = `Chatbot stat tests${hidePassedTests ? " (failed only)" : ""} — ${dateStr}`;
+		const subjectTail = `Chatbot stat tests${hidePassedTests ? " (failed only)" : ""} - ${dateStr}`;
 		const textBody = `Chatbot test report${hidePassedTests ? " (failed only)" : ""}\n\nTotal Tests: ${testResults.totalTests}\nPassed: ${testResults.passedTests}${hidePassedTests ? " (hidden from table)" : ""}\nFailed: ${testResults.failedTests}\nSuccess Rate: ${testResults.totalTests > 0 ? ((testResults.passedTests / testResults.totalTests) * 100).toFixed(1) : 0}%\n\nSee HTML version for detailed results.`;
 
 		console.log("📧 Sending email report...");

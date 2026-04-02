@@ -192,7 +192,7 @@ function buildTeamStatsQuery(teamName: string, filters: any = null): { query: st
 	return { query, params };
 }
 
-/** Fixture-level formation counts (excludes position filters — formation is derived from starters). */
+/** Fixture-level formation counts (excludes position filters - formation is derived from starters). */
 function buildFormationBreakdownQuery(teamName: string, filters: any = null): { query: string; params: any } {
 	const graphLabel = neo4jService.getGraphLabel();
 	const params: any = { graphLabel };
@@ -229,6 +229,49 @@ function buildFormationBreakdownQuery(teamName: string, filters: any = null): { 
 	`;
 
 	return { query, params };
+}
+
+const TEAM_STREAK_SPECS = [
+	{ category: "scoring", label: "Scoring", prop: "currentScoringStreak" },
+	{ category: "win", label: "Wins", prop: "currentWinStreak" },
+	{ category: "appearance", label: "Appearances", prop: "currentAppearanceStreak" },
+	{ category: "assist", label: "Assists", prop: "currentAssistStreak" },
+	{ category: "cleanSheet", label: "Clean sheets", prop: "currentCleanSheetStreak" },
+	{ category: "goalInvolvement", label: "Goal involvements", prop: "currentGoalInvolvementStreak" },
+] as const;
+
+type TeamStreakLeader = {
+	category: (typeof TEAM_STREAK_SPECS)[number]["category"];
+	label: (typeof TEAM_STREAK_SPECS)[number]["label"];
+	playerName: string;
+	value: number;
+};
+
+/** Longest active streak per category for players whose primary XI matches the selected team. */
+async function fetchTeamStreakLeaders(
+	teamName: string,
+	graphLabel: string,
+	toNumber: (value: unknown) => number,
+): Promise<TeamStreakLeader[]> {
+	const results = await Promise.all(
+		TEAM_STREAK_SPECS.map(async ({ category, label, prop }) => {
+			const query = `
+				MATCH (p:Player {graphLabel: $graphLabel})
+				WHERE p.allowOnSite = true AND p.mostPlayedForTeam = $teamName
+				  AND coalesce(p.${prop}, 0) > 0
+				RETURN p.playerName as playerName, p.${prop} as value
+				ORDER BY value DESC
+				LIMIT 1
+			`;
+			const r = await neo4jService.runQuery(query, { graphLabel, teamName });
+			if (!r.records.length) return null;
+			const rec = r.records[0];
+			const playerName = String(rec.get("playerName") ?? "");
+			if (!playerName) return null;
+			return { category, label, playerName, value: toNumber(rec.get("value")) };
+		}),
+	);
+	return results.filter((x): x is TeamStreakLeader => x != null);
 }
 
 // Validation function for filter structure (reused from player-data-filtered)
@@ -368,6 +411,31 @@ export async function POST(request: NextRequest) {
 			return NextResponse.json({ error: "Database connection failed" }, { status: 500, headers: corsHeaders });
 		}
 
+		const toNumber = (value: unknown): number => {
+			if (value === null || value === undefined) return 0;
+			if (typeof value === "number") {
+				if (isNaN(value)) return 0;
+				return value;
+			}
+			if (typeof value === "object") {
+				if ("toNumber" in value && typeof (value as { toNumber?: () => number }).toNumber === "function") {
+					return (value as { toNumber: () => number }).toNumber();
+				}
+				if ("low" in value && "high" in value) {
+					const v = value as { low?: number; high?: number };
+					const low = v.low || 0;
+					const high = v.high || 0;
+					return low + high * 4294967296;
+				}
+				if ("toString" in value && typeof (value as { toString: () => string }).toString === "function") {
+					const num = Number((value as { toString: () => string }).toString());
+					return isNaN(num) ? 0 : num;
+				}
+			}
+			const num = Number(value);
+			return isNaN(num) ? 0 : num;
+		};
+
 		// Build query with filters using shared query builder
 		const { query, params } = buildTeamStatsQuery(teamName, filters);
 
@@ -390,10 +458,19 @@ export async function POST(request: NextRequest) {
 
 		let result;
 		let formationResult;
+		let streakLeaders: TeamStreakLeader[] = [];
 		try {
 			result = await neo4jService.runQuery(query, params);
 			const { query: formQuery, params: formParams } = buildFormationBreakdownQuery(teamName, filters);
 			formationResult = await neo4jService.runQuery(formQuery, formParams);
+			if (teamName && teamName !== "Whole Club") {
+				try {
+					streakLeaders = await fetchTeamStreakLeaders(teamName, neo4jService.getGraphLabel(), toNumber);
+				} catch (streakErr) {
+					logError("Team streak leaders query error", streakErr);
+					streakLeaders = [];
+				}
+			}
 		} catch (queryError: any) {
 			logError("Cypher query error", queryError);
 			// Security: Don't expose error details to client
@@ -406,33 +483,6 @@ export async function POST(request: NextRequest) {
 		if (result.records.length === 0) {
 			return NextResponse.json({ error: "Team not found or no matches for filters" }, { status: 404, headers: corsHeaders });
 		}
-
-		// Helper function to convert Neo4j Integer/Float to JavaScript number
-		const toNumber = (value: any): number => {
-			if (value === null || value === undefined) return 0;
-			if (typeof value === "number") {
-				if (isNaN(value)) return 0;
-				return value;
-			}
-			// Handle Neo4j Integer objects
-			if (typeof value === "object") {
-				if ("toNumber" in value && typeof value.toNumber === "function") {
-					return value.toNumber();
-				}
-				if ("low" in value && "high" in value) {
-					// Neo4j Integer format: low + high * 2^32
-					const low = value.low || 0;
-					const high = value.high || 0;
-					return low + high * 4294967296;
-				}
-				if ("toString" in value) {
-					const num = Number(value.toString());
-					return isNaN(num) ? 0 : num;
-				}
-			}
-			const num = Number(value);
-			return isNaN(num) ? 0 : num;
-		};
 
 		// Extract aggregated stats from result
 		const record = result.records[0];
@@ -481,7 +531,7 @@ export async function POST(request: NextRequest) {
 			fantasyPointsPerAppearance: toNumber(record.get("fantasyPointsPerAppearance")),
 			numberOfSeasons: toNumber(record.get("numberOfSeasons")),
 			numberOfCompetitions: toNumber(record.get("numberOfCompetitions")),
-			formationBreakdown: (formationResult?.records || []).map((r) => {
+			formationBreakdown: (formationResult?.records || []).map((r: { get: (key: string) => unknown }) => {
 				const games = toNumber(r.get("games"));
 				const wins = toNumber(r.get("wins"));
 				return {
@@ -491,6 +541,7 @@ export async function POST(request: NextRequest) {
 					winPercentage: games > 0 ? Math.round((wins / games) * 1000) / 10 : 0,
 				};
 			}),
+			...(streakLeaders.length > 0 ? { streakLeaders } : {}),
 		};
 
 		// Include copyable query in response for debugging

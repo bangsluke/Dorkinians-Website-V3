@@ -392,7 +392,7 @@ function renderVisualization(viz: { type: string; data?: any }, accentColor: str
 											<td style={{ textAlign: "right", padding: "8px", fontFamily: "monospace", fontSize: "12px" }}>{cleanSheets}</td>
 										</tr>
 										<tr style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.1)" }}>
-											<td style={{ padding: "8px", fontSize: "12px" }}>Avg Goals Conceded/Game</td>
+											<td style={{ padding: "8px", fontSize: "12px" }}>Avg Goals Conceded / Game</td>
 											<td style={{ textAlign: "right", padding: "8px", fontFamily: "monospace", fontSize: "12px" }}>
 												{avgGoalsConcededPerGame > 0 ? avgGoalsConcededPerGame.toFixed(2) : "0.00"}
 											</td>

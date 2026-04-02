@@ -7,8 +7,10 @@ import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { MilestonesTableSkeleton } from "@/components/skeletons";
-import { appConfig } from "@/config/config";
+import { appConfig, featureFlags } from "@/config/config";
 import SquadPlayersModal from "./SquadPlayersModal";
+import RecordsSection from "./RecordsSection";
+import BadgeLeaderboardSection from "./BadgeLeaderboardSection";
 import { log } from "@/lib/utils/logger";
 
 interface MilestoneEntry {
@@ -285,29 +287,34 @@ export default function ClubInformation() {
 		: nearing.filter(entry => entry.statType === selectedFilter).slice(0, 5);
 
 	return (
-		<div 
-			className='p-2 md:p-4 overflow-y-auto md:max-w-2xl md:mx-auto w-full'
-			style={{ WebkitOverflowScrolling: 'touch' }}>
+		<div
+			className='w-full overflow-y-auto px-3 py-2 pb-6 md:px-4 md:py-4 lg:px-6'
+			style={{ WebkitOverflowScrolling: "touch" }}>
 			<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-4 text-center'>Club Information</h2>
 
-			{/* Info Section */}
-			<div className='mb-8'>
-				<p className='text-sm md:text-base text-white mb-4 text-center'>Formed in 1930, Dorkinian F.C. is the greatest football club in the world, dominating Surrey football from youth to senior level.</p>
-				<div className='text-center'>
-					<a 
-						href='https://www.google.com/maps?saddr=My+Location&daddr=Pixham+Lane+Sports+Ground,+72+B2038,+Dorking+RH4+1PQ'
-						target='_blank'
-						rel='noopener noreferrer'
-						className='text-dorkinians-yellow hover:text-yellow-400 underline transition-colors text-sm md:text-base'
-					>
-						Navigate to Pixham
-					</a>
-				</div>
-			</div>
+			<div className='lg:grid lg:grid-cols-2 lg:items-start lg:gap-6'>
+				<div data-testid='club-information-left-column' className='min-w-0 space-y-8'>
+					{/* Info Section */}
+					<div>
+						<h3 className='text-lg md:text-xl font-bold text-dorkinians-yellow mb-4 text-center lg:text-left'>Club Details</h3>
+						<p className='text-sm md:text-base text-white mb-4 text-center lg:text-left'>
+							Formed in 1930, Dorkinian F.C. is the greatest football club in the world, dominating Surrey football from youth to senior level.
+						</p>
+						<div className='flex justify-center items-center'>
+							<a
+								href='https://www.google.com/maps?saddr=My+Location&daddr=Pixham+Lane+Sports+Ground,+72+B2038,+Dorking+RH4+1PQ'
+								target='_blank'
+								rel='noopener noreferrer'
+								className='inline-flex items-center gap-2 text-white hover:text-dorkinians-yellow underline underline-offset-2 transition-colors text-sm md:text-base'>
+								<Image src='/icons/googlemaps.svg' alt='' width={24} height={24} className='shrink-0 h-6 w-6' aria-hidden />
+								Navigate to Pixham
+							</a>
+						</div>
+					</div>
 
-			{/* Club Achievements Section */}
-			<div className='mb-8'>
-				<h3 className='text-lg md:text-xl font-bold text-dorkinians-yellow mb-4'>Club Achievements</h3>
+					{/* Club Achievements Section */}
+					<div>
+						<h3 className='text-lg md:text-xl font-bold text-dorkinians-yellow mb-4'>Club Achievements</h3>
 				{achievementsLoading ? (
 					<div className='flex overflow-x-auto gap-1 pb-2'>
 						{[1, 2, 3].map((i) => (
@@ -337,10 +344,10 @@ export default function ClubInformation() {
 				) : (
 					<p className='text-sm text-gray-400 text-center py-4'>No league championships to display</p>
 				)}
-			</div>
+					</div>
 
-			{/* Milestones Section */}
-			<div className='mb-8'>
+					{/* Milestones Section - left column below Club Achievements */}
+					<div>
 				<h3 className='text-lg md:text-xl font-bold text-dorkinians-yellow mb-4'>Milestones</h3>
 				
 				{/* Filter Dropdown */}
@@ -465,6 +472,13 @@ export default function ClubInformation() {
 				) : (
 					<p className='text-sm text-gray-400 text-center py-4'>No players nearing milestones</p>
 				)}
+				</div>
+					</div>
+				</div>
+
+				<div className='min-w-0 space-y-8 mt-8 lg:mt-0'>
+					{featureFlags.clubInfoRecords ? <RecordsSection /> : null}
+					{featureFlags.achievementBadges ? <BadgeLeaderboardSection /> : null}
 				</div>
 			</div>
 		</div>

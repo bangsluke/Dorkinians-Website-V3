@@ -5,14 +5,16 @@
  * Runs all test suites in sequence with clear differentiation:
  * 1. Unit Tests
  * 2. Integration Tests
- * 3. Other Jest Tests (comprehensive, advanced, performance, validation, ux, security, monitoring)
- * 4. E2E Tests (Playwright)
- * 5. Chatbot Report
- * 6. Questions Report
+ * 3. Database package (../database-dorkinians) - Node tests when sibling repo is present
+ * 4. Other Jest Tests (comprehensive, advanced, performance, validation, ux, security, monitoring)
+ * 5. E2E Tests (Playwright)
+ * 6. Chatbot Report
+ * 7. Questions Report
  */
 
 const { execSync, spawn } = require("child_process");
 const path = require("path");
+const fs = require("fs");
 const { sendReportEmail, buildDefaultContext } = require(path.join(__dirname, "..", "..", "lib", "email", "dorkiniansReportEmail"));
 const {
 	ensureArtifactDir,
@@ -161,6 +163,8 @@ function getWorkflowTriggerLabel() {
 const results = {
 	unit: false,
 	integration: false,
+	databaseSibling: false,
+	databaseSiblingSkipped: false,
 	otherJest: false,
 	e2e: false,
 	chatbotReport: false,
@@ -204,7 +208,34 @@ async function runAllSuites() {
 		hasFailures = true;
 	}
 
-	// 3. Other Jest Tests (comprehensive, advanced, performance, validation, ux, security, monitoring)
+	// 3. Sibling database-dorkinians repo - Node built-in tests (club records, graph insights, match-derived, streaks)
+	printSectionHeader("DATABASE PACKAGE (NODE TESTS)");
+	const dbRepoAbs = path.resolve(REPO_ROOT, "..", "database-dorkinians");
+	const dbPackageJson = path.join(dbRepoAbs, "package.json");
+	if (!fs.existsSync(dbPackageJson)) {
+		results.databaseSiblingSkipped = true;
+		results.databaseSibling = true;
+		printInfo("Skipped: ../database-dorkinians not found (optional sibling checkout).");
+		printSuccess("Database package tests skipped - not counted as failure");
+	} else {
+		const quoteForShell = (absPath) => `"${String(absPath).replace(/"/g, '\\"')}"`;
+		const prefix = quoteForShell(dbRepoAbs);
+		const dbCmd = [
+			`npm run test:club-records --prefix ${prefix}`,
+			`npm run test:graph-insights --prefix ${prefix}`,
+			`npm run test:match-derived --prefix ${prefix}`,
+			`npm run test:streak-detection --prefix ${prefix}`,
+		].join(" && ");
+		results.databaseSibling = await runCommand(
+			dbCmd,
+			"Database package (test:club-records, test:graph-insights, test:match-derived, test:streak-detection)",
+		);
+		if (!results.databaseSibling) {
+			hasFailures = true;
+		}
+	}
+
+	// 4. Other Jest Tests (comprehensive, advanced, performance, validation, ux, security, monitoring)
 	printSectionHeader("OTHER JEST TESTS");
 	printInfo("Running: Comprehensive, Advanced, Performance, Validation, UX, Security, and Monitoring Tests");
 	const jestOtherCommand = isDebugMode
@@ -220,7 +251,7 @@ async function runAllSuites() {
 		hasFailures = true;
 	}
 
-	// 4. E2E Tests — use playwright.config reporters (list + html); stream stdout so progress is visible live
+	// 5. E2E Tests - use playwright.config reporters (list + html); stream stdout so progress is visible live
 	printSectionHeader("E2E TESTS (PLAYWRIGHT)");
 	const playwrightCommand = "playwright test";
 	results.e2e = await runCommand(playwrightCommand, "E2E Tests (Playwright)");
@@ -234,7 +265,7 @@ async function runAllSuites() {
 		hasFailures = true;
 	}
 
-	// 5. Chatbot Report
+	// 6. Chatbot Report
 	printSectionHeader("CHATBOT REPORT");
 	results.chatbotReport = await runCommand(
 		"npm run test:chatbot-players-report",
@@ -248,7 +279,7 @@ async function runAllSuites() {
 		chatbotLogExcerpt = runCommand.lastOutput || "";
 	}
 
-	// 6. Questions Report
+	// 7. Questions Report
 	printSectionHeader("QUESTIONS REPORT");
 	results.questionsReport = await runCommand(
 		"npm run test:questions-report",
@@ -268,6 +299,10 @@ async function runAllSuites() {
 	const summary = [
 		{ name: "Unit Tests", result: results.unit },
 		{ name: "Integration Tests", result: results.integration },
+		{
+			name: results.databaseSiblingSkipped ? "Database package (skipped)" : "Database package (Node)",
+			result: results.databaseSibling,
+		},
 		{ name: "Other Jest Tests", result: results.otherJest },
 		{ name: "E2E Tests", result: results.e2e },
 		{ name: "Chatbot Report", result: results.chatbotReport },
@@ -297,6 +332,8 @@ async function sendSummaryEmailAndExit(summary, passedCount, totalCount, e2eSkip
 			suitePass: {
 				unit: results.unit,
 				integration: results.integration,
+				databaseSibling: results.databaseSibling,
+				databaseSiblingSkipped: results.databaseSiblingSkipped,
 				otherJest: results.otherJest,
 				e2e: results.e2e,
 				chatbotReport: results.chatbotReport,

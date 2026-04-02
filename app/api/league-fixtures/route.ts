@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neo4jService } from "@/lib/neo4j";
+import { CYPHER_FIXTURE_VEOLINK_COALESCE } from "@/lib/utils/neo4jVeoLink";
 import type { Record } from "neo4j-driver";
 import { logError } from "@/lib/utils/logger";
 
@@ -40,10 +41,7 @@ export async function GET(request: NextRequest) {
 		const season = searchParams.get("season");
 
 		if (!teamKey || !season) {
-			return NextResponse.json(
-				{ error: "Team and season parameters are required" },
-				{ status: 400, headers: corsHeaders }
-			);
+			return NextResponse.json({ error: "Team and season parameters are required" }, { status: 400, headers: corsHeaders });
 		}
 
 		// Connect to Neo4j
@@ -72,7 +70,7 @@ export async function GET(request: NextRequest) {
 			RETURN f.id as fixtureId, f.date as date, f.opposition as opposition, f.homeOrAway as homeOrAway,
 			       f.result as result, f.homeScore as homeScore, f.awayScore as awayScore,
 			       f.dorkiniansGoals as dorkiniansGoals, f.conceded as conceded,
-			       f.compType as compType, f.oppoOwnGoals as oppoOwnGoals, goalscorers, momPlayers
+			       f.compType as compType, f.oppoOwnGoals as oppoOwnGoals, ${CYPHER_FIXTURE_VEOLINK_COALESCE} as veoLink, goalscorers, momPlayers
 			ORDER BY f.date ASC
 		`;
 
@@ -98,6 +96,7 @@ export async function GET(request: NextRequest) {
 			const conceded = record.get("conceded");
 			const compType = record.get("compType");
 			const oppoOwnGoals = record.get("oppoOwnGoals");
+			const veoLink = record.get("veoLink");
 			const goalscorersRaw = record.get("goalscorers") || [];
 			const momPlayersRaw = record.get("momPlayers") || [];
 
@@ -132,6 +131,7 @@ export async function GET(request: NextRequest) {
 				conceded: typeof conceded === "number" ? conceded : Number(conceded) || 0,
 				compType: compType ? String(compType) : "",
 				oppoOwnGoals: typeof oppoOwnGoals === "number" ? oppoOwnGoals : Number(oppoOwnGoals) || 0,
+				veoLink: veoLink != null && String(veoLink).trim() !== "" ? String(veoLink) : null,
 				goalscorers,
 				momPlayerName,
 			};
@@ -143,4 +143,3 @@ export async function GET(request: NextRequest) {
 		return NextResponse.json({ error: "Failed to fetch league fixtures" }, { status: 500, headers: corsHeaders });
 	}
 }
-

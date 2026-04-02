@@ -48,13 +48,13 @@ export default function TOTWPitchSkeleton() {
 				{/* STAR MAN section */}
 				<div className='flex flex-col items-center flex-shrink-0'>
 					<Skeleton height={20} width={80} className="mb-2" />
-					<Skeleton circle height={56} width={56} className="mb-2" />
+					<Skeleton circle height={36} width={36} className="mb-2" />
 					<Skeleton height={50} width={80} className="mb-1" />
 				</div>
 			</div>
 
-			{/* Pitch Visualization */}
-			<div className='relative w-full mb-4 overflow-hidden' style={{ minHeight: '450px', aspectRatio: '16/9.6' }}>
+			{/* Pitch Visualization - minHeight matches loaded TeamOfTheWeek pitch */}
+			<div className='relative w-full mb-4 overflow-hidden' style={{ minHeight: "450px", aspectRatio: "16/9.6" }}>
 				{/* Pitch Background */}
 				<div className='absolute inset-0 w-full h-[110%]'>
 					<Image
@@ -79,10 +79,9 @@ export default function TOTWPitchSkeleton() {
 						}}
 					>
 					<div className='relative flex flex-col items-center'>
-						{/* Kit Circle - matches w-14 h-14 (56px) with reduced spacing */}
-						<Skeleton circle height={56} width={56} className="mb-0.2" />
-						{/* Name Box Rectangle - matches actual dimensions (60px width, 50px height) */}
-						<Skeleton height={40} width={60} />
+						{/* Kit circle + name block - smaller than prior skeleton to match loaded markers */}
+						<Skeleton circle height={32} width={32} className="mb-0.5" />
+						<Skeleton height={28} width={48} />
 					</div>
 					</div>
 				))}

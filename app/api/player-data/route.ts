@@ -103,6 +103,382 @@ export function buildFilterConditions(filters: any, params: any): string[] {
 	return conditions;
 }
 
+/** Split Cypher filter snippets for appearance-slot queries (allow `md IS NULL` only for f-only conditions). */
+export function partitionFilterConditions(conditions: string[]): { fixture: string[]; matchDetail: string[] } {
+	const matchDetail = conditions.filter((c) => c.includes("md."));
+	const fixture = conditions.filter((c) => !c.includes("md."));
+	return { fixture, matchDetail };
+}
+
+/** Neo4j RETURN fragment: career streak counters on `p` (Feature 5; independent of stat filters). */
+export const PLAYER_STREAK_PROPERTY_RETURN = `
+			coalesce(p.currentScoringStreak, 0) as currentScoringStreak,
+			coalesce(p.currentAssistStreak, 0) as currentAssistStreak,
+			coalesce(p.currentGoalInvolvementStreak, 0) as currentGoalInvolvementStreak,
+			coalesce(p.currentCleanSheetStreak, 0) as currentCleanSheetStreak,
+			coalesce(p.currentAppearanceStreak, 0) as currentAppearanceStreak,
+			coalesce(p.currentStartStreak, 0) as currentStartStreak,
+			coalesce(p.currentFullMatchStreak, 0) as currentFullMatchStreak,
+			coalesce(p.currentMomStreak, 0) as currentMomStreak,
+			coalesce(p.currentDisciplineStreak, 0) as currentDisciplineStreak,
+			coalesce(p.currentWinStreak, 0) as currentWinStreak,
+			coalesce(p.seasonBestScoringStreak, 0) as seasonBestScoringStreak,
+			coalesce(p.seasonBestAssistStreak, 0) as seasonBestAssistStreak,
+			coalesce(p.seasonBestCleanSheetStreak, 0) as seasonBestCleanSheetStreak,
+			coalesce(p.seasonBestAppearanceStreak, 0) as seasonBestAppearanceStreak,
+			coalesce(p.seasonBestDisciplineStreak, 0) as seasonBestDisciplineStreak,
+			coalesce(p.seasonBestWinStreak, 0) as seasonBestWinStreak,
+			coalesce(p.allTimeBestScoringStreak, 0) as allTimeBestScoringStreak,
+			coalesce(p.allTimeBestAppearanceStreak, 0) as allTimeBestAppearanceStreak,
+			coalesce(p.allTimeBestCleanSheetStreak, 0) as allTimeBestCleanSheetStreak,
+			coalesce(p.allTimeBestWinStreak, 0) as allTimeBestWinStreak`;
+
+/** Neo4j RETURN fragment: Feature 7 graph insights on `p` (independent of stat filters). */
+export const PLAYER_GRAPH_INSIGHT_PROPERTY_RETURN = `
+			p.bestPartnerName as bestPartnerName,
+			p.bestPartnerWinRate as bestPartnerWinRate,
+			p.bestPartnerMatches as bestPartnerMatches,
+			p.partnershipsTopJson as partnershipsTopJson,
+			p.impactDelta as impactDelta,
+			p.impactWinRateWith as impactWinRateWith,
+			p.impactWinRateWithout as impactWinRateWithout,
+			p.impactSampleWith as impactSampleWith,
+			p.impactSampleWithout as impactSampleWithout,
+			p.squadInfluence as squadInfluence,
+			p.squadInfluenceRank as squadInfluenceRank,
+			p.communityId as communityId`;
+
+export function mapPlayerStreakFieldsFromRecord(record: { get: (key: string) => unknown }, toNumber: (value: any) => number) {
+	return {
+		currentScoringStreak: toNumber(record.get("currentScoringStreak")),
+		currentAssistStreak: toNumber(record.get("currentAssistStreak")),
+		currentGoalInvolvementStreak: toNumber(record.get("currentGoalInvolvementStreak")),
+		currentCleanSheetStreak: toNumber(record.get("currentCleanSheetStreak")),
+		currentAppearanceStreak: toNumber(record.get("currentAppearanceStreak")),
+		currentStartStreak: toNumber(record.get("currentStartStreak")),
+		currentFullMatchStreak: toNumber(record.get("currentFullMatchStreak")),
+		currentMomStreak: toNumber(record.get("currentMomStreak")),
+		currentDisciplineStreak: toNumber(record.get("currentDisciplineStreak")),
+		currentWinStreak: toNumber(record.get("currentWinStreak")),
+		seasonBestScoringStreak: toNumber(record.get("seasonBestScoringStreak")),
+		seasonBestAssistStreak: toNumber(record.get("seasonBestAssistStreak")),
+		seasonBestCleanSheetStreak: toNumber(record.get("seasonBestCleanSheetStreak")),
+		seasonBestAppearanceStreak: toNumber(record.get("seasonBestAppearanceStreak")),
+		seasonBestDisciplineStreak: toNumber(record.get("seasonBestDisciplineStreak")),
+		seasonBestWinStreak: toNumber(record.get("seasonBestWinStreak")),
+		allTimeBestScoringStreak: toNumber(record.get("allTimeBestScoringStreak")),
+		allTimeBestAppearanceStreak: toNumber(record.get("allTimeBestAppearanceStreak")),
+		allTimeBestCleanSheetStreak: toNumber(record.get("allTimeBestCleanSheetStreak")),
+		allTimeBestWinStreak: toNumber(record.get("allTimeBestWinStreak")),
+	};
+}
+
+export function mapPlayerGraphInsightFieldsFromRecord(record: { get: (key: string) => unknown }, toNumber: (value: any) => number) {
+	const nullableNum = (key: string): number | null => {
+		const v = record.get(key);
+		if (v === null || v === undefined) return null;
+		const n = typeof v === "number" ? v : toNumber(v);
+		return Number.isNaN(n) ? null : n;
+	};
+	const name = record.get("bestPartnerName");
+	const bestPartnerName = name != null && String(name).trim() !== "" ? String(name) : null;
+	const wr = nullableNum("bestPartnerWinRate");
+	const bm = nullableNum("bestPartnerMatches");
+	const jsonRaw = record.get("partnershipsTopJson");
+	const partnershipsTopJson = jsonRaw != null && String(jsonRaw).trim() !== "" ? String(jsonRaw) : null;
+	const graphInsightsBestPartnerDisplay =
+		bestPartnerName != null && wr != null && bm != null
+			? `${bestPartnerName} (${Math.round(wr * 10) / 10}% in ${Math.round(bm)} games)`
+			: bestPartnerName != null
+				? bestPartnerName
+				: null;
+	const sw = nullableNum("impactSampleWith");
+	const swo = nullableNum("impactSampleWithout");
+	const irWith = nullableNum("impactWinRateWith");
+	const irWithout = nullableNum("impactWinRateWithout");
+	const rank = nullableNum("squadInfluenceRank");
+	const comm = nullableNum("communityId");
+	const impactRatesDisplay =
+		irWith != null && irWithout != null && sw != null && swo != null
+			? `${Math.round(irWith * 10) / 10}% with (${Math.round(sw)} games) · ${Math.round(irWithout * 10) / 10}% without (${Math.round(swo)} games)`
+			: null;
+	return {
+		bestPartnerName,
+		bestPartnerWinRate: wr,
+		bestPartnerMatches: bm != null ? Math.round(bm) : null,
+		partnershipsTopJson,
+		graphInsightsBestPartnerDisplay,
+		impactDelta: nullableNum("impactDelta"),
+		impactWinRateWith: irWith,
+		impactWinRateWithout: irWithout,
+		impactRatesDisplay,
+		impactSampleWith: sw != null ? Math.round(sw) : null,
+		impactSampleWithout: swo != null ? Math.round(swo) : null,
+		squadInfluence: nullableNum("squadInfluence"),
+		squadInfluenceRank: rank != null ? Math.round(rank) : null,
+		communityId: comm != null ? Math.round(comm) : null,
+	};
+}
+
+/** Co-appearance / partnership rows scoped to the same fixtures as `buildPlayerStatsQuery` filters. */
+export function buildFilteredPartnershipsQuery(playerName: string, filters: any): { query: string; params: Record<string, unknown> } {
+	const graphLabel = neo4jService.getGraphLabel();
+	const params: Record<string, unknown> = { graphLabel, playerName };
+	const conditions = buildFilterConditions(filters, params);
+	let query = `
+		MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
+		MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+		MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)`;
+	if (conditions.length > 0) {
+		query += ` WHERE ${conditions.join(" AND ")}`;
+	}
+	query += `
+		WITH p, f, md.team AS xiTeam
+		MATCH (f)-[:HAS_MATCH_DETAILS]->(mdO:MatchDetail {graphLabel: $graphLabel})
+		WHERE mdO.team = xiTeam
+		MATCH (pOther:Player {graphLabel: $graphLabel})-[:PLAYED_IN]->(mdO)
+		WHERE pOther <> p AND coalesce(pOther.allowOnSite, true) = true
+		WITH pOther.playerName AS mateName, f, f.result AS res
+		WITH mateName, count(*) AS matches, sum(CASE WHEN res = 'W' THEN 1 ELSE 0 END) AS winCount
+		WHERE matches >= 5
+		RETURN mateName, matches, CASE WHEN matches > 0 THEN toFloat(winCount) * 100.0 / matches ELSE 0.0 END AS winRate
+		LIMIT 400`;
+	return { query, params };
+}
+
+export function buildFilteredImpactWithQuery(playerName: string, filters: any, team: string): { query: string; params: Record<string, unknown> } | null {
+	if (!team || String(team).trim() === "") return null;
+	const graphLabel = neo4jService.getGraphLabel();
+	const params: Record<string, unknown> = { graphLabel, playerName, team };
+	const conditions = buildFilterConditions(filters, params);
+	let query = `
+		MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
+		MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+		WHERE md.team = $team
+		MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)`;
+	if (conditions.length > 0) {
+		query += ` WHERE ${conditions.join(" AND ")}`;
+	}
+	query += `
+		RETURN count(f) AS games, sum(CASE WHEN f.result = 'W' THEN 1 ELSE 0 END) AS wins`;
+	return { query, params };
+}
+
+export function buildFilteredImpactWithoutQuery(playerName: string, filters: any, team: string): { query: string; params: Record<string, unknown> } | null {
+	if (!team || String(team).trim() === "") return null;
+	const graphLabel = neo4jService.getGraphLabel();
+	const params: Record<string, unknown> = { graphLabel, playerName, team };
+	const conditions = buildFilterConditions(filters, params);
+	let query = `
+		MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
+		MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md:MatchDetail {graphLabel: $graphLabel})
+		WHERE md.team = $team
+		AND NOT (p)-[:PLAYED_IN]->(md)`;
+	if (conditions.length > 0) {
+		query += ` AND ${conditions.join(" AND ")}`;
+	}
+	query += `
+		RETURN count(f) AS games, sum(CASE WHEN f.result = 'W' THEN 1 ELSE 0 END) AS wins`;
+	return { query, params };
+}
+
+/** Top players by co-appearance edge count in filtered fixtures (proxy for squad “backbone” when filters apply). */
+export function buildFilteredClubSquadBackboneQuery(filters: any): { query: string; params: Record<string, unknown> } {
+	const graphLabel = neo4jService.getGraphLabel();
+	const params: Record<string, unknown> = { graphLabel };
+	const conditions = buildFilterConditions(filters, params);
+	let query = `
+		MATCH (p:Player {graphLabel: $graphLabel})
+		WHERE coalesce(p.allowOnSite, true) = true
+		MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+		MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)`;
+	if (conditions.length > 0) {
+		query += ` WHERE ${conditions.join(" AND ")}`;
+	}
+	query += `
+		WITH p, f, md.team AS xiTeam
+		MATCH (f)-[:HAS_MATCH_DETAILS]->(mdO:MatchDetail {graphLabel: $graphLabel})
+		WHERE mdO.team = xiTeam
+		MATCH (pOther:Player {graphLabel: $graphLabel})-[:PLAYED_IN]->(mdO)
+		WHERE pOther <> p AND coalesce(pOther.allowOnSite, true) = true
+		WITH p.playerName AS playerName, count(*) AS edgeWeight
+		RETURN playerName, edgeWeight
+		ORDER BY edgeWeight DESC
+		LIMIT 12`;
+	return { query, params };
+}
+
+export type FilteredPartnershipRow = { mateName: string; matches: number; winRate: number };
+
+/** Build graph-insight object fields to merge into filtered player payloads (overrides precomputed Player properties). */
+export function packFilteredPlayerGraphInsights(
+	rows: FilteredPartnershipRow[],
+	withStats: { games: number; wins: number } | null,
+	withoutStats: { games: number; wins: number } | null
+): ReturnType<typeof mapPlayerGraphInsightFieldsFromRecord> {
+	const toNumber = (value: unknown): number => {
+		if (value === null || value === undefined) return 0;
+		if (typeof value === "number") return Number.isNaN(value) ? 0 : value;
+		const n = Number(value);
+		return Number.isNaN(n) ? 0 : n;
+	};
+
+	/** Union top partners by co-appearance volume and by win rate so UI "best win %" is not limited to the busiest teammates only. */
+	const valid = rows.filter((r) => r.mateName.length > 0 && r.matches >= 5);
+	const byName = new Map<string, FilteredPartnershipRow>();
+	for (const r of valid) {
+		byName.set(r.mateName, r);
+	}
+	const all = [...byName.values()];
+	const byMatches = [...all].sort((a, b) => b.matches - a.matches || b.winRate - a.winRate || a.mateName.localeCompare(b.mateName));
+	const byWinRate = [...all].sort((a, b) => b.winRate - a.winRate || b.matches - a.matches || a.mateName.localeCompare(b.mateName));
+	const picked = new Map<string, FilteredPartnershipRow>();
+	for (const r of byMatches.slice(0, 45)) picked.set(r.mateName, r);
+	for (const r of byWinRate.slice(0, 45)) picked.set(r.mateName, r);
+	const merged = [...picked.values()];
+
+	const partnershipsTopJson =
+		merged.length > 0
+			? JSON.stringify(
+					merged.map((r) => ({
+						name: r.mateName,
+						matches: Math.round(r.matches),
+						winRate: Math.round(r.winRate * 10) / 10,
+					}))
+				)
+			: null;
+
+	const topWin = byWinRate[0];
+	const bestPartnerName = topWin && topWin.mateName ? topWin.mateName : null;
+	const bestPartnerWinRate = topWin ? topWin.winRate : null;
+	const bestPartnerMatches = topWin ? Math.round(topWin.matches) : null;
+
+	const graphInsightsBestPartnerDisplay =
+		bestPartnerName != null && bestPartnerWinRate != null && bestPartnerMatches != null
+			? `${bestPartnerName} (${Math.round(bestPartnerWinRate * 10) / 10}% in ${Math.round(bestPartnerMatches)} games)`
+			: bestPartnerName;
+
+	let impactWinRateWith: number | null = null;
+	let impactWinRateWithout: number | null = null;
+	let impactSampleWith: number | null = null;
+	let impactSampleWithout: number | null = null;
+	let impactDelta: number | null = null;
+	let impactRatesDisplay: string | null = null;
+
+	if (withStats && withStats.games > 0) {
+		impactSampleWith = Math.round(withStats.games);
+		impactWinRateWith = (withStats.wins / withStats.games) * 100;
+	}
+	if (withoutStats && withoutStats.games > 0) {
+		impactSampleWithout = Math.round(withoutStats.games);
+		impactWinRateWithout = (withoutStats.wins / withoutStats.games) * 100;
+	}
+
+	if (impactWinRateWith != null && impactWinRateWithout != null) {
+		impactDelta = Math.round((impactWinRateWith - impactWinRateWithout) * 10) / 10;
+		impactRatesDisplay =
+			impactSampleWith != null && impactSampleWithout != null
+				? `${Math.round(impactWinRateWith * 10) / 10}% with (${impactSampleWith} games) · ${Math.round(impactWinRateWithout * 10) / 10}% without (${impactSampleWithout} games)`
+				: null;
+	} else if (impactWinRateWith != null && impactSampleWith != null) {
+		impactRatesDisplay = `${Math.round(impactWinRateWith * 10) / 10}% with (${impactSampleWith} games)`;
+	}
+
+	const synthetic = {
+		get: (k: string): unknown => {
+			switch (k) {
+				case "bestPartnerName":
+					return bestPartnerName;
+				case "bestPartnerWinRate":
+					return bestPartnerWinRate;
+				case "bestPartnerMatches":
+					return bestPartnerMatches;
+				case "partnershipsTopJson":
+					return partnershipsTopJson;
+				case "impactDelta":
+					return impactDelta;
+				case "impactWinRateWith":
+					return impactWinRateWith;
+				case "impactWinRateWithout":
+					return impactWinRateWithout;
+				case "impactSampleWith":
+					return impactSampleWith;
+				case "impactSampleWithout":
+					return impactSampleWithout;
+				default:
+					return null;
+			}
+		},
+	};
+	const base = mapPlayerGraphInsightFieldsFromRecord(synthetic, toNumber);
+	return {
+		...base,
+		graphInsightsBestPartnerDisplay,
+	};
+}
+
+/** Collect ordered match rows for live streak computation (same shape as foundation streak seeding). */
+export function buildStreakMatchesCollectQuery(playerName: string, filters: any): { query: string; params: Record<string, unknown> } {
+	const graphLabel = neo4jService.getGraphLabel();
+	const params: Record<string, unknown> = { graphLabel, playerName };
+	const conditions = buildFilterConditions(filters, params);
+	let query = `
+		MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
+		OPTIONAL MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+		OPTIONAL MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)`;
+	if (conditions.length > 0) {
+		query += ` WHERE md IS NULL OR (f IS NOT NULL AND ${conditions.join(" AND ")})`;
+	} else {
+		query += ` WHERE md IS NULL OR f IS NOT NULL`;
+	}
+	query += `
+		WITH p, md, f
+		ORDER BY f.date ASC
+		WITH p, collect(CASE WHEN md IS NULL OR f IS NULL THEN null ELSE {
+			season: md.season,
+			date: f.date,
+			goals: md.goals,
+			penaltiesScored: md.penaltiesScored,
+			assists: md.assists,
+			cleanSheets: md.cleanSheets,
+			class: md.class,
+			minutes: md.minutes,
+			started: md.started,
+			mom: md.mom,
+			yellowCards: md.yellowCards,
+			redCards: md.redCards,
+			fixtureResult: f.result,
+			fixtureId: f.id
+		} END) as rawMatches
+		RETURN rawMatches`;
+	return { query, params };
+}
+
+/** Appearance slots for `p.mostPlayedForTeam` fixtures (filtered), ordered by date. */
+export function buildStreakAppearanceSlotsCollectQuery(playerName: string, filters: any): { query: string; params: Record<string, unknown> } {
+	const graphLabel = neo4jService.getGraphLabel();
+	const params: Record<string, unknown> = { graphLabel, playerName };
+	let query = `
+		MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
+		WHERE coalesce(p.mostPlayedForTeam, '') <> ''
+		MATCH (f:Fixture {graphLabel: $graphLabel, team: p.mostPlayedForTeam})
+		OPTIONAL MATCH (f)-[:HAS_MATCH_DETAILS]->(md:MatchDetail {graphLabel: $graphLabel})<-[:PLAYED_IN]-(p)`;
+	const conditions = buildFilterConditions(filters, params);
+	if (conditions.length > 0) {
+		const { fixture, matchDetail } = partitionFilterConditions(conditions);
+		const parts: string[] = [];
+		if (fixture.length > 0) parts.push(`(${fixture.join(" AND ")})`);
+		if (matchDetail.length > 0) parts.push(`(md IS NOT NULL AND ${matchDetail.join(" AND ")})`);
+		if (parts.length > 0) query += ` WHERE ${parts.join(" AND ")}`;
+	}
+	query += `
+		WITH p, f, md
+		ORDER BY f.date ASC
+		WITH p, collect({ season: f.season, minutes: CASE WHEN md IS NOT NULL THEN coalesce(md.minutes, 0) ELSE null END }) as appearanceSlots
+		RETURN appearanceSlots`;
+	return { query, params };
+}
+
 // Build unified Cypher query with aggregation
 export function buildPlayerStatsQuery(playerName: string, filters: any = null): { query: string; params: any } {
 	const graphLabel = neo4jService.getGraphLabel();
@@ -345,7 +721,16 @@ export function buildPlayerStatsQuery(playerName: string, filters: any = null): 
 			CASE WHEN homeGames + awayGames > 0 THEN toFloat(wins * 3 + draws * 1 + losses * 0) / (homeGames + awayGames) ELSE 0.0 END as pointsPerGame,
 			CASE WHEN starts > 0 THEN toFloat(winsWhenStarting) / starts * 100 ELSE 0.0 END as winRateWhenStarting,
 			CASE WHEN subAppearances > 0 THEN toFloat(winsFromBench) / subAppearances * 100 ELSE 0.0 END as winRateFromBench,
-			CASE WHEN appearances > 0 THEN toFloat(starts) / appearances * 100 ELSE 0.0 END as startRatePercent
+			CASE WHEN appearances > 0 THEN toFloat(starts) / appearances * 100 ELSE 0.0 END as startRatePercent,
+			CASE WHEN minutes >= 360 THEN round((toFloat(goals + penaltiesScored) / minutes) * 90 * 100) / 100 ELSE null END as goalsPer90,
+			CASE WHEN minutes >= 360 THEN round((toFloat(assists) / minutes) * 90 * 100) / 100 ELSE null END as assistsPer90,
+			CASE WHEN minutes >= 360 THEN round((toFloat((goals + penaltiesScored) + assists) / minutes) * 90 * 100) / 100 ELSE null END as goalInvolvementsPer90,
+			CASE WHEN minutes >= 360 THEN round((toFloat(fantasyPoints) / minutes) * 90 * 100) / 100 ELSE null END as ftpPer90,
+			CASE WHEN minutes >= 360 THEN round((toFloat(cleanSheets) / minutes) * 90 * 100) / 100 ELSE null END as cleanSheetsPer90,
+			CASE WHEN minutes >= 360 THEN round((toFloat(conceded) / minutes) * 90 * 100) / 100 ELSE null END as concededPer90,
+			CASE WHEN minutes >= 360 THEN round((toFloat(saves) / minutes) * 90 * 100) / 100 ELSE null END as savesPer90,
+			CASE WHEN minutes >= 360 THEN round((toFloat(yellowCards + redCards) / minutes) * 90 * 100) / 100 ELSE null END as cardsPer90,
+			CASE WHEN minutes >= 360 THEN round((toFloat(mom) / minutes) * 90 * 100) / 100 ELSE null END as momPer90
 		RETURN p.id as id,
 			p.playerName as playerName,
 			p.allowOnSite as allowOnSite,
@@ -427,9 +812,20 @@ export function buildPlayerStatsQuery(playerName: string, filters: any = null): 
 			coalesce(winRateWhenStarting, 0.0) as winRateWhenStarting,
 			coalesce(winRateFromBench, 0.0) as winRateFromBench,
 			coalesce(startRatePercent, 0.0) as startRatePercent,
+			goalsPer90 as goalsPer90,
+			assistsPer90 as assistsPer90,
+			goalInvolvementsPer90 as goalInvolvementsPer90,
+			ftpPer90 as ftpPer90,
+			cleanSheetsPer90 as cleanSheetsPer90,
+			concededPer90 as concededPer90,
+			savesPer90 as savesPer90,
+			cardsPer90 as cardsPer90,
+			momPer90 as momPer90,
 			averageMatchRating as averageMatchRating,
 			highestMatchRating as highestMatchRating,
-			coalesce(matchesRated8Plus, 0) as matchesRated8Plus
+			coalesce(matchesRated8Plus, 0) as matchesRated8Plus,
+${PLAYER_GRAPH_INSIGHT_PROPERTY_RETURN},
+${PLAYER_STREAK_PROPERTY_RETURN}
 	`;
 
 	return { query, params };
@@ -563,6 +959,51 @@ export async function GET(request: NextRequest) {
 			winRateWhenStarting: toNumber(record.get("winRateWhenStarting")),
 			winRateFromBench: toNumber(record.get("winRateFromBench")),
 			startRatePercent: toNumber(record.get("startRatePercent")),
+			goalsPer90: (() => {
+				const v = record.get("goalsPer90");
+				if (v === null || v === undefined) return null;
+				return Math.round(toNumber(v) * 100) / 100;
+			})(),
+			assistsPer90: (() => {
+				const v = record.get("assistsPer90");
+				if (v === null || v === undefined) return null;
+				return Math.round(toNumber(v) * 100) / 100;
+			})(),
+			goalInvolvementsPer90: (() => {
+				const v = record.get("goalInvolvementsPer90");
+				if (v === null || v === undefined) return null;
+				return Math.round(toNumber(v) * 100) / 100;
+			})(),
+			ftpPer90: (() => {
+				const v = record.get("ftpPer90");
+				if (v === null || v === undefined) return null;
+				return Math.round(toNumber(v) * 100) / 100;
+			})(),
+			cleanSheetsPer90: (() => {
+				const v = record.get("cleanSheetsPer90");
+				if (v === null || v === undefined) return null;
+				return Math.round(toNumber(v) * 100) / 100;
+			})(),
+			concededPer90: (() => {
+				const v = record.get("concededPer90");
+				if (v === null || v === undefined) return null;
+				return Math.round(toNumber(v) * 100) / 100;
+			})(),
+			savesPer90: (() => {
+				const v = record.get("savesPer90");
+				if (v === null || v === undefined) return null;
+				return Math.round(toNumber(v) * 100) / 100;
+			})(),
+			cardsPer90: (() => {
+				const v = record.get("cardsPer90");
+				if (v === null || v === undefined) return null;
+				return Math.round(toNumber(v) * 100) / 100;
+			})(),
+			momPer90: (() => {
+				const v = record.get("momPer90");
+				if (v === null || v === undefined) return null;
+				return Math.round(toNumber(v) * 100) / 100;
+			})(),
 			averageMatchRating: (() => {
 				const v = record.get("averageMatchRating");
 				if (v === null || v === undefined) return null;
@@ -576,6 +1017,8 @@ export async function GET(request: NextRequest) {
 				return Math.round(n * 10) / 10;
 			})(),
 			matchesRated8Plus: toNumber(record.get("matchesRated8Plus")),
+			...mapPlayerGraphInsightFieldsFromRecord(record, toNumber),
+			...mapPlayerStreakFieldsFromRecord(record, toNumber),
 		};
 
 		return NextResponse.json({ playerData }, { headers: corsHeaders });

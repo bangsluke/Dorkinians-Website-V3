@@ -1,4 +1,5 @@
 import type { EnhancedQuestionAnalysis } from "../../config/enhancedQuestionAnalysis";
+import { isStreakMetricKey } from "../../config/streakMetrics";
 import { neo4jService } from "../../../netlify/functions/lib/neo4j.js";
 import { PlayerQueryBuilder } from "../queryBuilders/playerQueryBuilder";
 import { EntityResolutionUtils } from "../chatbotUtils/entityResolutionUtils";
@@ -2571,7 +2572,9 @@ export class PlayerDataQueryHandler {
 				originalMetric.toUpperCase() === "GK" ||
 				originalMetric.toUpperCase() === "DEF" ||
 				originalMetric.toUpperCase() === "MID" ||
-				originalMetric.toUpperCase() === "FWD"
+				originalMetric.toUpperCase() === "FWD" ||
+				originalMetric.toUpperCase() === "FORM_CURRENT" ||
+				isStreakMetricKey(originalMetric.toUpperCase())
 			);
 			
 			// CRITICAL: If question explicitly mentions assists/goals/yellow cards/red cards, prioritize that over team-specific metrics

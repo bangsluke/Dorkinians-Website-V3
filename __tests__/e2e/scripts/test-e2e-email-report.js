@@ -446,7 +446,7 @@ const sendEmailReport = async () => {
 							<div style="font-weight:600;color:#101828;">${escapeHtml(test.name)}</div>
 							<div style="font-size:12px;color:#667085;">
 								<span>${test.duration.toFixed(1)}s</span>
-								${test.failureReason ? `<span style="color:#b42318;font-style:italic;"> — ${escapeHtml(test.failureReason)}</span>` : ''}
+								${test.failureReason ? `<span style="color:#b42318;font-style:italic;"> - ${escapeHtml(test.failureReason)}</span>` : ''}
 							</div>
 						</div>
 					</li>
@@ -566,8 +566,8 @@ Base URL: ${BASE_URL}
 	try {
 		const result = await sendReportEmail({
 			subjectDetail,
-			title: `E2E test results — ${status.replace(/✅\s*|❌\s*/g, '').trim()}`,
-			subtitle: `Dorkinians FC Website — ${timestamp}`,
+			title: `E2E test results - ${status.replace(/✅\s*|❌\s*/g, '').trim()}`,
+			subtitle: `Dorkinians FC Website - ${timestamp}`,
 			accentColor: statusColor,
 			context,
 			innerHtml,

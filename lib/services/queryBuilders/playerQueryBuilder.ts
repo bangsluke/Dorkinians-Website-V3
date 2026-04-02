@@ -1,4 +1,5 @@
 import type { EnhancedQuestionAnalysis } from "../../config/enhancedQuestionAnalysis";
+import { playerPropForStreakMetric } from "../../config/streakMetrics";
 import { TeamMappingUtils } from "../chatbotUtils/teamMappingUtils";
 import { DateUtils } from "../chatbotUtils/dateUtils";
 import { neo4jService } from "../../../netlify/functions/lib/neo4j.js";
@@ -144,6 +145,8 @@ export class PlayerQueryBuilder {
 				return "coalesce(p.fwd, 0)";
 			case "APP":
 				return "coalesce(p.appearances, 0)";
+			case "STARTS":
+				return "coalesce(p.starts, 0)";
 			case "MOSTPROLIFICSEASON":
 				return "p.mostProlificSeason";
 			// Seasonal metrics - dynamic handling
@@ -172,6 +175,8 @@ export class PlayerQueryBuilder {
 		switch (metric.toUpperCase()) {
 			case "APP":
 				return "count(md) as value";
+			case "STARTS":
+				return "coalesce(sum(CASE WHEN md.started = true THEN 1 ELSE 0 END), 0) as value";
 			case "G":
 				return `
 				coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) + 
@@ -883,6 +888,24 @@ export class PlayerQueryBuilder {
 	static buildSpecialCaseQuery(_playerName: string, metric: string, analysis: EnhancedQuestionAnalysis): string | null {
 		// Normalize metric to uppercase for consistent comparison
 		const metricUpper = metric.toUpperCase();
+
+		if (metricUpper === "FORM_CURRENT") {
+			return `
+				MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
+				RETURN p.playerName as playerName,
+					p.formCurrent as value,
+					p.formBaseline as formBaseline,
+					p.formTrend as formTrend
+			`;
+		}
+
+		const streakProp = playerPropForStreakMetric(metricUpper);
+		if (streakProp) {
+			return `
+				MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
+				RETURN p.playerName as playerName, coalesce(p.${streakProp}, 0) as value
+			`;
+		}
 		
 		if (metric === "MOSTCOMMONPOSITION" || metric === "MostCommonPosition") {
 			return `

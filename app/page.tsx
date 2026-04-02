@@ -7,18 +7,20 @@ import Header from "@/components/layout/Header";
 import FooterNavigation from "@/components/layout/FooterNavigation";
 import SidebarNavigation from "@/components/layout/SidebarNavigation";
 import dynamic from "next/dynamic";
+import { wrapDynamicImport } from "@/lib/utils/chunkLoadRetry";
+import ClearChunkRetryFlag from "@/components/system/ClearChunkRetryFlag";
 
 // Dynamically import sidebar/menu components - only load when opened
-const FilterSidebar = dynamic(() => import("@/components/filters/FilterSidebar"), {
+const FilterSidebar = dynamic(() => wrapDynamicImport(() => import("@/components/filters/FilterSidebar")), {
 	ssr: false,
 });
 
-const StatsNavigationMenu = dynamic(() => import("@/components/stats/StatsNavigationMenu"), {
+const StatsNavigationMenu = dynamic(() => wrapDynamicImport(() => import("@/components/stats/StatsNavigationMenu")), {
 	ssr: false,
 });
 
 // Dynamically import ChatbotInterface to reduce initial bundle size (only loads when player is selected)
-const ChatbotInterface = dynamic(() => import("@/components/chatbot/ChatbotInterface"), {
+const ChatbotInterface = dynamic(() => wrapDynamicImport(() => import("@/components/chatbot/ChatbotInterface")), {
 	loading: () => <LoadingState message="Loading chatbot..." />,
 	ssr: false,
 });
@@ -28,25 +30,26 @@ import { LoadingState } from "@/components/ui/StateComponents";
 
 // Dynamically import page containers to reduce initial bundle size
 // These are only loaded when their respective pages are accessed
-const StatsContainer = dynamic(() => import("@/components/stats/StatsContainer"), {
+const StatsContainer = dynamic(() => wrapDynamicImport(() => import("@/components/stats/StatsContainer")), {
 	loading: () => <LoadingState message="Loading stats..." />,
 	ssr: false,
 });
 
-const TOTWContainer = dynamic(() => import("@/components/totw/TOTWContainer"), {
+const TOTWContainer = dynamic(() => wrapDynamicImport(() => import("@/components/totw/TOTWContainer")), {
 	loading: () => <LoadingState message="Loading Team of the Week..." />,
 	ssr: false,
 });
 
-const ClubInfoContainer = dynamic(() => import("@/components/club-info/ClubInfoContainer"), {
+const ClubInfoContainer = dynamic(() => wrapDynamicImport(() => import("@/components/club-info/ClubInfoContainer")), {
 	loading: () => <LoadingState message="Loading club information..." />,
 	ssr: false,
 });
 
-const Settings = dynamic(() => import("@/components/pages/Settings"), {
+const Settings = dynamic(() => wrapDynamicImport(() => import("@/components/pages/Settings")), {
 	loading: () => <LoadingState message="Loading settings..." />,
 	ssr: false,
 });
+
 import UpdateToast from "@/components/admin/UpdateToast";
 import DevClearStorageFAB from "@/components/admin/DevClearStorageFAB";
 import ToastContainer from "@/components/ui/ToastContainer";
@@ -361,6 +364,7 @@ export default function HomePage() {
 
 	return (
 		<>
+			<ClearChunkRetryFlag />
 			<div className='min-h-screen'>
 				{/* Desktop Sidebar Navigation */}
 				<SidebarNavigation 

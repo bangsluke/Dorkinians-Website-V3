@@ -1,6 +1,17 @@
 # Site HTML and Next.js SSR run on Netlify. Heroku apps named dorkinians-database-* are the
 # Neo4j seeder/worker (see database-dorkinians), not the public website. For site-wide 500s,
 # use Netlify deploy logs and Functions / Edge logs; grep for "Environment variable validation failed".
+#
+# --- Branch deploy for `develop` (e.g. https://develop--<site-slug>.netlify.app) ---
+# Netlify UI: Site configuration → Build & deploy → Branches and deploy contexts → Branch deploys:
+# include the `develop` branch (or a policy that deploys it). Production branch stays your default
+# (e.g. main). Base directory: leave empty when this repository root is the Next app.
+# Optional custom domain: Domain management → add e.g. develop.<your-domain> and set DNS per Netlify.
+# Secrets / API URLs that differ on develop: set in Netlify → Environment variables and scope to
+# Branch deploys (or this branch)-do not commit secrets to this file.
+
+[context.develop.environment]
+  NEXT_PUBLIC_SITE_VARIANT = "develop"
 
 [build]
   # Next server bundle on Netlify may not receive site env in process.env; sync script writes
@@ -11,6 +22,7 @@
 [build.environment]
   NODE_VERSION = "20.11.0"
   NODE_ENV = "production"
+  # Feature flags: see config/config.ts — production preset on main; develop branch uses [context.develop] + isDevelopBranchDeploy().
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
@@ -46,6 +58,13 @@
 
 [functions."umami-weekly-report"]
   timeout = 60
+
+# Legacy manifest path (public/manifest.json removed; App Router serves /manifest.webmanifest)
+[[redirects]]
+  from = "/manifest.json"
+  to = "/manifest.webmanifest"
+  status = 200
+  force = true
 
 # Handle static assets
 [[redirects]]

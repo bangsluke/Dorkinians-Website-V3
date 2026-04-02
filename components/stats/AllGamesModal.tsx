@@ -9,6 +9,7 @@ import "react-loading-skeleton/dist/skeleton.css";
 import ModalWrapper from "@/components/modals/ModalWrapper";
 import { useNavigationStore } from "@/lib/stores/navigation";
 import { getActiveFilterCount } from "@/lib/utils/filterUtils";
+import { matchRatingCircleClass } from "@/lib/utils/matchRatingDisplay";
 
 interface AllGamesModalProps {
 	isOpen: boolean;
@@ -104,7 +105,7 @@ function getPositionBadge(position: string): { label: string; className: string 
 	if (p.includes("DEF") || p.includes("DEFENDER")) return { label: "DEF", className: "px-2 py-1 rounded text-xs font-medium bg-amber-700/30 text-amber-200" };
 	if (p.includes("MID") || p.includes("MIDFIELDER")) return { label: "MID", className: "px-2 py-1 rounded text-xs font-medium bg-green-600/30 text-green-300" };
 	if (p.includes("FWD") || p.includes("FORWARD")) return { label: "FWD", className: "px-2 py-1 rounded text-xs font-medium bg-teal-600/30 text-teal-300" };
-	return { label: position || "—", className: "px-2 py-1 rounded text-xs font-medium bg-gray-700 text-gray-300" };
+	return { label: position || "-", className: "px-2 py-1 rounded text-xs font-medium bg-gray-700 text-gray-300" };
 }
 
 function formatDate(dateString: string): string {
@@ -115,12 +116,6 @@ function formatDate(dateString: string): string {
 	} catch {
 		return dateString;
 	}
-}
-
-function matchRatingBadgeClass(rating: number): string {
-	if (rating >= 8) return "bg-emerald-600/35 text-emerald-100 border border-emerald-500/40";
-	if (rating >= 6) return "bg-amber-600/30 text-amber-100 border border-amber-500/35";
-	return "bg-slate-600/35 text-slate-200 border border-slate-500/30";
 }
 
 function formatResult(game: GameSummary): string {
@@ -402,9 +397,11 @@ export default function AllGamesModal({
 												{!gamesLoading && games.length > 0 && ratedInSeason.length > 0 && (
 													<p className="text-xs text-gray-500 mb-2">
 														Match rating (1–10):{" "}
-														<span className={matchRatingBadgeClass(8.5)}>8+</span>{" "}
-														<span className={`ml-1 ${matchRatingBadgeClass(6.5)}`}>6–7.9</span>{" "}
-														<span className={`ml-1 ${matchRatingBadgeClass(4)}`}>&lt;6</span>
+														<span className={`inline-block px-1.5 py-0.5 rounded text-[0.65rem] font-medium ${matchRatingCircleClass(8.5)}`}>8.5-10</span>{" "}
+														<span className={`ml-1 inline-block px-1.5 py-0.5 rounded text-[0.65rem] font-medium ${matchRatingCircleClass(7.1)}`}>7.0-8.4</span>{" "}
+														<span className={`ml-1 inline-block px-1.5 py-0.5 rounded text-[0.65rem] font-medium ${matchRatingCircleClass(6.1)}`}>6.0-6.9</span>{" "}
+														<span className={`ml-1 inline-block px-1.5 py-0.5 rounded text-[0.65rem] font-medium ${matchRatingCircleClass(4.1)}`}>4.0-5.9</span>{" "}
+														<span className={`ml-1 inline-block px-1.5 py-0.5 rounded text-[0.65rem] font-medium ${matchRatingCircleClass(3.5)}`}>1.0-3.9</span>
 													</p>
 												)}
 												{!gamesLoading &&
@@ -424,7 +421,7 @@ export default function AllGamesModal({
 																	<div className="absolute top-4 right-4 flex flex-wrap justify-end gap-2 items-center max-w-[55%]">
 																		{game.matchRating != null && !Number.isNaN(Number(game.matchRating)) && (
 																			<span
-																				className={`px-2 py-1 rounded text-xs font-semibold ${matchRatingBadgeClass(Number(game.matchRating))}`}
+																				className={`px-2 py-1 rounded text-xs font-semibold ${matchRatingCircleClass(Number(game.matchRating))}`}
 																				title="Automated match rating (1–10)"
 																			>
 																				{Number(game.matchRating).toFixed(1)}
@@ -536,7 +533,7 @@ export default function AllGamesModal({
 																										{showRtgCol && (
 																											<td className="py-2 px-2 text-right">
 																												{row.matchRating != null ? (
-																													<span className={`inline-block px-1.5 py-0.5 rounded text-[0.65rem] font-medium ${matchRatingBadgeClass(row.matchRating)}`}>
+																													<span className={`inline-block px-1.5 py-0.5 rounded text-[0.65rem] font-medium ${matchRatingCircleClass(row.matchRating)}`}>
 																														{row.matchRating.toFixed(1)}
 																													</span>
 																												) : (

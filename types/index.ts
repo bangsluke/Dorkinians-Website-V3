@@ -23,6 +23,7 @@ export interface Fixture {
 	fullResult: string;
 	dorkiniansGoals: number;
 	conceded: number;
+	veoLink?: string | null;
 }
 
 export interface MatchDetail {

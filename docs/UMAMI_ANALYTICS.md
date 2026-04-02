@@ -1,23 +1,23 @@
-# Umami analytics — Dorkinians V3
+# Umami analytics - Dorkinians V3
 
 Central reference for **custom events**, **client helper usage**, and the **Netlify weekly email report**.
 
 ## Client instrumentation
 
 - **Event names & sections:** `lib/analytics/events.ts` (`UmamiEvents`, `AnalyticsSections`).
-- **Stats leaderboard keys:** `lib/analytics/statsTracking.ts` — `trackStatsStatSelected`, `trackTeamStatsTeamSelected` (must stay aligned with `STAT_LEADER_PREFIXES` in `umami-weekly-report.mjs`).
-- **Safe tracking helper:** `lib/utils/trackEvent.ts` — no-ops on the server and when `window.umami` is missing.
+- **Stats leaderboard keys:** `lib/analytics/statsTracking.ts` - `trackStatsStatSelected`, `trackTeamStatsTeamSelected` (must stay aligned with `STAT_LEADER_PREFIXES` in `umami-weekly-report.mjs`).
+- **Safe tracking helper:** `lib/utils/trackEvent.ts` - no-ops on the server and when `window.umami` is missing.
 - **High-leverage navigation:** `lib/stores/navigation.ts` (page changes, subpages, filters, player selection, etc.).
 - **Public script:** `NEXT_PUBLIC_UMAMI_SCRIPT_URL` + `NEXT_PUBLIC_UMAMI_WEBSITE_ID` (see `.env.example`).
 
 ### Property conventions
 
 - Prefer **low-cardinality** fields: `section`, `subSection`, `source`, `status`, `method`, `type`.
-- **`playerName`** — sent on **`Player Selected`** (home player picker / recent) for internal weekly rankings; appears in Umami and the email. For stricter minimization later, switch to an opaque id at the data layer.
-- **`statsLeaderKey`** — single string for dashboards and the weekly email: `statsSubPage/blockId/statKey` with `/` in `statKey` replaced by `_` (see `statsTracking.ts`). Example: `player-stats/seasonal-performance/Apps`.
-- **`questionId`** — stable id for **`Example Question Selected`** (`homepage-{id}` or `modal-{index}`).
-- **`submissionSource`** — on **`Chatbot Question Submitted`**: `custom` (typed question + Search / Enter / suggestions) vs `example` (example question or modal pick). Used by the weekly report to split headline metrics.
-- **`totwSubPage`** — on TOTW / POM events: `totw` vs `players-of-month` so the weekly report can attribute engagement to the correct subsection.
+- **`playerName`** - sent on **`Player Selected`** (home player picker / recent) for internal weekly rankings; appears in Umami and the email. For stricter minimization later, switch to an opaque id at the data layer.
+- **`statsLeaderKey`** - single string for dashboards and the weekly email: `statsSubPage/blockId/statKey` with `/` in `statKey` replaced by `_` (see `statsTracking.ts`). Example: `player-stats/seasonal-performance/Apps`.
+- **`questionId`** - stable id for **`Example Question Selected`** (`homepage-{id}` or `modal-{index}`).
+- **`submissionSource`** - on **`Chatbot Question Submitted`**: `custom` (typed question + Search / Enter / suggestions) vs `example` (example question or modal pick). Used by the weekly report to split headline metrics.
+- **`totwSubPage`** - on TOTW / POM events: `totw` vs `players-of-month` so the weekly report can attribute engagement to the correct subsection.
 - Use **`result` / `status`** for outcomes (`success`, `cancelled`, `error`).
 
 ### Event inventory (stable names)
@@ -62,18 +62,18 @@ The job queries **`event-data/values`** for current and prior windows on propert
 ## Weekly report (`umami-weekly-report`)
 
 **File:** `netlify/functions/umami-weekly-report.mjs`  
-**Schedule:** Friday **00:00 UTC** — `0 0 * * 5` (via `export const config` in the function).  
+**Schedule:** Friday **00:00 UTC** - `0 0 * * 5` (via `export const config` in the function).  
 **Timeout:** `netlify.toml` → `[functions."umami-weekly-report"]` = 60s.
 
 ### What the email contains
 
-- **Time windows:** **Completed UTC weeks** — Sunday **00:00** → next Sunday **00:00** (7 days). If the current week is incomplete, the report uses the **previous** full week. The **prior week** column uses the 7 days before that. Subject and body use **en-GB**-style date strings (weekday + day + month + year, UTC).
+- **Time windows:** **Completed UTC weeks** - Sunday **00:00** → next Sunday **00:00** (7 days). If the current week is incomplete, the report uses the **previous** full week. The **prior week** column uses the 7 days before that. Subject and body use **en-GB**-style date strings (weekday + day + month + year, UTC).
 - **Headline metrics:** site pageviews, visits, visitors; **custom** vs **example** chatbot submissions (from `submissionSource` on `Chatbot Question Submitted`); `Filters Applied` week-over-week.
 - **Top path (raw):** from Umami `metrics?type=path`.
 - **Recommendations:**
   - **Invest further:** top 3 **subsections** by score (e.g. Player Stats, League Information), not main tabs only.
   - **Improve / retire:** bottom 3 subsections **disjoint** from the top 3. Tie-break: lowest score first, then stable `REPORT_SUBSECTION_ORDER` in `umami-weekly-report.mjs` (see `disjointBottomThreeSubsections` + `scoreHelp`).
-- **Detail & breakdowns:** subpage view table (subsections sorted by views; **Settings** row last); stat leaderboards; top 10 `playerName`; team `teamLabel`; merged league `teamKey`; **stats interaction** tables (`All Games Modal`, `Data Table Toggled`, `Stats Section Navigated` × `statsSubPage` / `sectionId`, `Filters Reset`, `Filter Preset Applied`); filters/share/chat/TOTW/useful links; **Web Vitals** table = **sample counts per metric name**, not seconds (see client `WebVitals.tsx` — actual timings are on each event in Umami, not aggregated in this email); example `questionId`; example clicks by `source`.
+- **Detail & breakdowns:** subpage view table (subsections sorted by views; **Settings** row last); stat leaderboards; top 10 `playerName`; team `teamLabel`; merged league `teamKey`; **stats interaction** tables (`All Games Modal`, `Data Table Toggled`, `Stats Section Navigated` × `statsSubPage` / `sectionId`, `Filters Reset`, `Filter Preset Applied`); filters/share/chat/TOTW/useful links; **Web Vitals** table = **sample counts per metric name**, not seconds (see client `WebVitals.tsx` - actual timings are on each event in Umami, not aggregated in this email); example `questionId`; example clicks by `source`.
 - **Property breakdowns & zeros:** The job unwraps Umami responses shaped as `{ data: [...] }` and merges **`Page Viewed`** `section` with **`page`** when `section` is empty. If tables stay at zero while site totals look healthy, confirm event names/properties in Umami match the function and the date window.
 - **Branding / layout:** Outer email background **white**; Dorkinians header colours; logo defaults to the colour crest **with CSS filter** (unreliable in Outlook/Gmail). Set **`UMAMI_EMAIL_LOGO_URL`** (Netlify env for the function) to a **white-on-transparent PNG** for a reliable white mark. Nav links from **`UMAMI_APP_BASE_URL`** (Overview, Events, Goals).
 - **Subsection score (default weights 0.5 / 0.5):**
@@ -84,10 +84,10 @@ The job queries **`event-data/values`** for current and prior windows on propert
 
 **Umami API**
 
-- `UMAMI_API_KEY` — API key from Umami (Cloud: site settings → API, or self-hosted equivalent).
-- `UMAMI_WEBSITE_ID` — Same UUID as `NEXT_PUBLIC_UMAMI_WEBSITE_ID` in almost all setups.
-- `UMAMI_BASE_URL` (optional) — Default `https://api.umami.is/v1`. Set if self-hosted (e.g. `https://analytics.example.com/api` — verify your instance’s API prefix).
-- `UMAMI_APP_BASE_URL` (optional) — Web UI base URL for **this website** in Umami (used for email nav). Default: `https://cloud.umami.is/analytics/eu/websites/${UMAMI_WEBSITE_ID}`. Adjust for other regions or self-hosted paths.
+- `UMAMI_API_KEY` - API key from Umami (Cloud: site settings → API, or self-hosted equivalent).
+- `UMAMI_WEBSITE_ID` - Same UUID as `NEXT_PUBLIC_UMAMI_WEBSITE_ID` in almost all setups.
+- `UMAMI_BASE_URL` (optional) - Default `https://api.umami.is/v1`. Set if self-hosted (e.g. `https://analytics.example.com/api` - verify your instance’s API prefix).
+- `UMAMI_APP_BASE_URL` (optional) - Web UI base URL for **this website** in Umami (used for email nav). Default: `https://cloud.umami.is/analytics/eu/websites/${UMAMI_WEBSITE_ID}`. Adjust for other regions or self-hosted paths.
 
 **SMTP (existing site pattern)**
 
@@ -126,4 +126,4 @@ The job queries **`event-data/values`** for current and prior windows on propert
 
 ## Deferred / optional product events
 
-- **Club Stats “team comparison” visibility** — no dedicated event yet; add (e.g. toggle with `visible`) only if subsection-level questions remain unanswered after the richer email ships.
+- **Club Stats “team comparison” visibility** - no dedicated event yet; add (e.g. toggle with `visible`) only if subsection-level questions remain unanswered after the richer email ships.

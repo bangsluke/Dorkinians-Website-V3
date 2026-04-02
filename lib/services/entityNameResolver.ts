@@ -1,4 +1,3 @@
-import * as natural from "natural";
 import { neo4jService } from "../../netlify/functions/lib/neo4j.js";
 import { LRUCache } from "../utils/lruCache";
 
@@ -17,16 +16,32 @@ export interface EntityResolutionResult {
 	entityType: "player" | "team" | "opposition" | "league" | "stat_type";
 }
 
+type NaturalModule = typeof import("natural");
+
 export class EntityNameResolver {
 	private static instance: EntityNameResolver;
 	private entityCache: Map<string, { entities: string[]; timestamp: number }> = new Map();
 	private fuzzyMatchCache: LRUCache<string, EntityResolutionResult> = new LRUCache(1000);
+	/** Lazy: only loaded when fuzzy matching runs (exact hits skip ~multi‑MB `natural` lexicons). */
+	private naturalModule: NaturalModule | null = null;
+	private naturalLoadPromise: Promise<NaturalModule> | null = null;
 	private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 	private readonly FUZZY_CACHE_TTL = 30 * 60 * 1000; // 30 minutes for fuzzy matches
 	private readonly MIN_CONFIDENCE = 0.6; // Minimum confidence for fuzzy matches
 	private readonly MAX_SUGGESTIONS = 3;
 
 	private constructor() {}
+
+	private async ensureNatural(): Promise<NaturalModule> {
+		if (this.naturalModule) return this.naturalModule;
+		if (!this.naturalLoadPromise) {
+			this.naturalLoadPromise = import("natural").then((m) => {
+				this.naturalModule = m;
+				return m;
+			});
+		}
+		return this.naturalLoadPromise;
+	}
 
 	public static getInstance(): EntityNameResolver {
 		if (!EntityNameResolver.instance) {
@@ -70,8 +85,9 @@ export class EntityNameResolver {
 			return result;
 		}
 
-		// Find fuzzy matches
-		const fuzzyMatches = this.findFuzzyMatches(normalizedInput, allEntities, entityType);
+		// Find fuzzy matches (loads `natural` on first use only)
+		const natural = await this.ensureNatural();
+		const fuzzyMatches = this.findFuzzyMatches(normalizedInput, allEntities, entityType, natural);
 
 		// Generate suggestions
 		const suggestions = this.generateSuggestions(normalizedInput, allEntities);
@@ -241,6 +257,7 @@ export class EntityNameResolver {
 		input: string,
 		entities: string[],
 		entityType: "player" | "team" | "opposition" | "league" | "stat_type",
+		natural: NaturalModule,
 	): EntityMatch[] {
 		const matches: EntityMatch[] = [];
 
