@@ -14,7 +14,6 @@ function prefetchHeavyChunks() {
 	void import("@/components/filters/FilterSidebar");
 	void import("@/components/stats/StatsNavigationMenu");
 	void import("@/components/chatbot/ChatbotInterface");
-	void import("@/components/home/StreaksAtRiskBanner");
 	void import("@/components/home/SeasonWrappedBanner");
 }
 

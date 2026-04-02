@@ -16,6 +16,7 @@ import { useSearchParams } from "next/navigation";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import { toBlob } from "html-to-image";
 import { getPlayerProfileHref } from "@/lib/profile/slug";
+import { featureFlags } from "@/config/config";
 import { getPublicSiteRoot } from "@/lib/utils/publicSiteUrl";
 import { formatRecordingDateMobile, formatRecordingScore } from "@/lib/utils/recordingsDisplay";
 import type { WrappedData, WrappedLeagueTableRow } from "@/lib/wrapped/types";
@@ -590,7 +591,9 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 				const veoAll = data.veoFixtures;
 				const veoTotal = veoAll.length;
 				const veoRows = veoAll.slice(0, VEO_WRAP_PREVIEW_COUNT);
-				const statsHref = getPlayerProfileHref(data.playerName);
+				const statsHref = featureFlags.playerProfile ? getPlayerProfileHref(data.playerName) : "/";
+				const showRecordingsDeepLink =
+					featureFlags.playerProfile && featureFlags.playerStatsPlayerRecordings;
 				const recordingsHref = `${statsHref}#player-recordings`;
 				return (
 					<>
@@ -636,15 +639,19 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 								href={statsHref}
 								prefetch={false}
 								className='text-[#5DCAA5] font-medium underline decoration-[#5DCAA5]/60 underline-offset-2 hover:text-[#E8C547] hover:decoration-[#E8C547]'>
-								player stats
+								{featureFlags.playerProfile ? "player stats" : "home"}
 							</Link>
-							{" and in "}
-							<Link
-								href={recordingsHref}
-								prefetch={false}
-								className='text-[#5DCAA5] font-medium underline decoration-[#5DCAA5]/60 underline-offset-2 hover:text-[#E8C547] hover:decoration-[#E8C547]'>
-								Player Recordings
-							</Link>
+							{showRecordingsDeepLink ? (
+								<>
+									{" and in "}
+									<Link
+										href={recordingsHref}
+										prefetch={false}
+										className='text-[#5DCAA5] font-medium underline decoration-[#5DCAA5]/60 underline-offset-2 hover:text-[#E8C547] hover:decoration-[#E8C547]'>
+										Player Recordings
+									</Link>
+								</>
+							) : null}
 							.
 						</p>
 					</>
@@ -655,7 +662,8 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 		}
 	};
 
-	const profileHref = getPlayerProfileHref(data.playerName);
+	const profileExitHref = featureFlags.playerProfile ? getPlayerProfileHref(data.playerName) : "/";
+	const profileExitLabel = featureFlags.playerProfile ? "Profile" : "Home";
 	const showTimer = index < total - 1;
 
 	const wrappedNavControls = (
@@ -710,12 +718,12 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 			data-testid='wrapped-page'>
 			<header className='max-w-xl mx-auto w-full mb-6 shrink-0 relative pr-14 sm:pr-24'>
 				<Link
-					href={profileHref}
+					href={profileExitHref}
 					data-testid='wrapped-exit-profile'
 					className='absolute right-0 top-0 z-10 inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-black/30 px-2.5 py-2 text-sm text-white/90 hover:border-[#E8C547]/50 hover:text-[#E8C547] transition-colors'
 					prefetch={false}>
 					<XMarkIcon className='w-5 h-5 shrink-0' aria-hidden />
-					<span className='hidden sm:inline'>Profile</span>
+					<span className='hidden sm:inline'>{profileExitLabel}</span>
 				</Link>
 				<div className='flex items-center justify-center gap-3 md:gap-4'>
 					<Image

@@ -1,5 +1,7 @@
+import { isDevelopBranchDeploy } from "@/lib/utils/isDevelopBranchDeploy";
+
 export const appConfig = {
-	version: "3.3.0",
+	version: "3.2.2",
 	name: "Dorkinians FC",
 	description: "Comprehensive source for club statistics, player performance, and team insights",
 	author: "Luke Bangs",
@@ -9,6 +11,96 @@ export const appConfig = {
 } as const;
 
 export type AppConfig = typeof appConfig;
+
+// Feature flags — values are defined here only (no per-feature env vars).
+
+export type FeatureFlags = {
+	playerProfile: boolean;
+	achievementBadges: boolean;
+	seasonWrapped: boolean;
+	playerStatsKeyPerformance: boolean;
+	playerStatsForm: boolean;
+	playerStatsStreaks: boolean;
+	playerStatsStartingImpact: boolean;
+	playerStatsPartnerships: boolean;
+	playerStatsImpact: boolean;
+	playerStatsPlayerRecordings: boolean;
+	playerStatsDataTablePer90: boolean;
+	teamStatsFormationsUsed: boolean;
+	teamStatsTeamRecordings: boolean;
+	teamStatsStreakAndForm: boolean;
+	clubStatsSquadBackbone: boolean;
+	clubStatsClubRecordings: boolean;
+	clubInfoRecords: boolean;
+	leagueInfoLatestResult: boolean;
+};
+
+/** Full UI — used for Jest and as the develop-branch default. */
+const featureFlagsAllEnabled: FeatureFlags = {
+	playerProfile: true,
+	achievementBadges: true,
+	seasonWrapped: true,
+	playerStatsKeyPerformance: true,
+	playerStatsForm: true,
+	playerStatsStreaks: true,
+	playerStatsStartingImpact: true,
+	playerStatsPartnerships: true,
+	playerStatsImpact: true,
+	playerStatsPlayerRecordings: true,
+	playerStatsDataTablePer90: true,
+	teamStatsFormationsUsed: true,
+	teamStatsTeamRecordings: true,
+	teamStatsStreakAndForm: true,
+	clubStatsSquadBackbone: true,
+	clubStatsClubRecordings: true,
+	clubInfoRecords: true,
+	leagueInfoLatestResult: true,
+};
+
+/** Conservative defaults for production (main) deploys. */
+const featureFlagsProductionDefault: FeatureFlags = {
+	playerProfile: false,
+	achievementBadges: false,
+	seasonWrapped: false,
+	playerStatsKeyPerformance: false,
+	playerStatsForm: false,
+	playerStatsStreaks: false,
+	playerStatsStartingImpact: false,
+	playerStatsPartnerships: false,
+	playerStatsImpact: false,
+	playerStatsPlayerRecordings: false,
+	playerStatsDataTablePer90: false,
+	teamStatsFormationsUsed: false,
+	teamStatsTeamRecordings: false,
+	teamStatsStreakAndForm: false,
+	clubStatsSquadBackbone: false,
+	clubStatsClubRecordings: false,
+	clubInfoRecords: false,
+	leagueInfoLatestResult: false,
+};
+
+export const featureFlagPresets = {
+	develop: featureFlagsAllEnabled,
+	production: featureFlagsProductionDefault,
+} as const;
+
+function resolveFeatureFlags(): FeatureFlags {
+	if (typeof process !== "undefined" && process.env.NODE_ENV === "test") {
+		return { ...featureFlagsAllEnabled };
+	}
+	if (typeof process !== "undefined" && process.env.NODE_ENV === "development") {
+		return { ...featureFlagPresets.develop };
+	}
+	if (typeof process !== "undefined" && process.env.CONTEXT === "deploy-preview") {
+		return { ...featureFlagPresets.develop };
+	}
+	if (isDevelopBranchDeploy()) {
+		return { ...featureFlagPresets.develop };
+	}
+	return { ...featureFlagPresets.production };
+}
+
+export const featureFlags: FeatureFlags = resolveFeatureFlags();
 
 export const DISCIPLINE_FINE_CONFIG = {
 	yellowCard: 13.5,

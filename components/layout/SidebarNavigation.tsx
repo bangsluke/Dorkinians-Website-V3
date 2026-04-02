@@ -18,6 +18,7 @@ import { log } from "@/lib/utils/logger";
 import Button from "@/components/ui/Button";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { getPlayerProfileHref } from "@/lib/profile/slug";
+import { featureFlags } from "@/config/config";
 import { isDevelopBranchDeploy } from "@/lib/utils/isDevelopBranchDeploy";
 import { usePathname } from "next/navigation";
 import { scheduleProfileIntroBursts, shouldRunProfileIntro } from "@/lib/utils/profileNavIntro";
@@ -101,7 +102,8 @@ export default function SidebarNavigation({
 	const profileIntroCleanupRef = useRef<(() => void) | null>(null);
 	const showDevBadge = isDevelopBranchDeploy() && currentMainPage === "home";
 	const isProfileRoute = pathname?.startsWith("/profile/") ?? false;
-	const showProfileIcon = isProfileRoute || (isPlayerSelected && !!selectedPlayer);
+	const showProfileIcon =
+		featureFlags.playerProfile && (isProfileRoute || (isPlayerSelected && !!selectedPlayer));
 
 	// Calculate active filter count
 	const activeFilterCount = useMemo(() => {

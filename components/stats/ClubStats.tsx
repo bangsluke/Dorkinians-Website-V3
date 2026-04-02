@@ -1,7 +1,7 @@
 "use client";
 
 import { useNavigationStore, type TeamData } from "@/lib/stores/navigation";
-import { statObject, statsPageConfig, appConfig, calculateCardFineTotal } from "@/config/config";
+import { statObject, statsPageConfig, appConfig, calculateCardFineTotal, featureFlags } from "@/config/config";
 import Image from "next/image";
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { cachedFetch, generatePageCacheKey } from "@/lib/utils/pageCache";
@@ -654,6 +654,12 @@ export default function ClubStats() {
 	// Squad backbone: filter-scoped co-appearance strength via POST; falls back to global PageRank (GET) if filters unavailable
 	useEffect(() => {
 		if (!playerFilters) return;
+		if (!featureFlags.clubStatsSquadBackbone) {
+			setSquadBackbone([]);
+			setSquadBackboneNote("");
+			setIsLoadingSquadBackbone(false);
+			return;
+		}
 		if (hasUnsavedFilters || isFilterSidebarOpen) return;
 
 		let cancelled = false;
@@ -881,6 +887,10 @@ export default function ClubStats() {
 	// Club recordings (Veo) - whole club + filters; team column when no explicit team filter
 	useEffect(() => {
 		if (!playerFilters) {
+			setClubRecordings([]);
+			return;
+		}
+		if (!featureFlags.clubStatsClubRecordings) {
 			setClubRecordings([]);
 			return;
 		}
@@ -1987,7 +1997,7 @@ export default function ClubStats() {
 								</div>
 								)}
 
-								{!isDataTableMode && (
+								{!isDataTableMode && featureFlags.clubStatsSquadBackbone && (
 									<div id='club-squad-backbone' className='flex-shrink-0 md:break-inside-avoid md:mb-4'>
 										<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 											<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Squad Backbone</h3>
@@ -2275,7 +2285,7 @@ export default function ClubStats() {
 														nodeTooltip={() => null}
 														linkTooltip={() => null}
 														isInteractive={false}
-														enableLegend={false}
+														legends={[]}
 														layers={["links", "nodes", CustomLabelLayer as any]}
 														theme={{
 															text: { fill: '#fff', fontSize: 12 },
@@ -2771,14 +2781,14 @@ export default function ClubStats() {
 												<div className='flex-shrink-0'>
 													<Image
 														src='/stat-icons/GoalsPerAppearance-Icon.svg'
-														alt='Goals/Game'
+														alt='Goals / Game'
 														width={40}
 														height={40}
 														className='w-8 h-8 md:w-10 md:h-10 object-contain'
 													/>
 												</div>
 												<div className='flex-1 min-w-0'>
-													<div className='text-white/70 text-sm md:text-base mb-1'>Goals/Game</div>
+													<div className='text-white/70 text-sm md:text-base mb-1'>Goals / Game</div>
 													<div className='text-white font-bold text-xl md:text-2xl'>{toNumber(teamData.goalsPerGame).toFixed(2)}</div>
 												</div>
 											</div>
@@ -2786,14 +2796,14 @@ export default function ClubStats() {
 												<div className='flex-shrink-0'>
 													<Image
 														src='/stat-icons/ConcededPerAppearance-Icon.svg'
-														alt='Conceded/Game'
+														alt='Conceded / Game'
 														width={40}
 														height={40}
 														className='w-8 h-8 md:w-10 md:h-10 object-contain'
 													/>
 												</div>
 												<div className='flex-1 min-w-0'>
-													<div className='text-white/70 text-sm md:text-base mb-1'>Conceded/Game</div>
+													<div className='text-white/70 text-sm md:text-base mb-1'>Conceded / Game</div>
 													<div className='text-white font-bold text-xl md:text-2xl'>{toNumber(teamData.goalsConcededPerGame).toFixed(2)}</div>
 												</div>
 											</div>
@@ -2961,7 +2971,7 @@ export default function ClubStats() {
 									</div>
 								)}
 
-								{clubRecordings.length > 0 && (
+								{featureFlags.clubStatsClubRecordings && clubRecordings.length > 0 && (
 									<RecordingsSection
 										id='club-recordings'
 										title='Club Recordings'

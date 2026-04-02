@@ -3,6 +3,7 @@ require("@testing-library/jest-dom");
 
 // Load environment variables from .env file
 require("dotenv").config({ path: ".env" });
+// Feature flags: `config/config.ts` enables all flags when NODE_ENV === "test" (set below).
 
 // Production database environment variables for real testing
 process.env.NODE_ENV = "test";

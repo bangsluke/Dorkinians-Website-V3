@@ -16,6 +16,7 @@ import { profileSlugToPlayerName } from "@/lib/profile/slug";
 import { isSeasonWrappedPromoMonth } from "@/lib/wrapped/seasonWrappedPromo";
 import { playerNameToWrappedSlug } from "@/lib/wrapped/slug";
 import type { PlayerData } from "@/lib/stores/navigation";
+import { featureFlags } from "@/config/config";
 
 type BadgePayload = {
 	playerName: string;
@@ -176,26 +177,43 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 			const promo = isSeasonWrappedPromoMonth(new Date());
 			setSeasonWrappedPromoActive(promo);
 			try {
-				const wrappedPromise = wrappedSlug
-					? fetch(`/api/wrapped/${encodeURIComponent(wrappedSlug)}`)
-					: Promise.resolve(new Response("", { status: 404 }));
+				const wrappedPromise =
+					featureFlags.seasonWrapped && wrappedSlug
+						? fetch(`/api/wrapped/${encodeURIComponent(wrappedSlug)}`)
+						: Promise.resolve(new Response("", { status: 404 }));
+
+				const badgesPromise = featureFlags.achievementBadges
+					? fetch(`/api/player-badges?playerName=${encodeURIComponent(playerName)}`)
+					: Promise.resolve(
+							new Response(
+								JSON.stringify({
+									playerName,
+									totalBadges: 0,
+									highestBadgeTier: null,
+									earned: [],
+									progress: [],
+								}),
+								{ status: 200, headers: { "Content-Type": "application/json" } },
+							),
+						);
+
 				const [playerRes, badgesRes, wrappedRes] = await Promise.all([
 					fetch(`/api/player-data?playerName=${encodeURIComponent(playerName)}`),
-					fetch(`/api/player-badges?playerName=${encodeURIComponent(playerName)}`),
+					badgesPromise,
 					wrappedPromise,
 				]);
 
 				if (!playerRes.ok) {
 					throw new Error("Could not load player profile data.");
 				}
-				if (!badgesRes.ok) {
+				if (featureFlags.achievementBadges && !badgesRes.ok) {
 					throw new Error("Could not load badge data.");
 				}
 
 				const playerJson = (await playerRes.json()) as { playerData?: PlayerData };
 				const badgesJson = (await badgesRes.json()) as BadgePayload;
 
-				if (wrappedRes.ok) {
+				if (featureFlags.seasonWrapped && wrappedRes.ok) {
 					const wj = (await wrappedRes.json()) as {
 						seasonsAvailable?: string[];
 						season?: string;
@@ -235,7 +253,12 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 	}, [playerName, wrappedSlug]);
 
 	const showPastWrappedFooter =
-		!seasonWrappedPromoActive && Boolean(wrappedSlug) && pastWrappedSeasons.length > 0;
+		featureFlags.seasonWrapped &&
+		!seasonWrappedPromoActive &&
+		Boolean(wrappedSlug) &&
+		pastWrappedSeasons.length > 0;
+
+	const showSeasonWrappedPromoBlock = featureFlags.seasonWrapped && seasonWrappedPromoActive;
 
 	return (
 		<div className='h-full px-4 py-6 md:px-8 md:py-8' data-testid='player-profile-page'>
@@ -268,7 +291,7 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 
 				{isLoading ? (
 					<SkeletonTheme baseColor='var(--skeleton-base)' highlightColor='var(--skeleton-highlight)'>
-						{seasonWrappedPromoActive ? (
+						{showSeasonWrappedPromoBlock ? (
 							<div
 								className='rounded-xl border-2 border-[#E8C547]/60 bg-gradient-to-br from-[#E8C547]/25 via-[#E8C547]/15 to-[#b8941f]/12 p-4 md:p-5 shadow-md ring-1 ring-inset ring-[#E8C547]/25'
 								data-testid='player-profile-season-wrapped-loading'>
@@ -312,7 +335,7 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 					<div className='rounded-lg bg-white/10 backdrop-blur-sm p-4 text-red-200'>{error}</div>
 				) : (
 					<>
-						{seasonWrappedPromoActive ? (
+						{showSeasonWrappedPromoBlock ? (
 						<div
 							id='player-profile-season-wrapped'
 							data-testid='player-profile-season-wrapped'
@@ -435,37 +458,39 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 							</div>
 						</div>
 
-						<div
-							id='player-profile-milestone-badges'
-							data-testid='player-profile-milestones'
-							className='rounded-lg bg-white/10 backdrop-blur-sm p-4'>
-							<h3 className='text-white font-semibold text-sm md:text-base'>Achievement Badges</h3>
-							{badgePayload ? (
-								<>
-									<p className='text-white/75 text-sm mt-1'>
-										Unlocked: <span className='text-dorkinians-yellow font-semibold'>{badgePayload.totalBadges}</span>
-										{badgePayload.highestBadgeTier ? (
-											<span>
-												{" "}
-												(highest tier: <span className='capitalize text-dorkinians-yellow'>{badgePayload.highestBadgeTier}</span>)
-											</span>
-										) : null}
-									</p>
-									<PlayerBadgeMilestoneGrid
-										earned={badgePayload.earned}
-										progress={badgePayload.progress}
-										achieverCountsByBadgeKey={badgePayload.achieverCountsByBadgeKey}
-										tierCountsByBadgeKey={badgePayload.tierCountsByBadgeKey}
-										milestoneValuesByBadgeKey={badgePayload.milestoneValuesByBadgeKey}
-										milestoneLeadersByBadgeKey={badgePayload.milestoneLeadersByBadgeKey}
-									/>
-								</>
-							) : (
-								<p className='text-white/65 text-sm mt-2'>No badge data available.</p>
-							)}
-						</div>
+						{featureFlags.achievementBadges ? (
+							<div
+								id='player-profile-milestone-badges'
+								data-testid='player-profile-milestones'
+								className='rounded-lg bg-white/10 backdrop-blur-sm p-4'>
+								<h3 className='text-white font-semibold text-sm md:text-base'>Achievement Badges</h3>
+								{badgePayload ? (
+									<>
+										<p className='text-white/75 text-sm mt-1'>
+											Unlocked: <span className='text-dorkinians-yellow font-semibold'>{badgePayload.totalBadges}</span>
+											{badgePayload.highestBadgeTier ? (
+												<span>
+													{" "}
+													(highest tier: <span className='capitalize text-dorkinians-yellow'>{badgePayload.highestBadgeTier}</span>)
+												</span>
+											) : null}
+										</p>
+										<PlayerBadgeMilestoneGrid
+											earned={badgePayload.earned}
+											progress={badgePayload.progress}
+											achieverCountsByBadgeKey={badgePayload.achieverCountsByBadgeKey}
+											tierCountsByBadgeKey={badgePayload.tierCountsByBadgeKey}
+											milestoneValuesByBadgeKey={badgePayload.milestoneValuesByBadgeKey}
+											milestoneLeadersByBadgeKey={badgePayload.milestoneLeadersByBadgeKey}
+										/>
+									</>
+								) : (
+									<p className='text-white/65 text-sm mt-2'>No badge data available.</p>
+								)}
+							</div>
+						) : null}
 
-						{!seasonWrappedPromoActive && wrappedSlug && pastWrappedSeasons.length > 0 ? (
+						{showPastWrappedFooter ? (
 							<div className='pt-8 pb-12 text-center border-t border-white/10 mt-6 flex flex-col items-center gap-3'>
 								<button
 									ref={pastSeasonsTriggerRef}

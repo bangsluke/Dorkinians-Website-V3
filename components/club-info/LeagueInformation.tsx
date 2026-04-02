@@ -16,7 +16,7 @@ import { SkeletonTheme } from "react-loading-skeleton";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { LeagueTableSkeleton, ChartSkeleton } from "@/components/skeletons";
-import { appConfig } from "@/config/config";
+import { appConfig, featureFlags } from "@/config/config";
 import { log } from "@/lib/utils/logger";
 import { UmamiEvents } from "@/lib/analytics/events";
 import { trackEvent } from "@/lib/utils/trackEvent";
@@ -245,8 +245,16 @@ export default function LeagueInformation() {
 
 	// Fetch latest result + lineup per team for normal League Information mode
 	useEffect(() => {
-		if (!leagueData || !selectedSeason || isMySeasonsMode || isSeasonProgressMode || selectedSeason === "2019-20") {
+		if (
+			!featureFlags.leagueInfoLatestResult ||
+			!leagueData ||
+			!selectedSeason ||
+			isMySeasonsMode ||
+			isSeasonProgressMode ||
+			selectedSeason === "2019-20"
+		) {
 			setLatestResultsByTeam({});
+			setLoadingLatestResults(false);
 			return;
 		}
 
@@ -1701,7 +1709,7 @@ export default function LeagueInformation() {
 									return false;
 								};
 
-								const latestResultCard = (
+								const latestResultCard = featureFlags.leagueInfoLatestResult ? (
 									<div
 										className={
 											hasTableData
@@ -1761,7 +1769,7 @@ export default function LeagueInformation() {
 											</div>
 										)}
 									</div>
-								);
+								) : null;
 
 								return (
 									<div key={teamKey} className='w-full'>
@@ -1773,7 +1781,12 @@ export default function LeagueInformation() {
 												)}
 											</h3>
 											{hasTableData ? (
-												<div className='lg:grid lg:grid-cols-2 lg:items-start lg:gap-6'>
+												<div
+													className={
+														featureFlags.leagueInfoLatestResult
+															? "lg:grid lg:grid-cols-2 lg:items-start lg:gap-6"
+															: "min-w-0"
+													}>
 													<div className='min-w-0'>
 														{currentSeason && teamData.lastUpdated && (
 															<div className='text-center text-sm text-gray-400 mb-2'>Last updated: {formatDate(teamData.lastUpdated)}</div>

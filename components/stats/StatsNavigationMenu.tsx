@@ -5,8 +5,9 @@ import { XMarkIcon } from "@heroicons/react/24/outline";
 import { UmamiEvents } from "@/lib/analytics/events";
 import { trackEvent } from "@/lib/utils/trackEvent";
 import { useNavigationStore, type StatsSubPage } from "@/lib/stores/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Button from "@/components/ui/Button";
+import { featureFlags } from "@/config/config";
 
 interface StatsNavigationMenuProps {
 	isOpen: boolean;
@@ -94,6 +95,56 @@ const statsNavigationItems = [
 
 export default function StatsNavigationMenu({ isOpen, onClose }: StatsNavigationMenuProps) {
 	const { setStatsSubPage, currentStatsSubPage, setDataTableMode, preloadStatsData } = useNavigationStore();
+
+	const navigationPages = useMemo(() => {
+		const f = featureFlags;
+		return statsNavigationItems.map((page) => {
+			if (page.id === "player-stats") {
+				return {
+					...page,
+					sections: page.sections.filter((s) => {
+						if (s.id === "form-section" && !f.playerStatsForm) return false;
+						if (s.id === "streaks-section" && !f.playerStatsStreaks) return false;
+						if (s.id === "starting-impact" && !f.playerStatsStartingImpact) return false;
+						if (s.id === "partnerships-section" && !f.playerStatsPartnerships) return false;
+						if (s.id === "impact-section" && !f.playerStatsImpact) return false;
+						if (s.id === "player-recordings" && !f.playerStatsPlayerRecordings) return false;
+						return true;
+					}),
+				};
+			}
+			if (page.id === "team-stats") {
+				const filtered = page.sections.filter((s) => {
+					if (s.id === "team-formation-breakdown" && !f.teamStatsFormationsUsed) return false;
+					if (s.id === "team-recordings" && !f.teamStatsTeamRecordings) return false;
+					return true;
+				});
+				const keyIdx = filtered.findIndex((s) => s.id === "team-key-performance-stats");
+				if (keyIdx < 0) {
+					return { ...page, sections: filtered };
+				}
+				const before = filtered.slice(0, keyIdx + 1);
+				const after = filtered.slice(keyIdx + 1);
+				const streakSection = {
+					id: "team-streak-leaders" as const,
+					label: "Longest active streaks (this XI)",
+				};
+				const sections = f.teamStatsStreakAndForm ? [...before, streakSection, ...after] : filtered;
+				return { ...page, sections };
+			}
+			if (page.id === "club-stats") {
+				return {
+					...page,
+					sections: page.sections.filter((s) => {
+						if (s.id === "club-squad-backbone" && !f.clubStatsSquadBackbone) return false;
+						if (s.id === "club-recordings" && !f.clubStatsClubRecordings) return false;
+						return true;
+					}),
+				};
+			}
+			return page;
+		});
+	}, []);
 	// Initialize with only the current page expanded
 	const [expandedPages, setExpandedPages] = useState<Record<string, boolean>>(() => {
 		const initial: Record<string, boolean> = {
@@ -352,7 +403,7 @@ export default function StatsNavigationMenu({ isOpen, onClose }: StatsNavigation
 
 							{/* Navigation Items */}
 							<div className='space-y-4'>
-								{statsNavigationItems.map((item) => {
+								{navigationPages.map((item) => {
 									const isExpanded = expandedPages[item.id];
 									const hasSections = item.sections.length > 0;
 									const isActive = currentStatsSubPage === item.id;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useNavigationStore, type PlayerData } from "@/lib/stores/navigation";
-import { statObject, statsPageConfig, appConfig, calculateCardFineTotal } from "@/config/config";
+import { statObject, statsPageConfig, appConfig, calculateCardFineTotal, featureFlags } from "@/config/config";
 import Image from "next/image";
 import Link from "next/link";
 import { useState, useMemo, useRef, useEffect } from "react";
@@ -1413,7 +1413,7 @@ function DefensiveRecordSection({
 									<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>{cleanSheets}</td>
 								</tr>
 								<tr className='border-b border-white/10'>
-									<td className='py-2 px-2 text-xs md:text-sm'>Avg Goals Conceded/Game</td>
+									<td className='py-2 px-2 text-xs md:text-sm'>Avg Goals Conceded / Game</td>
 									<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>
 										{avgGoalsConcededPerGame > 0 ? avgGoalsConcededPerGame.toFixed(2) : '0.00'}
 									</td>
@@ -1864,6 +1864,18 @@ export default function PlayerStats() {
 	const [keyPerformanceMode, setKeyPerformanceMode] = useState<PlayerStatsKeyMode>("totals");
 	const [partnershipSortMode, setPartnershipSortMode] = useState<PartnershipSortMode>("bestWinRate");
 
+	useEffect(() => {
+		if (!featureFlags.playerStatsDataTablePer90 && tableStatMode === "per90") {
+			setTableStatMode("totals");
+		}
+	}, [tableStatMode]);
+
+	useEffect(() => {
+		if (!featureFlags.playerStatsKeyPerformance && keyPerformanceMode === "per90") {
+			setKeyPerformanceMode("totals");
+		}
+	}, [keyPerformanceMode]);
+
 	// Persist view mode to localStorage when it changes
 	useEffect(() => {
 		if (typeof window !== "undefined") {
@@ -2114,7 +2126,15 @@ export default function PlayerStats() {
 			setIsLoadingTeamStats(allTeamsSelected);
 			setIsLoadingOppositionMap(true);
 			setIsLoadingOppositionPerformance(true);
-			setIsLoadingFormData(true);
+			if (featureFlags.playerStatsForm) {
+				setIsLoadingFormData(true);
+			} else {
+				setIsLoadingFormData(false);
+				setFormData([]);
+				setFormSummary(null);
+				setGoldenCrosses([]);
+				setRecentFormMatches([]);
+			}
 
 			try {
 				// Build parallel fetch promises
@@ -2222,37 +2242,39 @@ export default function PlayerStats() {
 						.finally(() => setIsLoadingOppositionPerformance(false))
 				);
 
-				// Form curve data (always fetch; uses same filters as the rest of Player Stats)
-				const playerFormCacheKey = generatePageCacheKey("stats", "player-stats", "player-form", {
-					playerName: selectedPlayer,
-					filters: playerFilters,
-				});
-				fetchPromises.push(
-					cachedFetch("/api/player-form", {
-						method: "POST",
-						body: {
-							playerName: selectedPlayer,
-							filters: playerFilters,
-						},
-						cacheKey: playerFormCacheKey,
-						getCachedPageData,
-						setCachedPageData,
-					})
-						.then((data) => {
-							setFormData(data.history || []);
-							setFormSummary(data.summary || null);
-							setGoldenCrosses(data.goldenCrosses || []);
-							setRecentFormMatches(Array.isArray(data.recentFormMatches) ? data.recentFormMatches : []);
+				// Form curve data (feature-flagged)
+				if (featureFlags.playerStatsForm) {
+					const playerFormCacheKey = generatePageCacheKey("stats", "player-stats", "player-form", {
+						playerName: selectedPlayer,
+						filters: playerFilters,
+					});
+					fetchPromises.push(
+						cachedFetch("/api/player-form", {
+							method: "POST",
+							body: {
+								playerName: selectedPlayer,
+								filters: playerFilters,
+							},
+							cacheKey: playerFormCacheKey,
+							getCachedPageData,
+							setCachedPageData,
 						})
-						.catch((error) => {
-							log("error", "Error fetching player form data:", error);
-							setFormData([]);
-							setFormSummary(null);
-							setGoldenCrosses([]);
-							setRecentFormMatches([]);
-						})
-						.finally(() => setIsLoadingFormData(false))
-				);
+							.then((data) => {
+								setFormData(data.history || []);
+								setFormSummary(data.summary || null);
+								setGoldenCrosses(data.goldenCrosses || []);
+								setRecentFormMatches(Array.isArray(data.recentFormMatches) ? data.recentFormMatches : []);
+							})
+							.catch((error) => {
+								log("error", "Error fetching player form data:", error);
+								setFormData([]);
+								setFormSummary(null);
+								setGoldenCrosses([]);
+								setRecentFormMatches([]);
+							})
+							.finally(() => setIsLoadingFormData(false))
+					);
+				}
 
 				// Execute all fetches in parallel
 				await Promise.all(fetchPromises);
@@ -2355,6 +2377,10 @@ export default function PlayerStats() {
 			setPlayerRecordings([]);
 			return;
 		}
+		if (!featureFlags.playerStatsPlayerRecordings) {
+			setPlayerRecordings([]);
+			return;
+		}
 		if (appConfig.forceSkeletonView) return;
 		if (hasUnsavedFilters || isFilterSidebarOpen) return;
 
@@ -2386,6 +2412,10 @@ export default function PlayerStats() {
 	// Live streak metrics (filter-scoped; aligned with chatbot / foundation streak rules)
 	useEffect(() => {
 		if (!selectedPlayer) {
+			setLiveStreaks(null);
+			return;
+		}
+		if (!featureFlags.playerStatsStreaks) {
 			setLiveStreaks(null);
 			return;
 		}
@@ -2437,12 +2467,14 @@ export default function PlayerStats() {
 			setIsLoadingAwards(true);
 			setIsLoadingCaptainHistory(true);
 			setIsLoadingAwardHistory(true);
-			setIsLoadingBadges(true);
+			setIsLoadingBadges(featureFlags.achievementBadges);
+			if (!featureFlags.achievementBadges) {
+				setBadgePayload(null);
+			}
 
 			try {
 				const playerParams = { playerName: selectedPlayer };
-				// Execute all awards-related fetches in parallel
-				await Promise.all([
+				const parallel: Promise<unknown>[] = [
 					// Awards data
 					cachedFetch(`/api/player-awards?playerName=${encodeURIComponent(selectedPlayer)}`, {
 						method: "GET",
@@ -2493,31 +2525,37 @@ export default function PlayerStats() {
 							setTotalAwards(0);
 						})
 						.finally(() => setIsLoadingAwardHistory(false)),
+				];
 
-					cachedFetch(`/api/player-badges?playerName=${encodeURIComponent(selectedPlayer)}`, {
-						method: "GET",
-						cacheKey: generatePageCacheKey("stats", "player-stats", "player-badges", playerParams),
-						getCachedPageData,
-						setCachedPageData,
-					})
-						.then((data) => {
-							if (data && Array.isArray(data.earned) && Array.isArray(data.progress)) {
-								setBadgePayload({
-									totalBadges: typeof data.totalBadges === "number" ? data.totalBadges : data.earned.length,
-									highestBadgeTier: data.highestBadgeTier ?? null,
-									earned: data.earned,
-									progress: data.progress,
-								});
-							} else {
+				if (featureFlags.achievementBadges) {
+					parallel.push(
+						cachedFetch(`/api/player-badges?playerName=${encodeURIComponent(selectedPlayer)}`, {
+							method: "GET",
+							cacheKey: generatePageCacheKey("stats", "player-stats", "player-badges", playerParams),
+							getCachedPageData,
+							setCachedPageData,
+						})
+							.then((data) => {
+								if (data && Array.isArray(data.earned) && Array.isArray(data.progress)) {
+									setBadgePayload({
+										totalBadges: typeof data.totalBadges === "number" ? data.totalBadges : data.earned.length,
+										highestBadgeTier: data.highestBadgeTier ?? null,
+										earned: data.earned,
+										progress: data.progress,
+									});
+								} else {
+									setBadgePayload(null);
+								}
+							})
+							.catch((error) => {
+								log("error", "Error fetching player badges:", error);
 								setBadgePayload(null);
-							}
-						})
-						.catch((error) => {
-							log("error", "Error fetching player badges:", error);
-							setBadgePayload(null);
-						})
-						.finally(() => setIsLoadingBadges(false)),
-				]);
+							})
+							.finally(() => setIsLoadingBadges(false)),
+					);
+				}
+
+				await Promise.all(parallel);
 			} catch (error) {
 				log("error", "Error in parallel awards data fetching:", error);
 				setIsLoadingBadges(false);
@@ -2616,7 +2654,7 @@ export default function PlayerStats() {
 	}, [monthlyStats, monthlySelectedStat, statOptions]);
 
 	const profileHref = useMemo(() => {
-		if (!selectedPlayer) return null;
+		if (!featureFlags.playerProfile || !selectedPlayer) return null;
 		return getPlayerProfileHref(selectedPlayer);
 	}, [selectedPlayer]);
 
@@ -3161,7 +3199,9 @@ export default function PlayerStats() {
 		return null;
 	};
 
-	const kpiAndFormGrouped = Boolean(playerData && keyPerformanceData.length > 0);
+	const showKpiBlock = Boolean(playerData && keyPerformanceData.length > 0);
+	const showFormBlock = Boolean(playerData && featureFlags.playerStatsForm);
+	const kpiAndFormGrouped = showKpiBlock && showFormBlock;
 
 	const formSectionInner = (
 		<>
@@ -3257,110 +3297,122 @@ export default function PlayerStats() {
 
 	const chartContent = (
 		<div className='space-y-4 pb-4 md:space-y-0 player-stats-masonry'>
-			{kpiAndFormGrouped ? (
-				<div className='player-stats-kpi-form-group flex flex-col gap-4 md:gap-0 md:break-inside-avoid md:mb-4'>
-					{/* Key Performance Stats - no longer gated on Image onLoad (cached SVGs often skip onLoad in Next/Image) */}
-					<div id='key-performance-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:mb-4'>
-						<div className='flex items-center justify-between gap-2 mb-3'>
-							<h3 className='text-white font-semibold text-sm md:text-base'>Key Performance Stats</h3>
-							<div className='inline-flex rounded-md overflow-hidden border border-white/20'>
-								<button
-									type='button'
-									onClick={() => setKeyPerformanceMode("totals")}
-									className={`px-2 py-1 text-xs md:text-sm ${keyPerformanceMode === "totals" ? "bg-dorkinians-yellow text-black font-semibold" : "bg-transparent text-white"}`}
-								>
-									Totals
-								</button>
-								<button
-									type='button'
-									onClick={() => setKeyPerformanceMode("per90")}
-									className={`px-2 py-1 text-xs md:text-sm border-l border-white/20 ${keyPerformanceMode === "per90" ? "bg-dorkinians-yellow text-black font-semibold" : "bg-transparent text-white"}`}
-								>
-									Per 90
-								</button>
+			{(showKpiBlock || showFormBlock) && (
+				<div
+					className={
+						kpiAndFormGrouped
+							? "player-stats-kpi-form-group flex flex-col gap-4 md:gap-0 md:break-inside-avoid md:mb-4"
+							: showKpiBlock
+								? "md:break-inside-avoid md:mb-4"
+								: ""
+					}>
+					{showKpiBlock ? (
+						<div id='key-performance-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:mb-4'>
+							<div className='flex items-center justify-between gap-2 mb-3'>
+								<h3 className='text-white font-semibold text-sm md:text-base'>Key Performance Stats</h3>
+								<div className='inline-flex rounded-md overflow-hidden border border-white/20'>
+									<button
+										type='button'
+										onClick={() => setKeyPerformanceMode("totals")}
+										className={`px-2 py-1 text-xs md:text-sm ${keyPerformanceMode === "totals" ? "bg-dorkinians-yellow text-black font-semibold" : "bg-transparent text-white"}`}
+									>
+										Totals
+									</button>
+									{featureFlags.playerStatsKeyPerformance ? (
+										<button
+											type='button'
+											onClick={() => setKeyPerformanceMode("per90")}
+											className={`px-2 py-1 text-xs md:text-sm border-l border-white/20 ${keyPerformanceMode === "per90" ? "bg-dorkinians-yellow text-black font-semibold" : "bg-transparent text-white"}`}
+										>
+											Per 90
+										</button>
+									) : null}
+								</div>
 							</div>
+							{isLoadingPlayerData ? (
+								<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+									<StatCardSkeleton count={9} variant='embedded' />
+								</SkeletonTheme>
+							) : (
+								<div className='grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4'>
+									{keyPerformanceData.map((item, index) => {
+										let statKey = "APP";
+										if (item.name === "Apps") statKey = "APP";
+										else if (item.name === "Starts") statKey = "PlayerStarts";
+										else if (item.name === "Mins") statKey = "MIN";
+										else if (item.name === "Seasons") statKey = "NumberSeasonsPlayedFor";
+										else if (item.name === "MoM") statKey = "MOM";
+										else if (item.name === "Form") statKey = "PlayerAvgMatchRating";
+										else if (item.name === "Avg Rtg") statKey = "PlayerAvgMatchRating";
+										else if (item.name === "Goals") statKey = "AllGSC";
+										else if (item.name === "Assists") statKey = "A";
+										else if (item.name === "G/90") statKey = "PlayerGoalsPer90";
+										else if (item.name === "A/90") statKey = "PlayerAssistsPer90";
+										else if (item.name === "GI/90") statKey = "PlayerGI90";
+										else if (item.name === "FTP/90") statKey = "PlayerFTP90";
+										else if (item.name === "Cards/90") statKey = "PlayerCards90";
+										else if (item.name === "MoM/90") statKey = "PlayerMoM90";
+										const stat = statObject[statKey as keyof typeof statObject];
+										const iconName = item.name === "Goals" ? "Goals-Icon" : (stat?.iconName || "Appearance-Icon");
+										const isPriority = index < 3;
+										return (
+											<div key={item.name} className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
+												<div className='flex-shrink-0'>
+													<Image
+														src={`/stat-icons/${iconName}.svg`}
+														alt={stat?.displayText || item.name}
+														width={40}
+														height={40}
+														className='w-8 h-8 md:w-10 md:h-10 object-contain'
+														priority={isPriority}
+													/>
+												</div>
+												<div className='flex-1 min-w-0'>
+													<div className='text-white/70 text-sm md:text-base mb-1'>
+														{item.name}
+													</div>
+													<div className='text-white font-bold text-xl md:text-2xl'>
+														{(item as any).isString ? item.value : (() => {
+															if ((item as any).isForm) {
+																const v = item.value as number | null | undefined;
+																if (v == null) return "-";
+																const trend = formSummary?.formTrend || "stable";
+																const arrow = trend === "rising" ? "↑" : trend === "declining" ? "↓" : "→";
+																return `${v.toFixed(1)} ${arrow}`;
+															}
+															if ((item as any).isPer90 && toNumber(playerData!.minutes) < 360) {
+																return "Min. 360";
+															}
+															if (item.name === "Mins") {
+																return Math.round(toNumber(item.value)).toLocaleString();
+															}
+															if ((item as any).isRating) {
+																const v = item.value as number | null | undefined;
+																if (v === null || v === undefined) return "-";
+																return formatStatValue(v, stat?.statFormat || "Decimal1", stat?.numberDecimalPlaces ?? 1, (stat as any)?.statUnit);
+															}
+															return formatStatValue(item.value, stat?.statFormat || "Integer", stat?.numberDecimalPlaces || 0, (stat as any)?.statUnit);
+														})()}
+													</div>
+												</div>
+											</div>
+										);
+									})}
+								</div>
+							)}
 						</div>
-						{isLoadingPlayerData ? (
-							<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-								<StatCardSkeleton count={9} variant='embedded' />
-							</SkeletonTheme>
-						) : (
-							<div className='grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4'>
-								{keyPerformanceData.map((item, index) => {
-									let statKey = "APP";
-									if (item.name === "Apps") statKey = "APP";
-									else if (item.name === "Starts") statKey = "PlayerStarts";
-									else if (item.name === "Mins") statKey = "MIN";
-									else if (item.name === "Seasons") statKey = "NumberSeasonsPlayedFor";
-									else if (item.name === "MoM") statKey = "MOM";
-									else if (item.name === "Form") statKey = "PlayerAvgMatchRating";
-									else if (item.name === "Avg Rtg") statKey = "PlayerAvgMatchRating";
-									else if (item.name === "Goals") statKey = "AllGSC";
-									else if (item.name === "Assists") statKey = "A";
-									else if (item.name === "G/90") statKey = "PlayerGoalsPer90";
-									else if (item.name === "A/90") statKey = "PlayerAssistsPer90";
-									else if (item.name === "GI/90") statKey = "PlayerGI90";
-									else if (item.name === "FTP/90") statKey = "PlayerFTP90";
-									else if (item.name === "Cards/90") statKey = "PlayerCards90";
-									else if (item.name === "MoM/90") statKey = "PlayerMoM90";
-									const stat = statObject[statKey as keyof typeof statObject];
-									const iconName = item.name === "Goals" ? "Goals-Icon" : (stat?.iconName || "Appearance-Icon");
-									const isPriority = index < 3;
-									return (
-										<div key={item.name} className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
-											<div className='flex-shrink-0'>
-												<Image
-													src={`/stat-icons/${iconName}.svg`}
-													alt={stat?.displayText || item.name}
-													width={40}
-													height={40}
-													className='w-8 h-8 md:w-10 md:h-10 object-contain'
-													priority={isPriority}
-												/>
-											</div>
-											<div className='flex-1 min-w-0'>
-												<div className='text-white/70 text-sm md:text-base mb-1'>
-													{item.name}
-												</div>
-												<div className='text-white font-bold text-xl md:text-2xl'>
-													{(item as any).isString ? item.value : (() => {
-														if ((item as any).isForm) {
-															const v = item.value as number | null | undefined;
-															if (v == null) return "-";
-															const trend = formSummary?.formTrend || "stable";
-															const arrow = trend === "rising" ? "↑" : trend === "declining" ? "↓" : "→";
-															return `${v.toFixed(1)} ${arrow}`;
-														}
-														if ((item as any).isPer90 && toNumber(playerData!.minutes) < 360) {
-															return "Min. 360";
-														}
-														if (item.name === "Mins") {
-															return Math.round(toNumber(item.value)).toLocaleString();
-														}
-														if ((item as any).isRating) {
-															const v = item.value as number | null | undefined;
-															if (v === null || v === undefined) return "-";
-															return formatStatValue(v, stat?.statFormat || "Decimal1", stat?.numberDecimalPlaces ?? 1, (stat as any)?.statUnit);
-														}
-														return formatStatValue(item.value, stat?.statFormat || "Integer", stat?.numberDecimalPlaces || 0, (stat as any)?.statUnit);
-													})()}
-												</div>
-											</div>
-										</div>
-									);
-								})}
-							</div>
-						)}
-					</div>
-
-					{/* Form Section (same masonry unit as KPI above = no column gap between them) */}
-					<div id='form-section' className='relative z-30 bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-						{formSectionInner}
-					</div>
-				</div>
-			) : (
-				<div id='form-section' className='relative z-30 bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
-					{formSectionInner}
+					) : null}
+					{showFormBlock ? (
+						<div
+							id='form-section'
+							className={
+								kpiAndFormGrouped
+									? "relative z-30 bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4"
+									: "relative z-30 bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4"
+							}>
+							{formSectionInner}
+						</div>
+					) : null}
 				</div>
 			)}
 
@@ -3379,7 +3431,7 @@ export default function PlayerStats() {
 			</div>
 
 			{/* Streaks - live computation for current filter set (foundation / chatbot rules) */}
-			{playerData && streakDisplaySource ? (
+			{playerData && streakDisplaySource && featureFlags.playerStatsStreaks ? (
 				<div id='streaks-section' className='relative z-30 bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 					<div className='flex items-center gap-2 mb-2'>
 						<h3 className='text-white font-semibold text-sm md:text-base'>Streaks</h3>
@@ -3701,7 +3753,7 @@ export default function PlayerStats() {
 			})()}
 
 			{/* Starting impact - uses filtered aggregates from player-data */}
-			{toNumber(validPlayerData.appearances) > 0 && (
+			{toNumber(validPlayerData.appearances) > 0 && featureFlags.playerStatsStartingImpact && (
 				<div id='starting-impact' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 					<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Starting impact</h3>
 					<div className='grid grid-cols-2 gap-3 text-sm md:text-base text-white' data-testid='starting-impact-grid'>
@@ -3913,11 +3965,10 @@ export default function PlayerStats() {
 				)}
 			</div>
 
-			{playerData ? (
-				<>
-					<div
-						id='partnerships-section'
-						className='relative z-30 bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
+			{playerData && featureFlags.playerStatsPartnerships ? (
+				<div
+					id='partnerships-section'
+					className='relative z-30 bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 						<div className='flex flex-wrap items-center justify-between gap-2 mb-2'>
 							<div className='flex items-center gap-2 min-w-0'>
 								<h3 className='text-white font-semibold text-sm md:text-base'>Partnerships</h3>
@@ -3996,51 +4047,53 @@ export default function PlayerStats() {
 								})}
 							</ul>
 						)}
-					</div>
-					<div
-						id='impact-section'
-						className='relative z-30 bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
-						<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Impact</h3>
-						{playerData.impactDelta == null ||
-						playerData.impactWinRateWith == null ||
-						!playerData.mostPlayedForTeam ||
-						String(playerData.mostPlayedForTeam).trim() === "" ? (
-							<p className='text-white/60 text-xs'>
-								Impact compares your most-played XI&apos;s results when you play vs when you don&apos;t (needs enough games without you).
-								Filtered fixtures are used so the comparison matches your current filter set. Run a full seed after Feature 7, or check you
-								have a primary team set.
+				</div>
+			) : null}
+
+			{playerData && featureFlags.playerStatsImpact ? (
+				<div
+					id='impact-section'
+					className='relative z-30 bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
+					<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Impact</h3>
+					{playerData.impactDelta == null ||
+					playerData.impactWinRateWith == null ||
+					!playerData.mostPlayedForTeam ||
+					String(playerData.mostPlayedForTeam).trim() === "" ? (
+						<p className='text-white/60 text-xs'>
+							Impact compares your most-played XI&apos;s results when you play vs when you don&apos;t (needs enough games without you).
+							Filtered fixtures are used so the comparison matches your current filter set. Run a full seed after Feature 7, or check you
+							have a primary team set.
+						</p>
+					) : (
+						<>
+							<p className='text-white text-sm md:text-base font-medium mb-2'>
+								{(() => {
+									const teamLine = formatXiTeamLabel(playerData.mostPlayedForTeam);
+									const delta = Math.abs(Math.round(playerData.impactDelta * 10) / 10);
+									return playerData.impactDelta >= 0 ? (
+										<>
+											The <span className='text-dorkinians-yellow'>{teamLine}</span> wins{" "}
+											<span className='text-dorkinians-yellow font-bold'>{delta}%</span> more often when you play.
+										</>
+									) : (
+										<>
+											The <span className='text-dorkinians-yellow'>{teamLine}</span> wins{" "}
+											<span className='text-dorkinians-yellow font-bold'>{delta}%</span> less often when you play.
+										</>
+									);
+								})()}
 							</p>
-						) : (
-							<>
-								<p className='text-white text-sm md:text-base font-medium mb-2'>
-									{(() => {
-										const teamLine = formatXiTeamLabel(playerData.mostPlayedForTeam);
-										const delta = Math.abs(Math.round(playerData.impactDelta * 10) / 10);
-										return playerData.impactDelta >= 0 ? (
-											<>
-												The <span className='text-dorkinians-yellow'>{teamLine}</span> wins{" "}
-												<span className='text-dorkinians-yellow font-bold'>{delta}%</span> more often when you play.
-											</>
-										) : (
-											<>
-												The <span className='text-dorkinians-yellow'>{teamLine}</span> wins{" "}
-												<span className='text-dorkinians-yellow font-bold'>{delta}%</span> less often when you play.
-											</>
-										);
-									})()}
+							{playerData.impactRatesDisplay ? (
+								<p className='text-white/70 text-xs md:text-sm mb-2'>{playerData.impactRatesDisplay}</p>
+							) : null}
+							{playerData.impactSampleWithout != null && playerData.impactSampleWithout < 10 ? (
+								<p className='text-white/50 text-[11px] md:text-xs border-l-2 border-[rgba(232,197,71,0.35)] pl-2'>
+									Sample without you is small ({playerData.impactSampleWithout} games) - interpret with care.
 								</p>
-								{playerData.impactRatesDisplay ? (
-									<p className='text-white/70 text-xs md:text-sm mb-2'>{playerData.impactRatesDisplay}</p>
-								) : null}
-								{playerData.impactSampleWithout != null && playerData.impactSampleWithout < 10 ? (
-									<p className='text-white/50 text-[11px] md:text-xs border-l-2 border-[rgba(232,197,71,0.35)] pl-2'>
-										Sample without you is small ({playerData.impactSampleWithout} games) - interpret with care.
-									</p>
-								) : null}
-							</>
-						)}
-					</div>
-				</>
+							) : null}
+						</>
+					)}
+				</div>
 			) : null}
 
 			{/* Defensive Record Section */}
@@ -4265,7 +4318,7 @@ export default function PlayerStats() {
 				</div>
 			)}
 
-			{playerRecordings.length > 0 && (
+			{featureFlags.playerStatsPlayerRecordings && playerRecordings.length > 0 && (
 				<RecordingsSection
 					id='player-recordings'
 					title='Player Recordings'
@@ -4382,7 +4435,7 @@ export default function PlayerStats() {
 								</p>
 							</div>
 
-							{badgePayload && (
+							{badgePayload && featureFlags.achievementBadges && (
 								<div className='pt-2 border-t border-white/10'>
 									<p className='text-white text-xs md:text-sm mb-1'>
 										{profileHref ? (
@@ -4390,10 +4443,10 @@ export default function PlayerStats() {
 												href={profileHref}
 												className='text-white/70 underline underline-offset-2 hover:text-white'
 												data-testid='milestone-badges-profile-link'>
-												Milestone badges earned:
+												Achievement Badges earned:
 											</Link>
 										) : (
-											<span className='text-white/70'>Milestone badges earned: </span>
+											<span className='text-white/70'>Achievement Badges earned: </span>
 										)}
 										{" "}
 										<span className='font-bold text-dorkinians-yellow'>{badgePayload.totalBadges}</span>
@@ -4408,7 +4461,7 @@ export default function PlayerStats() {
 							)}
 						</div>
 
-						{totalCaptaincies === 0 && totalAwards === 0 && (awardsData?.playerOfMonthCount || 0) === 0 && (awardsData?.playerOfMonthFirstCount || 0) === 0 && (awardsData?.starManCount || 0) === 0 && (awardsData?.totwCount || 0) === 0 && (awardsData?.totsCount || 0) === 0 && (badgePayload?.earned?.length ?? 0) === 0 && (
+						{totalCaptaincies === 0 && totalAwards === 0 && (awardsData?.playerOfMonthCount || 0) === 0 && (awardsData?.playerOfMonthFirstCount || 0) === 0 && (awardsData?.starManCount || 0) === 0 && (awardsData?.totwCount || 0) === 0 && (awardsData?.totsCount || 0) === 0 && (!featureFlags.achievementBadges || (badgePayload?.earned?.length ?? 0) === 0) && (
 							<p className='text-white/70 text-xs md:text-sm'>No captaincies, awards or achievements recorded.</p>
 						)}
 					</div>
@@ -4417,9 +4470,15 @@ export default function PlayerStats() {
 		</div>
 	);
 
+	const tableModeTabOptions: Array<{ id: PlayerStatsTableMode; label: string }> = [
+		{ id: "totals", label: "Totals" },
+		{ id: "perApp", label: "Per App" },
+		...(featureFlags.playerStatsDataTablePer90 ? ([{ id: "per90", label: "Per 90" }] as const) : []),
+	];
+
 	const dataTableContent = (
 		<div className='mb-4'>
-			{tableStatMode === "per90" && (
+			{tableStatMode === "per90" && featureFlags.playerStatsDataTablePer90 && (
 				<p className='text-xs md:text-sm text-white/80 mb-2'>
 					Per-90 stats (Minutes: {Math.round(toNumber(validPlayerData.minutes)).toLocaleString()}) - min. 360 minutes required.
 				</p>
@@ -4428,11 +4487,7 @@ export default function PlayerStats() {
 				<div
 					className='inline-flex shrink-0 rounded-md overflow-hidden border border-white/20'
 					data-testid='player-stats-table-mode-tabs'>
-					{([
-						{ id: "totals", label: "Totals" },
-						{ id: "perApp", label: "Per App" },
-						{ id: "per90", label: "Per 90" },
-					] as Array<{ id: PlayerStatsTableMode; label: string }>).map((mode) => (
+					{tableModeTabOptions.map((mode) => (
 						<button
 							key={mode.id}
 							type='button'

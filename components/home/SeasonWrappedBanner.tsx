@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useNavigationStore } from "@/lib/stores/navigation";
 import { playerNameToWrappedSlug } from "@/lib/wrapped/slug";
+import { featureFlags } from "@/config/config";
 
 /**
  * End-of-season callout linking to Season Wrapped for the selected player.
- * Set `NEXT_PUBLIC_SEASON_WRAPPED_ACTIVE=false` to hide without a deploy change (rebuild still required for env).
+ * Toggle via `featureFlags.seasonWrapped` in config (develop vs production presets).
  */
 function safePlayerName(raw: unknown): string | null {
 	if (raw == null) return null;
@@ -21,7 +22,7 @@ export default function SeasonWrappedBanner() {
 	const rawName = useNavigationStore((s) => s.selectedPlayer);
 	const isPlayerSelected = useNavigationStore((s) => s.isPlayerSelected);
 
-	if (process.env.NEXT_PUBLIC_SEASON_WRAPPED_ACTIVE === "false") {
+	if (!featureFlags.seasonWrapped) {
 		return null;
 	}
 
