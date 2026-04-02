@@ -4,6 +4,7 @@ import { MatchDetail } from "@/types";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import { createPortal } from "react-dom";
 import ModalWrapper from "@/components/modals/ModalWrapper";
+import { matchRatingCircleClass } from "@/lib/utils/matchRatingDisplay";
 
 interface FTPBreakdown {
 	stat: string;
@@ -373,6 +374,14 @@ export default function PlayerDetailModal({ playerName, matchDetails, aggregated
 													<p className='text-white text-xs md:text-sm font-normal'>{matchSummary.teamOpposition}</p>
 													{matchSummary.resultScore && (
 														<p className='text-white text-sm md:text-base font-semibold mt-1'>{matchSummary.resultScore}</p>
+													)}
+													{match.matchRating != null && !Number.isNaN(Number(match.matchRating)) && (
+														<p className='text-dorkinians-yellow text-xs md:text-sm mt-1'>
+															Match rating:{" "}
+															<span className={`inline-block px-1.5 py-0.5 rounded text-[0.65rem] font-semibold ${matchRatingCircleClass(Number(match.matchRating))}`}>
+																{Number(match.matchRating).toFixed(1)}
+															</span>
+														</p>
 													)}
 												</div>
 

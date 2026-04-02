@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import { seedingStatusService } from "@/lib/services/seedingStatusService";
+import { getCsrfHeaders } from "@/lib/middleware/csrf";
+import { summarizeSeedingTriggerError } from "@/lib/utils/summarizeSeedingTriggerError";
 
 interface SeedingResult {
 	success: boolean;
@@ -72,6 +74,9 @@ export default function AdminPanelEnhanced() {
 	const [sendEmailAtStart, setSendEmailAtStart] = useState(false);
 	const [sendEmailAtCompletion, setSendEmailAtCompletion] = useState(true);
 	const [saveLogs, setSaveLogs] = useState(false);
+	/** When full rebuild is used, seed staging graph first then swap (default on). */
+	const [blueGreenCutover, setBlueGreenCutover] = useState(true);
+	const [fullRebuild, setFullRebuild] = useState(true);
 
 	// Chatbot test state
 	const [chatbotTestLoading, setChatbotTestLoading] = useState(false);
@@ -234,6 +239,7 @@ export default function AdminPanelEnhanced() {
 			let response = null;
 			let data = null;
 			let successfulPath = "";
+			let lastFailureMessage: string | null = null;
 
 			for (const path of functionPaths) {
 				try {
@@ -242,6 +248,7 @@ export default function AdminPanelEnhanced() {
 						method: "POST",
 						headers: {
 							"Content-Type": "application/json",
+							...getCsrfHeaders(),
 						},
 						body: JSON.stringify({
 							environment: "production",
@@ -253,7 +260,8 @@ export default function AdminPanelEnhanced() {
 							seasonConfig: {
 								currentSeason: null,
 								useSeasonOverride: false,
-								fullRebuild: false,
+								fullRebuild: fullRebuild,
+								blueGreenCutover: fullRebuild ? blueGreenCutover : false,
 								loggingConfig: {
 									saveLogs: saveLogs,
 								},
@@ -276,6 +284,18 @@ export default function AdminPanelEnhanced() {
 						}
 					} else {
 						console.warn(`Path ${path} returned status:`, response.status);
+						const errorText = await response.text().catch(() => "");
+						try {
+							const summary = summarizeSeedingTriggerError(JSON.parse(errorText));
+							if (summary) {
+								lastFailureMessage = summary;
+							}
+						} catch {
+							if (response.status === 403 && errorText.includes("CSRF")) {
+								lastFailureMessage =
+									"CSRF validation failed for /api/trigger-seed. Refresh the admin page and try again.";
+							}
+						}
 					}
 				} catch (pathError) {
 					console.warn(`Path ${path} failed:`, pathError);
@@ -358,7 +378,11 @@ export default function AdminPanelEnhanced() {
 					}
 				}
 			} else {
-				throw new Error("Failed to trigger seeding - all function paths failed");
+				throw new Error(
+					lastFailureMessage
+						? `Failed to trigger seeding - ${lastFailureMessage}`
+						: "Failed to trigger seeding - no endpoint accepted the request. If Heroku logs show 401 on POST /seed, SEED_API_KEY must match exactly on Netlify/Vercel and Heroku.",
+				);
 			}
 		} catch (err) {
 			console.error("Seeding trigger error:", err);
@@ -682,6 +706,31 @@ export default function AdminPanelEnhanced() {
 						/>
 						<label htmlFor='saveLogs' className='text-sm text-gray-700'>
 							Save the logs for this run
+						</label>
+					</div>
+					<div className='flex items-center'>
+						<input
+							type='checkbox'
+							id='fullRebuildEnhanced'
+							checked={fullRebuild}
+							onChange={(e) => setFullRebuild(e.target.checked)}
+							className='mr-2 h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded'
+						/>
+						<label htmlFor='fullRebuildEnhanced' className='text-sm text-gray-700'>
+							Full rebuild (clear all Dorkinians website graph data)
+						</label>
+					</div>
+					<div className={`flex items-center ${!fullRebuild ? "opacity-50" : ""}`}>
+						<input
+							type='checkbox'
+							id='blueGreenCutoverEnhanced'
+							checked={blueGreenCutover}
+							disabled={!fullRebuild}
+							onChange={(e) => setBlueGreenCutover(e.target.checked)}
+							className='mr-2 h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded disabled:cursor-not-allowed'
+						/>
+						<label htmlFor='blueGreenCutoverEnhanced' className='text-sm text-gray-700'>
+							Blue/green cutover (build new graph first, then swap - less downtime)
 						</label>
 					</div>
 				</div>

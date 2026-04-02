@@ -490,13 +490,21 @@ exports.handler = async (event, context) => {
 		}
 
 		const emailConfig = requestBody.emailConfig || {};
-		const seasonConfig = requestBody.seasonConfig || {
+		const seasonConfig = {
 			currentSeason: null,
 			useSeasonOverride: false,
 			fullRebuild: true,
+			blueGreenCutover: true,
+			...(requestBody.seasonConfig || {}),
 		};
+		const debug =
+			requestBody.debug === true ||
+			requestBody.debug === "true" ||
+			seasonConfig.debug === true ||
+			seasonConfig.debug === "true";
 		
 		console.log(`🗓️ TRIGGER: Season configuration received:`, JSON.stringify(seasonConfig, null, 2));
+		console.log(`🔧 TRIGGER: Debug configuration received: ${debug ? "ENABLED ✅" : "DISABLED ❌"}`);
 
 		// Detect if this is a cron job call (no email config) and set defaults
 		const isCronJob = !requestBody.emailConfig || Object.keys(requestBody.emailConfig).length === 0;
@@ -587,7 +595,8 @@ exports.handler = async (event, context) => {
 									emailConfig.sendEmailAtCompletion ?? (!isCronJob ? true : false)
 								),
 							},
-							seasonConfig: seasonConfig,
+							seasonConfig: { ...seasonConfig, debug },
+							debug,
 							triggerSource: isCronJob ? "cron" : "admin",
 						}),
 					},
@@ -638,7 +647,7 @@ exports.handler = async (event, context) => {
 			const hint = (status === 403 && body && (body.includes("CORS") || body.includes("Origin")))
 				? `Check Heroku: NODE_ENV=production and CORS allows Origin: ${origin}`
 				: (status === 401 || status === 403)
-					? "Check Heroku: SEED_API_KEY (X-API-Key) and CORS/Origin."
+					? "SEED_API_KEY on Netlify must exactly match SEED_API_KEY on Heroku (same value and length). Heroku log \"Invalid API key length\" means the keys differ. Also verify CORS Origin if you see 403."
 					: "Check Heroku logs and /seed endpoint.";
 
 			console.error("❌ CRITICAL: Heroku seeding service failed to start after all retry attempts");

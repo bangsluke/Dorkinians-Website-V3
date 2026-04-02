@@ -312,7 +312,7 @@ function compareAnswers(extractedValue, expectedAnswer, expectedOutputType) {
 				const extractedScore = String(extractedValue).trim();
 				const expectedScore = String(expectedAnswer).trim();
 				// Compare scores (case insensitive, handle different dash types)
-				return extractedScore.replace(/[–—]/g, "-") === expectedScore.replace(/[–—]/g, "-");
+				return extractedScore.replace(/[–-]/g, "-") === expectedScore.replace(/[–-]/g, "-");
 			}
 			// Compare numeric values (handle both integers and decimals)
 			const extractedNum = typeof extractedValue === "number" ? extractedValue : parseFloat(extractedValue);
@@ -871,7 +871,7 @@ function generateEmailContent(testResults) {
 		<p style="margin:0 0 6px 0;"><strong>Test suite:</strong> TBL_TestQuestions validation</p>
 		${
 			hidePassedTests
-				? `<p style="margin:0;"><strong>Note:</strong> Failed tests only — ${passedTestsCount} passed tests hidden from the table.</p>`
+				? `<p style="margin:0;"><strong>Note:</strong> Failed tests only - ${passedTestsCount} passed tests hidden from the table.</p>`
 				: ""
 		}`;
 
@@ -1023,7 +1023,7 @@ async function sendEmailReport(testResults) {
 
 	try {
 		const dateStr = new Date().toLocaleDateString();
-		const subjectTail = `Test questions report${hidePassedTests ? " (failed only)" : ""} — ${dateStr}`;
+		const subjectTail = `Test questions report${hidePassedTests ? " (failed only)" : ""} - ${dateStr}`;
 		const textBody = `Test questions report${hidePassedTests ? " (failed only)" : ""}\n\nTotal Tests: ${testResults.totalTests}\nPassed: ${testResults.passedTests}${hidePassedTests ? " (hidden from table)" : ""}\nFailed: ${testResults.failedTests}\nSuccess Rate: ${testResults.totalTests > 0 ? ((testResults.passedTests / testResults.totalTests) * 100).toFixed(1) : 0}%\n\nSee HTML version for detailed results.`;
 
 		console.log("🔍 Verifying email connection (SMTP)...");

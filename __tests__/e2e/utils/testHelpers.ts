@@ -4,7 +4,7 @@ import * as path from 'path';
 
 // Shared Playwright helpers for specs under __tests__/e2e/: section logging (cross-project), main-page nav,
 // Club Info / TOTW / Stats sub-pages, player Listbox selection (retries on mobile detach), localStorage shortcuts,
-// chatbot I/O, and assertions. Many waits are best-effort or polled — specs should skip when preconditions fail
+// chatbot I/O, and assertions. Many waits are best-effort or polled - specs should skip when preconditions fail
 // instead of assuming helpers always reach a single DOM shape (slow APIs and CI retries amplify flakiness).
 
 // Use a file-based lock to persist across all execution contexts
@@ -318,8 +318,8 @@ const CLUB_INFO_SUBPAGE_DOT_INDEX: Record<ClubInfoSubPageId, number> = {
 	"club-information": 0,
 	"league-information": 1,
 	"club-captains": 2,
-	"club-awards": 3,
-	"useful-links": 4,
+	"club-awards": 2,
+	"useful-links": 3,
 };
 
 /**
@@ -329,33 +329,34 @@ const CLUB_INFO_SUBPAGE_DOT_INDEX: Record<ClubInfoSubPageId, number> = {
 const CLUB_INFO_SUB_HEADING: Record<ClubInfoSubPageId, RegExp> = {
 	"club-information": /Club Information/i,
 	"league-information": /League Information/i,
-	"club-captains": /Club Captains/i,
-	"club-awards": /Club Awards/i,
+	"club-captains": /Club Captains and Awards/i,
+	"club-awards": /Club Captains and Awards/i,
 	"useful-links": /Useful Links/i,
 };
 
 const CLUB_INFO_SIDEBAR_LABEL: Record<ClubInfoSubPageId, string> = {
 	"club-information": "Club Information",
 	"league-information": "League Information",
-	"club-captains": "Club Captains",
-	"club-awards": "Club Awards",
+	"club-captains": "Club Captains and Awards",
+	"club-awards": "Club Captains and Awards",
 	"useful-links": "Useful Links",
 };
 
 export async function goToClubInfoSubPage(page: Page, subPageId: ClubInfoSubPageId) {
+	const effectiveSubPageId = subPageId === "club-captains" ? "club-awards" : subPageId;
 	const viewport = page.viewportSize();
 	const isMobile = viewport !== null && viewport.width < 768;
-	const headingRe = CLUB_INFO_SUB_HEADING[subPageId];
+	const headingRe = CLUB_INFO_SUB_HEADING[effectiveSubPageId];
 
 	for (let attempt = 0; attempt < 3; attempt++) {
 		if (isMobile) {
-			const idx = CLUB_INFO_SUBPAGE_DOT_INDEX[subPageId];
+			const idx = CLUB_INFO_SUBPAGE_DOT_INDEX[effectiveSubPageId];
 			const dot = page.getByTestId(`club-info-subpage-indicator-${idx}`);
 			await dot.waitFor({ state: "visible", timeout: 15000 });
 			await dot.click({ force: true, timeout: 10000 });
 		} else if (attempt < 2) {
 			await page.keyboard.press("Escape").catch(() => {});
-			const btn = page.locator("aside").getByTestId(`nav-sidebar-${subPageId}`);
+			const btn = page.locator("aside").getByTestId(`nav-sidebar-${effectiveSubPageId}`);
 			await btn.waitFor({ state: "visible", timeout: 15000 });
 			await btn.scrollIntoViewIfNeeded();
 			try {
@@ -366,11 +367,11 @@ export async function goToClubInfoSubPage(page: Page, subPageId: ClubInfoSubPage
 			if (!(await page.getByRole("heading", { name: headingRe }).isVisible({ timeout: 2500 }).catch(() => false))) {
 				const fallback = page
 					.locator("aside")
-					.getByRole("button", { name: CLUB_INFO_SIDEBAR_LABEL[subPageId] });
+					.getByRole("button", { name: CLUB_INFO_SIDEBAR_LABEL[effectiveSubPageId] });
 				await fallback.click({ timeout: 10000 }).catch(() => fallback.click({ force: true, timeout: 10000 }));
 			}
 		} else {
-			const btn = page.locator("aside").getByTestId(`nav-sidebar-${subPageId}`);
+			const btn = page.locator("aside").getByTestId(`nav-sidebar-${effectiveSubPageId}`);
 			await btn.evaluate((n) => (n as HTMLButtonElement).click());
 		}
 		await page.waitForLoadState("domcontentloaded", { timeout: 10000 });
@@ -702,7 +703,7 @@ export async function submitChatbotQuery(page: Page, query: string) {
 		await page.getByTestId('chatbot-submit').filter({ has: page.locator(':visible') }).click();
 	}
 	
-	// Wait for response (avoid networkidle — analytics/long-polling often prevent it on production)
+	// Wait for response (avoid networkidle - analytics/long-polling often prevent it on production)
 	await page.getByTestId('chatbot-submit').waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
 	await expect(page.getByTestId('chatbot-answer')).toBeVisible({ timeout: 120000 });
 }

@@ -1,4 +1,5 @@
 import { findMetricByAlias } from "../../config/chatbotMetrics";
+import { isStreakMetricKey } from "../../config/streakMetrics";
 import { statObject } from "../../../config/config";
 import { loggingService } from "../loggingService";
 
@@ -23,6 +24,10 @@ export class FormattingUtils {
 		// Handle BigInt values from Neo4j first
 		if (typeof value === "bigint") {
 			return value.toString();
+		}
+
+		if (metric.toUpperCase() === "FORM_CURRENT") {
+			return Number(value).toFixed(1);
 		}
 
 		// Handle Neo4j Integer objects (e.g., {low: 445, high: 0})
@@ -62,6 +67,11 @@ export class FormattingUtils {
 					return value;
 				}
 			}
+		}
+
+		const streakKeyResolved = (findMetricByAlias(metric)?.key || metric).toUpperCase();
+		if (isStreakMetricKey(streakKeyResolved) && typeof value === "number" && !Number.isNaN(value)) {
+			return String(Math.round(value));
 		}
 
 		// Resolve metric alias to canonical key before looking up config

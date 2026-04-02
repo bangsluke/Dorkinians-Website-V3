@@ -1,7 +1,7 @@
 "use client";
 
 import { useNavigationStore, type TeamData } from "@/lib/stores/navigation";
-import { statObject, statsPageConfig, appConfig } from "@/config/config";
+import { statObject, statsPageConfig, appConfig, calculateCardFineTotal, featureFlags } from "@/config/config";
 import Image from "next/image";
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { cachedFetch, generatePageCacheKey } from "@/lib/utils/pageCache";
@@ -19,21 +19,24 @@ import { trackStatsStatSelected } from "@/lib/analytics/statsTracking";
 import { trackEvent } from "@/lib/utils/trackEvent";
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
-import { StatCardSkeleton, ChartSkeleton, TopPlayersTableSkeleton, RadarChartSkeleton, SankeyChartSkeleton, GameDetailsTableSkeleton, DataTableSkeleton } from "@/components/skeletons";
+import { StatCardSkeleton, ChartSkeleton, TopPlayersTableSkeleton, RadarChartSkeleton, GameDetailsTableSkeleton, DataTableSkeleton } from "@/components/skeletons";
+import { log } from "@/lib/utils/logger";
+import LazyWhenVisible from "@/components/perf/LazyWhenVisible";
+import RecordingsSection from "@/components/stats/RecordingsSection";
+import type { RecordingFixture } from "@/lib/utils/recordingsDisplay";
 
 // Dynamically import ResponsiveSankey to reduce initial bundle size (151 KB -> only loads when needed)
 const ResponsiveSankey = dynamic(
 	() => import("@nivo/sankey").then((mod) => mod.ResponsiveSankey),
 	{
 		loading: () => (
-			<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-				<SankeyChartSkeleton />
-			</SkeletonTheme>
+			<div className='flex min-h-[320px] items-center justify-center rounded-lg bg-white/5'>
+				<p className='text-sm text-white/45'>Loading…</p>
+			</div>
 		),
 		ssr: false,
 	}
 );
-import { log } from "@/lib/utils/logger";
 import Button from "@/components/ui/Button";
 
 
@@ -367,6 +370,9 @@ export default function ClubStats() {
 		setCachedPageData,
 		hasUnsavedFilters,
 		isFilterSidebarOpen,
+		selectPlayer,
+		setMainPage,
+		setStatsSubPage,
 	} = useNavigationStore();
 
 	const [teamData, setTeamData] = useState<TeamData | null>(null);
@@ -385,6 +391,17 @@ export default function ClubStats() {
 	});
 	const [topPlayers, setTopPlayers] = useState<TopPlayer[]>([]);
 	const [isLoadingTopPlayers, setIsLoadingTopPlayers] = useState(false);
+
+	const [squadBackbone, setSquadBackbone] = useState<
+		Array<{
+			playerName: string;
+			squadInfluence: number | null;
+			squadInfluenceRank: number | null;
+			communityId: number | null;
+		}>
+	>([]);
+	const [isLoadingSquadBackbone, setIsLoadingSquadBackbone] = useState(false);
+	const [squadBackboneNote, setSquadBackboneNote] = useState("");
 
 	// State for view mode toggle - initialize from localStorage
 	const [isDataTableMode, setIsDataTableMode] = useState<boolean>(() => {
@@ -443,6 +460,10 @@ export default function ClubStats() {
 	// State for unique player stats
 	const [uniquePlayerStats, setUniquePlayerStats] = useState<any>(null);
 	const [isLoadingUniqueStats, setIsLoadingUniqueStats] = useState(false);
+
+	const [clubRecordings, setClubRecordings] = useState<RecordingFixture[]>([]);
+
+	const showClubRecordingsTeamColumn = useMemo(() => !playerFilters?.teams?.length, [playerFilters?.teams]);
 
 	// Track last fetched filters to implement caching
 	const lastFetchedFiltersRef = useRef<string | null>(null);
@@ -630,6 +651,59 @@ export default function ClubStats() {
 		fetchTopPlayers();
 	}, [filtersKey, selectedStatType, playerFilters, hasUnsavedFilters, isFilterSidebarOpen]);
 
+	// Squad backbone: filter-scoped co-appearance strength via POST; falls back to global PageRank (GET) if filters unavailable
+	useEffect(() => {
+		if (!playerFilters) return;
+		if (!featureFlags.clubStatsSquadBackbone) {
+			setSquadBackbone([]);
+			setSquadBackboneNote("");
+			setIsLoadingSquadBackbone(false);
+			return;
+		}
+		if (hasUnsavedFilters || isFilterSidebarOpen) return;
+
+		let cancelled = false;
+		const run = async () => {
+			setIsLoadingSquadBackbone(true);
+			try {
+				const { getCsrfHeaders } = await import("@/lib/middleware/csrf");
+				const cacheKey = generatePageCacheKey("stats", "club-stats", "club-squad-backbone", { filters: playerFilters });
+				const data = await cachedFetch<{
+					players: Array<{
+						playerName: string;
+						squadInfluence: number | null;
+						squadInfluenceRank: number | null;
+						communityId: number | null;
+					}>;
+					scope?: "global" | "filtered";
+					sampleNote?: string;
+				}>("/api/club-squad-backbone", {
+					method: "POST",
+					body: { filters: playerFilters },
+					headers: getCsrfHeaders(),
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
+				});
+				if (!cancelled) {
+					setSquadBackbone(Array.isArray(data.players) ? data.players : []);
+					setSquadBackboneNote(typeof data.sampleNote === "string" ? data.sampleNote : "");
+				}
+			} catch {
+				if (!cancelled) {
+					setSquadBackbone([]);
+					setSquadBackboneNote("");
+				}
+			} finally {
+				if (!cancelled) setIsLoadingSquadBackbone(false);
+			}
+		};
+		run();
+		return () => {
+			cancelled = true;
+		};
+	}, [filtersKey, playerFilters, hasUnsavedFilters, isFilterSidebarOpen, getCachedPageData, setCachedPageData]);
+
 	// Priority 2: Above fold on desktop - Stats Distribution section
 	// Fetch position stats data
 	useEffect(() => {
@@ -809,6 +883,43 @@ export default function ClubStats() {
 
 		fetchUniqueStats();
 	}, [playerFilters, hasUnsavedFilters, isFilterSidebarOpen]);
+
+	// Club recordings (Veo) - whole club + filters; team column when no explicit team filter
+	useEffect(() => {
+		if (!playerFilters) {
+			setClubRecordings([]);
+			return;
+		}
+		if (!featureFlags.clubStatsClubRecordings) {
+			setClubRecordings([]);
+			return;
+		}
+		if (hasUnsavedFilters || isFilterSidebarOpen) return;
+
+		const fetchClubRecordings = async () => {
+			setClubRecordings([]);
+			try {
+				const requestBody = {
+					teamName: "Whole Club",
+					filters: playerFilters,
+				};
+				const cacheKey = generatePageCacheKey("stats", "club-stats", "team-recordings", requestBody);
+				const data = await cachedFetch("/api/team-recordings", {
+					method: "POST",
+					body: requestBody,
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
+				});
+				setClubRecordings((data.fixtures || []) as RecordingFixture[]);
+			} catch (err) {
+				log("error", "Error fetching club recordings:", err);
+				setClubRecordings([]);
+			}
+		};
+
+		fetchClubRecordings();
+	}, [playerFilters, hasUnsavedFilters, isFilterSidebarOpen, getCachedPageData, setCachedPageData]);
 
 	// Priority 3: Below fold - Player Distribution section
 	// Fetch player distribution data
@@ -1886,6 +1997,59 @@ export default function ClubStats() {
 								</div>
 								)}
 
+								{!isDataTableMode && featureFlags.clubStatsSquadBackbone && (
+									<div id='club-squad-backbone' className='flex-shrink-0 md:break-inside-avoid md:mb-4'>
+										<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+											<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Squad Backbone</h3>
+											<p className='text-white/55 text-[11px] md:text-xs mb-3'>
+												Ranking uses teammate co-appearances in fixtures that match your current Stats filters (normalized). Narrow filters can shrink
+												the sample; widen them if this list looks empty.
+											</p>
+											{squadBackboneNote ? (
+												<p className='text-dorkinians-yellow/90 text-[11px] mb-2' role='status'>
+													{squadBackboneNote}
+												</p>
+											) : null}
+											{isLoadingSquadBackbone ? (
+												<SkeletonTheme baseColor='var(--skeleton-base)' highlightColor='var(--skeleton-highlight)'>
+													<Skeleton height={16} count={4} className='my-1' />
+												</SkeletonTheme>
+											) : squadBackbone.length === 0 ? (
+												<p className='text-white/60 text-xs'>
+													No backbone ranking for this filter set yet - try including more seasons or teams, or check back after fixtures are loaded.
+												</p>
+											) : (
+												<ol className='list-decimal list-inside space-y-2 text-white text-xs md:text-sm'>
+													{squadBackbone.map((row) => (
+														<li key={row.playerName} className='marker:text-dorkinians-yellow'>
+															<button
+																type='button'
+																onClick={() => {
+																	trackEvent(UmamiEvents.PlayerSelected, {
+																		source: "club-squad-backbone",
+																		playerName: row.playerName,
+																	});
+																	selectPlayer(row.playerName, "picker");
+																	setMainPage("stats");
+																	setStatsSubPage("player-stats");
+																}}
+																className='text-[#E8C547] font-medium hover:underline text-left align-middle'>
+																{row.playerName}
+															</button>
+															<span className='text-white/50 text-[11px] ml-2'>
+																rank {row.squadInfluenceRank ?? "-"}
+																{row.squadInfluence != null
+																	? ` · ${row.squadInfluence < 0.0001 ? row.squadInfluence.toExponential(2) : row.squadInfluence.toFixed(4)}`
+																	: ""}
+															</span>
+														</li>
+													))}
+												</ol>
+											)}
+										</div>
+									</div>
+								)}
+
 								{/* Seasonal Performance Section */}
 								{!isDataTableMode && allSeasonsSelected && (
 									<div id='club-seasonal-performance' className='md:break-inside-avoid md:mb-4'>
@@ -1988,13 +2152,14 @@ export default function ClubStats() {
 
 								{/* Player Distribution Section */}
 								{!isDataTableMode && (isLoadingPlayerDistribution ? (
-									<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-										<div id='club-player-distribution' className='md:break-inside-avoid md:mb-4'>
-											<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-												<SankeyChartSkeleton />
+									<div id='club-player-distribution' className='md:mb-4 md:break-inside-avoid'>
+										<div className='min-h-[320px] rounded-lg bg-white/10 p-2 backdrop-blur-sm md:p-4'>
+											<h3 className='mb-2 text-sm font-semibold text-white md:text-base'>Player Distribution</h3>
+											<div className='flex min-h-[240px] items-center justify-center'>
+												<p className='text-sm text-white/45'>Loading…</p>
 											</div>
 										</div>
-									</SkeletonTheme>
+									</div>
 								) : !isLoadingPlayerDistribution && sankeyData && sankeyData.nodes.length > 1 && sankeyData.links.length > 0 && (() => {
 									// Validate that all links reference existing nodes
 									const nodeIds = new Set(sankeyData.nodes.map((n: any) => n.id));
@@ -2089,34 +2254,45 @@ export default function ClubStats() {
 						<div id='club-player-distribution' className='md:break-inside-avoid md:mb-4'>
 										<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 											<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Player Distribution</h3>
-											<div className='chart-container' style={{ touchAction: 'pan-y', height: '320px' }}>
-												<ResponsiveSankey
-													data={{ nodes: sankeyData.nodes, links: validLinks }}
-													margin={{ top: 40, right: 20, bottom: 60, left: 20 }}
-													layout="vertical"
-													align="justify"
-													colors={{ scheme: 'set3' }}
-													nodeOpacity={0.8}
-													nodeThickness={18}
-													nodeSpacing={24}
-													nodeBorderWidth={0}
-													nodeBorderColor={{ from: 'color', modifiers: [['darker', 0.8]] }}
-													linkOpacity={0.4}
-													linkHoverOthersOpacity={0.1}
-													enableLinkGradient={true}
-													labelPosition="outside"
-													labelOrientation="horizontal"
-													labelPadding={8}
-													labelTextColor={{ from: 'color', modifiers: [['darker', 1]] }}
-													nodeTooltip={() => null}
-													linkTooltip={() => null}
-													isInteractive={false}
-													layers={['links', 'nodes', CustomLabelLayer as any, 'legends']}
-													theme={{
-														text: { fill: '#fff', fontSize: 12 },
-													}}
-												/>
-											</div>
+											<LazyWhenVisible
+												rootMargin="120px"
+												className="chart-container min-h-[320px]"
+												fallback={
+													<div className='flex min-h-[320px] items-center justify-center rounded-lg bg-white/5'>
+														<p className='text-xs text-white/40'>Loading chart…</p>
+													</div>
+												}
+											>
+												<div className="h-[320px]" style={{ touchAction: 'pan-y' }}>
+													<ResponsiveSankey
+														data={{ nodes: sankeyData.nodes, links: validLinks }}
+														margin={{ top: 40, right: 20, bottom: 60, left: 20 }}
+														layout="vertical"
+														align="justify"
+														colors={{ scheme: 'set3' }}
+														nodeOpacity={0.8}
+														nodeThickness={18}
+														nodeSpacing={24}
+														nodeBorderWidth={0}
+														nodeBorderColor={{ from: 'color', modifiers: [['darker', 0.8]] }}
+														linkOpacity={0.4}
+														linkHoverOthersOpacity={0.1}
+														enableLinkGradient={true}
+														labelPosition="outside"
+														labelOrientation="horizontal"
+														labelPadding={8}
+														labelTextColor={{ from: 'color', modifiers: [['darker', 1]] }}
+														nodeTooltip={() => null}
+														linkTooltip={() => null}
+														isInteractive={false}
+														legends={[]}
+														layers={["links", "nodes", CustomLabelLayer as any]}
+														theme={{
+															text: { fill: '#fff', fontSize: 12 },
+														}}
+													/>
+												</div>
+											</LazyWhenVisible>
 										</div>
 									</div>
 									);
@@ -2459,7 +2635,11 @@ export default function ClubStats() {
 													<div className='flex-1 min-w-0'>
 														<div className='text-white/70 text-sm md:text-base mb-1'>Total Cards Cost</div>
 														<div className='text-white font-bold text-xl md:text-2xl'>
-															£{((toNumber(teamData.totalYellowCards || 0) * 13.5) + (toNumber(teamData.totalRedCards || 0) * 55)).toLocaleString()}
+															£
+															{calculateCardFineTotal(
+																toNumber(teamData.totalYellowCards || 0),
+																toNumber(teamData.totalRedCards || 0),
+															).toLocaleString()}
 														</div>
 														<div className='text-white/60 text-xs mt-1'>
 															Yellow + Red cards combined
@@ -2601,14 +2781,14 @@ export default function ClubStats() {
 												<div className='flex-shrink-0'>
 													<Image
 														src='/stat-icons/GoalsPerAppearance-Icon.svg'
-														alt='Goals/Game'
+														alt='Goals / Game'
 														width={40}
 														height={40}
 														className='w-8 h-8 md:w-10 md:h-10 object-contain'
 													/>
 												</div>
 												<div className='flex-1 min-w-0'>
-													<div className='text-white/70 text-sm md:text-base mb-1'>Goals/Game</div>
+													<div className='text-white/70 text-sm md:text-base mb-1'>Goals / Game</div>
 													<div className='text-white font-bold text-xl md:text-2xl'>{toNumber(teamData.goalsPerGame).toFixed(2)}</div>
 												</div>
 											</div>
@@ -2616,14 +2796,14 @@ export default function ClubStats() {
 												<div className='flex-shrink-0'>
 													<Image
 														src='/stat-icons/ConcededPerAppearance-Icon.svg'
-														alt='Conceded/Game'
+														alt='Conceded / Game'
 														width={40}
 														height={40}
 														className='w-8 h-8 md:w-10 md:h-10 object-contain'
 													/>
 												</div>
 												<div className='flex-1 min-w-0'>
-													<div className='text-white/70 text-sm md:text-base mb-1'>Conceded/Game</div>
+													<div className='text-white/70 text-sm md:text-base mb-1'>Conceded / Game</div>
 													<div className='text-white font-bold text-xl md:text-2xl'>{toNumber(teamData.goalsConcededPerGame).toFixed(2)}</div>
 												</div>
 											</div>
@@ -2789,6 +2969,18 @@ export default function ClubStats() {
 											</table>
 										</div>
 									</div>
+								)}
+
+								{featureFlags.clubStatsClubRecordings && clubRecordings.length > 0 && (
+									<RecordingsSection
+										id='club-recordings'
+										title='Club Recordings'
+										subtitle='All club matches with a recording link for your current filters.'
+										fixtures={clubRecordings}
+										teamColumn={showClubRecordingsTeamColumn}
+										collapseAfter={10}
+										testIdPrefix='club-recording'
+									/>
 								)}
 							</div>
 						);

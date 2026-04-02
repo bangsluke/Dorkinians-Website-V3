@@ -1,8 +1,9 @@
 "use client";
 
 import { useNavigationStore, type PlayerData } from "@/lib/stores/navigation";
-import { statObject, statsPageConfig, appConfig } from "@/config/config";
+import { statObject, statsPageConfig, appConfig, calculateCardFineTotal, featureFlags } from "@/config/config";
 import Image from "next/image";
+import Link from "next/link";
 import { useState, useMemo, useRef, useEffect } from "react";
 import { cachedFetch, generatePageCacheKey } from "@/lib/utils/pageCache";
 import { createPortal } from "react-dom";
@@ -12,15 +13,8 @@ import PenOnPaperIcon from "@/components/icons/PenOnPaperIcon";
 import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
 import FilterPills from "@/components/filters/FilterPills";
-import { BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, XAxis, YAxis, CartesianGrid, Line, ComposedChart } from "recharts";
 import dynamic from "next/dynamic";
-
-// Dynamically import OppositionMap to reduce initial bundle size (includes Google Maps)
-const OppositionMap = dynamic(() => import("@/components/maps/OppositionMap"), {
-	loading: () => <div className="text-white/60 text-sm p-4">Loading map...</div>,
-	ssr: false,
-});
-import OppositionPerformanceScatter from "@/components/stats/OppositionPerformanceScatter";
+import LazyWhenVisible from "@/components/perf/LazyWhenVisible";
 /* COMMENTED OUT: Share Stats functionality - will be re-added in the future */
 // import ShareableStatsCard from "@/components/stats/ShareableStatsCard";
 // import ShareVisualizationModal from "@/components/stats/ShareVisualizationModal";
@@ -40,6 +34,71 @@ import { calculateFTPBreakdown } from "@/lib/utils/fantasyPoints";
 import { ErrorState, EmptyState } from "@/components/ui/StateComponents";
 import { useToast } from "@/lib/hooks/useToast";
 import AllGamesModal from "@/components/stats/AllGamesModal";
+import PlayerRecentFormBoxes, { type PlayerFormRecentMatch } from "@/components/stats/PlayerRecentFormBoxes";
+import { type EarnedBadgeRow, type ProgressRow } from "@/components/stats/PlayerBadgeMilestoneGrid";
+import { getPlayerProfileHref } from "@/lib/profile/slug";
+import type { LiveStreakPayload } from "@/lib/stats/playerStreaksComputation";
+import { matchRatingCircleStyle } from "@/lib/utils/matchRatingDisplay";
+import { formatXiTeamLabel } from "@/lib/utils/formatXiTeamLabel";
+import RecordingsSection from "@/components/stats/RecordingsSection";
+import type { RecordingFixture } from "@/lib/utils/recordingsDisplay";
+
+// Dynamically import OppositionMap to reduce initial bundle size (includes Google Maps)
+const OppositionMap = dynamic(() => import("@/components/maps/OppositionMap"), {
+	loading: () => <div className="text-white/60 text-sm p-4">Loading map...</div>,
+	ssr: false,
+});
+const OppositionPerformanceScatter = dynamic(
+	() => import("@/components/stats/OppositionPerformanceScatter"),
+	{ ssr: false, loading: () => <ChartSkeleton /> },
+);
+const FormComposedChart = dynamic(() => import("./player-stats/FormComposedChart"), {
+	ssr: false,
+	loading: () => <ChartSkeleton />,
+});
+const SeasonalPerformanceChart = dynamic(() => import("./player-stats/SeasonalPerformanceChart"), {
+	ssr: false,
+	loading: () => <ChartSkeleton />,
+});
+const TeamPerformanceChart = dynamic(() => import("./player-stats/TeamPerformanceChart"), {
+	ssr: false,
+	loading: () => <ChartSkeleton />,
+});
+const MatchResultsPieChart = dynamic(() => import("./player-stats/MatchResultsPieChart"), {
+	ssr: false,
+	loading: () => <ChartSkeleton />,
+});
+const MonthlyPerformanceChart = dynamic(() => import("./player-stats/MonthlyPerformanceChart"), {
+	ssr: false,
+	loading: () => <ChartSkeleton />,
+});
+
+type PlayerStatsTableMode = "totals" | "perApp" | "per90";
+type PlayerStatsKeyMode = "totals" | "per90";
+type PartnershipSortMode = "bestWinRate" | "mostImprovedWinRate" | "mostGames";
+type FormTrend = "rising" | "declining" | "stable";
+
+const PER90_STAT_NAMES = new Set([
+	"goalsPer90",
+	"assistsPer90",
+	"goalInvolvementsPer90",
+	"ftpPer90",
+	"cleanSheetsPer90",
+	"concededPer90",
+	"savesPer90",
+	"cardsPer90",
+	"momPer90",
+]);
+
+function formatFormWeekLabel(value: string | null | undefined): string {
+	if (!value) return "-";
+	const label = value.trim();
+	const seasonWeek = label.match(/^(.+)-(\d+)$/);
+	if (seasonWeek) {
+		return `${seasonWeek[1]} Week ${seasonWeek[2]}`;
+	}
+	return label;
+}
 
 // Page-specific skeleton components (Player Stats only)
 function PositionalStatsSkeleton() {
@@ -83,6 +142,44 @@ function PenaltyStatsSkeleton() {
 
 // Page-specific skeleton components (keep in this file)
 
+function StreakStatTile({
+	label,
+	current,
+	seasonBest,
+	allTimeBest,
+	tip,
+}: {
+	label: string;
+	current: number;
+	seasonBest: string;
+	allTimeBest: string;
+	tip: string;
+}) {
+	const lit = current > 0;
+	return (
+		<div
+			tabIndex={0}
+			className={`relative group rounded-md p-2 flex flex-col items-center text-center gap-1 cursor-help outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow/80 ${
+				lit ? "bg-white/12" : "bg-white/5 opacity-75"
+			}`}
+		>
+			<div
+				className={`flex h-11 w-11 items-center justify-center rounded-full text-sm font-bold ${
+					lit ? "bg-dorkinians-yellow text-black" : "bg-white/15 text-white/80"
+				}`}
+			>
+				{current}
+			</div>
+			<p className='text-white/85 text-[11px] md:text-xs leading-tight'>{label}</p>
+			<p className='text-white/45 text-[10px] leading-tight w-full'>Season best: {seasonBest}</p>
+			<p className='text-white/45 text-[10px] leading-tight w-full'>All-time best: {allTimeBest}</p>
+			<div className='pointer-events-none absolute left-1/2 bottom-full z-40 mb-2 hidden w-[17rem] -translate-x-1/2 rounded-md bg-black/95 p-2 text-left text-[11px] text-white shadow-xl ring-1 ring-white/15 group-hover:block group-focus-within:block'>
+				<p className='text-white/95 leading-snug'>{tip}</p>
+			</div>
+		</div>
+	);
+}
+
 function FantasyPointsSkeleton() {
 	return (
 		<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
@@ -97,7 +194,17 @@ function FantasyPointsSkeleton() {
 	);
 }
 
-function StatRow({ stat, value, playerData }: { stat: any; value: any; playerData: PlayerData }) {
+function StatRow({
+	stat,
+	value,
+	playerData,
+	tableMode,
+}: {
+	stat: any;
+	value: any;
+	playerData: PlayerData;
+	tableMode: PlayerStatsTableMode;
+}) {
 	const [showTooltip, setShowTooltip] = useState(false);
 	const [tooltipPosition, setTooltipPosition] = useState<{ top: number; left: number; placement: 'above' | 'below' } | null>(null);
 	const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -265,11 +372,17 @@ function StatRow({ stat, value, playerData }: { stat: any; value: any; playerDat
 		setTooltipPosition(null);
 	};
 
+	const isPer90Stat = PER90_STAT_NAMES.has(stat.statName);
+	const isPer90ThresholdMet = toNumber(playerData.minutes) >= 360;
+	const showPer90ThresholdMessage = tableMode === "per90" && isPer90Stat && !isPer90ThresholdMet;
+
 	return (
 		<>
 			<tr
 				ref={rowRef}
-				className='border-b border-white/10 hover:bg-white/5 transition-colors relative group cursor-help'
+				className={`border-b border-white/10 transition-colors relative group cursor-help ${
+					showPer90ThresholdMessage ? "opacity-55" : "hover:bg-white/5"
+				}`}
 				onMouseEnter={handleMouseEnter}
 				onMouseLeave={handleMouseLeave}
 				onTouchStart={handleTouchStart}
@@ -291,6 +404,9 @@ function StatRow({ stat, value, playerData }: { stat: any; value: any; playerDat
 				<td className='px-3 md:px-4 py-2 md:py-3 text-right whitespace-nowrap'>
 					<span className='text-white font-mono text-xs md:text-sm'>
 						{(() => {
+							if (showPer90ThresholdMessage) {
+								return "Min. 360 mins";
+							}
 							const formatted = formatStatValue(value, stat.statFormat, stat.numberDecimalPlaces, (stat as any).statUnit);
 							if (stat.statName === "minutes") {
 								// Extract number and unit, format number with commas
@@ -321,7 +437,7 @@ function StatRow({ stat, value, playerData }: { stat: any; value: any; playerDat
 					) : (
 						<div className='absolute bottom-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent mb-1' style={{ borderBottomColor: '#0f0f0f' }}></div>
 					)}
-					{stat.description}
+					{showPer90ThresholdMessage ? "Min. 360 minutes required" : stat.description}
 				</div>,
 				document.body
 			)}
@@ -446,7 +562,7 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 							transform: 'scale(4)',
 							transformOrigin: 'center top'
 						}}
-						priority
+						loading="lazy"
 					/>
 				</div>
 				
@@ -1192,7 +1308,7 @@ function DistanceTravelledSection({
 							objectPosition: 'center',
 							borderRadius: '0.5rem'
 						}}
-						priority
+						loading="lazy"
 					/>
 				</div>
 				
@@ -1273,7 +1389,7 @@ function DefensiveRecordSection({
 							transformOrigin: 'center',
 							borderRadius: '0.5rem'
 						}}
-						priority
+						loading="lazy"
 					/>
 				</div>
 				
@@ -1297,7 +1413,7 @@ function DefensiveRecordSection({
 									<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>{cleanSheets}</td>
 								</tr>
 								<tr className='border-b border-white/10'>
-									<td className='py-2 px-2 text-xs md:text-sm'>Avg Goals Conceded/Game</td>
+									<td className='py-2 px-2 text-xs md:text-sm'>Avg Goals Conceded / Game</td>
 									<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>
 										{avgGoalsConcededPerGame > 0 ? avgGoalsConcededPerGame.toFixed(2) : '0.00'}
 									</td>
@@ -1390,7 +1506,7 @@ function MinutesPerStatsSection({
 							transformOrigin: 'center',
 							borderRadius: '0.5rem'
 						}}
-						priority
+						loading="lazy"
 					/>
 				</div>
 				
@@ -1483,7 +1599,7 @@ function PositionalStatsVisualization({ gk, def, mid, fwd, appearances, gkMinute
 						alt='Football Pitch'
 						fill
 						className='object-contain w-full h-full'
-						priority
+						loading="lazy"
 					/>
 				</div>
 				
@@ -1644,7 +1760,25 @@ function PositionalStatsVisualization({ gk, def, mid, fwd, appearances, gkMinute
 }
 
 export default function PlayerStats() {
-	const { selectedPlayer, cachedPlayerData, isLoadingPlayerData, enterEditMode, setMainPage, currentStatsSubPage, playerFilters, filterData, getCachedPageData, setCachedPageData, hasUnsavedFilters, isFilterSidebarOpen, openAllGamesModal, closeAllGamesModal, isAllGamesModalOpen } = useNavigationStore();
+	const {
+		selectedPlayer,
+		cachedPlayerData,
+		isLoadingPlayerData,
+		enterEditMode,
+		setMainPage,
+		setStatsSubPage,
+		selectPlayer,
+		currentStatsSubPage,
+		playerFilters,
+		filterData,
+		getCachedPageData,
+		setCachedPageData,
+		hasUnsavedFilters,
+		isFilterSidebarOpen,
+		openAllGamesModal,
+		closeAllGamesModal,
+		isAllGamesModalOpen,
+	} = useNavigationStore();
 	const { showError } = useToast();
 	const [error, setError] = useState<string | null>(null);
 	
@@ -1677,6 +1811,12 @@ export default function PlayerStats() {
 	// State for game details data
 	const [gameDetails, setGameDetails] = useState<any>(null);
 	const [isLoadingGameDetails, setIsLoadingGameDetails] = useState(false);
+	const [formData, setFormData] = useState<Array<{ week: string; date: string; rawScore: number; ewmaReactive: number; ewmaBaseline: number }>>([]);
+	const [formSummary, setFormSummary] = useState<{ formCurrent: number | null; formBaseline: number | null; formTrend: FormTrend; formPeak: number | null; formPeakWeek: string | null; seasonAvg: number | null } | null>(null);
+	const [goldenCrosses, setGoldenCrosses] = useState<Array<{ week: string; date: string }>>([]);
+	const [isLoadingFormData, setIsLoadingFormData] = useState(false);
+	const [recentFormMatches, setRecentFormMatches] = useState<PlayerFormRecentMatch[]>([]);
+	const [liveStreaks, setLiveStreaks] = useState<LiveStreakPayload | null>(null);
 
 	// State for awards data
 	const [awardsData, setAwardsData] = useState<any>(null);
@@ -1692,9 +1832,16 @@ export default function PlayerStats() {
 	const [totalAwards, setTotalAwards] = useState<number>(0);
 	const [isLoadingAwardHistory, setIsLoadingAwardHistory] = useState(false);
 
-	// State for icon loading tracking in Key Performance Stats
-	const [loadedIcons, setLoadedIcons] = useState<Set<string>>(new Set());
-	const [allIconsLoaded, setAllIconsLoaded] = useState(false);
+	const [playerRecordings, setPlayerRecordings] = useState<RecordingFixture[]>([]);
+
+	// Feature 9 - milestone badges (Neo4j PlayerBadge + progress)
+	const [badgePayload, setBadgePayload] = useState<{
+		totalBadges: number;
+		highestBadgeTier: string | null;
+		earned: EarnedBadgeRow[];
+		progress: ProgressRow[];
+	} | null>(null);
+	const [isLoadingBadges, setIsLoadingBadges] = useState(false);
 
 	// State for view mode toggle - initialize from localStorage
 	const [isDataTableMode, setIsDataTableMode] = useState<boolean>(() => {
@@ -1705,6 +1852,29 @@ export default function PlayerStats() {
 		}
 		return false;
 	});
+	const [tableStatMode, setTableStatMode] = useState<PlayerStatsTableMode>(() => {
+		if (typeof window !== "undefined") {
+			const saved = safeLocalStorageGet("player-stats-table-mode");
+			if (saved === "totals" || saved === "perApp" || saved === "per90") {
+				return saved;
+			}
+		}
+		return "totals";
+	});
+	const [keyPerformanceMode, setKeyPerformanceMode] = useState<PlayerStatsKeyMode>("totals");
+	const [partnershipSortMode, setPartnershipSortMode] = useState<PartnershipSortMode>("bestWinRate");
+
+	useEffect(() => {
+		if (!featureFlags.playerStatsDataTablePer90 && tableStatMode === "per90") {
+			setTableStatMode("totals");
+		}
+	}, [tableStatMode]);
+
+	useEffect(() => {
+		if (!featureFlags.playerStatsKeyPerformance && keyPerformanceMode === "per90") {
+			setKeyPerformanceMode("totals");
+		}
+	}, [keyPerformanceMode]);
 
 	// Persist view mode to localStorage when it changes
 	useEffect(() => {
@@ -1712,6 +1882,11 @@ export default function PlayerStats() {
 			safeLocalStorageSet("player-stats-view-mode", isDataTableMode ? "true" : "false");
 		}
 	}, [isDataTableMode]);
+	useEffect(() => {
+		if (typeof window !== "undefined") {
+			safeLocalStorageSet("player-stats-table-mode", tableStatMode);
+		}
+	}, [tableStatMode]);
 
 	/* COMMENTED OUT: Share Stats functionality - will be re-added in the future */
 	// State for share functionality
@@ -1734,8 +1909,67 @@ export default function PlayerStats() {
 	const filteredStatEntries = useMemo(() => {
 		return Object.entries(statObject).filter(([key]) => statsToDisplay.includes(key as keyof typeof statObject));
 	}, [statsToDisplay]);
+	const displayedStatEntries = useMemo(() => {
+		return filteredStatEntries.filter(([, stat]) => {
+			const statName = String(stat?.statName || "");
+			const isPer90 = PER90_STAT_NAMES.has(statName);
+			const isPerApp = String(stat?.statCategory || "") === "Per App/Minute Stat";
+
+			if (tableStatMode === "per90") return isPer90;
+			if (tableStatMode === "perApp") return isPerApp && !isPer90;
+			return !isPer90 && !isPerApp;
+		});
+	}, [filteredStatEntries, tableStatMode]);
 
 	const playerData: PlayerData | null = cachedPlayerData?.playerData || null;
+
+	const partnershipList = useMemo(() => {
+		const raw = playerData?.partnershipsTopJson;
+		if (!raw) return [] as Array<{ name: string; winRate: number; matches: number }>;
+		try {
+			const parsed = JSON.parse(raw) as unknown;
+			if (!Array.isArray(parsed)) return [];
+			return parsed
+				.filter((x): x is Record<string, unknown> => x != null && typeof x === "object")
+				.map((x) => ({
+					name: String(x.name ?? ""),
+					winRate: typeof x.winRate === "number" ? x.winRate : Number(x.winRate),
+					matches: typeof x.matches === "number" ? x.matches : Number(x.matches),
+				}))
+				.filter((x) => x.name.length > 0 && !Number.isNaN(x.winRate) && !Number.isNaN(x.matches) && x.matches >= 5);
+		} catch {
+			return [];
+		}
+	}, [playerData?.partnershipsTopJson]);
+
+	const partnershipListDisplay = useMemo(() => {
+		const list = [...partnershipList];
+		const base = playerData?.impactWinRateWith;
+
+		if (partnershipSortMode === "mostGames") {
+			list.sort((a, b) => b.matches - a.matches || a.name.localeCompare(b.name));
+		} else if (partnershipSortMode === "mostImprovedWinRate") {
+			// Rank by the same value as the green subtitle: partnership win % minus your win rate when you play (percentage points).
+			list.sort((a, b) => {
+				if (base != null && typeof base === "number" && !Number.isNaN(base)) {
+					const da = a.winRate - base;
+					const db = b.winRate - base;
+					if (db !== da) return db - da;
+				}
+				return b.winRate - a.winRate || b.matches - a.matches || a.name.localeCompare(b.name);
+			});
+		} else {
+			// bestWinRate: highest partnership win percentage (ties: more shared games first)
+			list.sort((a, b) => b.winRate - a.winRate || b.matches - a.matches || a.name.localeCompare(b.name));
+		}
+		return list.slice(0, 10);
+	}, [partnershipList, partnershipSortMode, playerData?.impactWinRateWith]);
+
+	const streakDisplaySource = useMemo((): PlayerData | null => {
+		if (!playerData) return null;
+		if (!liveStreaks) return playerData;
+		return { ...playerData, ...liveStreaks };
+	}, [playerData, liveStreaks]);
 
 	// Debug log for position counts (must be before early returns)
 	useEffect(() => {
@@ -1766,30 +2000,31 @@ export default function PlayerStats() {
 		const totalSeasons = filterData?.seasons?.length || 0;
 		const seasonsPlayed = toNumber(playerData.numberSeasonsPlayedFor);
 		const seasonsDisplay = totalSeasons > 0 ? `${seasonsPlayed}/${totalSeasons}` : seasonsPlayed.toString();
+		if (keyPerformanceMode === "per90") {
+			return [
+				{ name: "G/90", value: playerData.goalsPer90, isPer90: true },
+				{ name: "A/90", value: playerData.assistsPer90, isPer90: true },
+				{ name: "GI/90", value: playerData.goalInvolvementsPer90, isPer90: true },
+				{ name: "FTP/90", value: playerData.ftpPer90, isPer90: true },
+				{ name: "Cards/90", value: playerData.cardsPer90, isPer90: true },
+				{ name: "MoM/90", value: playerData.momPer90, isPer90: true },
+				{ name: "Avg Rtg", value: playerData.averageMatchRating, isRating: true },
+				{ name: "Mins", value: toNumber(playerData.minutes) },
+				{ name: "Seasons", value: seasonsDisplay, isString: true },
+			];
+		}
 		return [
 			{ name: "Apps", value: toNumber(playerData.appearances) },
 			{ name: "Mins", value: toNumber(playerData.minutes) },
+			{ name: "Starts", value: toNumber(playerData.starts) },
 			{ name: "Seasons", value: seasonsDisplay, isString: true },
 			{ name: "MoM", value: toNumber(playerData.mom) },
+			{ name: "Avg Rtg", value: playerData.averageMatchRating, isRating: true },
 			{ name: "Goals", value: toNumber(playerData.allGoalsScored) },
 			{ name: "Assists", value: toNumber(playerData.assists) },
+			{ name: "Form", value: formSummary?.formCurrent ?? null, isForm: true },
 		];
-	}, [playerData, filterData]);
-
-	// Reset icon loading state when keyPerformanceData changes
-	useEffect(() => {
-		setLoadedIcons(new Set());
-		setAllIconsLoaded(false);
-	}, [keyPerformanceData]);
-
-	// Check when all icons are loaded
-	useEffect(() => {
-		// Count all items that are actually rendered (all items in keyPerformanceData are rendered)
-		const expectedIcons = keyPerformanceData.length;
-		if (loadedIcons.size === expectedIcons && expectedIcons > 0) {
-			setAllIconsLoaded(true);
-		}
-	}, [loadedIcons, keyPerformanceData]);
+	}, [playerData, filterData, keyPerformanceMode, formSummary]);
 
 	const cardData = useMemo(() => {
 		if (!playerData) return [];
@@ -1866,7 +2101,6 @@ export default function PlayerStats() {
 		{ value: "Penalties Saved", label: "Penalties Saved", statKey: "penaltiesSaved" },
 		{ value: "Distance Travelled", label: "Distance Travelled", statKey: "distance" },
 	], []);
-
 	// Priority 1 & 2: Parallelized data fetching for above-the-fold content
 	// Fetch seasonal stats, team stats, opposition map, and opposition performance in parallel
 	useEffect(() => {
@@ -1875,6 +2109,10 @@ export default function PlayerStats() {
 			setTeamStats([]);
 			setOppositionMapData([]);
 			setOppositionPerformanceData([]);
+			setFormData([]);
+			setFormSummary(null);
+			setGoldenCrosses([]);
+			setRecentFormMatches([]);
 			return;
 		}
 		if (appConfig.forceSkeletonView) {
@@ -1888,6 +2126,15 @@ export default function PlayerStats() {
 			setIsLoadingTeamStats(allTeamsSelected);
 			setIsLoadingOppositionMap(true);
 			setIsLoadingOppositionPerformance(true);
+			if (featureFlags.playerStatsForm) {
+				setIsLoadingFormData(true);
+			} else {
+				setIsLoadingFormData(false);
+				setFormData([]);
+				setFormSummary(null);
+				setGoldenCrosses([]);
+				setRecentFormMatches([]);
+			}
 
 			try {
 				// Build parallel fetch promises
@@ -1995,6 +2242,40 @@ export default function PlayerStats() {
 						.finally(() => setIsLoadingOppositionPerformance(false))
 				);
 
+				// Form curve data (feature-flagged)
+				if (featureFlags.playerStatsForm) {
+					const playerFormCacheKey = generatePageCacheKey("stats", "player-stats", "player-form", {
+						playerName: selectedPlayer,
+						filters: playerFilters,
+					});
+					fetchPromises.push(
+						cachedFetch("/api/player-form", {
+							method: "POST",
+							body: {
+								playerName: selectedPlayer,
+								filters: playerFilters,
+							},
+							cacheKey: playerFormCacheKey,
+							getCachedPageData,
+							setCachedPageData,
+						})
+							.then((data) => {
+								setFormData(data.history || []);
+								setFormSummary(data.summary || null);
+								setGoldenCrosses(data.goldenCrosses || []);
+								setRecentFormMatches(Array.isArray(data.recentFormMatches) ? data.recentFormMatches : []);
+							})
+							.catch((error) => {
+								log("error", "Error fetching player form data:", error);
+								setFormData([]);
+								setFormSummary(null);
+								setGoldenCrosses([]);
+								setRecentFormMatches([]);
+							})
+							.finally(() => setIsLoadingFormData(false))
+					);
+				}
+
 				// Execute all fetches in parallel
 				await Promise.all(fetchPromises);
 			} catch (error) {
@@ -2090,6 +2371,80 @@ export default function PlayerStats() {
 		fetchAllBelowFoldData();
 	}, [selectedPlayer, playerFilters, hasUnsavedFilters, isFilterSidebarOpen]);
 
+	// Player recordings (Veo) for fixtures this player played in
+	useEffect(() => {
+		if (!selectedPlayer) {
+			setPlayerRecordings([]);
+			return;
+		}
+		if (!featureFlags.playerStatsPlayerRecordings) {
+			setPlayerRecordings([]);
+			return;
+		}
+		if (appConfig.forceSkeletonView) return;
+		if (hasUnsavedFilters || isFilterSidebarOpen) return;
+
+		const fetchPlayerRecordings = async () => {
+			setPlayerRecordings([]);
+			try {
+				const requestBody = {
+					playerName: selectedPlayer,
+					filters: playerFilters,
+				};
+				const cacheKey = generatePageCacheKey("stats", "player-stats", "player-recordings", requestBody);
+				const data = await cachedFetch("/api/player-recordings", {
+					method: "POST",
+					body: requestBody,
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
+				});
+				setPlayerRecordings((data.fixtures || []) as RecordingFixture[]);
+			} catch (err) {
+				log("error", "Error fetching player recordings:", err);
+				setPlayerRecordings([]);
+			}
+		};
+
+		fetchPlayerRecordings();
+	}, [selectedPlayer, playerFilters, hasUnsavedFilters, isFilterSidebarOpen, getCachedPageData, setCachedPageData]);
+
+	// Live streak metrics (filter-scoped; aligned with chatbot / foundation streak rules)
+	useEffect(() => {
+		if (!selectedPlayer) {
+			setLiveStreaks(null);
+			return;
+		}
+		if (!featureFlags.playerStatsStreaks) {
+			setLiveStreaks(null);
+			return;
+		}
+		if (appConfig.forceSkeletonView) return;
+		if (hasUnsavedFilters || isFilterSidebarOpen) return;
+
+		let cancelled = false;
+		(async () => {
+			try {
+				const { getCsrfHeaders } = await import("@/lib/middleware/csrf");
+				const res = await fetch("/api/player-streaks", {
+					method: "POST",
+					headers: { "Content-Type": "application/json", ...getCsrfHeaders() },
+					body: JSON.stringify({ playerName: selectedPlayer, filters: playerFilters }),
+				});
+				if (!res.ok) throw new Error(`player-streaks ${res.status}`);
+				const data = (await res.json()) as { streaks?: LiveStreakPayload };
+				if (!cancelled && data.streaks) setLiveStreaks(data.streaks);
+			} catch (e) {
+				log("warn", "Live streaks fetch failed; using player payload streaks", e);
+				if (!cancelled) setLiveStreaks(null);
+			}
+		})();
+
+		return () => {
+			cancelled = true;
+		};
+	}, [selectedPlayer, playerFilters, hasUnsavedFilters, isFilterSidebarOpen]);
+
 	// Priority 3: Below fold - Captaincies, Awards and Achievements section
 	// Fetch awards, captain history, and award history in parallel
 	useEffect(() => {
@@ -2099,6 +2454,8 @@ export default function PlayerStats() {
 			setTotalCaptaincies(0);
 			setAwardHistory([]);
 			setTotalAwards(0);
+			setBadgePayload(null);
+			setIsLoadingBadges(false);
 			return;
 		}
 		if (appConfig.forceSkeletonView) {
@@ -2110,11 +2467,14 @@ export default function PlayerStats() {
 			setIsLoadingAwards(true);
 			setIsLoadingCaptainHistory(true);
 			setIsLoadingAwardHistory(true);
+			setIsLoadingBadges(featureFlags.achievementBadges);
+			if (!featureFlags.achievementBadges) {
+				setBadgePayload(null);
+			}
 
 			try {
 				const playerParams = { playerName: selectedPlayer };
-				// Execute all awards-related fetches in parallel
-				await Promise.all([
+				const parallel: Promise<unknown>[] = [
 					// Awards data
 					cachedFetch(`/api/player-awards?playerName=${encodeURIComponent(selectedPlayer)}`, {
 						method: "GET",
@@ -2165,9 +2525,40 @@ export default function PlayerStats() {
 							setTotalAwards(0);
 						})
 						.finally(() => setIsLoadingAwardHistory(false)),
-				]);
+				];
+
+				if (featureFlags.achievementBadges) {
+					parallel.push(
+						cachedFetch(`/api/player-badges?playerName=${encodeURIComponent(selectedPlayer)}`, {
+							method: "GET",
+							cacheKey: generatePageCacheKey("stats", "player-stats", "player-badges", playerParams),
+							getCachedPageData,
+							setCachedPageData,
+						})
+							.then((data) => {
+								if (data && Array.isArray(data.earned) && Array.isArray(data.progress)) {
+									setBadgePayload({
+										totalBadges: typeof data.totalBadges === "number" ? data.totalBadges : data.earned.length,
+										highestBadgeTier: data.highestBadgeTier ?? null,
+										earned: data.earned,
+										progress: data.progress,
+									});
+								} else {
+									setBadgePayload(null);
+								}
+							})
+							.catch((error) => {
+								log("error", "Error fetching player badges:", error);
+								setBadgePayload(null);
+							})
+							.finally(() => setIsLoadingBadges(false)),
+					);
+				}
+
+				await Promise.all(parallel);
 			} catch (error) {
 				log("error", "Error in parallel awards data fetching:", error);
+				setIsLoadingBadges(false);
 			}
 		};
 
@@ -2262,6 +2653,11 @@ export default function PlayerStats() {
 		}));
 	}, [monthlyStats, monthlySelectedStat, statOptions]);
 
+	const profileHref = useMemo(() => {
+		if (!featureFlags.playerProfile || !selectedPlayer) return null;
+		return getPlayerProfileHref(selectedPlayer);
+	}, [selectedPlayer]);
+
 	/* COMMENTED OUT: Share Stats functionality - will be re-added in the future */
 	// Get available visualizations (must be before early returns)
 	// const availableVisualizations = useMemo(() => {
@@ -2325,11 +2721,17 @@ export default function PlayerStats() {
 				<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
 					<div className='h-full flex flex-col'>
 					<div className='flex-shrink-0 p-2 md:p-4'>
-						<div className='flex items-center justify-center mb-2 md:mb-4 relative'>
-							<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow text-center' data-testid="stats-page-heading">Stats - {selectedPlayer}</h2>
+						<div className='flex items-center justify-center mb-2 md:mb-4 space-x-2 md:space-x-3'>
+							<h2
+								className='text-xl md:text-2xl font-semibold text-dorkinians-yellow text-center'
+								data-testid='stats-page-heading'>
+								Stats - {selectedPlayer}
+							</h2>
 							<button
+								type='button'
+								data-testid='home-edit-player-button'
 								onClick={handleEditClick}
-								className='absolute right-0 flex items-center justify-center w-8 h-8 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors'
+								className='p-1.5 md:p-2 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors shrink-0'
 								title='Edit player selection'>
 								<PenOnPaperIcon className='h-4 w-4 md:h-5 md:w-5' />
 							</button>
@@ -2348,8 +2750,18 @@ export default function PlayerStats() {
 						<FilterPills playerFilters={playerFilters} filterData={filterData} currentStatsSubPage={currentStatsSubPage} />
 					</div>
 					<div className='flex-1 px-2 md:px-4 pb-4 min-h-0 overflow-y-auto space-y-4 md:space-y-0 player-stats-masonry'>
-						<div className='md:break-inside-avoid md:mb-4'>
-							<StatCardSkeleton />
+						<div className='player-stats-kpi-form-group flex flex-col gap-4 md:gap-0 md:break-inside-avoid md:mb-4'>
+							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:mb-4'>
+								<div className='flex items-center justify-between gap-2 mb-3'>
+									<Skeleton height={22} width="45%" className='max-w-[220px]' />
+									<Skeleton height={32} width={112} />
+								</div>
+								<StatCardSkeleton count={9} variant='embedded' />
+							</div>
+							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+								<Skeleton height={20} width={56} className='mb-2' />
+								<ChartSkeleton />
+							</div>
 						</div>
 						<div className='md:break-inside-avoid md:mb-4'>
 							<ChartSkeleton />
@@ -2787,77 +3199,222 @@ export default function PlayerStats() {
 		return null;
 	};
 
-	const chartContent = (
-		<div className='space-y-4 pb-4 md:space-y-0 player-stats-masonry'>
-			{/* Key Performance Stats Grid */}
-			{playerData && keyPerformanceData.length > 0 ? (
-				<div className='md:break-inside-avoid md:mb-4 relative'>
-					{/* Skeleton - shown while loading or icons not loaded */}
-					{(isLoadingPlayerData || !allIconsLoaded) && (
-						<div className='absolute inset-0 z-10 bg-transparent'>
-							<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-								<StatCardSkeleton />
-							</SkeletonTheme>
-						</div>
-					)}
-					{/* Actual content - always rendered so images can load */}
-					<div id='key-performance-stats' className={`bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 ${(isLoadingPlayerData || !allIconsLoaded) ? 'opacity-0' : 'opacity-100'}`}>
-						<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Key Performance Stats</h3>
-						<div className='grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4'>
-							{keyPerformanceData.map((item, index) => {
-								let statKey = "APP";
-								if (item.name === "Apps") statKey = "APP";
-								else if (item.name === "Mins") statKey = "MIN";
-								else if (item.name === "Seasons") statKey = "NumberSeasonsPlayedFor";
-								else if (item.name === "MoM") statKey = "MOM";
-								else if (item.name === "Goals") statKey = "AllGSC";
-								else if (item.name === "Assists") statKey = "A";
-								const stat = statObject[statKey as keyof typeof statObject];
-								// Use Goals-Icon specifically for Goals stat
-								const iconName = item.name === "Goals" ? "Goals-Icon" : (stat?.iconName || "Appearance-Icon");
-								// Priority loading for first 3 icons (Apps, Mins, Goals)
-								const isPriority = index < 3;
-								return (
-									<div key={item.name} className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
-										<div className='flex-shrink-0'>
-											<Image
-												src={`/stat-icons/${iconName}.svg`}
-												alt={stat?.displayText || item.name}
-												width={40}
-												height={40}
-												className='w-8 h-8 md:w-10 md:h-10 object-contain'
-												priority={isPriority}
-												loading="eager"
-												onLoad={() => {
-													setLoadedIcons(prev => new Set([...prev, iconName]));
-												}}
-												onError={() => {
-													// If icon fails to load, still mark it as "loaded" to prevent skeleton from showing forever
-													setLoadedIcons(prev => new Set([...prev, iconName]));
-												}}
-											/>
-										</div>
-										<div className='flex-1 min-w-0'>
-											<div className='text-white/70 text-sm md:text-base mb-1'>
-												{item.name}
-											</div>
-											<div className='text-white font-bold text-xl md:text-2xl'>
-												{(item as any).isString ? item.value : (() => {
-													if (item.name === "Mins") {
-														// Format minutes with commas and without " mins" suffix
-														return Math.round(toNumber(item.value)).toLocaleString();
-													}
-													return formatStatValue(item.value, stat?.statFormat || "Integer", stat?.numberDecimalPlaces || 0, (stat as any)?.statUnit);
-												})()}
-											</div>
-										</div>
-									</div>
-								);
-							})}
-						</div>
+	const showKpiBlock = Boolean(playerData && keyPerformanceData.length > 0);
+	const showFormBlock = Boolean(playerData && featureFlags.playerStatsForm);
+	const kpiAndFormGrouped = showKpiBlock && showFormBlock;
+
+	const formSectionInner = (
+		<>
+			<div className='flex items-center gap-2 mb-2'>
+				<h3 className='text-white font-semibold text-sm md:text-base'>Form</h3>
+				<div className='relative group'>
+					<span className='inline-flex items-center justify-center w-4 h-4 text-[10px] rounded-full border border-white/40 text-white/80 cursor-help'>
+						i
+					</span>
+					<div className='pointer-events-none absolute left-0 top-6 z-20 hidden w-72 rounded-md bg-black/90 p-2 text-[11px] text-white shadow-lg group-hover:block'>
+						Each point is your match rating for that game (with fantasy-points fallback when needed). The yellow line is current form (5-match EWMA) and the green line is the longer baseline (15-match EWMA). Grey dots are the raw rating for each match.
 					</div>
 				</div>
-			) : null}
+			</div>
+			{isLoadingFormData ? (
+				<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+					<Skeleton height={48} className='rounded mb-3' />
+					<Skeleton height={220} className='rounded mb-3' />
+					<div className='grid grid-cols-2 md:grid-cols-3 gap-2'>
+						<Skeleton height={64} className='rounded' />
+						<Skeleton height={64} className='rounded' />
+						<Skeleton height={64} className='rounded col-span-2 md:col-span-1' />
+					</div>
+				</SkeletonTheme>
+			) : formData.length > 0 ? (
+				<>
+					{recentFormMatches.length > 0 ? <PlayerRecentFormBoxes matchesNewestFirst={recentFormMatches} /> : null}
+					<LazyWhenVisible rootMargin="120px" className="min-h-[220px] -my-2 md:my-0" fallback={<ChartSkeleton />}>
+						<FormComposedChart formData={formData} />
+					</LazyWhenVisible>
+					<div className='grid grid-cols-2 md:grid-cols-3 gap-2 mt-3'>
+						{(() => {
+							const v = formSummary?.formCurrent;
+							const band = v != null && !Number.isNaN(v) ? matchRatingCircleStyle(v) : null;
+							return (
+								<div
+									className='rounded-md border-2 p-2'
+									style={{
+										backgroundColor: band?.backgroundColor ?? "rgba(255,255,255,0.05)",
+										borderColor: band?.borderColor ?? "rgba(255,255,255,0.12)",
+									}}>
+									<p className='text-white/75 text-xs'>Current form</p>
+									<p className='font-semibold text-sm md:text-base' style={{ color: band?.color ?? "rgba(255,255,255,0.95)" }}>
+										{formSummary?.formCurrent != null ? formSummary.formCurrent.toFixed(1) : "-"}{" "}
+										{formSummary?.formTrend === "rising" ? "↑" : formSummary?.formTrend === "declining" ? "↓" : "→"}
+									</p>
+								</div>
+							);
+						})()}
+						{(() => {
+							const v = formSummary?.seasonAvg;
+							const band = v != null && !Number.isNaN(v) ? matchRatingCircleStyle(v) : null;
+							return (
+								<div
+									className='rounded-md border-2 p-2'
+									style={{
+										backgroundColor: band?.backgroundColor ?? "rgba(255,255,255,0.05)",
+										borderColor: band?.borderColor ?? "rgba(255,255,255,0.12)",
+									}}>
+									<p className='text-white/75 text-xs'>Season avg</p>
+									<p className='font-semibold text-sm md:text-base' style={{ color: band?.color ?? "rgba(255,255,255,0.95)" }}>
+										{formSummary?.seasonAvg != null ? formSummary.seasonAvg.toFixed(1) : "-"}
+									</p>
+								</div>
+							);
+						})()}
+						{(() => {
+							const v = formSummary?.formPeak;
+							const band = v != null && !Number.isNaN(v) ? matchRatingCircleStyle(v) : null;
+							return (
+								<div
+									className='rounded-md border-2 p-2 col-span-2 md:col-span-1'
+									style={{
+										backgroundColor: band?.backgroundColor ?? "rgba(255,255,255,0.05)",
+										borderColor: band?.borderColor ?? "rgba(255,255,255,0.12)",
+									}}>
+									<p className='text-white/75 text-xs'>Peak form</p>
+									<p className='font-semibold text-sm md:text-base' style={{ color: band?.color ?? "rgba(255,255,255,0.95)" }}>
+										{formSummary?.formPeak != null
+											? `${formSummary.formPeak.toFixed(1)} (${formatFormWeekLabel(formSummary.formPeakWeek)})`
+											: "-"}
+									</p>
+								</div>
+							);
+						})()}
+					</div>
+				</>
+			) : (
+				<p className='text-white/70 text-xs md:text-sm'>No form data available for the current filters.</p>
+			)}
+		</>
+	);
+
+	const chartContent = (
+		<div className='space-y-4 pb-4 md:space-y-0 player-stats-masonry'>
+			{(showKpiBlock || showFormBlock) && (
+				<div
+					className={
+						kpiAndFormGrouped
+							? "player-stats-kpi-form-group flex flex-col gap-4 md:gap-0 md:break-inside-avoid md:mb-4"
+							: showKpiBlock
+								? "md:break-inside-avoid md:mb-4"
+								: ""
+					}>
+					{showKpiBlock ? (
+						<div id='key-performance-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:mb-4'>
+							<div className='flex items-center justify-between gap-2 mb-3'>
+								<h3 className='text-white font-semibold text-sm md:text-base'>Key Performance Stats</h3>
+								<div className='inline-flex rounded-md overflow-hidden border border-white/20'>
+									<button
+										type='button'
+										onClick={() => setKeyPerformanceMode("totals")}
+										className={`px-2 py-1 text-xs md:text-sm ${keyPerformanceMode === "totals" ? "bg-dorkinians-yellow text-black font-semibold" : "bg-transparent text-white"}`}
+									>
+										Totals
+									</button>
+									{featureFlags.playerStatsKeyPerformance ? (
+										<button
+											type='button'
+											onClick={() => setKeyPerformanceMode("per90")}
+											className={`px-2 py-1 text-xs md:text-sm border-l border-white/20 ${keyPerformanceMode === "per90" ? "bg-dorkinians-yellow text-black font-semibold" : "bg-transparent text-white"}`}
+										>
+											Per 90
+										</button>
+									) : null}
+								</div>
+							</div>
+							{isLoadingPlayerData ? (
+								<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+									<StatCardSkeleton count={9} variant='embedded' />
+								</SkeletonTheme>
+							) : (
+								<div className='grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4'>
+									{keyPerformanceData.map((item, index) => {
+										let statKey = "APP";
+										if (item.name === "Apps") statKey = "APP";
+										else if (item.name === "Starts") statKey = "PlayerStarts";
+										else if (item.name === "Mins") statKey = "MIN";
+										else if (item.name === "Seasons") statKey = "NumberSeasonsPlayedFor";
+										else if (item.name === "MoM") statKey = "MOM";
+										else if (item.name === "Form") statKey = "PlayerAvgMatchRating";
+										else if (item.name === "Avg Rtg") statKey = "PlayerAvgMatchRating";
+										else if (item.name === "Goals") statKey = "AllGSC";
+										else if (item.name === "Assists") statKey = "A";
+										else if (item.name === "G/90") statKey = "PlayerGoalsPer90";
+										else if (item.name === "A/90") statKey = "PlayerAssistsPer90";
+										else if (item.name === "GI/90") statKey = "PlayerGI90";
+										else if (item.name === "FTP/90") statKey = "PlayerFTP90";
+										else if (item.name === "Cards/90") statKey = "PlayerCards90";
+										else if (item.name === "MoM/90") statKey = "PlayerMoM90";
+										const stat = statObject[statKey as keyof typeof statObject];
+										const iconName = item.name === "Goals" ? "Goals-Icon" : (stat?.iconName || "Appearance-Icon");
+										const isPriority = index < 3;
+										return (
+											<div key={item.name} className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
+												<div className='flex-shrink-0'>
+													<Image
+														src={`/stat-icons/${iconName}.svg`}
+														alt={stat?.displayText || item.name}
+														width={40}
+														height={40}
+														className='w-8 h-8 md:w-10 md:h-10 object-contain'
+														priority={isPriority}
+													/>
+												</div>
+												<div className='flex-1 min-w-0'>
+													<div className='text-white/70 text-sm md:text-base mb-1'>
+														{item.name}
+													</div>
+													<div className='text-white font-bold text-xl md:text-2xl'>
+														{(item as any).isString ? item.value : (() => {
+															if ((item as any).isForm) {
+																const v = item.value as number | null | undefined;
+																if (v == null) return "-";
+																const trend = formSummary?.formTrend || "stable";
+																const arrow = trend === "rising" ? "↑" : trend === "declining" ? "↓" : "→";
+																return `${v.toFixed(1)} ${arrow}`;
+															}
+															if ((item as any).isPer90 && toNumber(playerData!.minutes) < 360) {
+																return "Min. 360";
+															}
+															if (item.name === "Mins") {
+																return Math.round(toNumber(item.value)).toLocaleString();
+															}
+															if ((item as any).isRating) {
+																const v = item.value as number | null | undefined;
+																if (v === null || v === undefined) return "-";
+																return formatStatValue(v, stat?.statFormat || "Decimal1", stat?.numberDecimalPlaces ?? 1, (stat as any)?.statUnit);
+															}
+															return formatStatValue(item.value, stat?.statFormat || "Integer", stat?.numberDecimalPlaces || 0, (stat as any)?.statUnit);
+														})()}
+													</div>
+												</div>
+											</div>
+										);
+									})}
+								</div>
+							)}
+						</div>
+					) : null}
+					{showFormBlock ? (
+						<div
+							id='form-section'
+							className={
+								kpiAndFormGrouped
+									? "relative z-30 bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4"
+									: "relative z-30 bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4"
+							}>
+							{formSectionInner}
+						</div>
+					) : null}
+				</div>
+			)}
 
 			{/* All Games Section */}
 			<div id='all-games' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
@@ -2872,6 +3429,133 @@ export default function PlayerStats() {
 					</button>
 				</div>
 			</div>
+
+			{/* Streaks - live computation for current filter set (foundation / chatbot rules) */}
+			{playerData && streakDisplaySource && featureFlags.playerStatsStreaks ? (
+				<div id='streaks-section' className='relative z-30 bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
+					<div className='flex items-center gap-2 mb-2'>
+						<h3 className='text-white font-semibold text-sm md:text-base'>Streaks</h3>
+						<div className='relative group'>
+							<span
+								tabIndex={0}
+								className='inline-flex items-center justify-center w-4 h-4 text-[10px] rounded-full border border-white/40 text-white/80 cursor-help outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow/80'>
+								i
+							</span>
+							<div className='pointer-events-none absolute left-0 top-6 z-20 hidden w-72 rounded-md bg-black/90 p-2 text-[11px] text-white shadow-lg group-hover:block group-focus-within:block'>
+								Active runs are consecutive matches (by date) where the condition held. Values are computed live from your current filters (same
+								rules as the chatbot and foundation seed). Appearance streak uses your most-played XI: if that side played and you were not in the
+								squad, the run ends. &quot;Season best&quot; uses the season of your chronologically last game in the filtered set. Hover a tile for how +1 is
+								earned.
+							</div>
+						</div>
+					</div>
+					{(() => {
+						type StreakCard = {
+							label: string;
+							cur: keyof PlayerData;
+							seasonBest?: keyof PlayerData;
+							allTimeBest?: keyof PlayerData;
+							tip: string;
+						};
+						const src = streakDisplaySource;
+						const sn = (k: keyof PlayerData) => {
+							const v = src[k];
+							return typeof v === "number" && !Number.isNaN(v) ? v : 0;
+						};
+						const fmtOpt = (k?: keyof PlayerData) => {
+							if (!k) return "-";
+							const v = src[k];
+							return typeof v === "number" && !Number.isNaN(v) ? String(v) : "-";
+						};
+						const activeCards: StreakCard[] = [
+							{
+								label: "Scoring",
+								cur: "currentScoringStreak",
+								seasonBest: "seasonBestScoringStreak",
+								allTimeBest: "allTimeBestScoringStreak",
+								tip: "Counts consecutive games where you scored (goals or penalties). A blank scores resets the run.",
+							},
+							{
+								label: "Assists",
+								cur: "currentAssistStreak",
+								seasonBest: "seasonBestAssistStreak",
+								allTimeBest: "allTimeBestAssistStreak",
+								tip: "Counts consecutive games with at least one assist. A game with no assist resets the run.",
+							},
+							{
+								label: "Goal involvement",
+								cur: "currentGoalInvolvementStreak",
+								seasonBest: "seasonBestGoalInvolvementStreak",
+								allTimeBest: "allTimeBestGoalInvolvementStreak",
+								tip: "Counts consecutive games with a goal or assist (or both). A game with neither resets the run.",
+							},
+							{
+								label: "Clean sheet",
+								cur: "currentCleanSheetStreak",
+								seasonBest: "seasonBestCleanSheetStreak",
+								allTimeBest: "allTimeBestCleanSheetStreak",
+								tip: "As a defender or keeper: consecutive games where your side conceded zero while you played. Conceding resets the run.",
+							},
+							{
+								label: "Appearances",
+								cur: "currentAppearanceStreak",
+								seasonBest: "seasonBestAppearanceStreak",
+								allTimeBest: "allTimeBestAppearanceStreak",
+								tip: "Consecutive games where you appeared for your most-played XI. If that side played a fixture without you in the squad, the run ends.",
+							},
+							{
+								label: "Starts",
+								cur: "currentStartStreak",
+								seasonBest: "seasonBestStartStreak",
+								allTimeBest: "allTimeBestStartStreak",
+								tip: "Consecutive games where you started. A bench cameo or omission resets the run.",
+							},
+							{
+								label: "85+ mins",
+								cur: "currentFullMatchStreak",
+								seasonBest: "seasonBestFullMatchStreak",
+								allTimeBest: "allTimeBestFullMatchStreak",
+								tip: "Consecutive games with at least 85 minutes played. Subbing earlier resets the run.",
+							},
+							{
+								label: "MoM",
+								cur: "currentMomStreak",
+								seasonBest: "seasonBestMomStreak",
+								allTimeBest: "allTimeBestMomStreak",
+								tip: "Consecutive games named Player of the Match. Missing MoM resets the run.",
+							},
+							{
+								label: "No cards",
+								cur: "currentDisciplineStreak",
+								seasonBest: "seasonBestDisciplineStreak",
+								allTimeBest: "allTimeBestDisciplineStreak",
+								tip: "Consecutive games with no yellow or red card. Any booking resets the run.",
+							},
+							{
+								label: "Wins",
+								cur: "currentWinStreak",
+								seasonBest: "seasonBestWinStreak",
+								allTimeBest: "allTimeBestWinStreak",
+								tip: "Consecutive games your side won while you played. A draw or loss resets the run.",
+							},
+						];
+						return (
+							<div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2'>
+								{activeCards.map(({ label, cur, seasonBest, allTimeBest, tip }) => (
+									<StreakStatTile
+										key={String(cur)}
+										label={label}
+										current={sn(cur)}
+										seasonBest={fmtOpt(seasonBest)}
+										allTimeBest={fmtOpt(allTimeBest)}
+										tip={tip}
+									/>
+								))}
+							</div>
+						);
+					})()}
+				</div>
+			) : null}
 
 			{/* Seasonal Performance Section */}
 			<div id='seasonal-performance' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
@@ -2935,39 +3619,13 @@ export default function PlayerStats() {
 								<ChartSkeleton />
 							</SkeletonTheme>
 						) : seasonalChartData.length > 0 ? (
-							<div className='chart-container' style={{ touchAction: 'pan-y' }}>
-								<ResponsiveContainer width='100%' height={240}>
-									<ComposedChart 
-										data={seasonalChartData} 
-										margin={{ top: 5, right: 5, left: -20, bottom: 5 }}
-									>
-										<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
-										<XAxis dataKey='name' stroke='#fff' fontSize={12} />
-										<YAxis stroke='#fff' fontSize={12} domain={[0, 'auto']} allowDecimals={false} />
-										<Tooltip content={seasonalTooltip} />
-										<Bar 
-											dataKey='value' 
-											fill='#f9ed32' 
-											radius={[4, 4, 0, 0]} 
-											opacity={0.9} 
-											activeBar={{ fill: '#f9ed32', opacity: 1, stroke: 'none' }}
-										/>
-										{showTrend && (
-											<Line 
-												type='linear' 
-												dataKey='trendline' 
-												stroke='#ffffff' 
-												strokeWidth={2}
-												strokeDasharray='5 5'
-												dot={false}
-												activeDot={false}
-												isAnimationActive={false}
-												connectNulls={false}
-											/>
-										)}
-									</ComposedChart>
-								</ResponsiveContainer>
-							</div>
+							<LazyWhenVisible rootMargin="120px" className="min-h-[240px]" fallback={<ChartSkeleton />}>
+								<SeasonalPerformanceChart
+									data={seasonalChartData}
+									showTrend={showTrend}
+									tooltipContent={seasonalTooltip}
+								/>
+							</LazyWhenVisible>
 						) : (
 							<div className='flex items-center justify-center h-64'>
 								<p className='text-white text-sm'>No seasonal data available</p>
@@ -3030,26 +3688,9 @@ export default function PlayerStats() {
 								<ChartSkeleton />
 							</SkeletonTheme>
 						) : teamChartData.length > 0 ? (
-							<div className='chart-container' style={{ touchAction: 'pan-y' }}>
-								<ResponsiveContainer width='100%' height={240}>
-									<BarChart 
-										data={teamChartData} 
-										margin={{ top: 5, right: 5, left: -20, bottom: 5 }}
-									>
-									<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
-									<XAxis dataKey='name' stroke='#fff' fontSize={12} />
-									<YAxis stroke='#fff' fontSize={12} domain={[0, 'auto']} allowDecimals={false} />
-									<Tooltip content={teamTooltip} />
-										<Bar
-											dataKey='value' 
-											fill='#22c55e' 
-											radius={[4, 4, 0, 0]} 
-											opacity={0.9} 
-											activeBar={{ fill: '#22c55e', opacity: 1, stroke: 'none' }}
-										/>
-									</BarChart>
-								</ResponsiveContainer>
-							</div>
+							<LazyWhenVisible rootMargin="120px" className="min-h-[240px]" fallback={<ChartSkeleton />}>
+								<TeamPerformanceChart data={teamChartData} tooltipContent={teamTooltip} />
+							</LazyWhenVisible>
 						) : (
 							<div className='flex items-center justify-center h-64'>
 								<p className='text-white text-sm'>No team data available</p>
@@ -3104,49 +3745,39 @@ export default function PlayerStats() {
 					<div id='match-results' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 						<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Match Results</h3>
 						<p className='text-white text-sm mb-2 text-center'>Points per game: {pointsPerGameFormatted}</p>
-						<div className='chart-container -my-2' style={{ touchAction: 'pan-y' }}>
-							<ResponsiveContainer width='100%' height={220}>
-								<PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
-									<Pie
-										data={pieChartData}
-										cx='50%'
-										cy='50%'
-										labelLine={false}
-										label={({ cx, cy, midAngle, innerRadius, outerRadius, name, value }) => {
-											const RADIAN = Math.PI / 180;
-											const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-											const x = cx + radius * Math.cos(-midAngle * RADIAN);
-											const y = cy + radius * Math.sin(-midAngle * RADIAN);
-											
-											return (
-												<text
-													x={x}
-													y={y}
-													fill="#ffffff"
-													textAnchor={x > cx ? 'start' : 'end'}
-													dominantBaseline="central"
-													fontSize={14}
-													fontWeight='bold'
-												>
-													{`${name}: ${value}`}
-												</text>
-											);
-										}}
-										outerRadius={90}
-										fill='#8884d8'
-										dataKey='value'
-									>
-										{pieChartData.map((entry, index) => (
-											<Cell key={`cell-${index}`} fill={entry.color} />
-										))}
-									</Pie>
-									<Tooltip content={customTooltip} />
-								</PieChart>
-							</ResponsiveContainer>
-						</div>
+						<LazyWhenVisible rootMargin="120px" className="min-h-[220px] -my-2" fallback={<ChartSkeleton />}>
+							<MatchResultsPieChart data={pieChartData} tooltipContent={customTooltip} />
+						</LazyWhenVisible>
 					</div>
 				);
 			})()}
+
+			{/* Starting impact - uses filtered aggregates from player-data */}
+			{toNumber(validPlayerData.appearances) > 0 && featureFlags.playerStatsStartingImpact && (
+				<div id='starting-impact' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
+					<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Starting impact</h3>
+					<div className='grid grid-cols-2 gap-3 text-sm md:text-base text-white' data-testid='starting-impact-grid'>
+						<div className='bg-white/5 rounded-lg p-3'>
+							<div className='text-white/70 mb-1'>Starts / subs</div>
+							<div className='font-bold text-lg'>
+								{toNumber(validPlayerData.starts)} / {toNumber(validPlayerData.subAppearances)}
+							</div>
+						</div>
+						<div className='bg-white/5 rounded-lg p-3'>
+							<div className='text-white/70 mb-1'>Start rate</div>
+							<div className='font-bold text-lg'>{toNumber(validPlayerData.startRatePercent).toFixed(1)}%</div>
+						</div>
+						<div className='bg-white/5 rounded-lg p-3'>
+							<div className='text-white/70 mb-1'>Win % when starting</div>
+							<div className='font-bold text-lg'>{toNumber(validPlayerData.winRateWhenStarting).toFixed(1)}%</div>
+						</div>
+						<div className='bg-white/5 rounded-lg p-3'>
+							<div className='text-white/70 mb-1'>Win % from bench</div>
+							<div className='font-bold text-lg'>{toNumber(validPlayerData.winRateFromBench).toFixed(1)}%</div>
+						</div>
+					</div>
+				</div>
+			)}
 
 			{/* Game Details Section */}
 			{isLoadingGameDetails ? (
@@ -3324,32 +3955,146 @@ export default function PlayerStats() {
 						<ChartSkeleton />
 					</SkeletonTheme>
 				) : monthlyChartData.length > 0 ? (
-					<div className='chart-container' style={{ touchAction: 'pan-y' }}>
-						<ResponsiveContainer width='100%' height={240}>
-							<BarChart 
-								data={monthlyChartData} 
-								margin={{ top: 5, right: 5, left: -20, bottom: 5 }}
-							>
-								<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
-								<XAxis dataKey='name' stroke='#fff' fontSize={12} />
-								<YAxis stroke='#fff' fontSize={12} />
-								<Tooltip content={seasonalTooltip} />
-								<Bar 
-									dataKey='value' 
-									fill='#f9ed32' 
-									radius={[4, 4, 0, 0]} 
-									opacity={0.9} 
-									activeBar={{ fill: '#f9ed32', opacity: 1, stroke: 'none' }}
-								/>
-							</BarChart>
-						</ResponsiveContainer>
-					</div>
+					<LazyWhenVisible rootMargin="120px" className="min-h-[240px]" fallback={<ChartSkeleton />}>
+						<MonthlyPerformanceChart data={monthlyChartData} tooltipContent={seasonalTooltip} />
+					</LazyWhenVisible>
 				) : (
 					<div className='flex items-center justify-center h-64'>
 						<p className='text-white text-sm'>No monthly data available</p>
 					</div>
 				)}
 			</div>
+
+			{playerData && featureFlags.playerStatsPartnerships ? (
+				<div
+					id='partnerships-section'
+					className='relative z-30 bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
+						<div className='flex flex-wrap items-center justify-between gap-2 mb-2'>
+							<div className='flex items-center gap-2 min-w-0'>
+								<h3 className='text-white font-semibold text-sm md:text-base'>Partnerships</h3>
+								<div className='relative group'>
+									<span
+										tabIndex={0}
+										className='inline-flex items-center justify-center w-4 h-4 text-[10px] rounded-full border border-white/40 text-white/80 cursor-help outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow/80'>
+										i
+									</span>
+									<div className='pointer-events-none absolute left-0 top-6 z-20 hidden w-[min(100vw-2rem,22rem)] rounded-md bg-black/90 p-2 text-[11px] text-white shadow-lg group-hover:block group-focus-within:block'>
+										Win rate in games where you and each teammate both played (minimum five shared games) compared to your baseline win rate when
+										you play.
+									</div>
+								</div>
+							</div>
+							{partnershipList.length > 0 ? (
+								<div className='inline-flex flex-wrap justify-end rounded-md overflow-hidden border border-white/20 shrink-0 max-w-full'>
+									<button
+										type='button'
+										onClick={() => setPartnershipSortMode("bestWinRate")}
+										className={`px-2 py-1 text-[10px] md:text-xs whitespace-nowrap ${partnershipSortMode === "bestWinRate" ? "bg-dorkinians-yellow text-black font-semibold" : "bg-transparent text-white"}`}>
+										Best win rate
+									</button>
+									<button
+										type='button'
+										onClick={() => setPartnershipSortMode("mostImprovedWinRate")}
+										className={`px-2 py-1 text-[10px] md:text-xs text-center leading-tight border-l border-white/20 ${partnershipSortMode === "mostImprovedWinRate" ? "bg-dorkinians-yellow text-black font-semibold" : "bg-transparent text-white"}`}>
+										Most improved win rate
+									</button>
+									<button
+										type='button'
+										onClick={() => setPartnershipSortMode("mostGames")}
+										className={`px-2 py-1 text-[10px] md:text-xs whitespace-nowrap border-l border-white/20 ${partnershipSortMode === "mostGames" ? "bg-dorkinians-yellow text-black font-semibold" : "bg-transparent text-white"}`}>
+										Most games
+									</button>
+								</div>
+							) : null}
+						</div>
+						{partnershipList.length === 0 ? (
+							<p className='text-white/60 text-xs'>
+								No partnership data yet. Run a full seed so graph insights (Feature 7) can populate this section.
+							</p>
+						) : (
+							<ul className='space-y-2'>
+								{partnershipListDisplay.map((p) => {
+									const base = playerData.impactWinRateWith;
+									const deltaPct =
+										base != null && typeof p.winRate === "number" && !Number.isNaN(p.winRate)
+											? Math.round((p.winRate - base) * 10) / 10
+											: null;
+									const deltaClass =
+										deltaPct != null ? (deltaPct < 0 ? "text-red-400" : deltaPct > 0 ? "text-dorkinians-green-text" : "text-white/50") : "";
+									const deltaLabel =
+										deltaPct != null ? `${deltaPct > 0 ? "+" : ""}${deltaPct.toFixed(1)}% vs your win rate` : null;
+									return (
+										<li key={p.name} className='flex flex-wrap items-baseline justify-between gap-2 bg-white/5 rounded-md px-3 py-2'>
+											<div className='min-w-0'>
+												<button
+													type='button'
+													onClick={() => {
+														trackEvent(UmamiEvents.PlayerSelected, { source: "player-graph-partner", playerName: p.name });
+														selectPlayer(p.name, "picker");
+														setMainPage("stats");
+														setStatsSubPage("player-stats");
+													}}
+													className='text-[#E8C547] text-xs md:text-sm font-medium hover:underline text-left'>
+													{p.name}
+												</button>
+												{deltaLabel ? <p className={`text-[10px] mt-0.5 ${deltaClass}`}>{deltaLabel}</p> : null}
+											</div>
+											<p className='text-white text-xs md:text-sm font-semibold tabular-nums shrink-0'>
+												{Math.round(p.winRate * 10) / 10}% · {Math.round(p.matches)} games
+											</p>
+										</li>
+									);
+								})}
+							</ul>
+						)}
+				</div>
+			) : null}
+
+			{playerData && featureFlags.playerStatsImpact ? (
+				<div
+					id='impact-section'
+					className='relative z-30 bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
+					<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Impact</h3>
+					{playerData.impactDelta == null ||
+					playerData.impactWinRateWith == null ||
+					!playerData.mostPlayedForTeam ||
+					String(playerData.mostPlayedForTeam).trim() === "" ? (
+						<p className='text-white/60 text-xs'>
+							Impact compares your most-played XI&apos;s results when you play vs when you don&apos;t (needs enough games without you).
+							Filtered fixtures are used so the comparison matches your current filter set. Run a full seed after Feature 7, or check you
+							have a primary team set.
+						</p>
+					) : (
+						<>
+							<p className='text-white text-sm md:text-base font-medium mb-2'>
+								{(() => {
+									const teamLine = formatXiTeamLabel(playerData.mostPlayedForTeam);
+									const delta = Math.abs(Math.round(playerData.impactDelta * 10) / 10);
+									return playerData.impactDelta >= 0 ? (
+										<>
+											The <span className='text-dorkinians-yellow'>{teamLine}</span> wins{" "}
+											<span className='text-dorkinians-yellow font-bold'>{delta}%</span> more often when you play.
+										</>
+									) : (
+										<>
+											The <span className='text-dorkinians-yellow'>{teamLine}</span> wins{" "}
+											<span className='text-dorkinians-yellow font-bold'>{delta}%</span> less often when you play.
+										</>
+									);
+								})()}
+							</p>
+							{playerData.impactRatesDisplay ? (
+								<p className='text-white/70 text-xs md:text-sm mb-2'>{playerData.impactRatesDisplay}</p>
+							) : null}
+							{playerData.impactSampleWithout != null && playerData.impactSampleWithout < 10 ? (
+								<p className='text-white/50 text-[11px] md:text-xs border-l-2 border-[rgba(232,197,71,0.35)] pl-2'>
+									Sample without you is small ({playerData.impactSampleWithout} games) - interpret with care.
+								</p>
+							) : null}
+						</>
+					)}
+				</div>
+			) : null}
 
 			{/* Defensive Record Section */}
 			<div id='defensive-record' className='md:break-inside-avoid md:mb-4'>
@@ -3391,7 +4136,13 @@ export default function PlayerStats() {
 			{/* Opposition Map */}
 			{oppositionMapData.length > 0 && (
 				<div id='opposition-locations' className='md:break-inside-avoid md:mb-4'>
-					<OppositionMap oppositions={oppositionMapData} isLoading={isLoadingOppositionMap} />
+					<LazyWhenVisible
+						rootMargin="180px"
+						className="min-h-[280px]"
+						fallback={<div className="text-white/60 text-sm p-4">Scroll for map…</div>}
+					>
+						<OppositionMap oppositions={oppositionMapData} isLoading={isLoadingOppositionMap} />
+					</LazyWhenVisible>
 				</div>
 			)}
 
@@ -3406,10 +4157,12 @@ export default function PlayerStats() {
 				}
 
 				return (
-					<OppositionPerformanceScatter
-						data={oppositionPerformanceData}
-						isLoading={isLoadingOppositionPerformance}
-					/>
+					<LazyWhenVisible rootMargin="160px" className="min-h-[240px]" fallback={<ChartSkeleton />}>
+						<OppositionPerformanceScatter
+							data={oppositionPerformanceData}
+							isLoading={isLoadingOppositionPerformance}
+						/>
+					</LazyWhenVisible>
 				);
 			})()}
 			</div>
@@ -3524,7 +4277,11 @@ export default function PlayerStats() {
 						</svg>
 					</div>
 					<div className='text-white text-sm md:text-base mt-2 text-center'>
-						Total Cards Cost: £{((toNumber(validPlayerData.yellowCards) * 13.5) + (toNumber(validPlayerData.redCards) * 55)).toLocaleString()}
+						Total Cards Cost: £
+						{calculateCardFineTotal(
+							toNumber(validPlayerData.yellowCards),
+							toNumber(validPlayerData.redCards),
+						).toLocaleString()}
 					</div>
 				</div>
 			)}
@@ -3561,10 +4318,20 @@ export default function PlayerStats() {
 				</div>
 			)}
 
+			{featureFlags.playerStatsPlayerRecordings && playerRecordings.length > 0 && (
+				<RecordingsSection
+					id='player-recordings'
+					title='Player Recordings'
+					subtitle='Matches you played in that have a recording link, for your current filters.'
+					fixtures={playerRecordings}
+					testIdPrefix='player-recording'
+				/>
+			)}
+
 			{/* Captaincies, Awards and Achievements Section */}
 			<div id='captaincies-awards-and-achievements' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 				<h3 className='text-white font-semibold text-sm md:text-base mb-4'>Captaincies, Awards and Achievements</h3>
-				{isLoadingAwards || isLoadingCaptainHistory || isLoadingAwardHistory ? (
+				{isLoadingAwards || isLoadingCaptainHistory || isLoadingAwardHistory || isLoadingBadges ? (
 					<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
 						<AwardsListSkeleton />
 					</SkeletonTheme>
@@ -3667,9 +4434,34 @@ export default function PlayerStats() {
 									<span className='font-bold text-dorkinians-yellow'>{awardsData?.totsCount || 0}</span>
 								</p>
 							</div>
+
+							{badgePayload && featureFlags.achievementBadges && (
+								<div className='pt-2 border-t border-white/10'>
+									<p className='text-white text-xs md:text-sm mb-1'>
+										{profileHref ? (
+											<Link
+												href={profileHref}
+												className='text-white/70 underline underline-offset-2 hover:text-white'
+												data-testid='milestone-badges-profile-link'>
+												Achievement Badges earned:
+											</Link>
+										) : (
+											<span className='text-white/70'>Achievement Badges earned: </span>
+										)}
+										{" "}
+										<span className='font-bold text-dorkinians-yellow'>{badgePayload.totalBadges}</span>
+										{badgePayload.highestBadgeTier ? (
+											<span className='text-white/70'>
+												{" "}
+												(highest tier: <span className='capitalize text-dorkinians-yellow'>{badgePayload.highestBadgeTier}</span>)
+											</span>
+										) : null}
+									</p>
+								</div>
+							)}
 						</div>
 
-						{totalCaptaincies === 0 && totalAwards === 0 && (awardsData?.playerOfMonthCount || 0) === 0 && (awardsData?.playerOfMonthFirstCount || 0) === 0 && (awardsData?.starManCount || 0) === 0 && (awardsData?.totwCount || 0) === 0 && (awardsData?.totsCount || 0) === 0 && (
+						{totalCaptaincies === 0 && totalAwards === 0 && (awardsData?.playerOfMonthCount || 0) === 0 && (awardsData?.playerOfMonthFirstCount || 0) === 0 && (awardsData?.starManCount || 0) === 0 && (awardsData?.totwCount || 0) === 0 && (awardsData?.totsCount || 0) === 0 && (!featureFlags.achievementBadges || (badgePayload?.earned?.length ?? 0) === 0) && (
 							<p className='text-white/70 text-xs md:text-sm'>No captaincies, awards or achievements recorded.</p>
 						)}
 					</div>
@@ -3678,8 +4470,37 @@ export default function PlayerStats() {
 		</div>
 	);
 
+	const tableModeTabOptions: Array<{ id: PlayerStatsTableMode; label: string }> = [
+		{ id: "totals", label: "Totals" },
+		{ id: "perApp", label: "Per App" },
+		...(featureFlags.playerStatsDataTablePer90 ? ([{ id: "per90", label: "Per 90" }] as const) : []),
+	];
+
 	const dataTableContent = (
 		<div className='mb-4'>
+			{tableStatMode === "per90" && featureFlags.playerStatsDataTablePer90 && (
+				<p className='text-xs md:text-sm text-white/80 mb-2'>
+					Per-90 stats (Minutes: {Math.round(toNumber(validPlayerData.minutes)).toLocaleString()}) - min. 360 minutes required.
+				</p>
+			)}
+			<div data-testid='player-stats-table-controls' className='mb-3 flex w-full justify-end'>
+				<div
+					className='inline-flex shrink-0 rounded-md overflow-hidden border border-white/20'
+					data-testid='player-stats-table-mode-tabs'>
+					{tableModeTabOptions.map((mode) => (
+						<button
+							key={mode.id}
+							type='button'
+							onClick={() => setTableStatMode(mode.id)}
+							className={`px-3 py-1 text-xs md:text-sm border-r border-white/20 last:border-r-0 ${
+								tableStatMode === mode.id ? "bg-dorkinians-yellow text-black font-semibold" : "bg-transparent text-white"
+							}`}
+						>
+							{mode.label}
+						</button>
+					))}
+				</div>
+			</div>
 			<div className='overflow-x-auto'>
 				<table className='w-full bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden'>
 				<thead className='sticky top-0 z-10'>
@@ -3690,9 +4511,9 @@ export default function PlayerStats() {
 					</tr>
 				</thead>
 				<tbody>
-					{filteredStatEntries.map(([key, stat]) => {
+					{displayedStatEntries.map(([key, stat]) => {
 						const value = validPlayerData[stat.statName as keyof PlayerData];
-						return <StatRow key={key} stat={stat} value={value} playerData={validPlayerData} />;
+						return <StatRow key={key} stat={stat} value={value} playerData={validPlayerData} tableMode={tableStatMode} />;
 					})}
 				</tbody>
 			</table>
@@ -3703,15 +4524,22 @@ export default function PlayerStats() {
 	return (
 		<div className='h-full flex flex-col'>
 			<div className='flex-shrink-0 p-2 md:p-4'>
-				<div className='flex items-center justify-center mb-2 md:mb-4 relative'>
-					<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow text-center' data-testid="stats-page-heading">Stats - {selectedPlayer}</h2>
-					<Button
-						variant="icon"
-						size="sm"
-						onClick={handleEditClick}
-						title='Edit player selection'
-						className='absolute right-0 w-8 h-8 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10'
-						icon={<PenOnPaperIcon className='h-4 w-4 md:h-5 md:w-5' />} />
+				<div className='flex flex-col items-center mb-2 md:mb-4 gap-2'>
+					<div className='flex items-center justify-center space-x-2 md:space-x-3'>
+						<h2
+							className='text-xl md:text-2xl font-semibold text-dorkinians-yellow text-center'
+							data-testid='stats-page-heading'>
+							Stats - {selectedPlayer}
+						</h2>
+						<button
+							type='button'
+							data-testid='home-edit-player-button'
+							onClick={handleEditClick}
+							className='p-1.5 md:p-2 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors shrink-0'
+							title='Edit player selection'>
+							<PenOnPaperIcon className='h-4 w-4 md:h-5 md:w-5' />
+						</button>
+					</div>
 				</div>
 				<div className='flex justify-center mb-2 md:mb-4'>
 					<Button

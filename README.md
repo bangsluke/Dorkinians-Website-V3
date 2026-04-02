@@ -627,7 +627,7 @@ SMTP_TO_EMAIL=recipient@example.com
 NEXT_PUBLIC_UMAMI_SCRIPT_URL=https://your-umami-instance.com/script.js
 NEXT_PUBLIC_UMAMI_WEBSITE_ID=your-website-id-here
 
-# Umami API (Netlify `umami-weekly-report` scheduled function — keep server-side only)
+# Umami API (Netlify `umami-weekly-report` scheduled function - keep server-side only)
 UMAMI_API_KEY=your-umami-api-key
 UMAMI_WEBSITE_ID=your-website-id-here
 # UMAMI_BASE_URL=https://api.umami.is/v1
@@ -763,6 +763,8 @@ The project uses a unified schema system where configuration files are synchroni
 > [Back to Table of Contents](#table-of-contents)
 
 ## Additional Documentation
+
+- **[FEATURES-MASTER-STATUS.md](./FEATURES-MASTER-STATUS.md)** - canonical feature summary, per-item implementation status, setup outside the codebase, and AI handoff (update after each implementation session).
 
 ## Testing Commands and Coverage
 

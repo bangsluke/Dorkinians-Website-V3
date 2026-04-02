@@ -1,13 +1,67 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neo4jService } from "@/lib/neo4j";
-import { buildPlayerStatsQuery } from "../player-data/route";
+import {
+	buildFilteredImpactWithQuery,
+	buildFilteredImpactWithoutQuery,
+	buildFilteredPartnershipsQuery,
+	buildPlayerStatsQuery,
+	mapPlayerGraphInsightFieldsFromRecord,
+	mapPlayerStreakFieldsFromRecord,
+	packFilteredPlayerGraphInsights,
+	type FilteredPartnershipRow,
+	PLAYER_GRAPH_INSIGHT_PROPERTY_RETURN,
+	PLAYER_STREAK_PROPERTY_RETURN,
+} from "../player-data/route";
+import type { PlayerData } from "@/lib/stores/navigation";
 import { getCorsHeadersWithSecurity } from "@/lib/utils/securityHeaders";
 import { dataApiRateLimiter } from "@/lib/middleware/rateLimiter";
 import { sanitizeError } from "@/lib/utils/errorSanitizer";
 import { log, logError, logQuery } from "@/lib/utils/logger";
 import { csrfProtection } from "@/lib/middleware/csrf";
+import { validatePlayerStatsFilters } from "@/lib/api/validatePlayerStatsFilters";
 
 const corsHeaders = getCorsHeadersWithSecurity();
+
+async function loadFilteredPlayerGraphInsights(
+	playerName: string,
+	filters: Record<string, unknown>,
+	mostPlayedForTeam: string,
+	toNumber: (v: unknown) => number
+): Promise<ReturnType<typeof packFilteredPlayerGraphInsights>> {
+	const { query: pq, params: pp } = buildFilteredPartnershipsQuery(playerName, filters);
+	const pRes = await neo4jService.runQuery(pq, pp);
+	const rows: FilteredPartnershipRow[] = pRes.records
+		.map((rec: { get: (key: string) => unknown }) => ({
+			mateName: String(rec.get("mateName") ?? ""),
+			matches: toNumber(rec.get("matches")),
+			winRate: toNumber(rec.get("winRate")),
+		}))
+		.filter((r: FilteredPartnershipRow) => r.mateName.length > 0 && r.matches >= 5);
+
+	let withStats: { games: number; wins: number } | null = null;
+	let withoutStats: { games: number; wins: number } | null = null;
+
+	const withQ = buildFilteredImpactWithQuery(playerName, filters, mostPlayedForTeam);
+	if (withQ) {
+		const w = await neo4jService.runQuery(withQ.query, withQ.params);
+		if (w.records[0]) {
+			const games = toNumber(w.records[0].get("games"));
+			const wins = toNumber(w.records[0].get("wins"));
+			if (games > 0) withStats = { games, wins };
+		}
+	}
+	const withoutQ = buildFilteredImpactWithoutQuery(playerName, filters, mostPlayedForTeam);
+	if (withoutQ) {
+		const w = await neo4jService.runQuery(withoutQ.query, withoutQ.params);
+		if (w.records[0]) {
+			const games = toNumber(w.records[0].get("games"));
+			const wins = toNumber(w.records[0].get("wins"));
+			if (games > 0) withoutStats = { games, wins };
+		}
+	}
+
+	return packFilteredPlayerGraphInsights(rows, withStats, withoutStats);
+}
 
 export async function OPTIONS() {
 	return new NextResponse(null, { status: 200, headers: corsHeaders });
@@ -66,7 +120,7 @@ export async function POST(request: NextRequest) {
 		}
 
 		// Validate filter structure
-		const validationError = validateFilters(filters);
+		const validationError = validatePlayerStatsFilters(filters);
 		if (validationError) {
 			return NextResponse.json({ error: validationError }, { status: 400, headers: corsHeaders });
 		}
@@ -112,7 +166,9 @@ export async function POST(request: NextRequest) {
 		// Check if player exists first
 		const playerCheckQuery = `
 			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
-			RETURN p.id as id, p.playerName as playerName, p.allowOnSite as allowOnSite, p.graphLabel as graphLabel
+			RETURN p.id as id, p.playerName as playerName, p.allowOnSite as allowOnSite, p.graphLabel as graphLabel,
+${PLAYER_GRAPH_INSIGHT_PROPERTY_RETURN},
+${PLAYER_STREAK_PROPERTY_RETURN}
 			LIMIT 1
 		`;
 		const playerCheckResult = await neo4jService.runQuery(playerCheckQuery, { graphLabel: params.graphLabel, playerName: params.playerName });
@@ -121,10 +177,34 @@ export async function POST(request: NextRequest) {
 			return NextResponse.json({ error: "Player not found" }, { status: 404, headers: corsHeaders });
 		}
 
+		const toNumber = (value: any): number => {
+			if (value === null || value === undefined) return 0;
+			if (typeof value === "number") {
+				if (isNaN(value)) return 0;
+				return value;
+			}
+			if (typeof value === "object") {
+				if ("toNumber" in value && typeof value.toNumber === "function") {
+					return value.toNumber();
+				}
+				if ("low" in value && "high" in value) {
+					const low = value.low || 0;
+					const high = value.high || 0;
+					return low + high * 4294967296;
+				}
+				if ("toString" in value) {
+					const num = Number(value.toString());
+					return isNaN(num) ? 0 : num;
+				}
+			}
+			const num = Number(value);
+			return isNaN(num) ? 0 : num;
+		};
+
 		// If player exists but no matches for filters, return zero stats
 		if (result.records.length === 0) {
 			const playerRecord = playerCheckResult.records[0];
-			const defaultPlayerData = {
+			let defaultPlayerData = {
 				id: playerRecord.get("id"),
 				playerName: playerRecord.get("playerName"),
 				allowOnSite: playerRecord.get("allowOnSite"),
@@ -191,42 +271,43 @@ export async function POST(request: NextRequest) {
 				competitionsCompeted: 0,
 				teammatesPlayedWith: 0,
 				graphLabel: playerRecord.get("graphLabel"),
+				starts: 0,
+				subAppearances: 0,
+				winRateWhenStarting: 0,
+				winRateFromBench: 0,
+				startRatePercent: 0,
+				goalsPer90: null as number | null,
+				assistsPer90: null as number | null,
+				goalInvolvementsPer90: null as number | null,
+				ftpPer90: null as number | null,
+				cleanSheetsPer90: null as number | null,
+				concededPer90: null as number | null,
+				savesPer90: null as number | null,
+				cardsPer90: null as number | null,
+				momPer90: null as number | null,
+				averageMatchRating: null as number | null,
+				highestMatchRating: null as number | null,
+				matchesRated8Plus: 0,
+				...mapPlayerStreakFieldsFromRecord(playerRecord, toNumber),
 			};
 
+			const globalGraphEmpty = mapPlayerGraphInsightFieldsFromRecord(playerRecord, toNumber);
+			const filteredGraphEmpty = await loadFilteredPlayerGraphInsights(playerName, filters as Record<string, unknown>, "", toNumber);
+			const playerDataOut = {
+				...defaultPlayerData,
+				...filteredGraphEmpty,
+				squadInfluence: globalGraphEmpty.squadInfluence,
+				squadInfluenceRank: globalGraphEmpty.squadInfluenceRank,
+				communityId: globalGraphEmpty.communityId,
+			} as PlayerData;
+
 			return NextResponse.json({
-				playerData: defaultPlayerData,
+				playerData: playerDataOut,
 				debug: {
 					copyPasteQuery,
 				},
 			}, { headers: corsHeaders });
 		}
-
-		// Helper function to convert Neo4j Integer/Float to JavaScript number
-		const toNumber = (value: any): number => {
-			if (value === null || value === undefined) return 0;
-			if (typeof value === "number") {
-				if (isNaN(value)) return 0;
-				return value;
-			}
-			// Handle Neo4j Integer objects
-			if (typeof value === "object") {
-				if ("toNumber" in value && typeof value.toNumber === "function") {
-					return value.toNumber();
-				}
-				if ("low" in value && "high" in value) {
-					// Neo4j Integer format: low + high * 2^32
-					const low = value.low || 0;
-					const high = value.high || 0;
-					return low + high * 4294967296;
-				}
-				if ("toString" in value) {
-					const num = Number(value.toString());
-					return isNaN(num) ? 0 : num;
-				}
-			}
-			const num = Number(value);
-			return isNaN(num) ? 0 : num;
-		};
 
 		// Extract aggregated stats from result
 		const record = result.records[0];
@@ -251,7 +332,7 @@ export async function POST(request: NextRequest) {
 			});
 		}
 		
-		const playerData = {
+		let playerData: PlayerData = {
 			id: record.get("id"),
 			playerName: record.get("playerName"),
 			allowOnSite: record.get("allowOnSite"),
@@ -318,6 +399,86 @@ export async function POST(request: NextRequest) {
 			competitionsCompeted: toNumber(record.get("competitionsCompeted")),
 			teammatesPlayedWith: toNumber(record.get("teammatesPlayedWith")),
 			graphLabel: record.get("graphLabel"),
+			starts: toNumber(record.get("starts")),
+			subAppearances: toNumber(record.get("subAppearances")),
+			winRateWhenStarting: toNumber(record.get("winRateWhenStarting")),
+			winRateFromBench: toNumber(record.get("winRateFromBench")),
+			startRatePercent: toNumber(record.get("startRatePercent")),
+			goalsPer90: (() => {
+				const v = record.get("goalsPer90");
+				if (v === null || v === undefined) return null;
+				return Math.round(toNumber(v) * 100) / 100;
+			})(),
+			assistsPer90: (() => {
+				const v = record.get("assistsPer90");
+				if (v === null || v === undefined) return null;
+				return Math.round(toNumber(v) * 100) / 100;
+			})(),
+			goalInvolvementsPer90: (() => {
+				const v = record.get("goalInvolvementsPer90");
+				if (v === null || v === undefined) return null;
+				return Math.round(toNumber(v) * 100) / 100;
+			})(),
+			ftpPer90: (() => {
+				const v = record.get("ftpPer90");
+				if (v === null || v === undefined) return null;
+				return Math.round(toNumber(v) * 100) / 100;
+			})(),
+			cleanSheetsPer90: (() => {
+				const v = record.get("cleanSheetsPer90");
+				if (v === null || v === undefined) return null;
+				return Math.round(toNumber(v) * 100) / 100;
+			})(),
+			concededPer90: (() => {
+				const v = record.get("concededPer90");
+				if (v === null || v === undefined) return null;
+				return Math.round(toNumber(v) * 100) / 100;
+			})(),
+			savesPer90: (() => {
+				const v = record.get("savesPer90");
+				if (v === null || v === undefined) return null;
+				return Math.round(toNumber(v) * 100) / 100;
+			})(),
+			cardsPer90: (() => {
+				const v = record.get("cardsPer90");
+				if (v === null || v === undefined) return null;
+				return Math.round(toNumber(v) * 100) / 100;
+			})(),
+			momPer90: (() => {
+				const v = record.get("momPer90");
+				if (v === null || v === undefined) return null;
+				return Math.round(toNumber(v) * 100) / 100;
+			})(),
+			averageMatchRating: (() => {
+				const v = record.get("averageMatchRating");
+				if (v === null || v === undefined) return null;
+				const n = typeof v === "number" ? v : toNumber(v);
+				return Math.round(n * 10) / 10;
+			})(),
+			highestMatchRating: (() => {
+				const v = record.get("highestMatchRating");
+				if (v === null || v === undefined) return null;
+				const n = typeof v === "number" ? v : toNumber(v);
+				return Math.round(n * 10) / 10;
+			})(),
+			matchesRated8Plus: toNumber(record.get("matchesRated8Plus")),
+			...mapPlayerStreakFieldsFromRecord(record, toNumber),
+		} as PlayerData;
+
+		const globalGraphMerged = mapPlayerGraphInsightFieldsFromRecord(record, toNumber);
+		const teamForImpact = String(record.get("mostPlayedForTeam") ?? "");
+		const filteredGraphMerged = await loadFilteredPlayerGraphInsights(
+			playerName,
+			filters as Record<string, unknown>,
+			teamForImpact,
+			toNumber
+		);
+		playerData = {
+			...playerData,
+			...filteredGraphMerged,
+			squadInfluence: globalGraphMerged.squadInfluence,
+			squadInfluenceRank: globalGraphMerged.squadInfluenceRank,
+			communityId: globalGraphMerged.communityId,
 		};
 
 		// Include copyable query in response for debugging
@@ -337,84 +498,3 @@ export async function POST(request: NextRequest) {
 	}
 }
 
-// Validation function for filter structure
-function validateFilters(filters: any): string | null {
-	// Validate timeRange
-	if (filters.timeRange) {
-		const { type, seasons, beforeDate, afterDate, startDate, endDate } = filters.timeRange;
-
-		if (!type || !["season", "beforeDate", "afterDate", "betweenDates", "allTime"].includes(type)) {
-			return "Invalid timeRange type";
-		}
-
-		if (type === "season" && (!seasons || !Array.isArray(seasons) || seasons.length === 0)) {
-			return "Seasons array is required for season filter";
-		}
-
-		if (type === "beforeDate" && !beforeDate) {
-			return "beforeDate is required for beforeDate filter";
-		}
-
-		if (type === "afterDate" && !afterDate) {
-			return "afterDate is required for afterDate filter";
-		}
-
-		if (type === "betweenDates" && (!startDate || !endDate)) {
-			return "startDate and endDate are required for betweenDates filter";
-		}
-	}
-
-	// Validate teams
-	if (filters.teams && (!Array.isArray(filters.teams) || filters.teams.some((team: any) => typeof team !== "string"))) {
-		return "Teams must be an array of strings";
-	}
-
-	// Validate location
-	if (filters.location && (!Array.isArray(filters.location) || filters.location.some((loc: any) => !["Home", "Away"].includes(loc)))) {
-		return "Location must be an array containing 'Home' and/or 'Away'";
-	}
-
-	// Validate opposition
-	if (filters.opposition) {
-		if (
-			typeof filters.opposition !== "object" ||
-			!["all", "club", "team"].includes(filters.opposition.mode ?? "all") ||
-			(typeof filters.opposition.searchTerm !== "string" && filters.opposition.searchTerm !== undefined)
-		) {
-			return "Invalid opposition filter structure";
-		}
-	}
-
-	// Validate competition
-	if (filters.competition) {
-		if (typeof filters.competition !== "object") {
-			return "Competition filter must be an object";
-		}
-
-		if (!["types", "individual"].includes(filters.competition.mode ?? "types")) {
-			return "Competition mode must be 'types' or 'individual'";
-		}
-
-		if (
-			filters.competition.types &&
-			(!Array.isArray(filters.competition.types) ||
-				filters.competition.types.some((type: any) => !["League", "Cup", "Friendly"].includes(type)))
-		) {
-			return "Competition types must be an array containing 'League', 'Cup', and/or 'Friendly'";
-		}
-
-		if (filters.competition.searchTerm && typeof filters.competition.searchTerm !== "string") {
-			return "Competition search term must be a string";
-		}
-	}
-
-	// Validate result
-	if (
-		filters.result &&
-		(!Array.isArray(filters.result) || filters.result.some((result: any) => !["Win", "Draw", "Loss"].includes(result)))
-	) {
-		return "Result must be an array containing 'Win', 'Draw', and/or 'Loss'";
-	}
-
-	return null;
-}

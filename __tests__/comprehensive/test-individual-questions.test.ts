@@ -9,7 +9,7 @@ jest.mock("@/lib/neo4j", () => ({
 	},
 }));
 
-// Spot-checks a handful of high-value chatbot prompts against mocked Neo4j—fast contract smoke without full matrix coverage.
+// Spot-checks a handful of high-value chatbot prompts against mocked Neo4j-fast contract smoke without full matrix coverage.
 // Ensures each phrasing returns a non-empty answer string; no real DB or network.
 // Extend the questions array when adding new critical user intents.
 

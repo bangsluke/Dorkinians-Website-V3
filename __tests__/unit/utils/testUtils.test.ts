@@ -3,7 +3,7 @@ import { TestConfig } from "@/__tests__/chatbot-tests-config";
 
 // Debug/contract tests for shared test utilities: stat catalog size, config accessors, optional DB fetch, and response validation.
 // fetchTestData may hit real backing storage when configured; empty arrays are allowed. Console logging is intentional for local diagnosis.
-// Thresholds (e.g. >=60 configs) can fail when stat metadata changes—treat as signal to refresh fixtures or expectations.
+// Thresholds (e.g. >=60 configs) can fail when stat metadata changes-treat as signal to refresh fixtures or expectations.
 
 describe("TestUtils Debug Tests", () => {
 	test("STAT_TEST_CONFIGS should contain a non-trivial set of entries", () => {

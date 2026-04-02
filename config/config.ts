@@ -1,5 +1,7 @@
+import { isDevelopBranchDeploy } from "@/lib/utils/isDevelopBranchDeploy";
+
 export const appConfig = {
-	version: "3.2.1",
+	version: "3.2.2",
 	name: "Dorkinians FC",
 	description: "Comprehensive source for club statistics, player performance, and team insights",
 	author: "Luke Bangs",
@@ -9,6 +11,105 @@ export const appConfig = {
 } as const;
 
 export type AppConfig = typeof appConfig;
+
+// Feature flags — values are defined here only (no per-feature env vars).
+
+export type FeatureFlags = {
+	playerProfile: boolean;
+	achievementBadges: boolean;
+	seasonWrapped: boolean;
+	playerStatsKeyPerformance: boolean;
+	playerStatsForm: boolean;
+	playerStatsStreaks: boolean;
+	playerStatsStartingImpact: boolean;
+	playerStatsPartnerships: boolean;
+	playerStatsImpact: boolean;
+	playerStatsPlayerRecordings: boolean;
+	playerStatsDataTablePer90: boolean;
+	teamStatsFormationsUsed: boolean;
+	teamStatsTeamRecordings: boolean;
+	teamStatsStreakAndForm: boolean;
+	clubStatsSquadBackbone: boolean;
+	clubStatsClubRecordings: boolean;
+	clubInfoRecords: boolean;
+	leagueInfoLatestResult: boolean;
+};
+
+/** Full UI — used for Jest and as the develop-branch default. */
+const featureFlagsAllEnabled: FeatureFlags = {
+	playerProfile: true,
+	achievementBadges: true,
+	seasonWrapped: true,
+	playerStatsKeyPerformance: true,
+	playerStatsForm: true,
+	playerStatsStreaks: true,
+	playerStatsStartingImpact: true,
+	playerStatsPartnerships: true,
+	playerStatsImpact: true,
+	playerStatsPlayerRecordings: true,
+	playerStatsDataTablePer90: true,
+	teamStatsFormationsUsed: true,
+	teamStatsTeamRecordings: true,
+	teamStatsStreakAndForm: true,
+	clubStatsSquadBackbone: true,
+	clubStatsClubRecordings: true,
+	clubInfoRecords: true,
+	leagueInfoLatestResult: true,
+};
+
+/** Conservative defaults for production (main) deploys. */
+const featureFlagsProductionDefault: FeatureFlags = {
+	playerProfile: false,
+	achievementBadges: false,
+	seasonWrapped: false,
+	playerStatsKeyPerformance: false,
+	playerStatsForm: false,
+	playerStatsStreaks: false,
+	playerStatsStartingImpact: false,
+	playerStatsPartnerships: false,
+	playerStatsImpact: false,
+	playerStatsPlayerRecordings: false,
+	playerStatsDataTablePer90: false,
+	teamStatsFormationsUsed: false,
+	teamStatsTeamRecordings: false,
+	teamStatsStreakAndForm: false,
+	clubStatsSquadBackbone: false,
+	clubStatsClubRecordings: false,
+	clubInfoRecords: false,
+	leagueInfoLatestResult: false,
+};
+
+export const featureFlagPresets = {
+	develop: featureFlagsAllEnabled,
+	production: featureFlagsProductionDefault,
+} as const;
+
+function resolveFeatureFlags(): FeatureFlags {
+	if (typeof process !== "undefined" && process.env.NODE_ENV === "test") {
+		return { ...featureFlagsAllEnabled };
+	}
+	if (typeof process !== "undefined" && process.env.NODE_ENV === "development") {
+		return { ...featureFlagPresets.develop };
+	}
+	if (typeof process !== "undefined" && process.env.CONTEXT === "deploy-preview") {
+		return { ...featureFlagPresets.develop };
+	}
+	if (isDevelopBranchDeploy()) {
+		return { ...featureFlagPresets.develop };
+	}
+	return { ...featureFlagPresets.production };
+}
+
+export const featureFlags: FeatureFlags = resolveFeatureFlags();
+
+export const DISCIPLINE_FINE_CONFIG = {
+	yellowCard: 13.5,
+	redCard: 55,
+} as const;
+
+export function calculateCardFineTotal(yellowCards: number, redCards: number): number {
+	return yellowCards * DISCIPLINE_FINE_CONFIG.yellowCard + redCards * DISCIPLINE_FINE_CONFIG.redCard;
+}
 
 export interface HomepageQuestion {
 	id: string;
@@ -929,6 +1030,258 @@ export const statObject = {
 		statCategory: "Results Stat",
 		iconName: "WinRateWhenScoring-Icon"
 	},
+	PlayerStarts: {
+		statName: "starts",
+		displayText: "Starts",
+		shortText: "Starts",
+		wordedText: "starts",
+		statFormat: "Integer",
+		description: "Number of matches where the player was in the starting XI (first 11 listed).",
+		statHigherBetterBoolean: true,
+		numberDecimalPlaces: 0,
+		statCategory: "Appearance Stat",
+		iconName: "Appearance-Icon",
+	},
+	PlayerSubApps: {
+		statName: "subAppearances",
+		displayText: "Substitute appearances",
+		shortText: "Subs",
+		wordedText: "substitute appearances",
+		statFormat: "Integer",
+		description: "Appearances where the player was listed after the first 11 in the match squad.",
+		statHigherBetterBoolean: false,
+		numberDecimalPlaces: 0,
+		statCategory: "Appearance Stat",
+		iconName: "TeamAppearance-Icon",
+	},
+	PlayerStartRatePct: {
+		statName: "startRatePercent",
+		displayText: "Start rate",
+		shortText: "% Starts",
+		wordedText: "start rate",
+		statFormat: "Percentage",
+		description: "Percentage of appearances that were starts.",
+		statHigherBetterBoolean: true,
+		numberDecimalPlaces: 1,
+		statCategory: "Appearance Stat",
+		iconName: "PercentageGamesWon-Icon",
+	},
+	PlayerWinRateStarting: {
+		statName: "winRateWhenStarting",
+		displayText: "Win % when starting",
+		shortText: "W% Start",
+		wordedText: "win rate when starting",
+		statFormat: "Percentage",
+		description: "Win percentage in games where the player started.",
+		statHigherBetterBoolean: true,
+		numberDecimalPlaces: 1,
+		statCategory: "Results Stat",
+		iconName: "Win-Icon",
+	},
+	PlayerWinRateBench: {
+		statName: "winRateFromBench",
+		displayText: "Win % from bench",
+		shortText: "W% Bench",
+		wordedText: "win rate from the bench",
+		statFormat: "Percentage",
+		description: "Win percentage in games where the player came off the bench.",
+		statHigherBetterBoolean: true,
+		numberDecimalPlaces: 1,
+		statCategory: "Results Stat",
+		iconName: "Win-Icon",
+	},
+	PlayerAvgMatchRating: {
+		statName: "averageMatchRating",
+		displayText: "Average match rating",
+		shortText: "Avg Rtg",
+		wordedText: "average match rating",
+		statFormat: "Decimal1",
+		description: "Mean automated match rating (1–10) across filtered appearances.",
+		statHigherBetterBoolean: true,
+		numberDecimalPlaces: 1,
+		statCategory: "Performance Stat",
+		iconName: "MoM-Icon",
+	},
+	PlayerHighMatchRating: {
+		statName: "highestMatchRating",
+		displayText: "Highest match rating",
+		shortText: "Peak Rtg",
+		wordedText: "highest match rating",
+		statFormat: "Decimal1",
+		description: "Best single-match automated rating in the filtered sample.",
+		statHigherBetterBoolean: true,
+		numberDecimalPlaces: 1,
+		statCategory: "Performance Stat",
+		iconName: "MoM-Icon",
+	},
+	PlayerMatchesRated8Plus: {
+		statName: "matchesRated8Plus",
+		displayText: "Matches rated 8+",
+		shortText: "8+ Rtg",
+		wordedText: "matches rated eight or higher",
+		statFormat: "Integer",
+		description: "Count of matches with an automated rating of 8.0 or above.",
+		statHigherBetterBoolean: true,
+		numberDecimalPlaces: 0,
+		statCategory: "Performance Stat",
+		iconName: "MoM-Icon",
+	},
+	PlayerGraphBestPartner: {
+		statName: "graphInsightsBestPartnerDisplay",
+		displayText: "Best partner (graph)",
+		shortText: "Partner",
+		wordedText: "best partnership by win rate when playing together",
+		statFormat: "String",
+		description: "Teammate you have the best win rate with (minimum five shared games). From full club graph after seeding.",
+		statHigherBetterBoolean: true,
+		numberDecimalPlaces: 0,
+		statCategory: "Graph insight",
+		iconName: "Teammates-Icon",
+	},
+	PlayerGraphImpactDelta: {
+		statName: "impactDelta",
+		displayText: "Impact delta (pp)",
+		shortText: "Impact Δ",
+		wordedText: "impact delta in percentage points",
+		statFormat: "Decimal1",
+		description: "Win rate with you in the squad minus win rate in games you missed, for your most-played XI. Minimum four games without you.",
+		statHigherBetterBoolean: true,
+		numberDecimalPlaces: 1,
+		statCategory: "Graph insight",
+		iconName: "Win-Icon",
+	},
+	PlayerGraphImpactRates: {
+		statName: "impactRatesDisplay",
+		displayText: "Win % with / without you",
+		shortText: "With/wo",
+		wordedText: "win rates with and without the player",
+		statFormat: "String",
+		description: "Team win percentage in games you played vs games you missed (same XI as most-played team).",
+		statHigherBetterBoolean: true,
+		numberDecimalPlaces: 0,
+		statCategory: "Graph insight",
+		iconName: "PercentageGamesWon-Icon",
+	},
+	PlayerGraphSquadRank: {
+		statName: "squadInfluenceRank",
+		displayText: "Squad influence rank",
+		shortText: "Inf rank",
+		wordedText: "squad influence rank from PageRank",
+		statFormat: "Integer",
+		description: "Rank by PageRank on PLAYED_WITH (requires Neo4j GDS on Aura). Lower is more connected.",
+		statHigherBetterBoolean: false,
+		numberDecimalPlaces: 0,
+		statCategory: "Graph insight",
+		iconName: "TeamAppearance-Icon",
+	},
+	PlayerGoalsPer90: {
+		statName: "goalsPer90",
+		displayText: "Goals per 90",
+		shortText: "G/90",
+		wordedText: "goals per 90",
+		statFormat: "Decimal2",
+		description: "Goals (including penalties scored) per 90 minutes. Requires at least 360 minutes.",
+		statHigherBetterBoolean: true,
+		numberDecimalPlaces: 2,
+		statCategory: "Performance Stat",
+		iconName: "Goals-Icon",
+	},
+	PlayerAssistsPer90: {
+		statName: "assistsPer90",
+		displayText: "Assists per 90",
+		shortText: "A/90",
+		wordedText: "assists per 90",
+		statFormat: "Decimal2",
+		description: "Assists per 90 minutes. Requires at least 360 minutes.",
+		statHigherBetterBoolean: true,
+		numberDecimalPlaces: 2,
+		statCategory: "Performance Stat",
+		iconName: "Assists-Icon",
+	},
+	PlayerGI90: {
+		statName: "goalInvolvementsPer90",
+		displayText: "Goal involvements per 90",
+		shortText: "GI/90",
+		wordedText: "goal involvements per 90",
+		statFormat: "Decimal2",
+		description: "Goals + assists per 90 minutes. Requires at least 360 minutes.",
+		statHigherBetterBoolean: true,
+		numberDecimalPlaces: 2,
+		statCategory: "Performance Stat",
+		iconName: "GoalsAndAssists-Icon",
+	},
+	PlayerFTP90: {
+		statName: "ftpPer90",
+		displayText: "FTP per 90",
+		shortText: "FTP/90",
+		wordedText: "fantasy points per 90",
+		statFormat: "Decimal2",
+		description: "Fantasy points per 90 minutes. Requires at least 360 minutes.",
+		statHigherBetterBoolean: true,
+		numberDecimalPlaces: 2,
+		statCategory: "Performance Stat",
+		iconName: "FantasyPoints-Icon",
+	},
+	PlayerCards90: {
+		statName: "cardsPer90",
+		displayText: "Cards per 90",
+		shortText: "Cards/90",
+		wordedText: "cards per 90",
+		statFormat: "Decimal2",
+		description: "Yellow + red cards per 90 minutes. Requires at least 360 minutes.",
+		statHigherBetterBoolean: false,
+		numberDecimalPlaces: 2,
+		statCategory: "Discipline Stat",
+		iconName: "YellowAndRedCard-Icon",
+	},
+	PlayerCleanSheets90: {
+		statName: "cleanSheetsPer90",
+		displayText: "Clean sheets per 90",
+		shortText: "CLS/90",
+		wordedText: "clean sheets per 90",
+		statFormat: "Decimal2",
+		description: "Clean sheets per 90 minutes. Requires at least 360 minutes.",
+		statHigherBetterBoolean: true,
+		numberDecimalPlaces: 2,
+		statCategory: "Performance Stat",
+		iconName: "CleanSheets-Icon",
+	},
+	PlayerConceded90: {
+		statName: "concededPer90",
+		displayText: "Conceded per 90",
+		shortText: "C/90",
+		wordedText: "conceded per 90",
+		statFormat: "Decimal2",
+		description: "Goals conceded per 90 minutes. Requires at least 360 minutes.",
+		statHigherBetterBoolean: false,
+		numberDecimalPlaces: 2,
+		statCategory: "Defensive Stat",
+		iconName: "Conceded-Icon",
+	},
+	PlayerSaves90: {
+		statName: "savesPer90",
+		displayText: "Saves per 90",
+		shortText: "SAVES/90",
+		wordedText: "saves per 90",
+		statFormat: "Decimal2",
+		description: "Saves per 90 minutes. Requires at least 360 minutes.",
+		statHigherBetterBoolean: true,
+		numberDecimalPlaces: 2,
+		statCategory: "Performance Stat",
+		iconName: "Saves-Icon",
+	},
+	PlayerMoM90: {
+		statName: "momPer90",
+		displayText: "MoM per 90",
+		shortText: "MoM/90",
+		wordedText: "man of the match per 90",
+		statFormat: "Decimal2",
+		description: "Man of the match awards per 90 minutes. Requires at least 360 minutes.",
+		statHigherBetterBoolean: true,
+		numberDecimalPlaces: 2,
+		statCategory: "Performance Stat",
+		iconName: "MoM-Icon",
+	},
 	HomeGames: {
 		statName: "homeGames",
 		displayText: "Home Games", // The text displayed at all times on the page.
@@ -1334,6 +1687,23 @@ export const statsPageConfig = {
 	"player-stats": {
 		statsToDisplay: [
 			"APP",
+			"PlayerStarts",
+			"PlayerSubApps",
+			"PlayerStartRatePct",
+			"PlayerWinRateStarting",
+			"PlayerWinRateBench",
+			"PlayerAvgMatchRating",
+			"PlayerHighMatchRating",
+			"PlayerMatchesRated8Plus",
+			"PlayerGoalsPer90",
+			"PlayerAssistsPer90",
+			"PlayerGI90",
+			"PlayerFTP90",
+			"PlayerCards90",
+			"PlayerCleanSheets90",
+			"PlayerConceded90",
+			"PlayerSaves90",
+			"PlayerMoM90",
 			"MIN",
 			"MOM",
 			"AllGSC",
@@ -1380,6 +1750,10 @@ export const statsPageConfig = {
 			"OPP",
 			"COMP",
 			"TEAM",
+			"PlayerGraphBestPartner",
+			"PlayerGraphImpactDelta",
+			"PlayerGraphImpactRates",
+			"PlayerGraphSquadRank",
 		],
 		availableFilters: ["timeRange", "team", "location", "opposition", "competition", "result", "position"],
 	},

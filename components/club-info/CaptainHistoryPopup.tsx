@@ -55,9 +55,11 @@ export default function CaptainHistoryPopup({ playerName, onClose }: CaptainHist
 			isOpen
 			onClose={onClose}
 			backdropClassName="fixed inset-0 bg-black/50 z-[9999]"
-			modalClassName="fixed inset-0 h-screen w-screen z-[10000] shadow-xl"
+			modalClassName="fixed inset-0 z-[10000] flex items-stretch justify-center md:items-center md:py-8 md:px-4"
 			ariaLabel={`${playerName} captain history`}>
-			<div className="h-full flex flex-col" style={{ backgroundColor: "#0f0f0f" }}>
+			<div
+				className="flex h-full max-h-screen w-full max-w-xl flex-col overflow-hidden rounded-none shadow-2xl md:h-auto md:max-h-[85vh] md:rounded-xl"
+				style={{ backgroundColor: "#0f0f0f" }}>
 				{/* Header */}
 				<div className="flex-shrink-0 flex items-center justify-between p-4 border-b border-white/20">
 					<div className="w-11 min-w-[44px] flex-shrink-0" aria-hidden />

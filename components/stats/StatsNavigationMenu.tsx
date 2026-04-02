@@ -5,8 +5,9 @@ import { XMarkIcon } from "@heroicons/react/24/outline";
 import { UmamiEvents } from "@/lib/analytics/events";
 import { trackEvent } from "@/lib/utils/trackEvent";
 import { useNavigationStore, type StatsSubPage } from "@/lib/stores/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Button from "@/components/ui/Button";
+import { featureFlags } from "@/config/config";
 
 interface StatsNavigationMenuProps {
 	isOpen: boolean;
@@ -19,20 +20,26 @@ const statsNavigationItems = [
 		label: "Player Stats",
 		sections: [
 			{ id: "key-performance-stats", label: "Key Performance Stats" },
+			{ id: "form-section", label: "Form" },
 			{ id: "all-games", label: "All Games" },
+			{ id: "streaks-section", label: "Streaks" },
 			{ id: "seasonal-performance", label: "Seasonal Performance" },
 			{ id: "team-performance", label: "Team Performance" },
 			{ id: "positional-stats", label: "Positional Stats" },
 			{ id: "match-results", label: "Match Results" },
+			{ id: "starting-impact", label: "Starting Impact" },
 			{ id: "game-details", label: "Game Details" },
 			{ id: "monthly-performance", label: "Monthly Performance" },
+			{ id: "partnerships-section", label: "Partnerships" },
+			{ id: "impact-section", label: "Impact" },
 			{ id: "defensive-record", label: "Defensive Record" },
 			{ id: "distance-travelled", label: "Distance Travelled" },
 			{ id: "opposition-locations", label: "Opposition Locations" },
-			{ id: "minutes-per-stats", label: "Minutes per Stats" },
 			{ id: "opposition-performance", label: "Opposition Performance" },
 			{ id: "fantasy-points", label: "Fantasy Points" },
 			{ id: "penalty-stats", label: "Penalty Stats" },
+			{ id: "minutes-per-stats", label: "Minutes per Stats" },
+			{ id: "player-recordings", label: "Player Recordings" },
 			{ id: "captaincies-awards-and-achievements", label: "Captaincies, Awards and Achievements" },
 		],
 	},
@@ -45,10 +52,12 @@ const statsNavigationItems = [
 			{ id: "team-top-players", label: "Top Players" },
 			{ id: "team-seasonal-performance", label: "Seasonal Performance" },
 			{ id: "team-match-results", label: "Match Results" },
+			{ id: "team-formation-breakdown", label: "Formations Used" },
 			{ id: "team-goals-scored-conceded", label: "Goals Scored vs Conceded" },
 			{ id: "team-home-away-performance", label: "Home vs Away Performance" },
 			{ id: "team-key-team-stats", label: "Key Team Stats" },
 			{ id: "team-unique-player-stats", label: "Unique Player Stats" },
+			{ id: "team-recordings", label: "Team Recordings" },
 			{ id: "team-best-season-finish", label: "Best Season Finish" },
 		],
 	},
@@ -59,6 +68,7 @@ const statsNavigationItems = [
 			{ id: "club-key-performance-stats", label: "Key Performance Stats" },
 			{ id: "club-team-comparison", label: "Team Comparison" },
 			{ id: "club-top-players", label: "Top Players" },
+			{ id: "club-squad-backbone", label: "Squad Backbone" },
 			{ id: "club-seasonal-performance", label: "Seasonal Performance" },
 			{ id: "club-player-distribution", label: "Player Distribution" },
 			{ id: "club-player-tenure", label: "Player Tenure" },
@@ -70,6 +80,7 @@ const statsNavigationItems = [
 			{ id: "club-home-away-performance", label: "Home vs Away Performance" },
 			{ id: "club-other-club-stats", label: "Other Club Stats" },
 			{ id: "club-unique-player-stats", label: "Unique Player Stats" },
+			{ id: "club-recordings", label: "Club Recordings" },
 		],
 	},
 	{
@@ -84,6 +95,56 @@ const statsNavigationItems = [
 
 export default function StatsNavigationMenu({ isOpen, onClose }: StatsNavigationMenuProps) {
 	const { setStatsSubPage, currentStatsSubPage, setDataTableMode, preloadStatsData } = useNavigationStore();
+
+	const navigationPages = useMemo(() => {
+		const f = featureFlags;
+		return statsNavigationItems.map((page) => {
+			if (page.id === "player-stats") {
+				return {
+					...page,
+					sections: page.sections.filter((s) => {
+						if (s.id === "form-section" && !f.playerStatsForm) return false;
+						if (s.id === "streaks-section" && !f.playerStatsStreaks) return false;
+						if (s.id === "starting-impact" && !f.playerStatsStartingImpact) return false;
+						if (s.id === "partnerships-section" && !f.playerStatsPartnerships) return false;
+						if (s.id === "impact-section" && !f.playerStatsImpact) return false;
+						if (s.id === "player-recordings" && !f.playerStatsPlayerRecordings) return false;
+						return true;
+					}),
+				};
+			}
+			if (page.id === "team-stats") {
+				const filtered = page.sections.filter((s) => {
+					if (s.id === "team-formation-breakdown" && !f.teamStatsFormationsUsed) return false;
+					if (s.id === "team-recordings" && !f.teamStatsTeamRecordings) return false;
+					return true;
+				});
+				const keyIdx = filtered.findIndex((s) => s.id === "team-key-performance-stats");
+				if (keyIdx < 0) {
+					return { ...page, sections: filtered };
+				}
+				const before = filtered.slice(0, keyIdx + 1);
+				const after = filtered.slice(keyIdx + 1);
+				const streakSection = {
+					id: "team-streak-leaders" as const,
+					label: "Longest active streaks (this XI)",
+				};
+				const sections = f.teamStatsStreakAndForm ? [...before, streakSection, ...after] : filtered;
+				return { ...page, sections };
+			}
+			if (page.id === "club-stats") {
+				return {
+					...page,
+					sections: page.sections.filter((s) => {
+						if (s.id === "club-squad-backbone" && !f.clubStatsSquadBackbone) return false;
+						if (s.id === "club-recordings" && !f.clubStatsClubRecordings) return false;
+						return true;
+					}),
+				};
+			}
+			return page;
+		});
+	}, []);
 	// Initialize with only the current page expanded
 	const [expandedPages, setExpandedPages] = useState<Record<string, boolean>>(() => {
 		const initial: Record<string, boolean> = {
@@ -342,7 +403,7 @@ export default function StatsNavigationMenu({ isOpen, onClose }: StatsNavigation
 
 							{/* Navigation Items */}
 							<div className='space-y-4'>
-								{statsNavigationItems.map((item) => {
+								{navigationPages.map((item) => {
 									const isExpanded = expandedPages[item.id];
 									const hasSections = item.sections.length > 0;
 									const isActive = currentStatsSubPage === item.id;

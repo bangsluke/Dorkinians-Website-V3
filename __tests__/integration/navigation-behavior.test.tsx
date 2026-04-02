@@ -12,7 +12,7 @@ jest.mock("@/lib/stores/navigation", () => ({
 }));
 
 // jsdom behavior tests for stats navigation chrome (StatsContainer, PlayerStats, Comparison) with navigation store fully mocked.
-// No real routing or data fetching—only verifies dot indicators, empty states, and CTA wiring against static store shapes.
+// No real routing or data fetching-only verifies dot indicators, empty states, and CTA wiring against static store shapes.
 // Placeholder integration cases document future full-store coverage; they intentionally assert tautologies today.
 
 const mockUseNavigationStore = useNavigationStore as jest.MockedFunction<typeof useNavigationStore>;

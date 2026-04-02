@@ -33,15 +33,23 @@ export async function POST(request: NextRequest) {
 			sendEmailAtStart: false,
 			sendEmailAtCompletion: true,
 		};
-		const seasonConfig = requestBody.seasonConfig || {
+		const seasonConfig = {
 			currentSeason: null,
 			useSeasonOverride: false,
 			fullRebuild: true,
+			blueGreenCutover: true,
+			...(requestBody.seasonConfig || {}),
 		};
+		const debug =
+			requestBody.debug === true ||
+			requestBody.debug === "true" ||
+			seasonConfig.debug === true ||
+			seasonConfig.debug === "true";
 
 		logRequest("Seed request received", {
 			hasEmailConfig: !!emailConfig,
 			hasSeasonConfig: !!seasonConfig,
+			debugEnabled: debug,
 		});
 
 		// Trigger Heroku seeding service (fire-and-forget)
@@ -91,13 +99,14 @@ export async function POST(request: NextRequest) {
 					environment,
 					jobId,
 					emailConfig,
-					seasonConfig,
+					seasonConfig: { ...seasonConfig, debug },
+					debug,
 				}),
 				signal: controller.signal,
 			});
 			
 			clearTimeout(timeoutId);
-			
+
 			if (herokuResponse.ok) {
 				const herokuData = await herokuResponse.json();
 				if (herokuData.smtpError) {
@@ -107,7 +116,36 @@ export async function POST(request: NextRequest) {
 					log("info", "Heroku seeding service started successfully");
 				}
 			} else {
-				log("warn", "Heroku seeding service may have failed to start");
+				const herokuStatus = herokuResponse.status;
+				const rawBody = await herokuResponse.text().catch(() => "");
+				let herokuBody: unknown = rawBody;
+				try {
+					herokuBody = rawBody ? JSON.parse(rawBody) : null;
+				} catch {
+					herokuBody = rawBody || null;
+				}
+				log("warn", "Heroku seeding request rejected", { herokuStatus });
+
+				const keyHint =
+					herokuStatus === 401
+						? "Heroku rejected the API key (401). Set SEED_API_KEY on this deployment to exactly match SEED_API_KEY on the Heroku database app - same characters and length. Heroku logs say \"Invalid API key length\" when the keys differ."
+						: `Heroku returned HTTP ${herokuStatus}.`;
+
+				return NextResponse.json(
+					{
+						success: false,
+						error: "Heroku seeding request failed",
+						message: keyHint,
+						hint: keyHint,
+						reason: `Heroku HTTP ${herokuStatus}`,
+						herokuStatus,
+						herokuBody,
+						jobId,
+						timestamp: new Date().toISOString(),
+						status: "failed",
+					},
+					{ status: 502 },
+				);
 			}
 		} catch (herokuError: any) {
 			// If timeout or network error, continue anyway (seeding may still start)

@@ -1,6 +1,6 @@
 {
 	"name": "dorkinians-website-v3",
-	"version": "3.2.1",
+	"version": "3.2.2",
 	"description": "Dorkinians FC Statistics Website",
 	"private": true,
 	"scripts": {
@@ -48,7 +48,7 @@
 		"test:chatbot-players-report:analyze-logs": "node __tests__/scripts/analyze-chatbot-logs.js",
 		"test:questions-report": "node __tests__/scripts/test-questions-email-report.js",
 		"test:questions-report:hide": "node __tests__/scripts/test-questions-email-report.js --hide-passed",
-		"analyze": "cross-env ANALYZE=true next build"
+		"analyze": "cross-env ANALYZE=true next build --webpack"
 	},
 	"dependencies": {
 		"@googlemaps/js-api-loader": "^1.16.6",
@@ -69,6 +69,7 @@
 		"dotenv": "^17.2.3",
 		"fast-xml-parser": "^5.5.7",
 		"framer-motion": "^10.16.16",
+		"html-to-image": "^1.11.13",
 		"html2canvas": "^1.4.1",
 		"natural": "^8.1.0",
 		"neo4j-driver": "^5.28.2",

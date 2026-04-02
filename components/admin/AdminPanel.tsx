@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { seedingStatusService } from "@/lib/services/seedingStatusService";
+import { getCsrfHeaders } from "@/lib/middleware/csrf";
+import { summarizeSeedingTriggerError } from "@/lib/utils/summarizeSeedingTriggerError";
 import JobMonitoringDashboard from "./JobMonitoringDashboard";
 import { killJob as killJobUtil } from "../../lib/jobUtils";
 
@@ -94,6 +96,8 @@ export default function AdminPanel() {
 	const [seasonOverride, setSeasonOverride] = useState<string>("");
 	const [useSeasonOverride, setUseSeasonOverride] = useState<boolean>(false);
 	const [fullRebuild, setFullRebuild] = useState<boolean>(true);
+	/** Full rebuild only: seed to staging graphLabel then swap (minimises downtime). Default on. */
+	const [blueGreenCutover, setBlueGreenCutover] = useState<boolean>(true);
 	const [seasonOverrideError, setSeasonOverrideError] = useState<string>("");
 	
 	// Debug logs state
@@ -357,6 +361,7 @@ export default function AdminPanel() {
 			let response = null;
 			let data = null;
 			let successfulPath = "";
+			let lastFailureMessage: string | null = null;
 
 			for (const path of functionPaths) {
 				try {
@@ -374,6 +379,7 @@ export default function AdminPanel() {
 							currentSeason: useSeasonOverride ? seasonOverride : currentSeason,
 							useSeasonOverride: useSeasonOverride,
 							fullRebuild: fullRebuild,
+							blueGreenCutover: fullRebuild ? blueGreenCutover : false,
 						},
 						debug: debugLogs,
 					};
@@ -387,6 +393,7 @@ export default function AdminPanel() {
 						method: "POST",
 						headers: {
 							"Content-Type": "application/json",
+							...getCsrfHeaders(),
 						},
 						body: JSON.stringify(requestBody),
 					});
@@ -417,6 +424,17 @@ export default function AdminPanel() {
 						addDebugLog(`Path ${path} returned status: ${response.status}`, 'warn');
 						const errorText = await response.text().catch(() => "Could not read error response");
 						addDebugLog(`Error response for ${path}: ${errorText.substring(0, 200)}`, 'warn');
+						try {
+							const summary = summarizeSeedingTriggerError(JSON.parse(errorText));
+							if (summary) {
+								lastFailureMessage = summary;
+							}
+						} catch {
+							if (response.status === 403 && errorText.includes("CSRF")) {
+								lastFailureMessage =
+									"CSRF validation failed for /api/trigger-seed. Refresh the admin page and try again.";
+							}
+						}
 					}
 				} catch (pathError) {
 					const errorDetails = {
@@ -498,8 +516,19 @@ export default function AdminPanel() {
 			} else {
 				addDebugLog("❌ All function paths failed", 'error');
 				addDebugLog("💡 Check Heroku app status: https://dashboard.heroku.com/apps/dorkinians-database-v3", 'info');
-				addDebugLog("💡 The Netlify function is working but can't connect to Heroku", 'info');
-				throw new Error("Failed to trigger seeding - Heroku service is unreachable. Check Heroku dashboard for app status.");
+				if (lastFailureMessage) {
+					addDebugLog(`💡 Detail: ${lastFailureMessage}`, 'info');
+					throw new Error(
+						`Failed to trigger seeding - ${lastFailureMessage}`,
+					);
+				}
+				addDebugLog(
+					"💡 If Heroku logs show 401 / Invalid API key length, sync SEED_API_KEY between hosting (Netlify/Vercel) and Heroku.",
+					"info",
+				);
+				throw new Error(
+					"Failed to trigger seeding - no endpoint accepted the request. If Heroku shows 401 on POST /seed, SEED_API_KEY must match exactly on both sides.",
+				);
 			}
 		} catch (err) {
 			addDebugLog(`Seeding trigger error: ${err instanceof Error ? err.message : "Network error"}`, 'error');
@@ -950,7 +979,7 @@ export default function AdminPanel() {
 		if (result?.status === "pending" || result?.status === "running") {
 			return { display: "⏳", label: `${label} (Pending)` };
 		}
-		const display = value != null && typeof value === "object" ? String((value as { toString?: () => string }).toString?.() ?? JSON.stringify(value)) : String(value ?? "—");
+		const display = value != null && typeof value === "object" ? String((value as { toString?: () => string }).toString?.() ?? JSON.stringify(value)) : String(value ?? "-");
 		return { display, label };
 	};
 
@@ -1243,6 +1272,19 @@ export default function AdminPanel() {
 							/>
 							<label htmlFor='fullRebuild' className='text-sm text-gray-700'>
 								Full rebuild (clear ALL data, not just current season)
+							</label>
+						</div>
+						<div className={`flex items-center ${!fullRebuild ? "opacity-50" : ""}`}>
+							<input
+								type='checkbox'
+								id='blueGreenCutover'
+								checked={blueGreenCutover}
+								disabled={!fullRebuild}
+								onChange={(e) => setBlueGreenCutover(e.target.checked)}
+								className='mr-2 h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded disabled:cursor-not-allowed'
+							/>
+							<label htmlFor='blueGreenCutover' className='text-sm text-gray-700'>
+								Blue/green cutover (build new graph first, then swap - less downtime)
 							</label>
 						</div>
 						<div className='flex items-center'>
@@ -1579,7 +1621,7 @@ export default function AdminPanel() {
 						</div>
 						<div>
 							<p className='text-sm text-gray-800 font-medium'>Timestamp</p>
-							<p className='font-semibold text-gray-900'>{result.timestamp ? new Date(result.timestamp).toLocaleString() : "—"}</p>
+							<p className='font-semibold text-gray-900'>{result.timestamp ? new Date(result.timestamp).toLocaleString() : "-"}</p>
 						</div>
 						<div>
 							<p className='text-sm text-gray-800 font-medium'>Elapsed Time</p>
@@ -1676,11 +1718,11 @@ export default function AdminPanel() {
 											<> | Expected end: {(() => {
 												const startTime = new Date(result.timestamp);
 												const startMs = startTime.getTime();
-												if (Number.isNaN(startMs)) return "—";
+												if (Number.isNaN(startMs)) return "-";
 												const expectedDurationMinutes = lastCompletedJobDuration !== null ? 
 													Math.floor(lastCompletedJobDuration / 60) : 20;
 												const expectedEndTime = new Date(startMs + (expectedDurationMinutes * 60 * 1000));
-												return Number.isNaN(expectedEndTime.getTime()) ? "—" : expectedEndTime.toLocaleTimeString();
+												return Number.isNaN(expectedEndTime.getTime()) ? "-" : expectedEndTime.toLocaleTimeString();
 											})()}</>
 										)}
 									</p>
@@ -2080,7 +2122,7 @@ export default function AdminPanel() {
 																						? "text-orange-600"
 																						: "text-gray-600"
 																	}`}>
-																	{typeof jobData.status === "string" ? jobData.status : String(jobData.status ?? "—")}
+																	{typeof jobData.status === "string" ? jobData.status : String(jobData.status ?? "-")}
 																</span>
 															</p>
 															{jobData.currentStep != null && String(jobData.currentStep) !== "" && <p className='text-sm text-gray-600'>Current Step: {String(jobData.currentStep)}</p>}
