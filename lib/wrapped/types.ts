@@ -49,6 +49,10 @@ export interface WrappedData {
 	bestMonthMatches: number;
 	/** Sum of fantasy (FTP) points in the best month bucket. */
 	bestMonthFantasyPoints: number;
+	bestMonthMinutes: number;
+	bestMonthStarts: number;
+	bestMonthYellowCards: number;
+	bestMonthRedCards: number;
 	topPartnerName: string;
 	topPartnerMatches: number;
 	topPartnerWinRate: number;
@@ -58,6 +62,11 @@ export interface WrappedData {
 	peakMatchOpposition: string;
 	peakMatchGoals: number;
 	peakMatchAssists: number;
+	peakMatchFantasyPoints: number;
+	peakMatchMinutes: number;
+	peakMatchStarted: boolean;
+	peakMatchYellowCards: number;
+	peakMatchRedCards: number;
 	/** Short result label for the peak match (e.g. Win / Draw / Loss). */
 	peakMatchResultLabel: string;
 	/** Scoreline from the club’s perspective (e.g. `3-1`). */
