@@ -115,7 +115,7 @@ function WrappedLeagueSnapshotTable({ row }: { row: WrappedLeagueTableRow }) {
 }
 
 const CARD =
-	"rounded-2xl border border-[#E8C547]/20 bg-[rgba(18,24,14,0.88)] backdrop-blur-md p-4 md:p-7 shadow-[0_20px_60px_rgba(0,0,0,0.45)] max-w-lg w-full mx-auto ring-1 ring-inset ring-white/[0.06] min-h-[50vh] md:min-h-[300px] flex flex-col";
+	"rounded-2xl border border-[#E8C547]/20 bg-[rgba(17,25,14,0.88)] backdrop-blur-md p-4 md:p-7 shadow-[0_20px_60px_rgba(0,0,0,0.45)] max-w-lg w-full mx-auto ring-1 ring-inset ring-white/[0.06] min-h-[45vh] md:min-h-[280px] flex flex-col overflow-hidden";
 
 const ACCENT = "text-[#E8C547]";
 const MINT = "text-[#5DCAA5]";
@@ -137,11 +137,16 @@ function SlideFrame({
 }) {
 	return (
 		<div ref={slideRef} className={`${CARD} relative flex-1`} data-testid='wrapped-slide-card'>
+			<div className='pointer-events-none absolute -bottom-16 -right-14 z-0 opacity-[0.08] select-none' aria-hidden='true'>
+				<Image src='/icons/icon-512x512.png' alt='' width={512} height={512} className='h-64 w-64 md:h-80 md:w-80' />
+			</div>
 			{topRight ? (
 				<div className='pointer-events-none absolute top-4 right-4 z-10 md:top-6 md:right-6'>{topRight}</div>
 			) : null}
-			<div className='flex-1 flex flex-col justify-center min-h-0 overflow-y-auto [&_p]:text-base [&_li]:text-base'>{children}</div>
-			<div className='mt-2 pt-2 border-t border-white/10 shrink-0' data-wrapped-no-swipe>
+			<div className='relative z-10 flex-1 flex flex-col justify-center min-h-0 overflow-y-hidden [&_p]:text-base [&_li]:text-base'>
+				{children}
+			</div>
+			<div className='relative z-10 mt-2 pt-2 border-t border-white/10 shrink-0' data-wrapped-no-swipe>
 				{showTimer ? (
 					<div className='flex justify-center mb-2' data-testid='wrapped-slide-timer'>
 						<div className='relative h-1 w-48 max-w-[88%] rounded-full bg-white/25 overflow-hidden'>
@@ -233,15 +238,25 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 		const body = document.body;
 		const prevHtmlOx = html.style.overflowX;
 		const prevBodyOx = body.style.overflowX;
+		const prevHtmlOy = html.style.overflowY;
+		const prevBodyOy = body.style.overflowY;
 		html.style.overflowX = "hidden";
 		body.style.overflowX = "hidden";
+		html.style.overflowY = "hidden";
+		body.style.overflowY = "hidden";
 		html.style.setProperty("overscroll-behavior-x", "none");
 		body.style.setProperty("overscroll-behavior-x", "none");
+		html.style.setProperty("overscroll-behavior-y", "none");
+		body.style.setProperty("overscroll-behavior-y", "none");
 		return () => {
 			html.style.overflowX = prevHtmlOx;
 			body.style.overflowX = prevBodyOx;
+			html.style.overflowY = prevHtmlOy;
+			body.style.overflowY = prevBodyOy;
 			html.style.removeProperty("overscroll-behavior-x");
 			body.style.removeProperty("overscroll-behavior-x");
+			html.style.removeProperty("overscroll-behavior-y");
+			body.style.removeProperty("overscroll-behavior-y");
 		};
 	}, []);
 

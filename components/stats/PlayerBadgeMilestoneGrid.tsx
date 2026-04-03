@@ -242,6 +242,20 @@ export default function PlayerBadgeMilestoneGrid({
 		return formatBadgeMetricValue(current, badgeKey);
 	};
 
+	const placeholderValueTextClass = (value: string): string => {
+		const normalizedLength = value.replace(/\s+/g, "").length;
+		if (normalizedLength >= 11) return "text-[8px]";
+		if (normalizedLength >= 8) return "text-[9px]";
+		return "text-[10px]";
+	};
+
+	const achievementNameTextClass = (name: string): string => {
+		const normalizedLength = name.replace(/\s+/g, "").length;
+		if (normalizedLength >= 22) return "text-[9px] leading-tight line-clamp-3";
+		if (normalizedLength >= 16) return "text-[10px] leading-tight line-clamp-3";
+		return "text-[11px] leading-tight line-clamp-2";
+	};
+
 	return (
 		<div id='player-achievement-badges' className='mt-3 space-y-4' data-testid='player-badge-milestones'>
 			{modalLines && typeof document !== "undefined"
@@ -378,13 +392,14 @@ export default function PlayerBadgeMilestoneGrid({
 										{got ? (
 											<BadgeDot tier={got.tier} title='' aria-label={aria} size='md' innerLabel={innerValue} />
 										) : (
-											<div className='h-9 w-9 min-h-[36px] min-w-[36px] rounded-full border-2 border-dashed border-white/30 flex items-center justify-center bg-black/15'>
-												<span className='text-[8px] font-bold text-white/80 tabular-nums px-0.5 text-center leading-none'>
+											<div className='h-12 w-12 min-h-[48px] min-w-[48px] rounded-full border-2 border-dashed border-white/30 flex items-center justify-center bg-black/15'>
+												<span
+													className={`${placeholderValueTextClass(innerValue)} font-bold text-white/80 tabular-nums px-1 text-center leading-tight max-w-[90%] whitespace-normal break-words`}>
 													{innerValue}
 												</span>
 											</div>
 										)}
-										<span className='text-white text-[11px] leading-tight line-clamp-2'>{def.name}</span>
+										<span className={`text-white ${achievementNameTextClass(def.name)}`}>{def.name}</span>
 										{got ? (
 											<span className='text-[10px] text-dorkinians-yellow capitalize font-semibold'>{got.tier}</span>
 										) : prog ? (
