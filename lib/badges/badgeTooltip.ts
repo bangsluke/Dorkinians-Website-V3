@@ -23,7 +23,15 @@ export function formatBadgeNumber(n: number): string {
 	return s || "0";
 }
 
+export function formatBadgeMetricValue(n: number, badgeKey?: string): string {
+	if (!Number.isFinite(n)) return "-";
+	if (badgeKey === "fines_paid") return `£${Math.round(n)}`;
+	if (badgeKey === "fantasy_centurion") return String(Math.round(n));
+	return formatBadgeNumber(n);
+}
+
 export type MilestoneTooltipContext = {
+	badgeKey?: string;
 	/** Count of club players who have earned this milestone at any tier (optional). */
 	achieverCountAnyTier?: number;
 	/** Count at the same tier as the current player (when earned). */
@@ -59,7 +67,7 @@ export function buildMilestoneTooltipLines(
 		ctx.currentStatValue != null && Number.isFinite(ctx.currentStatValue)
 			? ctx.currentStatValue
 			: prog?.currentValue;
-	const valueStr = rawVal != null && Number.isFinite(rawVal) ? formatBadgeNumber(rawVal) : "-";
+	const valueStr = rawVal != null && Number.isFinite(rawVal) ? formatBadgeMetricValue(rawVal, ctx.badgeKey) : "-";
 
 	let currentLine: string;
 	if (got) {
@@ -72,7 +80,7 @@ export function buildMilestoneTooltipLines(
 
 	let nextLine: string;
 	if (prog && prog.remaining > 0) {
-		nextLine = `Next tier: ${prog.nextTier} at ${formatBadgeNumber(prog.targetValue)} - ${formatBadgeNumber(prog.remaining)} to go.`;
+		nextLine = `Next tier: ${prog.nextTier} at ${formatBadgeMetricValue(prog.targetValue, ctx.badgeKey)} - ${formatBadgeMetricValue(prog.remaining, ctx.badgeKey)} to go.`;
 	} else if (got) {
 		nextLine = "Next tier: You’re at the highest tier for this milestone.";
 	} else {
@@ -90,7 +98,7 @@ export function buildMilestoneTooltipLines(
 
 	let leaderLine: string;
 	if (ctx.leader && ctx.leader.playerName.trim() !== "") {
-		leaderLine = `Club leader: ${ctx.leader.playerName} (${formatBadgeNumber(ctx.leader.value)}).`;
+		leaderLine = `Club leader: ${ctx.leader.playerName} (${formatBadgeMetricValue(ctx.leader.value, ctx.badgeKey)}).`;
 	} else {
 		leaderLine = "Club leader: -";
 	}

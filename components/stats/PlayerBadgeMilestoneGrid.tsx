@@ -8,6 +8,7 @@ import {
 	buildMilestoneBadgeTooltip,
 	buildMilestoneTooltipLines,
 	formatBadgeNumber,
+	formatBadgeMetricValue,
 	type MilestoneTooltipLines,
 } from "@/lib/badges/badgeTooltip";
 import { tierRank } from "@/lib/badges/evaluate";
@@ -54,10 +55,10 @@ function getCategoryHeading(category: string): string {
 	return CATEGORY_LABELS[category] ?? category;
 }
 
-function tierThresholdLabel(def: BadgeDefinition, tier: string): string | undefined {
+function tierThresholdLabel(def: BadgeDefinition, badgeKey: string, tier: string): string | undefined {
 	const t = def.tiers[tier as keyof typeof def.tiers];
 	if (!t) return undefined;
-	return formatBadgeNumber(t.threshold);
+	return formatBadgeMetricValue(t.threshold, badgeKey);
 }
 
 function TooltipLineBlock({ lines }: { lines: MilestoneTooltipLines }) {
@@ -193,6 +194,7 @@ export default function PlayerBadgeMilestoneGrid({
 			const tierPeerCount =
 				got ? tiers[badgeKey]?.[got.tier] : undefined;
 			return {
+				badgeKey,
 				achieverCountAnyTier: achieverCounts[badgeKey],
 				tierPeerCount,
 				leader: leaders[badgeKey] ?? null,
@@ -230,12 +232,14 @@ export default function PlayerBadgeMilestoneGrid({
 		const current = getBadgeCurrentValue(badgeKey, prog);
 		if (current == null) return "-";
 		if (got) {
-			if (got.tier === "diamond") return formatBadgeNumber(current);
+			if (got.tier === "diamond") return formatBadgeMetricValue(current, badgeKey);
 			const next = nextThresholdAfterTier(def, got.tier);
-			return next == null ? formatBadgeNumber(current) : `${formatBadgeNumber(current)} / ${formatBadgeNumber(next)}`;
+			return next == null
+				? formatBadgeMetricValue(current, badgeKey)
+				: `${formatBadgeMetricValue(current, badgeKey)} / ${formatBadgeMetricValue(next, badgeKey)}`;
 		}
-		if (prog) return `${formatBadgeNumber(current)} / ${formatBadgeNumber(prog.targetValue)}`;
-		return formatBadgeNumber(current);
+		if (prog) return `${formatBadgeMetricValue(current, badgeKey)} / ${formatBadgeMetricValue(prog.targetValue, badgeKey)}`;
+		return formatBadgeMetricValue(current, badgeKey);
 	};
 
 	return (
@@ -313,7 +317,7 @@ export default function PlayerBadgeMilestoneGrid({
 										aria-label={aria}
 										size='md'
 										innerLabel={
-											def ? tierThresholdLabel(def, recentlyUnlocked.tier) : undefined
+											def ? tierThresholdLabel(def, recentlyUnlocked.badgeKey, recentlyUnlocked.tier) : undefined
 										}
 									/>
 								</MilestoneHoverShell>
@@ -386,7 +390,7 @@ export default function PlayerBadgeMilestoneGrid({
 										) : prog ? (
 											<span className='text-[10px] text-white/65'>
 												{prog.remaining > 0
-													? `${formatBadgeNumber(prog.remaining)} to ${prog.nextTier}`
+													? `${formatBadgeMetricValue(prog.remaining, badgeKey)} to ${prog.nextTier}`
 													: "-"}
 											</span>
 										) : (
