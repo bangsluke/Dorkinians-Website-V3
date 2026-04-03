@@ -14,6 +14,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { XMarkIcon } from "@heroicons/react/24/outline";
+import { PauseIcon, PlayIcon } from "@heroicons/react/24/solid";
 import { toBlob } from "html-to-image";
 import { getPlayerProfileHref } from "@/lib/profile/slug";
 import { featureFlags } from "@/config/config";
@@ -22,7 +23,7 @@ import { formatRecordingDateMobile, formatRecordingScore } from "@/lib/utils/rec
 import type { WrappedData, WrappedLeagueTableRow } from "@/lib/wrapped/types";
 
 const SWIPE_PX = 56;
-const VEO_WRAP_PREVIEW_COUNT = 5;
+const VEO_WRAP_PREVIEW_COUNT = 3;
 const AUTOPLAY_MS = 15_000;
 
 function formatOrdinal(n: number): string {
@@ -114,7 +115,7 @@ function WrappedLeagueSnapshotTable({ row }: { row: WrappedLeagueTableRow }) {
 }
 
 const CARD =
-	"rounded-2xl border border-[#E8C547]/20 bg-[rgba(18,24,14,0.88)] backdrop-blur-md p-4 md:p-7 shadow-[0_20px_60px_rgba(0,0,0,0.45)] max-w-lg w-full mx-auto ring-1 ring-inset ring-white/[0.06] min-h-[60vh] md:min-h-[360px] flex flex-col";
+	"rounded-2xl border border-[#E8C547]/20 bg-[rgba(18,24,14,0.88)] backdrop-blur-md p-4 md:p-7 shadow-[0_20px_60px_rgba(0,0,0,0.45)] max-w-lg w-full mx-auto ring-1 ring-inset ring-white/[0.06] min-h-[50vh] md:min-h-[300px] flex flex-col";
 
 const ACCENT = "text-[#E8C547]";
 const MINT = "text-[#5DCAA5]";
@@ -173,7 +174,6 @@ function FinalSlideFullSiteLink() {
 					rel='noopener noreferrer'>
 					full site
 				</a>
-				.
 			</p>
 		</>
 	);
@@ -424,17 +424,20 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 						<p className={`${ACCENT} text-xs sm:text-sm font-semibold uppercase tracking-wide mb-1`}>Overview</p>
 						<h2 className='text-xl md:text-3xl font-bold text-white mb-1 leading-tight'>Your {data.season} season</h2>
 						<div className='border-t border-white/10 my-2' />
-						<p className='text-white/55 text-base mb-0.5'>This season you played</p>
-						<p className={`text-4xl sm:text-5xl md:text-6xl font-extrabold ${ACCENT} tabular-nums leading-none`}>
-							{data.totalMatches}
+						<p className='text-white/55 text-base mb-2'>
+							This season you played{" "}
+							<span className={`text-2xl sm:text-3xl font-extrabold ${ACCENT} tabular-nums leading-none`}>
+								{data.totalMatches}
+							</span>{" "}
+							<span className={`font-semibold ${ACCENT}`}>matches</span>
 						</p>
-						<p className={`text-base font-semibold ${ACCENT} mb-2`}>matches</p>
 						<p className='text-white/75 text-base leading-snug mb-2'>
 							<span className='text-white/55'>{data.totalMinutes.toLocaleString()} minutes</span>
 							{" · "}
 							<span className={MINT}>{data.totalStarts}</span> starts
-							{" · "}
-							Most played: <span className='text-white font-medium'>{data.mostPlayedPosition}</span>
+						</p>
+						<p className='text-white/75 text-base leading-snug mb-2'>
+							Most played position: <span className='text-white font-medium'>{data.mostPlayedPosition}</span>
 						</p>
 						<div className='grid grid-cols-3 gap-1.5 text-center border-y border-white/10 py-2.5'>
 							<div>
@@ -460,7 +463,7 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 						<div className='border-t border-white/10 my-2' />
 						<p className='text-white/85 text-base sm:text-lg leading-snug'>
 							You played more matches than <span className={`${MINT} font-semibold`}>{data.matchesPercentile}%</span> of
-							the club this season.
+							the club this season
 						</p>
 					</>
 				);
@@ -471,11 +474,15 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 						<h2 className='text-xl md:text-3xl font-bold text-white mb-2'>{data.bestMonth}</h2>
 						<div className='border-t border-white/10 my-2' />
 						<p className='text-white/75 text-xs sm:text-sm mb-2'>
-							<span className={MINT}>{data.bestMonthMatches}</span> games · FTP{" "}
-							<span className={MINT}>{data.bestMonthFantasyPoints}</span>
+							<span className={MINT}>{data.bestMonthMatches}</span> games · {" "} 
+							<span className={MINT}>{data.bestMonthFantasyPoints}</span> {" "} Fantasy Points
 						</p>
-						<p className='text-white/85 text-base sm:text-lg'>
+						<p className='text-white/85 text-base sm:text-lg mb-1.5'>
 							{data.bestMonthGoals} goals · {data.bestMonthAssists} assists
+						</p>
+						<p className='text-white/70 text-xs sm:text-sm'>
+							{data.bestMonthMinutes.toLocaleString()} mins · {data.bestMonthStarts} starts ·{" "}
+							{data.bestMonthYellowCards}Y · {data.bestMonthRedCards}R
 						</p>
 					</>
 				);
@@ -511,7 +518,7 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 						<p className={`${ACCENT} text-xs sm:text-sm font-semibold uppercase tracking-wide mb-1`}>Player type</p>
 						<p className='text-white/50 text-base mb-2'>Your player type this season</p>
 						<div className='border-t border-white/10 my-2' />
-						<h2 className={`text-xl md:text-3xl font-bold ${ACCENT} mb-2 leading-tight`}>{data.playerType}</h2>
+						<h2 className={`text-xl md:text-3xl font-bold ${MINT} mb-2 leading-tight`}>{data.playerType}</h2>
 						<p className='text-white/70 text-sm sm:text-base leading-snug'>{data.playerTypeReason}</p>
 					</>
 				);
@@ -523,13 +530,19 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 							Match rating <span className={ACCENT}>{data.peakMatchRating}</span>
 						</h2>
 						<div className='border-t border-white/10 my-2' />
-						<p className='text-white/85 text-base sm:text-lg mb-1'>
-							vs {data.peakMatchOpposition} - {data.peakMatchGoals}G {data.peakMatchAssists}A
-						</p>
-						<p className='text-white/75 text-sm sm:text-base'>
+						<p className='text-white/75 text-sm sm:text-base mb-1'>
 							Result: <span className={`font-semibold ${MINT}`}>{data.peakMatchResultLabel}</span>
 							{" · "}
 							<span className='text-white font-medium'>{data.peakMatchScoreline}</span>
+							{" "}vs {data.peakMatchOpposition}
+						</p>
+						
+						<p className='text-white/70 text-xs sm:text-sm'>
+						{data.peakMatchStarted ? "Started" : "Sub"} · {data.peakMatchMinutes} mins {data.peakMatchGoals > 0 ? "· " + data.peakMatchGoals + "G" : ""} {data.peakMatchAssists > 0 ? "· " + data.peakMatchAssists + "A" : ""} {data.peakMatchYellowCards > 0 ? "· " + data.peakMatchYellowCards + "Y" : ""} {data.peakMatchRedCards > 0 ? "· " + data.peakMatchRedCards + "R" : ""}
+						</p>
+
+						<p className='text-white/70 text-xs sm:text-sm'>
+						<span className={`font-semibold ${MINT}`}>{data.peakMatchFantasyPoints}</span> Fantasy Points
 						</p>
 					</>
 				);
@@ -547,15 +560,15 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 				return (
 					<>
 						<p className={`${ACCENT} text-xs sm:text-sm font-semibold uppercase tracking-wide mb-1`}>Team season</p>
-						<h2 className='text-xl md:text-3xl font-bold text-white mb-2'>Points, cups, table</h2>
+						<h2 className='text-xl md:text-3xl font-bold text-white mb-2'>League Points and Cups</h2>
 						<div className='border-t border-white/10 my-2' />
 						<ul className='text-white/85 text-xs sm:text-sm md:text-base space-y-2 text-left' data-testid='wrapped-team-season-slide'>
 							<li>
 								<span className={`${MINT} font-semibold`}>{data.wrappedLeaguePointsContributed}</span> league points from
-								games you played.
+								games you played
 							</li>
 							<li>
-								<span className={`${MINT} font-semibold`}>{data.wrappedCupTiesAdvanced}</span> cup ties advanced.
+								<span className={`${MINT} font-semibold`}>{data.wrappedCupTiesAdvanced}</span> cup ties advanced
 							</li>
 							{leagueFinishLine ? <li className='text-white/70'>{leagueFinishLine}</li> : null}
 						</ul>
@@ -571,9 +584,9 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 						<p className={`${ACCENT} text-xs sm:text-sm font-semibold uppercase tracking-wide mb-1`}>Streak</p>
 						<h2 className='text-xl md:text-3xl font-bold text-white mb-2 leading-tight'>{data.longestStreakType}</h2>
 						<div className='border-t border-white/10 my-2' />
-						<p className={`text-white/85 text-3xl sm:text-4xl font-bold ${MINT}`}>
+						<p className={`text-white/85 text-3xl sm:text-4xl ${MINT}`}>
 							{data.longestStreakValue}
-							{isDisciplineNoCardsStreak ? " games" : ""}
+							{isDisciplineNoCardsStreak ? " games without a card" : ""}
 						</p>
 					</>
 				);
@@ -681,7 +694,9 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 				disabled={index >= total - 1}
 				className='text-xs sm:text-sm px-3 py-1.5 rounded-lg border border-white/15 text-white/90 disabled:opacity-30'
 				aria-label={isPaused ? "Resume autoplay" : "Pause autoplay"}>
-				{isPaused ? "▶" : "⏸"}
+				{isPaused ?
+					<PlayIcon className='h-4 w-4 sm:h-5 sm:w-5' aria-hidden />
+				:	<PauseIcon className='h-4 w-4 sm:h-5 sm:w-5' aria-hidden />}
 			</button>
 			<button
 				type='button'

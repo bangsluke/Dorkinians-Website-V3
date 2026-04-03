@@ -32,7 +32,7 @@ function slideTitle(n: number, data: WrappedData): { title: string; subtitle: st
 		case 3:
 			return {
 				title: "Best month",
-				subtitle: `${data.bestMonth} · ${data.bestMonthMatches} games · FTP ${data.bestMonthFantasyPoints} · ${data.bestMonthGoals}G ${data.bestMonthAssists}A`,
+				subtitle: `${data.bestMonth} · ${data.bestMonthMatches} games · ${data.bestMonthFantasyPoints} Fantasy Points · ${data.bestMonthGoals}G ${data.bestMonthAssists}A · ${data.bestMonthMinutes} mins · ${data.bestMonthStarts} starts · ${data.bestMonthYellowCards}Y ${data.bestMonthRedCards}R`,
 			};
 		case 4:
 			return {
@@ -47,7 +47,7 @@ function slideTitle(n: number, data: WrappedData): { title: string; subtitle: st
 		case 6:
 			return {
 				title: "Peak performance",
-				subtitle: `${data.peakMatchRating} vs ${data.peakMatchOpposition} (${data.peakMatchGoals}G ${data.peakMatchAssists}A) · ${data.peakMatchResultLabel} ${data.peakMatchScoreline}`,
+				subtitle: `${data.peakMatchRating} vs ${data.peakMatchOpposition} (${data.peakMatchGoals}G ${data.peakMatchAssists}A) · Fantasy Points ${data.peakMatchFantasyPoints} · ${data.peakMatchMinutes} mins · ${data.peakMatchStarted ? "Started" : "Sub"} · ${data.peakMatchYellowCards}Y ${data.peakMatchRedCards}R · ${data.peakMatchResultLabel} ${data.peakMatchScoreline}`,
 			};
 		case 11: {
 			const row = data.wrappedDominantTeamLeagueRow;
@@ -67,7 +67,7 @@ function slideTitle(n: number, data: WrappedData): { title: string; subtitle: st
 			return data.longestStreakType
 				? {
 						title: "Streak spotlight",
-						subtitle: `${data.longestStreakType}: ${data.longestStreakValue}${disciplineGames}`,
+						subtitle: `${data.longestStreakType}: ${data.longestStreakValue}${disciplineGames}${disciplineGames ? " without a card" : ""}`,
 					}
 				: { title: "Streak spotlight", subtitle: "No 3+ game season streak — room to start one next year" };
 		}

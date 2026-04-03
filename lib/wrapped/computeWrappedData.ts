@@ -324,8 +324,12 @@ export async function computeWrappedData(options: {
 			count(md) AS monthApps,
 			sum(coalesce(md.goals, 0)) AS g,
 			sum(coalesce(md.assists, 0)) AS a,
-			sum(coalesce(md.fantasyPoints, 0)) AS ftp
-		RETURN ym, monthApps, g, a, ftp
+			sum(coalesce(md.fantasyPoints, 0)) AS ftp,
+			sum(coalesce(md.minutes, 0)) AS mins,
+			sum(CASE WHEN coalesce(md.started, false) THEN 1 ELSE 0 END) AS starts,
+			sum(coalesce(md.yellowCards, 0)) AS yellowCards,
+			sum(coalesce(md.redCards, 0)) AS redCards
+		RETURN ym, monthApps, g, a, ftp, mins, starts, yellowCards, redCards
 		ORDER BY (g + a) DESC, g DESC
 		LIMIT 1
 		`,
@@ -337,6 +341,10 @@ export async function computeWrappedData(options: {
 	const bestMonthAssists = Math.round(toNumber(monthRes.records[0]?.get("a")));
 	const bestMonthMatches = Math.round(toNumber(monthRes.records[0]?.get("monthApps")));
 	const bestMonthFantasyPoints = Math.round(toNumber(monthRes.records[0]?.get("ftp")) * 10) / 10;
+	const bestMonthMinutes = Math.round(toNumber(monthRes.records[0]?.get("mins")));
+	const bestMonthStarts = Math.round(toNumber(monthRes.records[0]?.get("starts")));
+	const bestMonthYellowCards = Math.round(toNumber(monthRes.records[0]?.get("yellowCards")));
+	const bestMonthRedCards = Math.round(toNumber(monthRes.records[0]?.get("redCards")));
 	const bestMonth =
 		ym != null && String(ym).length >= 7
 			? formatYearMonth(String(ym))
@@ -355,6 +363,11 @@ export async function computeWrappedData(options: {
 			coalesce(f.opposition, '') AS opposition,
 			coalesce(md.goals, 0) AS peakGoals,
 			coalesce(md.assists, 0) AS peakAssists,
+			coalesce(md.fantasyPoints, 0) AS peakFantasyPoints,
+			coalesce(md.minutes, 0) AS peakMinutes,
+			coalesce(md.started, false) AS peakStarted,
+			coalesce(md.yellowCards, 0) AS peakYellowCards,
+			coalesce(md.redCards, 0) AS peakRedCards,
 			coalesce(f.result, '') AS peakResult,
 			coalesce(f.dorkiniansGoals, 0) AS peakDorkiniansGoals,
 			coalesce(f.conceded, 0) AS peakConceded
@@ -366,6 +379,11 @@ export async function computeWrappedData(options: {
 	const peakMatchOpposition = peakR?.get("opposition") != null ? String(peakR.get("opposition")) : "-";
 	const peakMatchGoals = Math.round(toNumber(peakR?.get("peakGoals")));
 	const peakMatchAssists = Math.round(toNumber(peakR?.get("peakAssists")));
+	const peakMatchFantasyPoints = Math.round(toNumber(peakR?.get("peakFantasyPoints")) * 10) / 10;
+	const peakMatchMinutes = Math.round(toNumber(peakR?.get("peakMinutes")));
+	const peakMatchStarted = Boolean(peakR?.get("peakStarted"));
+	const peakMatchYellowCards = Math.round(toNumber(peakR?.get("peakYellowCards")));
+	const peakMatchRedCards = Math.round(toNumber(peakR?.get("peakRedCards")));
 	const peakFromRow = Math.round(toNumber(peakR?.get("peakRating")) * 10) / 10;
 	const peakResultRaw = peakR?.get("peakResult") != null ? String(peakR.get("peakResult")) : "";
 	const peakDorkGoals = Math.round(toNumber(peakR?.get("peakDorkiniansGoals")));
@@ -585,6 +603,10 @@ export async function computeWrappedData(options: {
 		bestMonthAssists,
 		bestMonthMatches,
 		bestMonthFantasyPoints,
+		bestMonthMinutes,
+		bestMonthStarts,
+		bestMonthYellowCards,
+		bestMonthRedCards,
 		topPartnerName,
 		topPartnerMatches,
 		topPartnerWinRate,
@@ -594,6 +616,11 @@ export async function computeWrappedData(options: {
 		peakMatchOpposition,
 		peakMatchGoals,
 		peakMatchAssists,
+		peakMatchFantasyPoints,
+		peakMatchMinutes,
+		peakMatchStarted,
+		peakMatchYellowCards,
+		peakMatchRedCards,
 		peakMatchResultLabel,
 		peakMatchScoreline,
 		longestStreakType,
