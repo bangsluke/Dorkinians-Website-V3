@@ -30,8 +30,16 @@ export default function BadgeDot({
 	innerLabel?: string;
 	"aria-label"?: string;
 }) {
-	const dim = size === "sm" ? "h-6 w-6 min-h-[24px] min-w-[24px]" : "h-9 w-9 min-h-[36px] min-w-[36px]";
-	const textSize = size === "sm" ? "text-[8px]" : "text-[9px]";
+	const dim = size === "sm" ? "h-6 w-6 min-h-[24px] min-w-[24px]" : "h-12 w-12 min-h-[48px] min-w-[48px]";
+	const normalizedLabelLength = (innerLabel ?? "").replace(/\s+/g, "").length;
+	const textSize =
+		size === "sm"
+			? "text-[8px]"
+			: normalizedLabelLength >= 11
+				? "text-[8px]"
+				: normalizedLabelLength >= 8
+					? "text-[9px]"
+					: "text-[10px]";
 	const a11y = ariaLabelProp ?? title;
 	return (
 		<span
@@ -40,7 +48,8 @@ export default function BadgeDot({
 			aria-label={a11y}
 			className={`inline-flex items-center justify-center rounded-full ring-2 ring-white/40 shadow-sm ${dim} ${tierSurfaceClass(tier)} ${className}`}>
 			{innerLabel ? (
-				<span className={`${textSize} font-bold leading-none text-black/90 tabular-nums px-0.5 text-center max-w-full truncate`}>
+				<span
+					className={`${textSize} font-bold leading-tight text-black/90 tabular-nums px-1 text-center max-w-[90%] whitespace-normal break-words`}>
 					{innerLabel}
 				</span>
 			) : null}

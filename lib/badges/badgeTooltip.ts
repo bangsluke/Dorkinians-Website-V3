@@ -27,6 +27,7 @@ export function formatBadgeMetricValue(n: number, badgeKey?: string): string {
 	if (!Number.isFinite(n)) return "-";
 	if (badgeKey === "fines_paid") return `£${Math.round(n)}`;
 	if (badgeKey === "fantasy_centurion") return String(Math.round(n));
+	if (badgeKey === "ftp_points_scored") return String(Math.round(n));
 	return formatBadgeNumber(n);
 }
 

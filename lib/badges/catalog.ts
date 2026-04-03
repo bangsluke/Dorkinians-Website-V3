@@ -861,7 +861,7 @@ export const BADGE_DEFINITIONS: Record<string, BadgeDefinition> = {
 		evaluate: (player) => Number(player.cupTitles ?? 0) || 0,
 	},
 	ftp_points_scored: {
-		name: "FTP Points Scored",
+		name: "Fantasy Points Scored",
 		category: "special",
 		description: "Accumulate total fantasy points (FTP).",
 		tiers: {
