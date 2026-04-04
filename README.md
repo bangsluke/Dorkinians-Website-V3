@@ -38,6 +38,7 @@
 - [Project Overview](#project-overview)
   - [Live Demo](#live-demo)
   - [Key Features](#key-features)
+  - [Streak Rules (Week-Based)](#streak-rules-week-based)
   - [Tech Stack](#tech-stack)
   - [Screenshots](#screenshots)
     - [Home Page](#home-page)
@@ -104,6 +105,26 @@ This project demonstrates modern full-stack development practices, combining adv
 - **Settings Hub**: Quick navigation to all sections, database status monitoring, and PWA installation
 - **Swipe Navigation**: Intuitive swipe gestures for navigating between pages on mobile devices
 - **Player Context**: Set player context for personalized chatbot queries using pronouns
+
+> [Back to Table of Contents](#table-of-contents)
+
+### Streak Rules (Week-Based)
+
+Streaks use `seasonWeek` as the timeline key and are calculated week-by-week across seasons.
+
+- **Appearance streaks**:
+  - Increase by every match played in a week (across any XI), including multiple matches in the same week.
+  - Break only when the player's **most-played team for that season** has a fixture in that week and the player does not appear for any XI.
+  - If that most-played team does not play that week, the streak is protected.
+- **Non-appearance streaks** (e.g. scoring, assists, clean sheets):
+  - Only evaluated in matches the player appears in.
+  - A played match increments the streak only when the stat condition is met.
+  - Weeks with no player appearance are skipped and do not break the streak.
+- **Cross-season continuity**:
+  - Streaks continue across season boundaries.
+  - Most-played-team ties use the player's **most recent played team**.
+- **Fixture status updates**:
+  - Streaks are recomputed when fixture statuses change (e.g. void/postponed/abandoned effects).
 
 > [Back to Table of Contents](#table-of-contents)
 
