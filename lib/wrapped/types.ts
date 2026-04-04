@@ -70,6 +70,7 @@ export interface WrappedData {
 	peakMatchMinutes: number;
 	peakMatchStarted: boolean;
 	peakMatchMom: boolean;
+	peakMatchMomCount: number;
 	peakMatchYellowCards: number;
 	peakMatchRedCards: number;
 	/** Short result label for the peak match (e.g. Win / Draw / Loss). */
@@ -102,6 +103,8 @@ export interface WrappedData {
 	wrappedDominantTeamLeagueDivision: string;
 	/** Dorkinians’ league table row for that XI/league file when available. */
 	wrappedDominantTeamLeagueRow: WrappedLeagueTableRow | null;
+	/** Trophy-style labels won by squads the player appeared for in this wrapped season. */
+	wrappedTrophiesWon: string[];
 	/** Home/away split from fixtures the player played in this season. */
 	wrappedHomeApps: number;
 	wrappedAwayApps: number;
