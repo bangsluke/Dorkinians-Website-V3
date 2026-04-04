@@ -831,10 +831,34 @@ ${PLAYER_STREAK_PROPERTY_RETURN}
 	return { query, params };
 }
 
+export function buildPlayerProfileHeadlineQuery(playerName: string): { query: string; params: any } {
+	const graphLabel = neo4jService.getGraphLabel();
+	return {
+		params: { graphLabel, playerName },
+		query: `
+		MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
+		MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+		MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+		RETURN p.playerName AS playerName,
+			p.allowOnSite AS allowOnSite,
+			count(md) AS appearances,
+			sum(coalesce(md.minutes, 0)) AS minutes,
+			sum(coalesce(md.goals, 0)) + sum(coalesce(md.penaltiesScored, 0)) AS allGoalsScored,
+			sum(coalesce(md.assists, 0)) AS assists,
+			sum(coalesce(md.mom, 0)) AS mom,
+			sum(coalesce(md.fantasyPoints, 0)) AS fantasyPoints,
+			round(avg(coalesce(md.matchRating, 0)) * 10) / 10 AS averageMatchRating,
+			count(DISTINCT md.team) AS numberTeamsPlayedFor
+		LIMIT 1
+		`,
+	};
+}
+
 export async function GET(request: NextRequest) {
 	try {
 		const { searchParams } = new URL(request.url);
 		const playerName = searchParams.get("playerName");
+		const profileHeadlineMode = searchParams.get("profileHeadline") === "1";
 
 		if (!playerName) {
 			return NextResponse.json({ error: "Player name is required" }, { status: 400, headers: corsHeaders });
@@ -846,17 +870,6 @@ export async function GET(request: NextRequest) {
 			return NextResponse.json({ error: "Database connection failed" }, { status: 500, headers: corsHeaders });
 		}
 
-		const graphLabel = neo4jService.getGraphLabel();
-
-		// Build query with no filters
-		const { query, params } = buildPlayerStatsQuery(playerName, null);
-
-		const result = await neo4jService.runQuery(query, params);
-
-		if (result.records.length === 0) {
-			return NextResponse.json({ error: "Player not found" }, { status: 404, headers: corsHeaders });
-		}
-
 		// Helper function to convert Neo4j Integer/Float to JavaScript number
 		const toNumber = (value: any): number => {
 			if (value === null || value === undefined) return 0;
@@ -864,13 +877,11 @@ export async function GET(request: NextRequest) {
 				if (isNaN(value)) return 0;
 				return value;
 			}
-			// Handle Neo4j Integer objects
 			if (typeof value === "object") {
 				if ("toNumber" in value && typeof value.toNumber === "function") {
 					return value.toNumber();
 				}
 				if ("low" in value && "high" in value) {
-					// Neo4j Integer format: low + high * 2^32
 					const low = value.low || 0;
 					const high = value.high || 0;
 					return low + high * 4294967296;
@@ -883,6 +894,39 @@ export async function GET(request: NextRequest) {
 			const num = Number(value);
 			return isNaN(num) ? 0 : num;
 		};
+
+		if (profileHeadlineMode) {
+			const { query, params } = buildPlayerProfileHeadlineQuery(playerName);
+			const result = await neo4jService.runQuery(query, params);
+			if (result.records.length === 0) {
+				return NextResponse.json({ error: "Player not found" }, { status: 404, headers: corsHeaders });
+			}
+			const record = result.records[0];
+			if (record.get("allowOnSite") === false) {
+				return NextResponse.json({ error: "Player not found" }, { status: 404, headers: corsHeaders });
+			}
+			const playerData = {
+				playerName: record.get("playerName"),
+				appearances: toNumber(record.get("appearances")),
+				allGoalsScored: toNumber(record.get("allGoalsScored")),
+				assists: toNumber(record.get("assists")),
+				minutes: toNumber(record.get("minutes")),
+				mom: toNumber(record.get("mom")),
+				fantasyPoints: Math.round(toNumber(record.get("fantasyPoints"))),
+				averageMatchRating: Math.round(toNumber(record.get("averageMatchRating")) * 10) / 10,
+				numberTeamsPlayedFor: toNumber(record.get("numberTeamsPlayedFor")),
+			};
+			return NextResponse.json({ playerData }, { headers: { ...corsHeaders, "Cache-Control": "public, max-age=120" } });
+		}
+
+		// Build query with no filters
+		const { query, params } = buildPlayerStatsQuery(playerName, null);
+
+		const result = await neo4jService.runQuery(query, params);
+
+		if (result.records.length === 0) {
+			return NextResponse.json({ error: "Player not found" }, { status: 404, headers: corsHeaders });
+		}
 
 		// Extract aggregated stats from result
 		const record = result.records[0];

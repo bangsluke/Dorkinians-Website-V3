@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { computeWrappedData } from "@/lib/wrapped/computeWrappedData";
+import { computeWrappedData, computeWrappedSeasonMetadata } from "@/lib/wrapped/computeWrappedData";
 import { wrappedSlugToPlayerName } from "@/lib/wrapped/slug";
 import { getSitePublicOrigin } from "@/lib/wrapped/siteOrigin";
 import { getCorsHeadersWithSecurity } from "@/lib/utils/securityHeaders";
@@ -20,6 +20,21 @@ export async function GET(request: NextRequest, ctx: { params: Promise<{ playerS
 
 		const { searchParams } = new URL(request.url);
 		const season = searchParams.get("season")?.trim() || undefined;
+		const metaOnly = searchParams.get("meta") === "1";
+
+		if (metaOnly) {
+			const meta = await computeWrappedSeasonMetadata({ playerName: name, season });
+			if ("error" in meta) {
+				return NextResponse.json({ error: meta.error }, { status: meta.status, headers: corsHeaders });
+			}
+			return NextResponse.json(
+				{
+					seasonsAvailable: meta.data.seasonsAvailable,
+					season: meta.data.seasonLabel,
+				},
+				{ headers: { ...corsHeaders, "Cache-Control": "public, max-age=300" } },
+			);
+		}
 
 		const origin = getSitePublicOrigin(request);
 		const result = await computeWrappedData({

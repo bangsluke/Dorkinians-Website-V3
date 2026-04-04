@@ -55,6 +55,7 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 	const pastSeasonsDropdownRef = useRef<HTMLDivElement>(null);
 	const [wrappedDefaultSeason, setWrappedDefaultSeason] = useState<string | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
+	const [isLoadingBadges, setIsLoadingBadges] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [seasonWrappedPromoActive, setSeasonWrappedPromoActive] = useState(false);
 
@@ -174,66 +175,74 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 
 			setIsLoading(true);
 			setError(null);
+			setIsLoadingBadges(featureFlags.achievementBadges);
+			setBadgePayload(null);
+			setWrappedSeasons([]);
+			setWrappedSelectedSeason(null);
+			setWrappedDefaultSeason(null);
 			const promo = isSeasonWrappedPromoMonth(new Date());
 			setSeasonWrappedPromoActive(promo);
 			try {
-				const wrappedPromise =
-					featureFlags.seasonWrapped && wrappedSlug
-						? fetch(`/api/wrapped/${encodeURIComponent(wrappedSlug)}`)
-						: Promise.resolve(new Response("", { status: 404 }));
+				const playerRes = await fetch(`/api/player-data?playerName=${encodeURIComponent(playerName)}&profileHeadline=1`);
 
-				const badgesPromise = featureFlags.achievementBadges
-					? fetch(`/api/player-badges?playerName=${encodeURIComponent(playerName)}`)
-					: Promise.resolve(
-							new Response(
-								JSON.stringify({
+				if (!playerRes.ok) {
+					throw new Error("Could not load player profile data.");
+				}
+				const playerJson = (await playerRes.json()) as { playerData?: PlayerData };
+				if (!cancelled) {
+					setPlayerData(playerJson.playerData ?? null);
+					setIsLoading(false);
+				}
+
+				if (featureFlags.seasonWrapped && wrappedSlug) {
+					void (async () => {
+						try {
+							const wrappedRes = await fetch(`/api/wrapped/${encodeURIComponent(wrappedSlug)}?meta=1`);
+							if (!wrappedRes.ok) return;
+							const wj = (await wrappedRes.json()) as {
+								seasonsAvailable?: string[];
+								season?: string;
+							};
+							const seasons = Array.isArray(wj.seasonsAvailable) ? wj.seasonsAvailable : [];
+							const season = typeof wj.season === "string" ? wj.season : null;
+							if (!cancelled) {
+								setWrappedSeasons(seasons);
+								setWrappedSelectedSeason(season ?? seasons[0] ?? null);
+								setWrappedDefaultSeason(season ?? seasons[0] ?? null);
+							}
+						} catch {
+							if (!cancelled) {
+								setWrappedSeasons([]);
+								setWrappedSelectedSeason(null);
+								setWrappedDefaultSeason(null);
+							}
+						}
+					})();
+				}
+
+				if (featureFlags.achievementBadges) {
+					void (async () => {
+						try {
+							const badgesRes = await fetch(`/api/player-badges?playerName=${encodeURIComponent(playerName)}`);
+							if (!badgesRes.ok) throw new Error("Could not load badge data.");
+							const badgesJson = (await badgesRes.json()) as BadgePayload;
+							if (!cancelled) setBadgePayload(badgesJson);
+						} catch {
+							if (!cancelled) {
+								setBadgePayload({
 									playerName,
 									totalBadges: 0,
 									highestBadgeTier: null,
 									earned: [],
 									progress: [],
-								}),
-								{ status: 200, headers: { "Content-Type": "application/json" } },
-							),
-						);
-
-				const [playerRes, badgesRes, wrappedRes] = await Promise.all([
-					fetch(`/api/player-data?playerName=${encodeURIComponent(playerName)}`),
-					badgesPromise,
-					wrappedPromise,
-				]);
-
-				if (!playerRes.ok) {
-					throw new Error("Could not load player profile data.");
-				}
-				if (featureFlags.achievementBadges && !badgesRes.ok) {
-					throw new Error("Could not load badge data.");
-				}
-
-				const playerJson = (await playerRes.json()) as { playerData?: PlayerData };
-				const badgesJson = (await badgesRes.json()) as BadgePayload;
-
-				if (featureFlags.seasonWrapped && wrappedRes.ok) {
-					const wj = (await wrappedRes.json()) as {
-						seasonsAvailable?: string[];
-						season?: string;
-					};
-					const seasons = Array.isArray(wj.seasonsAvailable) ? wj.seasonsAvailable : [];
-					const season = typeof wj.season === "string" ? wj.season : null;
-					if (!cancelled) {
-						setWrappedSeasons(seasons);
-						setWrappedSelectedSeason(season ?? seasons[0] ?? null);
-						setWrappedDefaultSeason(season ?? seasons[0] ?? null);
-					}
+								});
+							}
+						} finally {
+							if (!cancelled) setIsLoadingBadges(false);
+						}
+					})();
 				} else if (!cancelled) {
-					setWrappedSeasons([]);
-					setWrappedSelectedSeason(null);
-					setWrappedDefaultSeason(null);
-				}
-
-				if (!cancelled) {
-					setPlayerData(playerJson.playerData ?? null);
-					setBadgePayload(badgesJson);
+					setIsLoadingBadges(false);
 				}
 			} catch (e) {
 				if (!cancelled) {
@@ -316,6 +325,18 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 									<Skeleton height={16} width={44} />
 								</div>
 								<Skeleton height={6} className='rounded-full w-full' />
+							</div>
+							<div className='rounded-xl border border-white/10 bg-black/15 p-3 mb-3'>
+								<Skeleton height={14} width={130} className='mb-2' />
+								<div className='space-y-2'>
+										<div className='flex items-center justify-between gap-2'>
+											<div className='flex items-center gap-2'>
+												<Skeleton circle height={40} width={40} />
+												<Skeleton height={10} width={120} />
+											</div>
+											<Skeleton height={10} width={50} />
+										</div>
+								</div>
 							</div>
 							<div className='rounded-xl border border-white/10 bg-black/15 p-3'>
 								<Skeleton height={16} width='42%' className='mb-3' />
@@ -421,6 +442,9 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 													onClick={() => {
 														setWrappedSelectedSeason(s);
 														setSeasonPickerOpen(false);
+														if (wrappedSlug) {
+															router.push(`/wrapped/${wrappedSlug}?season=${encodeURIComponent(s)}`);
+														}
 													}}>
 													{s}
 												</button>
@@ -464,7 +488,41 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 								data-testid='player-profile-milestones'
 								className='rounded-lg bg-white/10 backdrop-blur-sm p-4'>
 								<h3 className='text-white font-semibold text-sm md:text-base'>Achievement Badges</h3>
-								{badgePayload ? (
+								{isLoadingBadges ? (
+									<SkeletonTheme baseColor='var(--skeleton-base)' highlightColor='var(--skeleton-highlight)'>
+										<div className='mt-3 rounded-xl border border-white/10 bg-black/15 p-3 mb-3'>
+											<div className='flex items-center justify-between mb-2'>
+												<Skeleton height={16} width={110} />
+												<Skeleton height={16} width={44} />
+											</div>
+											<Skeleton height={6} className='rounded-full w-full' />
+										</div>
+										<div className='rounded-xl border border-white/10 bg-black/15 p-3 mb-3'>
+											<Skeleton height={14} width={130} className='mb-2' />
+											<div className='space-y-2'>
+													<div className='flex items-center justify-between gap-2'>
+														<div className='flex items-center gap-2'>
+															<Skeleton circle height={40} width={40} />
+															<Skeleton height={10} width={120} />
+														</div>
+														<Skeleton height={10} width={50} />
+													</div>
+											</div>
+										</div>
+										<div className='rounded-xl border border-white/10 bg-black/15 p-3'>
+											<Skeleton height={16} width='42%' className='mb-3' />
+											<div className='grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3'>
+												{Array.from({ length: 8 }).map((_, i) => (
+													<div key={i} className='flex flex-col items-center text-center gap-1.5 p-2 rounded-lg'>
+														<Skeleton circle height={36} width={36} />
+														<Skeleton height={10} width='75%' />
+														<Skeleton height={10} width='45%' />
+													</div>
+												))}
+											</div>
+										</div>
+									</SkeletonTheme>
+								) : badgePayload ? (
 									<>
 										<p className='text-white/75 text-sm mt-1'>
 											Unlocked: <span className='text-dorkinians-yellow font-semibold'>{badgePayload.totalBadges}</span>

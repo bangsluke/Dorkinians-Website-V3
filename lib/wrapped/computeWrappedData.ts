@@ -127,11 +127,20 @@ function pickLongestSeasonStreak(record: { get: (k: string) => unknown }): { typ
 	return best;
 }
 
-export async function computeWrappedData(options: {
+type WrappedSeasonMetadataContext = {
+	graphLabel: string;
+	playerRecord: Neo4jRecord;
+	numberTeamsPlayedFor: number;
+	seasonsAvailable: string[];
+	seasonNorm: string;
+	seasonHyphen: string;
+	seasonLabel: string;
+};
+
+export async function computeWrappedSeasonMetadata(options: {
 	playerName: string;
-	season: string | null | undefined;
-	sitePublicOrigin: string;
-}): Promise<{ data: WrappedData } | { error: string; status: number }> {
+	season?: string | null | undefined;
+}): Promise<{ data: WrappedSeasonMetadataContext } | { error: string; status: number }> {
 	const playerName = options.playerName.trim();
 	if (!playerName) {
 		return { error: "Invalid player", status: 400 };
@@ -171,8 +180,6 @@ export async function computeWrappedData(options: {
 	if (allowOnSite === false) {
 		return { error: "Player not found", status: 404 };
 	}
-
-	const numberTeamsPlayedFor = toNumber(pr.get("numberTeamsPlayedFor"));
 
 	const seasonsRes = await neo4jService.runQuery(
 		`
@@ -218,6 +225,32 @@ export async function computeWrappedData(options: {
 
 	const { seasonNorm, seasonHyphen } = seasonVariants(effectiveNorm);
 
+	return {
+		data: {
+			graphLabel,
+			playerRecord: pr,
+			numberTeamsPlayedFor: toNumber(pr.get("numberTeamsPlayedFor")),
+			seasonsAvailable,
+			seasonNorm,
+			seasonHyphen,
+			seasonLabel: seasonNorm,
+		},
+	};
+}
+
+export async function computeWrappedData(options: {
+	playerName: string;
+	season: string | null | undefined;
+	sitePublicOrigin: string;
+}): Promise<{ data: WrappedData } | { error: string; status: number }> {
+	const playerName = options.playerName.trim();
+	const metadata = await computeWrappedSeasonMetadata({ playerName, season: options.season });
+	if ("error" in metadata) {
+		return metadata;
+	}
+	const { graphLabel, playerRecord: pr, numberTeamsPlayedFor, seasonsAvailable, seasonNorm, seasonHyphen, seasonLabel } =
+		metadata.data;
+
 	const seasonAgg = await neo4jService.runQuery(
 		`
 		MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
@@ -226,10 +259,24 @@ export async function computeWrappedData(options: {
 		WHERE f.season = $seasonNorm OR f.season = $seasonHyphen
 		RETURN count(md) AS apps,
 			sum(coalesce(md.goals, 0)) AS goals,
+			sum(coalesce(md.penaltiesScored, 0)) AS penaltiesScored,
 			sum(coalesce(md.assists, 0)) AS assists,
 			sum(coalesce(md.mom, 0)) AS mom,
 			sum(coalesce(md.minutes, 0)) AS minutes,
 			sum(coalesce(md.distance, 0)) AS distance,
+			sum(coalesce(md.yellowCards, 0)) AS yellowCards,
+			sum(coalesce(md.redCards, 0)) AS redCards,
+			sum(coalesce(md.cleanSheets, 0)) AS cleanSheets,
+			sum(CASE
+				WHEN trim(toUpper(coalesce(f.result, ''))) = 'W'
+					OR trim(toUpper(coalesce(f.result, ''))) STARTS WITH 'WIN' THEN 1
+				ELSE 0
+			END) AS wins,
+			sum(CASE
+				WHEN trim(toUpper(coalesce(f.result, ''))) = 'D'
+					OR trim(toUpper(coalesce(f.result, ''))) STARTS WITH 'DRA' THEN 1
+				ELSE 0
+			END) AS draws,
 			sum(CASE WHEN coalesce(md.started, false) THEN 1 ELSE 0 END) AS starts,
 			max(coalesce(md.matchRating, 0)) AS peakRating
 		`,
@@ -239,11 +286,17 @@ export async function computeWrappedData(options: {
 	const s0 = seasonAgg.records[0];
 	const totalMatches = Math.round(toNumber(s0?.get("apps")));
 	const totalGoals = Math.round(toNumber(s0?.get("goals")));
+	const totalPenaltiesScored = Math.round(toNumber(s0?.get("penaltiesScored")));
 	const totalAssists = Math.round(toNumber(s0?.get("assists")));
 	const totalMom = Math.round(toNumber(s0?.get("mom")));
 	const seasonMinutes = toNumber(s0?.get("minutes"));
 	const totalStarts = Math.round(toNumber(s0?.get("starts")));
 	const totalDistance = Math.round(toNumber(s0?.get("distance")) * 10) / 10;
+	const totalYellowCards = Math.round(toNumber(s0?.get("yellowCards")));
+	const totalRedCards = Math.round(toNumber(s0?.get("redCards")));
+	const totalWins = Math.round(toNumber(s0?.get("wins")));
+	const totalDraws = Math.round(toNumber(s0?.get("draws")));
+	const totalCleanSheets = Math.round(toNumber(s0?.get("cleanSheets")));
 	const peakMatchRating = Math.round(toNumber(s0?.get("peakRating")) * 10) / 10;
 
 	if (totalMatches === 0) {
@@ -323,13 +376,15 @@ export async function computeWrappedData(options: {
 		WITH substring(toString(f.date), 0, 7) AS ym,
 			count(md) AS monthApps,
 			sum(coalesce(md.goals, 0)) AS g,
+			sum(coalesce(md.penaltiesScored, 0)) AS psc,
 			sum(coalesce(md.assists, 0)) AS a,
+			sum(coalesce(md.mom, 0)) AS monthMom,
 			sum(coalesce(md.fantasyPoints, 0)) AS ftp,
 			sum(coalesce(md.minutes, 0)) AS mins,
 			sum(CASE WHEN coalesce(md.started, false) THEN 1 ELSE 0 END) AS starts,
 			sum(coalesce(md.yellowCards, 0)) AS yellowCards,
 			sum(coalesce(md.redCards, 0)) AS redCards
-		RETURN ym, monthApps, g, a, ftp, mins, starts, yellowCards, redCards
+		RETURN ym, monthApps, g, psc, a, monthMom, ftp, mins, starts, yellowCards, redCards
 		ORDER BY (g + a) DESC, g DESC
 		LIMIT 1
 		`,
@@ -338,7 +393,9 @@ export async function computeWrappedData(options: {
 
 	const ym = monthRes.records[0]?.get("ym");
 	const bestMonthGoals = Math.round(toNumber(monthRes.records[0]?.get("g")));
+	const bestMonthPenaltiesScored = Math.round(toNumber(monthRes.records[0]?.get("psc")));
 	const bestMonthAssists = Math.round(toNumber(monthRes.records[0]?.get("a")));
+	const bestMonthMom = Math.round(toNumber(monthRes.records[0]?.get("monthMom")));
 	const bestMonthMatches = Math.round(toNumber(monthRes.records[0]?.get("monthApps")));
 	const bestMonthFantasyPoints = Math.round(toNumber(monthRes.records[0]?.get("ftp")) * 10) / 10;
 	const bestMonthMinutes = Math.round(toNumber(monthRes.records[0]?.get("mins")));
@@ -362,7 +419,9 @@ export async function computeWrappedData(options: {
 		RETURN coalesce(md.matchRating, 0) AS peakRating,
 			coalesce(f.opposition, '') AS opposition,
 			coalesce(md.goals, 0) AS peakGoals,
+			coalesce(md.penaltiesScored, 0) AS peakPenaltiesScored,
 			coalesce(md.assists, 0) AS peakAssists,
+			coalesce(md.mom, 0) AS peakMom,
 			coalesce(md.fantasyPoints, 0) AS peakFantasyPoints,
 			coalesce(md.minutes, 0) AS peakMinutes,
 			coalesce(md.started, false) AS peakStarted,
@@ -378,7 +437,9 @@ export async function computeWrappedData(options: {
 	const peakR = peakRes.records[0];
 	const peakMatchOpposition = peakR?.get("opposition") != null ? String(peakR.get("opposition")) : "-";
 	const peakMatchGoals = Math.round(toNumber(peakR?.get("peakGoals")));
+	const peakMatchPenaltiesScored = Math.round(toNumber(peakR?.get("peakPenaltiesScored")));
 	const peakMatchAssists = Math.round(toNumber(peakR?.get("peakAssists")));
+	const peakMatchMom = toNumber(peakR?.get("peakMom")) > 0;
 	const peakMatchFantasyPoints = Math.round(toNumber(peakR?.get("peakFantasyPoints")) * 10) / 10;
 	const peakMatchMinutes = Math.round(toNumber(peakR?.get("peakMinutes")));
 	const peakMatchStarted = Boolean(peakR?.get("peakStarted"));
@@ -519,11 +580,67 @@ export async function computeWrappedData(options: {
 					OR trim(toUpper(coalesce(f.result, ''))) STARTS WITH 'DRA' THEN 1
 				ELSE 0
 			END
-		) AS leaguePts
+		) AS leaguePts,
+		sum(
+			CASE
+				WHEN trim(toUpper(coalesce(f.result, ''))) = 'W'
+					OR trim(toUpper(coalesce(f.result, ''))) STARTS WITH 'WIN' THEN 1
+				ELSE 0
+			END
+		) AS leagueWins,
+		sum(
+			CASE
+				WHEN trim(toUpper(coalesce(f.result, ''))) = 'D'
+					OR trim(toUpper(coalesce(f.result, ''))) STARTS WITH 'DRA' THEN 1
+				ELSE 0
+			END
+		) AS leagueDraws
 		`,
 		{ graphLabel, playerName, seasonNorm, seasonHyphen },
 	);
 	const wrappedLeaguePointsContributed = Math.round(toNumber(leaguePtsRes.records[0]?.get("leaguePts")));
+	const wrappedLeagueWinsFromPlayedGames = Math.round(toNumber(leaguePtsRes.records[0]?.get("leagueWins")));
+	const wrappedLeagueDrawsFromPlayedGames = Math.round(toNumber(leaguePtsRes.records[0]?.get("leagueDraws")));
+
+	const homeAwayRes = await neo4jService.runQuery(
+		`
+		MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
+		MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+		MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+		WHERE (f.season = $seasonNorm OR f.season = $seasonHyphen)
+		  AND coalesce(md.minutes, 0) > 0
+		  AND NOT coalesce(f.status, '') IN ['Void', 'Postponed', 'Abandoned']
+		WITH CASE WHEN trim(toUpper(coalesce(f.homeOrAway, 'HOME'))) = 'AWAY' THEN 'Away' ELSE 'Home' END AS loc,
+			count(md) AS apps,
+			sum(coalesce(md.goals, 0)) AS goals,
+			sum(coalesce(md.penaltiesScored, 0)) AS penaltiesScored,
+			sum(coalesce(md.assists, 0)) AS assists,
+			sum(
+				CASE
+					WHEN trim(toUpper(coalesce(f.result, ''))) = 'W'
+						OR trim(toUpper(coalesce(f.result, ''))) STARTS WITH 'WIN' THEN 1
+					ELSE 0
+				END
+			) AS wins
+		RETURN loc, apps, goals, penaltiesScored, assists, wins
+		`,
+		{ graphLabel, playerName, seasonNorm, seasonHyphen },
+	);
+	const homeAway = new Map<string, { apps: number; goals: number; penaltiesScored: number; assists: number; wins: number }>();
+	for (const rec of homeAwayRes.records) {
+		const loc = rec.get("loc") != null ? String(rec.get("loc")) : "Home";
+		homeAway.set(loc, {
+			apps: Math.round(toNumber(rec.get("apps"))),
+			goals: Math.round(toNumber(rec.get("goals"))),
+			penaltiesScored: Math.round(toNumber(rec.get("penaltiesScored"))),
+			assists: Math.round(toNumber(rec.get("assists"))),
+			wins: Math.round(toNumber(rec.get("wins"))),
+		});
+	}
+	const homeStats = homeAway.get("Home") ?? { apps: 0, goals: 0, penaltiesScored: 0, assists: 0, wins: 0 };
+	const awayStats = homeAway.get("Away") ?? { apps: 0, goals: 0, penaltiesScored: 0, assists: 0, wins: 0 };
+	const wrappedHomeWinRate = homeStats.apps > 0 ? Math.round((homeStats.wins * 1000) / homeStats.apps) / 10 : 0;
+	const wrappedAwayWinRate = awayStats.apps > 0 ? Math.round((awayStats.wins * 1000) / awayStats.apps) / 10 : 0;
 
 	const cupRowsRes = await neo4jService.runQuery(
 		`
@@ -582,7 +699,6 @@ export async function computeWrappedData(options: {
 
 	const slug = playerNameToWrappedSlug(playerName);
 	const base = options.sitePublicOrigin.replace(/\/$/, "");
-	const seasonLabel = seasonNorm;
 	const wrappedUrl = `${base}/wrapped/${slug}?season=${encodeURIComponent(seasonLabel)}`;
 
 	const data: WrappedData = {
@@ -595,12 +711,15 @@ export async function computeWrappedData(options: {
 		totalStarts,
 		mostPlayedPosition,
 		totalGoals,
+		totalPenaltiesScored,
 		totalAssists,
 		totalMom,
 		matchesPercentile,
 		bestMonth,
 		bestMonthGoals,
+		bestMonthPenaltiesScored,
 		bestMonthAssists,
+		bestMonthMom,
 		bestMonthMatches,
 		bestMonthFantasyPoints,
 		bestMonthMinutes,
@@ -615,25 +734,44 @@ export async function computeWrappedData(options: {
 		peakMatchRating: peakFromRow > 0 ? peakFromRow : peakMatchRating,
 		peakMatchOpposition,
 		peakMatchGoals,
+		peakMatchPenaltiesScored,
 		peakMatchAssists,
 		peakMatchFantasyPoints,
 		peakMatchMinutes,
 		peakMatchStarted,
+		peakMatchMom,
 		peakMatchYellowCards,
 		peakMatchRedCards,
 		peakMatchResultLabel,
 		peakMatchScoreline,
 		longestStreakType,
 		longestStreakValue,
+		totalYellowCards,
+		totalRedCards,
+		totalWins,
+		totalDraws,
+		totalCleanSheets,
 		totalDistance,
 		distanceEquivalent: distanceMilesToEquivalent(totalDistance),
 		wrappedUrl,
 		wrappedLeaguePointsContributed,
+		wrappedLeagueWinsFromPlayedGames,
+		wrappedLeagueDrawsFromPlayedGames,
 		wrappedCupTiesAdvanced,
 		wrappedDominantTeam,
 		wrappedDominantTeamLeaguePosition,
 		wrappedDominantTeamLeagueDivision,
 		wrappedDominantTeamLeagueRow,
+		wrappedHomeApps: homeStats.apps,
+		wrappedAwayApps: awayStats.apps,
+		wrappedHomeWinRate,
+		wrappedAwayWinRate,
+		wrappedHomeGoals: homeStats.goals,
+		wrappedAwayGoals: awayStats.goals,
+		wrappedHomePenaltiesScored: homeStats.penaltiesScored,
+		wrappedAwayPenaltiesScored: awayStats.penaltiesScored,
+		wrappedHomeAssists: homeStats.assists,
+		wrappedAwayAssists: awayStats.assists,
 	};
 
 	return { data };

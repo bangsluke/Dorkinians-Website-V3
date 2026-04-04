@@ -17,12 +17,18 @@ function ordinalSuffix(n: number): string {
 	return "th";
 }
 
+function formatPenaltySuffix(count: number): string {
+	if (count <= 0) return "";
+	if (count === 1) return "(1 penalty)";
+	return `(${count} penalties)`;
+}
+
 function slideTitle(n: number, data: WrappedData): { title: string; subtitle: string } {
 	switch (n) {
 		case 1:
 			return {
 				title: "Season overview",
-				subtitle: `${data.totalMatches} apps · ${data.totalMinutes} mins · ${data.totalStarts} starts · ${data.mostPlayedPosition} · ${data.totalGoals}G ${data.totalAssists}A · ${data.totalMom} MoM`,
+				subtitle: `${data.totalMatches} apps · ${data.totalMinutes} mins · ${data.totalStarts} starts · ${data.mostPlayedPosition} · ${data.wrappedDominantTeam || "-"} · ${data.totalGoals + data.totalPenaltiesScored}G ${formatPenaltySuffix(data.totalPenaltiesScored)} ${data.totalAssists}A · ${data.totalMom} MoM`,
 			};
 		case 2:
 			return {
@@ -32,7 +38,7 @@ function slideTitle(n: number, data: WrappedData): { title: string; subtitle: st
 		case 3:
 			return {
 				title: "Best month",
-				subtitle: `${data.bestMonth} · ${data.bestMonthMatches} games · ${data.bestMonthFantasyPoints} Fantasy Points · ${data.bestMonthGoals}G ${data.bestMonthAssists}A · ${data.bestMonthMinutes} mins · ${data.bestMonthStarts} starts · ${data.bestMonthYellowCards}Y ${data.bestMonthRedCards}R`,
+				subtitle: `${data.bestMonth} · ${data.bestMonthMatches} games · ${data.bestMonthFantasyPoints} Fantasy Points · ${data.bestMonthGoals + data.bestMonthPenaltiesScored}G ${formatPenaltySuffix(data.bestMonthPenaltiesScored)} ${data.bestMonthAssists}A · ${data.bestMonthMom} MoM · ${data.bestMonthMinutes} mins · ${data.bestMonthStarts} starts · ${data.bestMonthYellowCards}Y ${data.bestMonthRedCards}R`,
 			};
 		case 4:
 			return {
@@ -47,7 +53,7 @@ function slideTitle(n: number, data: WrappedData): { title: string; subtitle: st
 		case 6:
 			return {
 				title: "Peak performance",
-				subtitle: `${data.peakMatchRating} vs ${data.peakMatchOpposition} (${data.peakMatchGoals}G ${data.peakMatchAssists}A) · Fantasy Points ${data.peakMatchFantasyPoints} · ${data.peakMatchMinutes} mins · ${data.peakMatchStarted ? "Started" : "Sub"} · ${data.peakMatchYellowCards}Y ${data.peakMatchRedCards}R · ${data.peakMatchResultLabel} ${data.peakMatchScoreline}`,
+				subtitle: `${data.peakMatchRating} vs ${data.peakMatchOpposition} (${data.peakMatchGoals + data.peakMatchPenaltiesScored}G ${formatPenaltySuffix(data.peakMatchPenaltiesScored)}, ${data.peakMatchAssists}A) · Fantasy Points ${data.peakMatchFantasyPoints} · MoM ${data.peakMatchMom ? "Yes" : "No"} · ${data.peakMatchMinutes} mins · ${data.peakMatchStarted ? "Started" : "Sub"} · ${data.peakMatchYellowCards}Y ${data.peakMatchRedCards}R · ${data.peakMatchResultLabel} ${data.peakMatchScoreline}`,
 			};
 		case 11: {
 			const row = data.wrappedDominantTeamLeagueRow;
@@ -57,9 +63,14 @@ function slideTitle(n: number, data: WrappedData): { title: string; subtitle: st
 				:	"";
 			return {
 				title: "Team season",
-				subtitle: `${data.wrappedLeaguePointsContributed} league pts · ${data.wrappedCupTiesAdvanced} cup ties advanced${posBit}`,
+				subtitle: `${data.wrappedLeaguePointsContributed} league pts (${data.wrappedLeagueWinsFromPlayedGames}W ${data.wrappedLeagueDrawsFromPlayedGames}D) · ${data.wrappedCupTiesAdvanced} cup ties advanced${posBit}`,
 			};
 		}
+		case 12:
+			return {
+				title: "Home vs away",
+				subtitle: `Home ${data.wrappedHomeApps} apps (${data.wrappedHomeGoals + data.wrappedHomePenaltiesScored}G ${formatPenaltySuffix(data.wrappedHomePenaltiesScored)}, ${data.wrappedHomeAssists}A, ${data.wrappedHomeWinRate}%) · Away ${data.wrappedAwayApps} apps (${data.wrappedAwayGoals + data.wrappedAwayPenaltiesScored}G ${formatPenaltySuffix(data.wrappedAwayPenaltiesScored)}, ${data.wrappedAwayAssists}A, ${data.wrappedAwayWinRate}%)`,
+			};
 		case 7: {
 			const streakType = data.longestStreakType ?? "";
 			const disciplineGames =
@@ -100,7 +111,7 @@ export async function GET(
 		return new Response("Invalid slug", { status: 400 });
 	}
 
-	const n = Math.min(11, Math.max(1, parseInt(slideNumber, 10) || 1));
+	const n = Math.min(12, Math.max(1, parseInt(slideNumber, 10) || 1));
 	const { searchParams } = new URL(request.url);
 	const season = searchParams.get("season")?.trim() || undefined;
 	const origin = getSitePublicOrigin(request);
