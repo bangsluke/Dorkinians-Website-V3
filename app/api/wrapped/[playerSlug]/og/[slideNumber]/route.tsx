@@ -53,7 +53,7 @@ function slideTitle(n: number, data: WrappedData): { title: string; subtitle: st
 		case 6:
 			return {
 				title: "Peak performance",
-				subtitle: `${data.peakMatchRating} vs ${data.peakMatchOpposition} (${data.peakMatchGoals + data.peakMatchPenaltiesScored}G ${formatPenaltySuffix(data.peakMatchPenaltiesScored)}, ${data.peakMatchAssists}A) · Fantasy Points ${data.peakMatchFantasyPoints} · MoM ${data.peakMatchMom ? "Yes" : "No"} · ${data.peakMatchMinutes} mins · ${data.peakMatchStarted ? "Started" : "Sub"} · ${data.peakMatchYellowCards}Y ${data.peakMatchRedCards}R · ${data.peakMatchResultLabel} ${data.peakMatchScoreline}`,
+				subtitle: `${data.peakMatchRating} vs ${data.peakMatchOpposition} (${data.peakMatchGoals + data.peakMatchPenaltiesScored}G ${formatPenaltySuffix(data.peakMatchPenaltiesScored)}${data.peakMatchMomCount > 0 ? ` · ${data.peakMatchMomCount} MoM` : ""}, ${data.peakMatchAssists}A) · Fantasy Points ${data.peakMatchFantasyPoints} · ${data.peakMatchMinutes} mins · ${data.peakMatchStarted ? "Started" : "Sub"} · ${data.peakMatchYellowCards}Y ${data.peakMatchRedCards}R · ${data.peakMatchResultLabel} ${data.peakMatchScoreline}`,
 			};
 		case 11: {
 			const row = data.wrappedDominantTeamLeagueRow;
@@ -61,9 +61,22 @@ function slideTitle(n: number, data: WrappedData): { title: string; subtitle: st
 				row && row.position > 0 ?
 					` · ${data.wrappedDominantTeam || "XI"} ${row.position}${ordinalSuffix(row.position)}`
 				:	"";
+			const parts: string[] = [];
+			if (data.wrappedLeaguePointsContributed > 0) {
+				parts.push(
+					`${data.wrappedLeaguePointsContributed} league pts (${data.wrappedLeagueWinsFromPlayedGames}W ${data.wrappedLeagueDrawsFromPlayedGames}D)`,
+				);
+			}
+			if (data.wrappedCupTiesAdvanced > 0) {
+				parts.push(`${data.wrappedCupTiesAdvanced} cup ties advanced`);
+			}
+			if (Array.isArray(data.wrappedTrophiesWon) && data.wrappedTrophiesWon.length > 0) {
+				parts.push(...data.wrappedTrophiesWon.map((trophy) => `Won the ${trophy}`));
+			}
+			const subtitleBase = parts.length > 0 ? parts.join(" · ") : "Team highlights";
 			return {
 				title: "Team season",
-				subtitle: `${data.wrappedLeaguePointsContributed} league pts (${data.wrappedLeagueWinsFromPlayedGames}W ${data.wrappedLeagueDrawsFromPlayedGames}D) · ${data.wrappedCupTiesAdvanced} cup ties advanced${posBit}`,
+				subtitle: `${subtitleBase}${posBit}`,
 			};
 		}
 		case 12:

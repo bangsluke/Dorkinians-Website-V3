@@ -49,6 +49,12 @@ function parseSeasonStartYear(label: string): number {
 	return m ? parseInt(m[1], 10) : 0;
 }
 
+function formatTeamDisplayForTrophy(team: string): string {
+	const t = team.trim();
+	if (!t) return "Dorkinians";
+	return /^(\d+)(st|nd|rd|th)\s+XI$/i.test(t) ? `Dorkinians ${t}` : t;
+}
+
 /** Newest first (by leading calendar year, then lexicographic tie-break). */
 function sortSeasonsDesc(unique: string[]): string[] {
 	return [...unique].sort((a, b) => {
@@ -439,7 +445,8 @@ export async function computeWrappedData(options: {
 	const peakMatchGoals = Math.round(toNumber(peakR?.get("peakGoals")));
 	const peakMatchPenaltiesScored = Math.round(toNumber(peakR?.get("peakPenaltiesScored")));
 	const peakMatchAssists = Math.round(toNumber(peakR?.get("peakAssists")));
-	const peakMatchMom = toNumber(peakR?.get("peakMom")) > 0;
+	const peakMatchMomCount = Math.round(toNumber(peakR?.get("peakMom")));
+	const peakMatchMom = peakMatchMomCount > 0;
 	const peakMatchFantasyPoints = Math.round(toNumber(peakR?.get("peakFantasyPoints")) * 10) / 10;
 	const peakMatchMinutes = Math.round(toNumber(peakR?.get("peakMinutes")));
 	const peakMatchStarted = Boolean(peakR?.get("peakStarted"));
@@ -692,6 +699,40 @@ export async function computeWrappedData(options: {
 			}
 		:	null;
 
+	const playedTeamsRes = await neo4jService.runQuery(
+		`
+		MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
+		MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+		MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+		WHERE (f.season = $seasonNorm OR f.season = $seasonHyphen)
+		  AND coalesce(md.minutes, 0) > 0
+		  AND NOT coalesce(f.status, '') IN ['Void', 'Postponed', 'Abandoned']
+		RETURN collect(DISTINCT coalesce(f.team, '')) AS teams
+		`,
+		{ graphLabel, playerName, seasonNorm, seasonHyphen },
+	);
+	const rawTeams = playedTeamsRes.records[0]?.get("teams");
+	const uniquePlayedTeams = Array.isArray(rawTeams)
+		? Array.from(new Set(rawTeams.map((t) => String(t ?? "").trim()).filter((t) => t.length > 0)))
+		: [];
+	const wrappedTrophiesWon: string[] = [];
+	for (const team of uniquePlayedTeams) {
+		const leagueTableTeamKey = fixtureDisplayTeamToLeagueTableKey(team);
+		if (!leagueTableTeamKey) continue;
+		const finish = await fetchDorkiniansLeagueFinishForTeamSeason({
+			graphLabel,
+			seasonNorm,
+			seasonHyphen,
+			leagueTableTeamKey,
+		});
+		if (finish.position === 1) {
+			const teamLabel = formatTeamDisplayForTrophy(team);
+			const division = finish.division?.trim();
+			const suffix = division ? `${division} Champions` : "League Champions";
+			wrappedTrophiesWon.push(`${teamLabel} ${suffix} ${seasonLabel}`);
+		}
+	}
+
 	const { type: playerType, reason: playerTypeReason } = classifyPlayerType({
 		numberTeamsPlayedFor,
 		percentiles,
@@ -740,6 +781,7 @@ export async function computeWrappedData(options: {
 		peakMatchMinutes,
 		peakMatchStarted,
 		peakMatchMom,
+		peakMatchMomCount,
 		peakMatchYellowCards,
 		peakMatchRedCards,
 		peakMatchResultLabel,
@@ -762,6 +804,7 @@ export async function computeWrappedData(options: {
 		wrappedDominantTeamLeaguePosition,
 		wrappedDominantTeamLeagueDivision,
 		wrappedDominantTeamLeagueRow,
+		wrappedTrophiesWon,
 		wrappedHomeApps: homeStats.apps,
 		wrappedAwayApps: awayStats.apps,
 		wrappedHomeWinRate,

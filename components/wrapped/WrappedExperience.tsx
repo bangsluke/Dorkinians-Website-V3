@@ -170,7 +170,7 @@ function SlideFrame({
 							height={32}
 							loading='eager'
 							decoding='sync'
-							className='h-8 w-8 rounded-full ring-2 ring-[#E8C547]/30'
+							className='h-8 w-8 rounded-full border border-[#E8C547]/40'
 						/>
 						<div className='min-w-0'>
 							<p className='text-[10px] text-[#E8C547]/95 uppercase tracking-widest font-semibold truncate'>
@@ -304,7 +304,12 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 
 	const slideIds = useMemo(() => {
 		if (!data) return [1];
-		const ids: number[] = [1, 2, 3, 4, 12, 5, 6, 11];
+		const showTeamSeasonSlide =
+			data.wrappedLeaguePointsContributed > 0 ||
+			data.wrappedCupTiesAdvanced > 0 ||
+			(data.wrappedTrophiesWon?.length ?? 0) > 0;
+		const ids: number[] = [1, 2, 3, 4, 12, 5, 6];
+		if (showTeamSeasonSlide) ids.push(11);
 		if (data.veoFixtures?.length) ids.push(10);
 		if (data.longestStreakValue != null && data.longestStreakValue >= 3) ids.push(7);
 		ids.push(8, 9);
@@ -516,7 +521,10 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 							<div>
 								<p className={`text-2xl font-bold ${ACCENT}`}>{data.totalGoals + data.totalPenaltiesScored}</p>
 								<p className='text-white/45 text-[10px] sm:text-xs mt-0.5'>
-									Goals {formatPenaltySuffix(data.totalPenaltiesScored)}
+									Goals
+									{data.totalPenaltiesScored > 0 ? (
+										<span className='block'>{formatPenaltySuffix(data.totalPenaltiesScored)}</span>
+									) : null}
 								</p>
 							</div>
 							<div className='border-l border-r border-white/10'>
@@ -613,14 +621,11 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 						</p>
 						
 						<p className='text-white/70 text-xs sm:text-sm'>
-						{data.peakMatchStarted ? "Started" : "Sub"} · {data.peakMatchMinutes} mins {data.peakMatchGoals + data.peakMatchPenaltiesScored > 0 ? "· " + (data.peakMatchGoals + data.peakMatchPenaltiesScored) + "G " + formatPenaltySuffix(data.peakMatchPenaltiesScored) : ""} {data.peakMatchAssists > 0 ? "· " + data.peakMatchAssists + "A" : ""} {data.peakMatchYellowCards > 0 ? "· " + data.peakMatchYellowCards + "Y" : ""} {data.peakMatchRedCards > 0 ? "· " + data.peakMatchRedCards + "R" : ""}
+						{data.peakMatchStarted ? "Started" : "Sub"} · {data.peakMatchMinutes} mins {data.peakMatchGoals + data.peakMatchPenaltiesScored > 0 ? "· " + (data.peakMatchGoals + data.peakMatchPenaltiesScored) + "G " + formatPenaltySuffix(data.peakMatchPenaltiesScored) : ""} {data.peakMatchMomCount > 0 ? "· " + data.peakMatchMomCount + " MoM" : ""} {data.peakMatchAssists > 0 ? "· " + data.peakMatchAssists + "A" : ""} {data.peakMatchYellowCards > 0 ? "· " + data.peakMatchYellowCards + "Y" : ""} {data.peakMatchRedCards > 0 ? "· " + data.peakMatchRedCards + "R" : ""}
 						</p>
 
 						<p className='text-white/70 text-xs sm:text-sm'>
 						<span className={`font-semibold ${MINT}`}>{data.peakMatchFantasyPoints}</span> Fantasy Points
-						</p>
-						<p className='text-white/70 text-xs sm:text-sm'>
-							Man of the Match: <span className={MINT}>{data.peakMatchMom ? "Yes" : "No"}</span>
 						</p>
 					</>
 				);
@@ -643,19 +648,32 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 						<h2 className='text-xl md:text-3xl font-bold text-white mb-2'>League Points and Cups</h2>
 						<div className='border-t border-white/10 my-2' />
 						<ul className='text-white/85 text-xs sm:text-sm md:text-base space-y-2 text-left' data-testid='wrapped-team-season-slide'>
-							<li>
-								<span className={`${MINT} font-semibold`}>{data.wrappedLeaguePointsContributed}</span> league points from
-								games you played{" "}
-								<span className='text-white/70'>
-									({data.wrappedLeagueWinsFromPlayedGames} wins, {data.wrappedLeagueDrawsFromPlayedGames} draws)
-								</span>
-							</li>
-							<li>
-								<span className={`${MINT} font-semibold`}>{data.wrappedCupTiesAdvanced}</span> cup ties advanced
-							</li>
+							{data.wrappedLeaguePointsContributed > 0 ? (
+								<li>
+									<span className={`${MINT} font-semibold`}>{data.wrappedLeaguePointsContributed}</span> league points from
+									games you played{" "}
+									<span className='text-white/70'>
+										({data.wrappedLeagueWinsFromPlayedGames} wins, {data.wrappedLeagueDrawsFromPlayedGames} draws)
+									</span>
+								</li>
+							) : null}
+							{data.wrappedCupTiesAdvanced > 0 ? (
+								<li>
+									<span className={`${MINT} font-semibold`}>{data.wrappedCupTiesAdvanced}</span> cup ties advanced
+								</li>
+							) : null}
 							{leagueFinishLine ? <li className='text-white/70'>{leagueFinishLine}</li> : null}
 						</ul>
 						{row ? <WrappedLeagueSnapshotTable row={row} /> : null}
+						{(data.wrappedTrophiesWon ?? []).length > 0 ? (
+							<div className='mt-3 text-left text-white/85 text-xs sm:text-sm md:text-base space-y-1.5'>
+								{data.wrappedTrophiesWon.map((trophy) => (
+									<p key={trophy}>
+										Won the <span className={MINT}>{trophy}</span>
+									</p>
+								))}
+							</div>
+						) : null}
 					</>
 				);
 			}
