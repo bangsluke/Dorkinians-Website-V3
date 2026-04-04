@@ -427,15 +427,28 @@ export function buildStreakMatchesCollectQuery(playerName: string, filters: any)
 		OPTIONAL MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
 		OPTIONAL MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)`;
 	if (conditions.length > 0) {
-		query += ` WHERE md IS NULL OR (f IS NOT NULL AND ${conditions.join(" AND ")})`;
+		query += ` WHERE md IS NULL OR (
+			f IS NOT NULL
+			AND f.seasonWeek IS NOT NULL
+			AND f.seasonWeek <> ''
+			AND (f.status IS NULL OR NOT (f.status IN ['Void', 'Postponed', 'Abandoned']))
+			AND ${conditions.join(" AND ")}
+		)`;
 	} else {
-		query += ` WHERE md IS NULL OR f IS NOT NULL`;
+		query += ` WHERE md IS NULL OR (
+			f IS NOT NULL
+			AND f.seasonWeek IS NOT NULL
+			AND f.seasonWeek <> ''
+			AND (f.status IS NULL OR NOT (f.status IN ['Void', 'Postponed', 'Abandoned']))
+		)`;
 	}
 	query += `
 		WITH p, md, f
 		ORDER BY f.date ASC
 		WITH p, collect(CASE WHEN md IS NULL OR f IS NULL THEN null ELSE {
 			season: md.season,
+			seasonWeek: f.seasonWeek,
+			team: md.team,
 			date: f.date,
 			goals: md.goals,
 			penaltiesScored: md.penaltiesScored,
@@ -454,28 +467,30 @@ export function buildStreakMatchesCollectQuery(playerName: string, filters: any)
 	return { query, params };
 }
 
-/** Appearance slots for `p.mostPlayedForTeam` fixtures (filtered), ordered by date. */
-export function buildStreakAppearanceSlotsCollectQuery(playerName: string, filters: any): { query: string; params: Record<string, unknown> } {
+/** Season fixture schedule for teams the player appeared for (unfiltered full schedule for break checks). */
+export function buildStreakAppearanceSlotsCollectQuery(playerName: string, _filters: any): { query: string; params: Record<string, unknown> } {
 	const graphLabel = neo4jService.getGraphLabel();
 	const params: Record<string, unknown> = { graphLabel, playerName };
 	let query = `
 		MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
-		WHERE coalesce(p.mostPlayedForTeam, '') <> ''
-		MATCH (f:Fixture {graphLabel: $graphLabel, team: p.mostPlayedForTeam})
-		OPTIONAL MATCH (f)-[:HAS_MATCH_DETAILS]->(md:MatchDetail {graphLabel: $graphLabel})<-[:PLAYED_IN]-(p)`;
-	const conditions = buildFilterConditions(filters, params);
-	if (conditions.length > 0) {
-		const { fixture, matchDetail } = partitionFilterConditions(conditions);
-		const parts: string[] = [];
-		if (fixture.length > 0) parts.push(`(${fixture.join(" AND ")})`);
-		if (matchDetail.length > 0) parts.push(`(md IS NOT NULL AND ${matchDetail.join(" AND ")})`);
-		if (parts.length > 0) query += ` WHERE ${parts.join(" AND ")}`;
-	}
+		OPTIONAL MATCH (p)-[:PLAYED_IN]->(mdp:MatchDetail {graphLabel: $graphLabel})
+		WHERE mdp.season IS NOT NULL AND mdp.team IS NOT NULL
+		OPTIONAL MATCH (f:Fixture {graphLabel: $graphLabel})
+		WHERE f.season = mdp.season
+		  AND f.team = mdp.team
+		  AND f.seasonWeek IS NOT NULL
+		  AND f.seasonWeek <> ''
+		  AND (f.status IS NULL OR NOT (f.status IN ['Void', 'Postponed', 'Abandoned']))
+		WITH collect(DISTINCT CASE WHEN f IS NULL THEN null ELSE {
+			season: f.season,
+			seasonWeek: f.seasonWeek,
+			team: f.team,
+			date: f.date,
+			fixtureId: f.id
+		} END) AS seasonFixturesRaw`;
 	query += `
-		WITH p, f, md
-		ORDER BY f.date ASC
-		WITH p, collect({ season: f.season, minutes: CASE WHEN md IS NOT NULL THEN coalesce(md.minutes, 0) ELSE null END }) as appearanceSlots
-		RETURN appearanceSlots`;
+		WITH [sf IN seasonFixturesRaw WHERE sf IS NOT NULL] AS seasonFixtures
+		RETURN seasonFixtures AS appearanceSlots`;
 	return { query, params };
 }
 

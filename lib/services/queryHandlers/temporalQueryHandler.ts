@@ -2,6 +2,7 @@ import type { EnhancedQuestionAnalysis } from "../../config/enhancedQuestionAnal
 import { neo4jService } from "../../../netlify/functions/lib/neo4j.js";
 import { loggingService } from "../loggingService";
 import { ChatbotService } from "../chatbotService";
+import { computeLiveStreakPayload } from "@/lib/stats/playerStreaksComputation";
 
 interface ParsedSeasonWeek {
 	season: string;
@@ -10,6 +11,79 @@ interface ParsedSeasonWeek {
 }
 
 export class TemporalQueryHandler {
+	private static async getCanonicalStreakPayload(playerName: string): Promise<ReturnType<typeof computeLiveStreakPayload>> {
+		const graphLabel = neo4jService.getGraphLabel();
+		const matchesQuery = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
+			OPTIONAL MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			OPTIONAL MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+			WHERE md IS NULL OR (
+				f IS NOT NULL
+				AND f.seasonWeek IS NOT NULL
+				AND f.seasonWeek <> ''
+				AND (f.status IS NULL OR NOT (f.status IN ['Void', 'Postponed', 'Abandoned']))
+			)
+			WITH p, md, f
+			ORDER BY f.date ASC
+			WITH collect(CASE WHEN md IS NULL OR f IS NULL THEN null ELSE {
+				season: md.season,
+				seasonWeek: f.seasonWeek,
+				team: md.team,
+				date: f.date,
+				goals: md.goals,
+				penaltiesScored: md.penaltiesScored,
+				assists: md.assists,
+				cleanSheets: md.cleanSheets,
+				class: md.class,
+				minutes: md.minutes,
+				started: md.started,
+				mom: md.mom,
+				yellowCards: md.yellowCards,
+				redCards: md.redCards,
+				fixtureResult: f.result,
+				fixtureId: f.id
+			} END) AS rawMatches
+			RETURN rawMatches
+		`;
+		const seasonFixturesQuery = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
+			OPTIONAL MATCH (p)-[:PLAYED_IN]->(mdp:MatchDetail {graphLabel: $graphLabel})
+			WHERE mdp.season IS NOT NULL AND mdp.team IS NOT NULL
+			OPTIONAL MATCH (f:Fixture {graphLabel: $graphLabel})
+			WHERE f.season = mdp.season
+			  AND f.team = mdp.team
+			  AND f.seasonWeek IS NOT NULL
+			  AND f.seasonWeek <> ''
+			  AND (f.status IS NULL OR NOT (f.status IN ['Void', 'Postponed', 'Abandoned']))
+			WITH collect(DISTINCT CASE WHEN f IS NULL THEN null ELSE {
+				season: f.season,
+				seasonWeek: f.seasonWeek,
+				team: f.team,
+				date: f.date,
+				fixtureId: f.id
+			} END) AS seasonFixturesRaw
+			WITH [sf IN seasonFixturesRaw WHERE sf IS NOT NULL] AS seasonFixtures
+			RETURN seasonFixtures
+		`;
+		const [matchesResult, fixturesResult] = await Promise.all([
+			neo4jService.executeQuery(matchesQuery, { graphLabel, playerName }),
+			neo4jService.executeQuery(seasonFixturesQuery, { graphLabel, playerName }),
+		]);
+		const rawMatches = (matchesResult?.[0]?.rawMatches as unknown[]) ?? [];
+		const seasonFixtures = (fixturesResult?.[0]?.seasonFixtures as unknown[]) ?? [];
+		return computeLiveStreakPayload(rawMatches, seasonFixtures);
+	}
+
+	private static async queryCanonicalNamedStreak(
+		playerName: string,
+		streakType: string,
+		field: keyof ReturnType<typeof computeLiveStreakPayload>
+	): Promise<Record<string, unknown>> {
+		const payload = await TemporalQueryHandler.getCanonicalStreakPayload(playerName);
+		const streakCount = Number(payload[field] ?? 0);
+		return { type: "streak", data: [], playerName, streakType, streakCount, streakSequence: [] };
+	}
+
 	/**
 	 * Query temporal data (time-based queries)
 	 */
@@ -158,52 +232,18 @@ export class TemporalQueryHandler {
 			return await TemporalQueryHandler.queryConsecutiveGoalInvolvementStreak(playerName);
 		}
 
-		const metric = metrics[0] || "goals";
-
-		// Determine streak type based on metric
-		let streakType = "goals";
-		let streakField = "goals";
-		let streakCondition = "md.goals > 0";
-
-		switch (metric.toLowerCase()) {
-			case "assists":
-			case "a":
-				streakType = "assists";
-				streakField = "assists";
-				streakCondition = "md.assists > 0";
-				break;
-			case "clean_sheets":
-			case "cls":
-				streakType = "clean_sheets";
-				streakField = "cleanSheets";
-				streakCondition = "md.cleanSheets > 0";
-				break;
-			case "appearances":
-			case "app":
-				streakType = "appearances";
-				streakField = "appearances";
-				streakCondition = "md.minutes > 0";
-				break;
-			default:
-				streakType = "goals";
-				streakField = "goals";
-				streakCondition = "md.goals > 0";
+		const metric = (metrics[0] || "goals").toLowerCase();
+		const payload = await TemporalQueryHandler.getCanonicalStreakPayload(playerName);
+		if (metric === "assists" || metric === "a") {
+			return { type: "streak", data: [], playerName, streakType: "assists", streakCount: payload.allTimeBestAssistStreak };
 		}
-
-		const query = `
-			MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
-			WHERE ${streakCondition}
-			RETURN md.date as date, md.${streakField} as ${streakField}, md.team as team, md.opposition as opposition
-			ORDER BY md.date DESC
-		`;
-
-		try {
-			const result = await neo4jService.executeQuery(query, { playerName });
-			return { type: "streak", data: result, playerName, streakType };
-		} catch (error) {
-			loggingService.log(`❌ Error in streak query:`, error, "error");
-			return { type: "error", data: [], error: "Error querying streak data" };
+		if (metric === "clean_sheets" || metric === "cls") {
+			return { type: "streak", data: [], playerName, streakType: "clean_sheets", streakCount: payload.allTimeBestCleanSheetStreak };
 		}
+		if (metric === "appearances" || metric === "app") {
+			return { type: "streak", data: [], playerName, streakType: "appearances", streakCount: payload.allTimeBestAppearanceStreak };
+		}
+		return { type: "streak", data: [], playerName, streakType: "goals", streakCount: payload.allTimeBestScoringStreak };
 	}
 
 	/**
@@ -211,6 +251,7 @@ export class TemporalQueryHandler {
 	 */
 	static async queryConsecutiveWeekendsStreak(playerName: string): Promise<Record<string, unknown>> {
 		loggingService.log(`🔍 Querying consecutive weekends streak for player: ${playerName}`, null, "log");
+		return TemporalQueryHandler.queryCanonicalNamedStreak(playerName, "consecutive_weekends", "allTimeBestAppearanceStreak");
 
 		const graphLabel = neo4jService.getGraphLabel();
 
@@ -720,6 +761,7 @@ export class TemporalQueryHandler {
 	 */
 	static async queryConsecutiveCleanSheetsStreak(playerName: string): Promise<Record<string, unknown>> {
 		loggingService.log(`🔍 Querying consecutive clean sheets streak for player: ${playerName}`, null, "log");
+		return TemporalQueryHandler.queryCanonicalNamedStreak(playerName, "consecutive_clean_sheets", "allTimeBestCleanSheetStreak");
 
 		const graphLabel = neo4jService.getGraphLabel();
 
@@ -853,6 +895,7 @@ export class TemporalQueryHandler {
 	 */
 	static async queryConsecutiveGoalInvolvementStreak(playerName: string): Promise<Record<string, unknown>> {
 		loggingService.log(`🔍 Querying consecutive goal involvement streak for player: ${playerName}`, null, "log");
+		return TemporalQueryHandler.queryCanonicalNamedStreak(playerName, "consecutive_goal_involvement", "allTimeBestGoalInvolvementStreak");
 
 		const graphLabel = neo4jService.getGraphLabel();
 
@@ -1005,6 +1048,7 @@ export class TemporalQueryHandler {
 	 */
 	static async queryLongestGoalScoringStreak(playerName: string): Promise<Record<string, unknown>> {
 		loggingService.log(`🔍 Querying longest goal scoring streak for player: ${playerName}`, null, "log");
+		return TemporalQueryHandler.queryCanonicalNamedStreak(playerName, "longest_goal_scoring_streak", "allTimeBestScoringStreak");
 
 		const graphLabel = neo4jService.getGraphLabel();
 
@@ -1157,6 +1201,7 @@ export class TemporalQueryHandler {
 	 */
 	static async queryLongestAssistingRun(playerName: string): Promise<Record<string, unknown>> {
 		loggingService.log(`🔍 Querying longest assisting run for player: ${playerName}`, null, "log");
+		return TemporalQueryHandler.queryCanonicalNamedStreak(playerName, "longest_assisting_run", "allTimeBestAssistStreak");
 
 		const graphLabel = neo4jService.getGraphLabel();
 
