@@ -13,6 +13,7 @@ import PlayerBadgeMilestoneGrid, {
 	type ProgressRow,
 } from "@/components/stats/PlayerBadgeMilestoneGrid";
 import { profileSlugToPlayerName } from "@/lib/profile/slug";
+import { generatePageCacheKey } from "@/lib/utils/pageCache";
 import { isSeasonWrappedPromoMonth } from "@/lib/wrapped/seasonWrappedPromo";
 import { playerNameToWrappedSlug } from "@/lib/wrapped/slug";
 import type { PlayerData } from "@/lib/stores/navigation";
@@ -30,10 +31,47 @@ type BadgePayload = {
 	milestoneLeadersByBadgeKey?: Record<string, { playerName: string; value: number }>;
 };
 
+type PlayerProfileCachePayload = {
+	playerData: PlayerData | null;
+	badgePayload: BadgePayload | null;
+	wrappedSeasons: string[];
+	wrappedSelectedSeason: string | null;
+	wrappedDefaultSeason: string | null;
+};
+
+function isPlayerProfileCachePayload(value: unknown): value is PlayerProfileCachePayload {
+	if (!value || typeof value !== "object") return false;
+	const record = value as Record<string, unknown>;
+	return (
+		Array.isArray(record.wrappedSeasons) &&
+		"playerData" in record &&
+		"badgePayload" in record &&
+		"wrappedSelectedSeason" in record &&
+		"wrappedDefaultSeason" in record
+	);
+}
+
 export default function PlayerProfileView({ playerSlug }: { playerSlug: string }) {
 	const router = useRouter();
 	const enterEditMode = useNavigationStore((s) => s.enterEditMode);
 	const setMainPage = useNavigationStore((s) => s.setMainPage);
+	const getCachedPageData = useNavigationStore((s) => s.getCachedPageData);
+	const setCachedPageData = useNavigationStore((s) => s.setCachedPageData);
+	const playerName = useMemo(() => profileSlugToPlayerName(playerSlug), [playerSlug]);
+	const wrappedSlug = useMemo(() => {
+		if (!playerName) return null;
+		return playerNameToWrappedSlug(playerName);
+	}, [playerName]);
+	const profileCacheKey = useMemo(() => {
+		if (!playerName) return null;
+		return generatePageCacheKey("stats", "player-stats", "player-profile", { playerName });
+	}, [playerName]);
+	const cachedProfilePayload = useMemo(() => {
+		if (!profileCacheKey) return null;
+		const cached = getCachedPageData(profileCacheKey);
+		if (!cached) return null;
+		return isPlayerProfileCachePayload(cached.data) ? cached.data : null;
+	}, [profileCacheKey, getCachedPageData]);
 
 	const handleEditPlayerClick = useCallback(() => {
 		enterEditMode();
@@ -41,10 +79,12 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 		router.push("/");
 	}, [enterEditMode, setMainPage, router]);
 
-	const [playerData, setPlayerData] = useState<PlayerData | null>(null);
-	const [badgePayload, setBadgePayload] = useState<BadgePayload | null>(null);
-	const [wrappedSeasons, setWrappedSeasons] = useState<string[]>([]);
-	const [wrappedSelectedSeason, setWrappedSelectedSeason] = useState<string | null>(null);
+	const [playerData, setPlayerData] = useState<PlayerData | null>(() => cachedProfilePayload?.playerData ?? null);
+	const [badgePayload, setBadgePayload] = useState<BadgePayload | null>(() => cachedProfilePayload?.badgePayload ?? null);
+	const [wrappedSeasons, setWrappedSeasons] = useState<string[]>(() => cachedProfilePayload?.wrappedSeasons ?? []);
+	const [wrappedSelectedSeason, setWrappedSelectedSeason] = useState<string | null>(
+		() => cachedProfilePayload?.wrappedSelectedSeason ?? null,
+	);
 	const [seasonPickerOpen, setSeasonPickerOpen] = useState(false);
 	const [seasonMenuPos, setSeasonMenuPos] = useState<{ top: number; left: number } | null>(null);
 	const [pastSeasonsOpen, setPastSeasonsOpen] = useState(false);
@@ -53,11 +93,13 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 	const seasonDropdownRef = useRef<HTMLDivElement>(null);
 	const pastSeasonsTriggerRef = useRef<HTMLButtonElement>(null);
 	const pastSeasonsDropdownRef = useRef<HTMLDivElement>(null);
-	const [wrappedDefaultSeason, setWrappedDefaultSeason] = useState<string | null>(null);
-	const [isLoading, setIsLoading] = useState(true);
+	const [wrappedDefaultSeason, setWrappedDefaultSeason] = useState<string | null>(
+		() => cachedProfilePayload?.wrappedDefaultSeason ?? null,
+	);
+	const [isLoading, setIsLoading] = useState(() => !cachedProfilePayload);
 	const [isLoadingBadges, setIsLoadingBadges] = useState(false);
 	const [error, setError] = useState<string | null>(null);
-	const [seasonWrappedPromoActive, setSeasonWrappedPromoActive] = useState(false);
+	const [seasonWrappedPromoActive, setSeasonWrappedPromoActive] = useState(() => isSeasonWrappedPromoMonth(new Date()));
 
 	const updateSeasonMenuPosition = useCallback(() => {
 		const btn = seasonTriggerRef.current;
@@ -144,12 +186,6 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 		};
 	}, [pastSeasonsOpen]);
 
-	const playerName = useMemo(() => profileSlugToPlayerName(playerSlug), [playerSlug]);
-	const wrappedSlug = useMemo(() => {
-		if (!playerName) return null;
-		return playerNameToWrappedSlug(playerName);
-	}, [playerName]);
-
 	const openWrappedHref = useMemo(() => {
 		if (!wrappedSlug) return null;
 		const base = `/wrapped/${wrappedSlug}`;
@@ -165,14 +201,33 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 
 	useEffect(() => {
 		let cancelled = false;
+		const promo = isSeasonWrappedPromoMonth(new Date());
+		setSeasonWrappedPromoActive(promo);
+
+		if (!playerName) {
+			setError("Invalid player profile link.");
+			setIsLoading(false);
+			setIsLoadingBadges(false);
+			return () => {
+				cancelled = true;
+			};
+		}
+
+		if (cachedProfilePayload) {
+			setPlayerData(cachedProfilePayload.playerData ?? null);
+			setBadgePayload(cachedProfilePayload.badgePayload ?? null);
+			setWrappedSeasons(cachedProfilePayload.wrappedSeasons);
+			setWrappedSelectedSeason(cachedProfilePayload.wrappedSelectedSeason ?? null);
+			setWrappedDefaultSeason(cachedProfilePayload.wrappedDefaultSeason ?? null);
+			setError(null);
+			setIsLoading(false);
+			setIsLoadingBadges(false);
+			return () => {
+				cancelled = true;
+			};
+		}
 
 		const load = async () => {
-			if (!playerName) {
-				setError("Invalid player profile link.");
-				setIsLoading(false);
-				return;
-			}
-
 			setIsLoading(true);
 			setError(null);
 			setIsLoadingBadges(featureFlags.achievementBadges);
@@ -180,8 +235,17 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 			setWrappedSeasons([]);
 			setWrappedSelectedSeason(null);
 			setWrappedDefaultSeason(null);
-			const promo = isSeasonWrappedPromoMonth(new Date());
-			setSeasonWrappedPromoActive(promo);
+			const cacheDraft: PlayerProfileCachePayload = {
+				playerData: null,
+				badgePayload: null,
+				wrappedSeasons: [],
+				wrappedSelectedSeason: null,
+				wrappedDefaultSeason: null,
+			};
+			const persistProfileCache = () => {
+				if (!profileCacheKey) return;
+				setCachedPageData(profileCacheKey, cacheDraft);
+			};
 			try {
 				const playerRes = await fetch(`/api/player-data?playerName=${encodeURIComponent(playerName)}&profileHeadline=1`);
 
@@ -189,10 +253,13 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 					throw new Error("Could not load player profile data.");
 				}
 				const playerJson = (await playerRes.json()) as { playerData?: PlayerData };
+				const nextPlayerData = playerJson.playerData ?? null;
+				cacheDraft.playerData = nextPlayerData;
 				if (!cancelled) {
-					setPlayerData(playerJson.playerData ?? null);
+					setPlayerData(nextPlayerData);
 					setIsLoading(false);
 				}
+				persistProfileCache();
 
 				if (featureFlags.seasonWrapped && wrappedSlug) {
 					void (async () => {
@@ -205,17 +272,26 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 							};
 							const seasons = Array.isArray(wj.seasonsAvailable) ? wj.seasonsAvailable : [];
 							const season = typeof wj.season === "string" ? wj.season : null;
+							const selectedSeason = season ?? seasons[0] ?? null;
+							cacheDraft.wrappedSeasons = seasons;
+							cacheDraft.wrappedSelectedSeason = selectedSeason;
+							cacheDraft.wrappedDefaultSeason = selectedSeason;
 							if (!cancelled) {
 								setWrappedSeasons(seasons);
-								setWrappedSelectedSeason(season ?? seasons[0] ?? null);
-								setWrappedDefaultSeason(season ?? seasons[0] ?? null);
+								setWrappedSelectedSeason(selectedSeason);
+								setWrappedDefaultSeason(selectedSeason);
 							}
 						} catch {
+							cacheDraft.wrappedSeasons = [];
+							cacheDraft.wrappedSelectedSeason = null;
+							cacheDraft.wrappedDefaultSeason = null;
 							if (!cancelled) {
 								setWrappedSeasons([]);
 								setWrappedSelectedSeason(null);
 								setWrappedDefaultSeason(null);
 							}
+						} finally {
+							persistProfileCache();
 						}
 					})();
 				}
@@ -226,23 +302,29 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 							const badgesRes = await fetch(`/api/player-badges?playerName=${encodeURIComponent(playerName)}`);
 							if (!badgesRes.ok) throw new Error("Could not load badge data.");
 							const badgesJson = (await badgesRes.json()) as BadgePayload;
+							cacheDraft.badgePayload = badgesJson;
 							if (!cancelled) setBadgePayload(badgesJson);
 						} catch {
+							const fallbackBadgePayload: BadgePayload = {
+								playerName,
+								totalBadges: 0,
+								highestBadgeTier: null,
+								earned: [],
+								progress: [],
+							};
+							cacheDraft.badgePayload = fallbackBadgePayload;
 							if (!cancelled) {
-								setBadgePayload({
-									playerName,
-									totalBadges: 0,
-									highestBadgeTier: null,
-									earned: [],
-									progress: [],
-								});
+								setBadgePayload(fallbackBadgePayload);
 							}
 						} finally {
 							if (!cancelled) setIsLoadingBadges(false);
+							persistProfileCache();
 						}
 					})();
 				} else if (!cancelled) {
 					setIsLoadingBadges(false);
+					cacheDraft.badgePayload = null;
+					persistProfileCache();
 				}
 			} catch (e) {
 				if (!cancelled) {
@@ -259,7 +341,7 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 		return () => {
 			cancelled = true;
 		};
-	}, [playerName, wrappedSlug]);
+	}, [cachedProfilePayload, playerName, profileCacheKey, setCachedPageData, wrappedSlug]);
 
 	const showPastWrappedFooter =
 		featureFlags.seasonWrapped &&
