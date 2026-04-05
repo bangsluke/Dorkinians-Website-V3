@@ -115,9 +115,9 @@ Pass only if all three surfaces agree for each scenario:
     - [x] Wins
     - [x] Unbeaten
 
-#### Team Stats page -> Longest active streaks (this XI)
+#### Team Stats page -> Longest Active Streaks
 
-- [ ] Section label: Longest active streaks (this XI)
+- [ ] Section label: Longest Active Streaks
 - [ ] Anchor id: team-streak-leaders
 - [ ] Component: components/stats/TeamStats.tsx
 - [ ] Shows streak leader cards (player + value “in a row”) per streak category for the selected XI/team context.

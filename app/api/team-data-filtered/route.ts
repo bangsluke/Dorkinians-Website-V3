@@ -7,6 +7,7 @@ import { sanitizeError } from "@/lib/utils/errorSanitizer";
 import { log, logError, logQuery } from "@/lib/utils/logger";
 import { csrfProtection } from "@/lib/middleware/csrf";
 import { computeTeamStreakPayload, type StreakDateRange, type TeamFixtureStreakRow } from "@/lib/stats/teamStreaksComputation";
+import { featureFlags } from "@/config/config";
 
 const corsHeaders = getCorsHeadersWithSecurity();
 
@@ -249,6 +250,11 @@ type TeamStreakLeader = {
 	endDate: string | null;
 };
 
+type TeamStreakLeadersPayload = {
+	active: TeamStreakLeader[];
+	allTime: TeamStreakLeader[];
+};
+
 function buildTeamNameAliases(teamName: string): string[] {
 	const raw = String(teamName || "").trim();
 	if (!raw) return [];
@@ -293,31 +299,170 @@ function buildTeamNameAliases(teamName: string): string[] {
 async function fetchTeamStreakLeaders(
 	teamName: string,
 	graphLabel: string,
-	toNumber: (value: unknown) => number,
-): Promise<TeamStreakLeader[]> {
+): Promise<TeamStreakLeadersPayload> {
 	const isWholeClub = teamName === "Whole Club";
 	const teamAliases = buildTeamNameAliases(teamName);
-	const results = await Promise.all(
-		TEAM_STREAK_SPECS.map(async ({ category, label, prop, conditionKey }) => {
-			const query = `
-				MATCH (p:Player {graphLabel: $graphLabel})
-				WHERE coalesce(p.allowOnSite, true) = true
-				  AND ($isWholeClub = true OR p.mostPlayedForTeam IN $teamAliases)
-				RETURN p.playerName as playerName, p.${prop} as value
-				ORDER BY value DESC, playerName ASC
-				LIMIT 1
-			`;
-			const r = await neo4jService.runQuery(query, { graphLabel, teamAliases, isWholeClub });
-			if (!r.records.length) return null;
-			const rec = r.records[0];
-			const playerName = String(rec.get("playerName") ?? "");
-			if (!playerName) return null;
-			const value = toNumber(rec.get("value"));
-			const range = await fetchPlayerCurrentStreakRange(playerName, graphLabel, conditionKey, value);
-			return { category, label, playerName, value, startDate: range.startDate, endDate: range.endDate };
-		}),
-	);
-	return results.filter((x): x is TeamStreakLeader => x != null);
+	const query = `
+		MATCH (p:Player {graphLabel: $graphLabel})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})<-[:HAS_MATCH_DETAILS]-(f:Fixture {graphLabel: $graphLabel})
+		WHERE coalesce(p.allowOnSite, true) = true
+		  AND f.date IS NOT NULL
+		  AND NOT coalesce(f.status, '') IN ['Void', 'Postponed', 'Abandoned']
+		  AND ($isWholeClub = true OR p.mostPlayedForTeam IN $teamAliases)
+		  AND ($isWholeClub = true OR f.team IN $teamAliases)
+		RETURN p.playerName AS playerName,
+		       f.date AS date,
+		       f.result AS result,
+		       coalesce(md.goals, 0) + coalesce(md.penaltiesScored, 0) AS playerScored,
+		       coalesce(f.conceded, 0) AS goalsConceded,
+		       coalesce(md.yellowCards, 0) AS yellowCards,
+		       coalesce(md.redCards, 0) AS redCards
+		ORDER BY playerName ASC, f.date ASC
+	`;
+	const result = await neo4jService.runQuery(query, { graphLabel, teamAliases, isWholeClub });
+	if (!result.records.length) return { active: [], allTime: [] };
+
+	type PlayerRow = {
+		date: string | null;
+		result: string;
+		playerScored: number;
+		goalsConceded: number;
+		totalCards: number;
+	};
+	const rowsByPlayer = new Map<string, PlayerRow[]>();
+	for (const rec of result.records) {
+		const playerName = String(rec.get("playerName") ?? "");
+		if (!playerName) continue;
+		const row: PlayerRow = {
+			date: toIsoDateString(rec.get("date")),
+			result: String(rec.get("result") ?? "").toUpperCase(),
+			playerScored: toNumberLike(rec.get("playerScored")),
+			goalsConceded: toNumberLike(rec.get("goalsConceded")),
+			totalCards: toNumberLike(rec.get("yellowCards")) + toNumberLike(rec.get("redCards")),
+		};
+		const existing = rowsByPlayer.get(playerName) ?? [];
+		existing.push(row);
+		rowsByPlayer.set(playerName, existing);
+	}
+
+	const conditionPasses = (row: PlayerRow, conditionKey: LeaderConditionKey): boolean => {
+		if (conditionKey === "wins") return row.result === "W";
+		if (conditionKey === "unbeaten") return row.result !== "L";
+		if (conditionKey === "goalsScored") return row.playerScored >= 1;
+		if (conditionKey === "cleanSheets") return row.goalsConceded === 0;
+		if (conditionKey === "noCards") return row.totalCards === 0;
+		return false;
+	};
+
+	const computeCurrentRun = (rows: PlayerRow[], conditionKey: LeaderConditionKey): StreakDateRange & { value: number } => {
+		let current = 0;
+		let startDate: string | null = null;
+		let endDate: string | null = null;
+		for (const row of rows) {
+			const pass = conditionPasses(row, conditionKey);
+
+			if (pass) {
+				if (current === 0) startDate = row.date;
+				current += 1;
+				endDate = row.date;
+			} else {
+				current = 0;
+				startDate = null;
+				endDate = null;
+			}
+		}
+		return { value: current, startDate, endDate };
+	};
+
+	const computeLongestRun = (rows: PlayerRow[], conditionKey: LeaderConditionKey): StreakDateRange & { value: number } => {
+		let current = 0;
+		let currentStart: string | null = null;
+		let currentEnd: string | null = null;
+		let best = 0;
+		let bestStart: string | null = null;
+		let bestEnd: string | null = null;
+
+		for (const row of rows) {
+			const pass = conditionPasses(row, conditionKey);
+			if (pass) {
+				if (current === 0) currentStart = row.date;
+				current += 1;
+				currentEnd = row.date;
+				if (current > best) {
+					best = current;
+					bestStart = currentStart;
+					bestEnd = currentEnd;
+				}
+			} else {
+				current = 0;
+				currentStart = null;
+				currentEnd = null;
+			}
+		}
+		return { value: best, startDate: bestStart, endDate: bestEnd };
+	};
+
+	const outputActive: TeamStreakLeader[] = [];
+	const outputAllTime: TeamStreakLeader[] = [];
+	for (const { category, label, conditionKey } of TEAM_STREAK_SPECS) {
+		let bestActive: TeamStreakLeader | null = null;
+		let bestAllTime: TeamStreakLeader | null = null;
+		for (const [playerName, rows] of rowsByPlayer.entries()) {
+			const activeRun = computeCurrentRun(rows, conditionKey);
+			const allTimeRun = computeLongestRun(rows, conditionKey);
+			const activeCandidate: TeamStreakLeader = {
+				category,
+				label,
+				playerName,
+				value: activeRun.value,
+				startDate: activeRun.startDate,
+				endDate: activeRun.endDate,
+			};
+			const allTimeCandidate: TeamStreakLeader = {
+				category,
+				label,
+				playerName,
+				value: allTimeRun.value,
+				startDate: allTimeRun.startDate,
+				endDate: allTimeRun.endDate,
+			};
+			if (!bestActive) {
+				bestActive = activeCandidate;
+			} else if (activeCandidate.value > bestActive.value) {
+				bestActive = activeCandidate;
+			} else if (activeCandidate.value === bestActive.value) {
+				const bestEnd = Date.parse(bestActive.endDate ?? "");
+				const candEnd = Date.parse(activeCandidate.endDate ?? "");
+				if (Number.isFinite(candEnd) && (!Number.isFinite(bestEnd) || candEnd > bestEnd)) {
+					bestActive = activeCandidate;
+				} else if (candEnd === bestEnd && activeCandidate.playerName.localeCompare(bestActive.playerName) < 0) {
+					bestActive = activeCandidate;
+				}
+			}
+
+			if (!bestAllTime) {
+				bestAllTime = allTimeCandidate;
+				continue;
+			}
+			if (allTimeCandidate.value > bestAllTime.value) {
+				bestAllTime = allTimeCandidate;
+				continue;
+			}
+			if (allTimeCandidate.value === bestAllTime.value) {
+				const bestEnd = Date.parse(bestAllTime.endDate ?? "");
+				const candEnd = Date.parse(allTimeCandidate.endDate ?? "");
+				if (Number.isFinite(candEnd) && (!Number.isFinite(bestEnd) || candEnd > bestEnd)) {
+					bestAllTime = allTimeCandidate;
+					continue;
+				}
+				if (candEnd === bestEnd && allTimeCandidate.playerName.localeCompare(bestAllTime.playerName) < 0) {
+					bestAllTime = allTimeCandidate;
+				}
+			}
+		}
+		if (bestActive) outputActive.push(bestActive);
+		if (bestAllTime) outputAllTime.push(bestAllTime);
+	}
+	return { active: outputActive, allTime: outputAllTime };
 }
 
 function toIsoDateString(dateVal: unknown): string | null {
@@ -345,56 +490,6 @@ function toNumberLike(value: unknown): number {
 }
 
 type LeaderConditionKey = (typeof TEAM_STREAK_SPECS)[number]["conditionKey"];
-
-async function fetchPlayerCurrentStreakRange(
-	playerName: string,
-	graphLabel: string,
-	conditionKey: LeaderConditionKey,
-	currentValue: number,
-): Promise<StreakDateRange> {
-	if (currentValue <= 0) return { startDate: null, endDate: null };
-	const query = `
-		MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})<-[:HAS_MATCH_DETAILS]-(f:Fixture {graphLabel: $graphLabel})
-		WHERE f.date IS NOT NULL AND NOT coalesce(f.status, '') IN ['Void', 'Postponed', 'Abandoned']
-		RETURN f.date AS date, f.result AS result, f.dorkiniansGoals AS goalsScored, f.conceded AS goalsConceded,
-		       md.yellowCards AS yellowCards, md.redCards AS redCards
-		ORDER BY f.date ASC
-	`;
-	const result = await neo4jService.runQuery(query, { graphLabel, playerName });
-	if (!result.records.length) return { startDate: null, endDate: null };
-
-	let current = 0;
-	let startDate: string | null = null;
-	let endDate: string | null = null;
-
-	for (const rec of result.records) {
-		const date = toIsoDateString(rec.get("date"));
-		const resultCode = String(rec.get("result") ?? "").toUpperCase();
-		const goalsScored = toNumberLike(rec.get("goalsScored"));
-		const goalsConceded = toNumberLike(rec.get("goalsConceded"));
-		const totalCards = toNumberLike(rec.get("yellowCards")) + toNumberLike(rec.get("redCards"));
-		let pass = false;
-
-		if (conditionKey === "wins") pass = resultCode === "W";
-		if (conditionKey === "unbeaten") pass = resultCode !== "L";
-		if (conditionKey === "goalsScored") pass = goalsScored >= 1;
-		if (conditionKey === "cleanSheets") pass = goalsConceded === 0;
-		if (conditionKey === "noCards") pass = totalCards === 0;
-
-		if (pass) {
-			if (current === 0) startDate = date;
-			current += 1;
-			endDate = date;
-			continue;
-		}
-
-		current = 0;
-		startDate = null;
-		endDate = null;
-	}
-
-	return current > 0 ? { startDate, endDate } : { startDate: null, endDate: null };
-}
 
 function buildTeamStreakFixturesQuery(teamName: string, filters: any = null): { query: string; params: any } {
 	const graphLabel = neo4jService.getGraphLabel();
@@ -618,27 +713,40 @@ export async function POST(request: NextRequest) {
 		let result;
 		let formationResult;
 		let streakLeaders: TeamStreakLeader[] = [];
+		let streakLeadersAllTime: TeamStreakLeader[] = [];
 		let teamStreaks = null;
 		try {
 			result = await neo4jService.runQuery(query, params);
 			const { query: formQuery, params: formParams } = buildFormationBreakdownQuery(teamName, filters);
 			formationResult = await neo4jService.runQuery(formQuery, formParams);
-			const { query: streakFixturesQuery, params: streakFixturesParams } = buildTeamStreakFixturesQuery(teamName, filters);
-			const streakFixturesResult = await neo4jService.runQuery(streakFixturesQuery, streakFixturesParams);
-			const streakRows = (streakFixturesResult.records || []).map((r: { get: (key: string) => unknown }) => ({
-				season: String(r.get("season") ?? ""),
-				date: r.get("date"),
-				result: String(r.get("result") ?? ""),
-				goalsScored: toNumber(r.get("goalsScored")),
-				goalsConceded: toNumber(r.get("goalsConceded")),
-				totalCards: toNumber(r.get("totalCards")),
-			})) as TeamFixtureStreakRow[];
-			teamStreaks = computeTeamStreakPayload(streakRows);
-			try {
-				streakLeaders = await fetchTeamStreakLeaders(teamName, neo4jService.getGraphLabel(), toNumber);
-			} catch (streakErr) {
-				logError("Team streak leaders query error", streakErr);
-				streakLeaders = [];
+			const shouldComputeTeamStreakCards = featureFlags.teamStatsXiStreakCards && teamName !== "Whole Club";
+			const shouldFetchTeamLeaders = featureFlags.teamStatsStreakAndForm && teamName !== "Whole Club";
+			const shouldFetchClubLeaders = featureFlags.clubStatsLongestActiveStreaks && teamName === "Whole Club";
+
+			if (shouldComputeTeamStreakCards) {
+				const { query: streakFixturesQuery, params: streakFixturesParams } = buildTeamStreakFixturesQuery(teamName, filters);
+				const streakFixturesResult = await neo4jService.runQuery(streakFixturesQuery, streakFixturesParams);
+				const streakRows = (streakFixturesResult.records || []).map((r: { get: (key: string) => unknown }) => ({
+					season: String(r.get("season") ?? ""),
+					date: r.get("date"),
+					result: String(r.get("result") ?? ""),
+					goalsScored: toNumber(r.get("goalsScored")),
+					goalsConceded: toNumber(r.get("goalsConceded")),
+					totalCards: toNumber(r.get("totalCards")),
+				})) as TeamFixtureStreakRow[];
+				teamStreaks = computeTeamStreakPayload(streakRows);
+			}
+
+			if (shouldFetchTeamLeaders || shouldFetchClubLeaders) {
+				try {
+					const leadersPayload = await fetchTeamStreakLeaders(teamName, neo4jService.getGraphLabel());
+					streakLeaders = leadersPayload.active;
+					streakLeadersAllTime = leadersPayload.allTime;
+				} catch (streakErr) {
+					logError("Team streak leaders query error", streakErr);
+					streakLeaders = [];
+					streakLeadersAllTime = [];
+				}
 			}
 		} catch (queryError: any) {
 			logError("Cypher query error", queryError);
@@ -712,6 +820,7 @@ export async function POST(request: NextRequest) {
 			}),
 			...(teamStreaks ? { teamStreaks } : {}),
 			...(streakLeaders.length > 0 ? { streakLeaders } : {}),
+			...(streakLeadersAllTime.length > 0 ? { streakLeadersAllTime } : {}),
 		};
 
 		// Include copyable query in response for debugging
