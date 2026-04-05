@@ -237,6 +237,8 @@ export interface TeamData {
 	};
 	/** Longest active streak holder per category (XI or whole-club scope). */
 	streakLeaders?: Array<{ category: string; label: string; playerName: string; value: number; startDate: string | null; endDate: string | null }>;
+	/** Longest all-time streak holder per category (XI or whole-club scope). */
+	streakLeadersAllTime?: Array<{ category: string; label: string; playerName: string; value: number; startDate: string | null; endDate: string | null }>;
 }
 
 // TOTW cache interfaces

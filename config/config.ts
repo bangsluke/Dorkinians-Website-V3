@@ -1,7 +1,7 @@
 import { isDevelopBranchDeploy } from "@/lib/utils/isDevelopBranchDeploy";
 
 export const appConfig = {
-	version: "3.2.2",
+	version: "3.3.0",
 	name: "Dorkinians FC",
 	description: "Comprehensive source for club statistics, player performance, and team insights",
 	author: "Luke Bangs",
@@ -29,6 +29,8 @@ export type FeatureFlags = {
 	teamStatsFormationsUsed: boolean;
 	teamStatsTeamRecordings: boolean;
 	teamStatsStreakAndForm: boolean;
+	teamStatsXiStreakCards: boolean;
+	clubStatsLongestActiveStreaks: boolean;
 	clubStatsSquadBackbone: boolean;
 	clubStatsClubRecordings: boolean;
 	clubInfoRecords: boolean;
@@ -51,6 +53,8 @@ const featureFlagsAllEnabled: FeatureFlags = {
 	teamStatsFormationsUsed: true,
 	teamStatsTeamRecordings: true,
 	teamStatsStreakAndForm: true,
+	teamStatsXiStreakCards: true,
+	clubStatsLongestActiveStreaks: true,
 	clubStatsSquadBackbone: true,
 	clubStatsClubRecordings: true,
 	clubInfoRecords: true,
@@ -59,9 +63,9 @@ const featureFlagsAllEnabled: FeatureFlags = {
 
 /** Conservative defaults for production (main) deploys. */
 const featureFlagsProductionDefault: FeatureFlags = {
-	playerProfile: false,
-	achievementBadges: false,
-	seasonWrapped: false,
+	playerProfile: true,
+	achievementBadges: true,
+	seasonWrapped: true,
 	playerStatsKeyPerformance: false,
 	playerStatsForm: false,
 	playerStatsStreaks: false,
@@ -73,6 +77,8 @@ const featureFlagsProductionDefault: FeatureFlags = {
 	teamStatsFormationsUsed: false,
 	teamStatsTeamRecordings: false,
 	teamStatsStreakAndForm: false,
+	teamStatsXiStreakCards: false,
+	clubStatsLongestActiveStreaks: false,
 	clubStatsSquadBackbone: false,
 	clubStatsClubRecordings: false,
 	clubInfoRecords: false,
