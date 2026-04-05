@@ -98,21 +98,22 @@ Pass only if all three surfaces agree for each scenario:
 
 #### Player Stats page -> Streaks section
 
-- [ ] Section label: Streaks
-- [ ] Anchor id: streaks-section
-- [ ] Component: components/stats/PlayerStats.tsx
-- [ ] Shows:
-  - [ ] Current, season best, all-time best for:
-    - [ ] Scoring
-    - [ ] Assists
-    - [ ] Goal Involvement
-    - [ ] Clean Sheets
-    - [ ] Appearances
-    - [ ] Starts
-    - [ ] Full Matches
-    - [ ] MoM
-    - [ ] Discipline
-    - [ ] Wins
+- [x] Section label: Streaks
+- [x] Anchor id: streaks-section
+- [x] Component: components/stats/PlayerStats.tsx
+- [x] Shows:
+  - [x] Current, season best, all-time best for:
+    - [x] Scoring
+    - [x] Assists
+    - [x] Goal Involvement
+    - [x] Clean Sheets
+    - [x] Appearances
+    - [x] Starts
+    - [x] Full Matches
+    - [x] MoM
+    - [x] Discipline
+    - [x] Wins
+    - [x] Unbeaten
 
 #### Team Stats page -> Longest active streaks (this XI)
 

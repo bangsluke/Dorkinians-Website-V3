@@ -377,6 +377,21 @@ function toNumber(val: any): number {
 	return isNaN(num) ? 0 : num;
 }
 
+function formatStreakDate(dateIso: string | null | undefined): string {
+	if (!dateIso) return "";
+	const [year, month, day] = String(dateIso).split("-");
+	if (!year || !month || !day) return String(dateIso);
+	return `${day}/${month}/${year}`;
+}
+
+function formatStreakRange(startDate: string | null | undefined, endDate: string | null | undefined): string {
+	const start = formatStreakDate(startDate);
+	const end = formatStreakDate(endDate);
+	if (!start && !end) return "";
+	if (start && end) return start === end ? ` (${start})` : ` (${start} - ${end})`;
+	return ` (${start || end})`;
+}
+
 export default function TeamStats() {
 	const {
 		selectedPlayer,
@@ -1559,6 +1574,100 @@ export default function TeamStats() {
 
 								{!isDataTableMode &&
 									featureFlags.teamStatsStreakAndForm &&
+									teamData.teamStreaks && (
+									<div id='team-streaks-section' className='md:break-inside-avoid md:mb-4'>
+										<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+											<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Streaks (this XI)</h3>
+											<p className='text-white/60 text-xs mb-3'>Current run, season best and all-time best for this team scope.</p>
+											{(() => {
+												const cards = [
+													{
+														key: "wins",
+														label: "Wins",
+														tip: "Consecutive games won by this XI. A draw or loss resets the run.",
+														singular: "win",
+														plural: "wins",
+													},
+													{
+														key: "unbeaten",
+														label: "Unbeaten",
+														tip: "Consecutive games without a loss for this XI (wins or draws). A loss resets the run.",
+														singular: "game",
+														plural: "games",
+													},
+													{
+														key: "goalsScored",
+														label: "Goals Scored",
+														tip: "Consecutive games where this XI scores at least one goal. A blank resets the run.",
+														singular: "game",
+														plural: "games",
+													},
+													{
+														key: "cleanSheets",
+														label: "Clean Sheets",
+														tip: "Consecutive games where this XI concedes zero goals. Conceding resets the run.",
+														singular: "clean sheet",
+														plural: "clean sheets",
+													},
+													{
+														key: "noCards",
+														label: "No Cards",
+														tip: "Consecutive games where all playing players avoid yellow/red cards. Any card resets the run.",
+														singular: "game",
+														plural: "games",
+													},
+												] as const;
+												return (
+													<div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2'>
+														{cards.map(({ key, label, tip, singular, plural }) => {
+															const metric = teamData.teamStreaks?.[key];
+															if (!metric) return null;
+															const currentVal = toNumber(metric.current);
+															const seasonBestVal = toNumber(metric.seasonBest);
+															const allTimeBestVal = toNumber(metric.allTimeBest);
+															const currentLabel = currentVal === 1 ? singular : plural;
+															const seasonBestLabel = seasonBestVal === 1 ? singular : plural;
+															const allTimeBestLabel = allTimeBestVal === 1 ? singular : plural;
+															return (
+																<div
+																	key={key}
+																	tabIndex={0}
+																	className='relative group bg-white/5 rounded-lg p-2 flex flex-col items-center text-center cursor-help outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow/80'>
+																	<div className='flex h-11 w-11 items-center justify-center rounded-full bg-dorkinians-yellow text-black text-sm font-bold'>
+																		{currentVal}
+																	</div>
+																	<p className='text-white/90 text-[11px] md:text-xs leading-tight mt-1'>{label}</p>
+																	<p className='text-white/55 text-[10px] leading-tight'>Season best: {seasonBestVal}</p>
+																	<p className='text-white/55 text-[10px] leading-tight'>All-time best: {allTimeBestVal}</p>
+																	<div className='pointer-events-none absolute left-1/2 bottom-full z-40 mb-2 hidden w-[17rem] -translate-x-1/2 rounded-md bg-black/95 p-2 text-left text-[11px] text-white shadow-xl ring-1 ring-white/15 group-hover:block group-focus-within:block'>
+																		<p className='text-white/95 leading-snug'>{tip}</p>
+																		<div className='mt-2 pt-2 border-t border-white/20 space-y-1 text-white/90'>
+																			<p>
+																				Current: {currentVal} {currentLabel}
+																				{formatStreakRange(metric.currentRange?.startDate, metric.currentRange?.endDate)}
+																			</p>
+																			<p>
+																				Season best: {seasonBestVal} {seasonBestLabel}
+																				{formatStreakRange(metric.seasonBestRange?.startDate, metric.seasonBestRange?.endDate)}
+																			</p>
+																			<p>
+																				All-time best: {allTimeBestVal} {allTimeBestLabel}
+																				{formatStreakRange(metric.allTimeBestRange?.startDate, metric.allTimeBestRange?.endDate)}
+																			</p>
+																		</div>
+																	</div>
+																</div>
+															);
+														})}
+													</div>
+												);
+											})()}
+										</div>
+									</div>
+								)}
+
+								{!isDataTableMode &&
+									featureFlags.teamStatsStreakAndForm &&
 									teamData.streakLeaders &&
 									teamData.streakLeaders.length > 0 && (
 									<div id='team-streak-leaders' className='md:break-inside-avoid md:mb-4'>
@@ -1574,7 +1683,9 @@ export default function TeamStats() {
 														className='bg-white/5 rounded-lg px-3 py-2 flex flex-col gap-0.5'>
 														<span className='text-white/70 text-xs'>{row.label}</span>
 														<span className='text-white font-semibold text-sm md:text-base'>{row.playerName}</span>
-														<span className='text-dorkinians-yellow text-xs md:text-sm'>{row.value} in a row</span>
+														<span className='text-dorkinians-yellow text-xs md:text-sm'>
+															{row.value} in a row{formatStreakRange(row.startDate, row.endDate)}
+														</span>
 													</div>
 												))}
 											</div>

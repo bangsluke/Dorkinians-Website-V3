@@ -181,4 +181,91 @@ describe("playerStreaksComputation", () => {
 		expect(p.currentAppearanceStreak).toBe(1);
 		expect(p.currentScoringStreak).toBe(2);
 	});
+
+	it("computes unbeaten streak as wins or draws until loss", () => {
+		const p = computeLiveStreakPayload(
+			[
+				{
+					season: "2024/25",
+					seasonWeek: "2024/25-1",
+					team: "1st XI",
+					date: "2024-08-01",
+					goals: 0,
+					penaltiesScored: 0,
+					assists: 0,
+					cleanSheets: 0,
+					class: "MID",
+					minutes: 90,
+					started: true,
+					mom: 0,
+					yellowCards: 0,
+					redCards: 0,
+					fixtureResult: "W",
+					fixtureId: "u1",
+				},
+				{
+					season: "2024/25",
+					seasonWeek: "2024/25-2",
+					team: "1st XI",
+					date: "2024-08-08",
+					goals: 0,
+					penaltiesScored: 0,
+					assists: 0,
+					cleanSheets: 0,
+					class: "MID",
+					minutes: 90,
+					started: true,
+					mom: 0,
+					yellowCards: 0,
+					redCards: 0,
+					fixtureResult: "D",
+					fixtureId: "u2",
+				},
+				{
+					season: "2024/25",
+					seasonWeek: "2024/25-3",
+					team: "1st XI",
+					date: "2024-08-15",
+					goals: 0,
+					penaltiesScored: 0,
+					assists: 0,
+					cleanSheets: 0,
+					class: "MID",
+					minutes: 90,
+					started: true,
+					mom: 0,
+					yellowCards: 0,
+					redCards: 0,
+					fixtureResult: "L",
+					fixtureId: "u3",
+				},
+				{
+					season: "2024/25",
+					seasonWeek: "2024/25-4",
+					team: "1st XI",
+					date: "2024-08-22",
+					goals: 0,
+					penaltiesScored: 0,
+					assists: 0,
+					cleanSheets: 0,
+					class: "MID",
+					minutes: 90,
+					started: true,
+					mom: 0,
+					yellowCards: 0,
+					redCards: 0,
+					fixtureResult: "W",
+					fixtureId: "u4",
+				},
+			],
+			[
+				{ season: "2024/25", seasonWeek: "2024/25-1", team: "1st XI", date: "2024-08-01" },
+				{ season: "2024/25", seasonWeek: "2024/25-2", team: "1st XI", date: "2024-08-08" },
+				{ season: "2024/25", seasonWeek: "2024/25-3", team: "1st XI", date: "2024-08-15" },
+				{ season: "2024/25", seasonWeek: "2024/25-4", team: "1st XI", date: "2024-08-22" },
+			]
+		);
+		expect(p.currentUnbeatenStreak).toBe(1);
+		expect(p.allTimeBestUnbeatenStreak).toBe(2);
+	});
 });
