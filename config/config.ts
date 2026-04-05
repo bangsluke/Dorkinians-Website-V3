@@ -1,7 +1,7 @@
 import { isDevelopBranchDeploy } from "@/lib/utils/isDevelopBranchDeploy";
 
 export const appConfig = {
-	version: "3.2.3",
+	version: "3.3.0",
 	name: "Dorkinians FC",
 	description: "Comprehensive source for club statistics, player performance, and team insights",
 	author: "Luke Bangs",
@@ -63,9 +63,9 @@ const featureFlagsAllEnabled: FeatureFlags = {
 
 /** Conservative defaults for production (main) deploys. */
 const featureFlagsProductionDefault: FeatureFlags = {
-	playerProfile: false,
-	achievementBadges: false,
-	seasonWrapped: false,
+	playerProfile: true,
+	achievementBadges: true,
+	seasonWrapped: true,
 	playerStatsKeyPerformance: false,
 	playerStatsForm: false,
 	playerStatsStreaks: false,
