@@ -8,6 +8,7 @@ import {
 	buildMilestoneBadgeTooltip,
 	buildMilestoneTooltipLines,
 	formatBadgeNumber,
+	formatBadgeMetricValue,
 	type MilestoneTooltipLines,
 } from "@/lib/badges/badgeTooltip";
 import { tierRank } from "@/lib/badges/evaluate";
@@ -54,10 +55,10 @@ function getCategoryHeading(category: string): string {
 	return CATEGORY_LABELS[category] ?? category;
 }
 
-function tierThresholdLabel(def: BadgeDefinition, tier: string): string | undefined {
+function tierThresholdLabel(def: BadgeDefinition, badgeKey: string, tier: string): string | undefined {
 	const t = def.tiers[tier as keyof typeof def.tiers];
 	if (!t) return undefined;
-	return formatBadgeNumber(t.threshold);
+	return formatBadgeMetricValue(t.threshold, badgeKey);
 }
 
 function TooltipLineBlock({ lines }: { lines: MilestoneTooltipLines }) {
@@ -193,6 +194,7 @@ export default function PlayerBadgeMilestoneGrid({
 			const tierPeerCount =
 				got ? tiers[badgeKey]?.[got.tier] : undefined;
 			return {
+				badgeKey,
 				achieverCountAnyTier: achieverCounts[badgeKey],
 				tierPeerCount,
 				leader: leaders[badgeKey] ?? null,
@@ -230,12 +232,28 @@ export default function PlayerBadgeMilestoneGrid({
 		const current = getBadgeCurrentValue(badgeKey, prog);
 		if (current == null) return "-";
 		if (got) {
-			if (got.tier === "diamond") return formatBadgeNumber(current);
+			if (got.tier === "diamond") return formatBadgeMetricValue(current, badgeKey);
 			const next = nextThresholdAfterTier(def, got.tier);
-			return next == null ? formatBadgeNumber(current) : `${formatBadgeNumber(current)} / ${formatBadgeNumber(next)}`;
+			return next == null
+				? formatBadgeMetricValue(current, badgeKey)
+				: `${formatBadgeMetricValue(current, badgeKey)} / ${formatBadgeMetricValue(next, badgeKey)}`;
 		}
-		if (prog) return `${formatBadgeNumber(current)} / ${formatBadgeNumber(prog.targetValue)}`;
-		return formatBadgeNumber(current);
+		if (prog) return `${formatBadgeMetricValue(current, badgeKey)} / ${formatBadgeMetricValue(prog.targetValue, badgeKey)}`;
+		return formatBadgeMetricValue(current, badgeKey);
+	};
+
+	const placeholderValueTextClass = (value: string): string => {
+		const normalizedLength = value.replace(/\s+/g, "").length;
+		if (normalizedLength >= 11) return "text-[8px]";
+		if (normalizedLength >= 8) return "text-[9px]";
+		return "text-[10px]";
+	};
+
+	const achievementNameTextClass = (name: string): string => {
+		const normalizedLength = name.replace(/\s+/g, "").length;
+		if (normalizedLength >= 22) return "text-[9px] leading-tight line-clamp-3";
+		if (normalizedLength >= 16) return "text-[10px] leading-tight line-clamp-3";
+		return "text-[11px] leading-tight line-clamp-2";
 	};
 
 	return (
@@ -313,7 +331,7 @@ export default function PlayerBadgeMilestoneGrid({
 										aria-label={aria}
 										size='md'
 										innerLabel={
-											def ? tierThresholdLabel(def, recentlyUnlocked.tier) : undefined
+											def ? tierThresholdLabel(def, recentlyUnlocked.badgeKey, recentlyUnlocked.tier) : undefined
 										}
 									/>
 								</MilestoneHoverShell>
@@ -374,19 +392,20 @@ export default function PlayerBadgeMilestoneGrid({
 										{got ? (
 											<BadgeDot tier={got.tier} title='' aria-label={aria} size='md' innerLabel={innerValue} />
 										) : (
-											<div className='h-9 w-9 min-h-[36px] min-w-[36px] rounded-full border-2 border-dashed border-white/30 flex items-center justify-center bg-black/15'>
-												<span className='text-[8px] font-bold text-white/80 tabular-nums px-0.5 text-center leading-none'>
+											<div className='h-12 w-12 min-h-[48px] min-w-[48px] rounded-full border-2 border-dashed border-white/30 flex items-center justify-center bg-black/15'>
+												<span
+													className={`${placeholderValueTextClass(innerValue)} font-bold text-white/80 tabular-nums px-1 text-center leading-tight max-w-[90%] whitespace-normal break-words`}>
 													{innerValue}
 												</span>
 											</div>
 										)}
-										<span className='text-white text-[11px] leading-tight line-clamp-2'>{def.name}</span>
+										<span className={`text-white ${achievementNameTextClass(def.name)}`}>{def.name}</span>
 										{got ? (
 											<span className='text-[10px] text-dorkinians-yellow capitalize font-semibold'>{got.tier}</span>
 										) : prog ? (
 											<span className='text-[10px] text-white/65'>
 												{prog.remaining > 0
-													? `${formatBadgeNumber(prog.remaining)} to ${prog.nextTier}`
+													? `${formatBadgeMetricValue(prog.remaining, badgeKey)} to ${prog.nextTier}`
 													: "-"}
 											</span>
 										) : (

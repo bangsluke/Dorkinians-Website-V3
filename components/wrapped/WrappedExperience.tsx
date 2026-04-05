@@ -14,6 +14,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { XMarkIcon } from "@heroicons/react/24/outline";
+import { PauseIcon, PlayIcon } from "@heroicons/react/24/solid";
 import { toBlob } from "html-to-image";
 import { getPlayerProfileHref } from "@/lib/profile/slug";
 import { featureFlags } from "@/config/config";
@@ -22,7 +23,7 @@ import { formatRecordingDateMobile, formatRecordingScore } from "@/lib/utils/rec
 import type { WrappedData, WrappedLeagueTableRow } from "@/lib/wrapped/types";
 
 const SWIPE_PX = 56;
-const VEO_WRAP_PREVIEW_COUNT = 5;
+const VEO_WRAP_PREVIEW_COUNT = 3;
 const AUTOPLAY_MS = 15_000;
 
 function formatOrdinal(n: number): string {
@@ -54,6 +55,12 @@ function formatWrappedShareFilename(playerName: string, season: string, slideId:
 
 function formatLeagueGoalDiff(gd: number): string {
 	return gd > 0 ? `+${gd}` : `${gd}`;
+}
+
+function formatPenaltySuffix(count: number): string {
+	if (count <= 0) return "";
+	if (count === 1) return "(1 penalty)";
+	return `(${count} penalties)`;
 }
 
 function WrappedLeagueSnapshotTable({ row }: { row: WrappedLeagueTableRow }) {
@@ -114,7 +121,7 @@ function WrappedLeagueSnapshotTable({ row }: { row: WrappedLeagueTableRow }) {
 }
 
 const CARD =
-	"rounded-2xl border border-[#E8C547]/20 bg-[rgba(18,24,14,0.88)] backdrop-blur-md p-4 md:p-7 shadow-[0_20px_60px_rgba(0,0,0,0.45)] max-w-lg w-full mx-auto ring-1 ring-inset ring-white/[0.06] min-h-[60vh] md:min-h-[360px] flex flex-col";
+	"rounded-2xl border border-[#E8C547]/20 bg-[rgba(17,25,14,0.88)] backdrop-blur-md p-4 md:p-7 shadow-[0_20px_60px_rgba(0,0,0,0.45)] max-w-lg w-full mx-auto ring-1 ring-inset ring-white/[0.06] min-h-[45vh] md:min-h-[280px] flex flex-col overflow-hidden";
 
 const ACCENT = "text-[#E8C547]";
 const MINT = "text-[#5DCAA5]";
@@ -122,6 +129,9 @@ const MINT = "text-[#5DCAA5]";
 function SlideFrame({
 	children,
 	slideRef,
+	playerName,
+	seasonLabel,
+	showShareHeader,
 	topRight,
 	timerPct,
 	showTimer,
@@ -129,6 +139,9 @@ function SlideFrame({
 }: {
 	children: ReactNode;
 	slideRef: LegacyRef<HTMLDivElement>;
+	playerName: string;
+	seasonLabel: string;
+	showShareHeader: boolean;
 	topRight?: ReactNode;
 	timerPct: number;
 	showTimer: boolean;
@@ -136,11 +149,45 @@ function SlideFrame({
 }) {
 	return (
 		<div ref={slideRef} className={`${CARD} relative flex-1`} data-testid='wrapped-slide-card'>
+			<div className='pointer-events-none absolute -bottom-16 -right-14 z-0 opacity-[0.18] select-none' aria-hidden='true'>
+				<img
+					src='/icons/icon-512x512.png'
+					alt=''
+					width={512}
+					height={512}
+					loading='eager'
+					decoding='sync'
+					className='h-64 w-64 md:h-80 md:w-80'
+				/>
+			</div>
+			{showShareHeader ? (
+				<div className='relative z-10 mb-3 shrink-0 border-b border-white/10 pb-3'>
+					<div className='flex items-center gap-3'>
+						<img
+							src='/icons/icon-96x96.png'
+							alt='Dorkinians FC'
+							width={32}
+							height={32}
+							loading='eager'
+							decoding='sync'
+							className='h-8 w-8 rounded-full border border-[#E8C547]/40'
+						/>
+						<div className='min-w-0'>
+							<p className='text-[10px] text-[#E8C547]/95 uppercase tracking-widest font-semibold truncate'>
+								Dorkinians Wrapped {seasonLabel}
+							</p>
+							<p className='text-sm md:text-base font-bold text-white truncate'>{playerName}</p>
+						</div>
+					</div>
+				</div>
+			) : null}
 			{topRight ? (
 				<div className='pointer-events-none absolute top-4 right-4 z-10 md:top-6 md:right-6'>{topRight}</div>
 			) : null}
-			<div className='flex-1 flex flex-col justify-center min-h-0 overflow-y-auto [&_p]:text-base [&_li]:text-base'>{children}</div>
-			<div className='mt-2 pt-2 border-t border-white/10 shrink-0' data-wrapped-no-swipe>
+			<div className='relative z-10 flex-1 flex flex-col justify-center min-h-0 overflow-y-hidden [&_p]:text-base [&_li]:text-base'>
+				{children}
+			</div>
+			<div className='relative z-10 mt-2 pt-2 border-t border-white/10 shrink-0' data-wrapped-no-swipe data-wrapped-no-share='true'>
 				{showTimer ? (
 					<div className='flex justify-center mb-2' data-testid='wrapped-slide-timer'>
 						<div className='relative h-1 w-48 max-w-[88%] rounded-full bg-white/25 overflow-hidden'>
@@ -173,7 +220,6 @@ function FinalSlideFullSiteLink() {
 					rel='noopener noreferrer'>
 					full site
 				</a>
-				.
 			</p>
 		</>
 	);
@@ -190,6 +236,7 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 	const [timerPct, setTimerPct] = useState(100);
 	const [isPaused, setIsPaused] = useState(false);
 	const [shareOpen, setShareOpen] = useState(false);
+	const [isCapturingShare, setIsCapturingShare] = useState(false);
 	const slideRef = useRef<HTMLDivElement | null>(null);
 
 	const pointerSwipe = useRef<{ x: number; y: number; pointerId: number } | null>(null);
@@ -233,21 +280,36 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 		const body = document.body;
 		const prevHtmlOx = html.style.overflowX;
 		const prevBodyOx = body.style.overflowX;
+		const prevHtmlOy = html.style.overflowY;
+		const prevBodyOy = body.style.overflowY;
 		html.style.overflowX = "hidden";
 		body.style.overflowX = "hidden";
+		html.style.overflowY = "hidden";
+		body.style.overflowY = "hidden";
 		html.style.setProperty("overscroll-behavior-x", "none");
 		body.style.setProperty("overscroll-behavior-x", "none");
+		html.style.setProperty("overscroll-behavior-y", "none");
+		body.style.setProperty("overscroll-behavior-y", "none");
 		return () => {
 			html.style.overflowX = prevHtmlOx;
 			body.style.overflowX = prevBodyOx;
+			html.style.overflowY = prevHtmlOy;
+			body.style.overflowY = prevBodyOy;
 			html.style.removeProperty("overscroll-behavior-x");
 			body.style.removeProperty("overscroll-behavior-x");
+			html.style.removeProperty("overscroll-behavior-y");
+			body.style.removeProperty("overscroll-behavior-y");
 		};
 	}, []);
 
 	const slideIds = useMemo(() => {
 		if (!data) return [1];
-		const ids: number[] = [1, 2, 3, 4, 5, 6, 11];
+		const showTeamSeasonSlide =
+			data.wrappedLeaguePointsContributed > 0 ||
+			data.wrappedCupTiesAdvanced > 0 ||
+			(data.wrappedTrophiesWon?.length ?? 0) > 0;
+		const ids: number[] = [1, 2, 3, 4, 12, 5, 6];
+		if (showTeamSeasonSlide) ids.push(11);
 		if (data.veoFixtures?.length) ids.push(10);
 		if (data.longestStreakValue != null && data.longestStreakValue >= 3) ids.push(7);
 		ids.push(8, 9);
@@ -350,7 +412,18 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 		const el = slideRef.current;
 		if (!el || !data) return;
 		try {
-			const blob = await toBlob(el, { pixelRatio: 2, backgroundColor: "#141a10" });
+			setIsCapturingShare(true);
+			await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+			const blob = await toBlob(el, {
+				pixelRatio: 2,
+				backgroundColor: "#141a10",
+				cacheBust: true,
+				filter: (node) =>
+					!(
+						node instanceof HTMLElement &&
+						node.dataset.wrappedNoShare === "true"
+					),
+			});
 			if (!blob) return;
 			const fname = `${formatWrappedShareFilename(data.playerName, data.season, currentSlideId)}.png`;
 			const file = new File([blob], fname, { type: "image/png" });
@@ -372,6 +445,8 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 			URL.revokeObjectURL(url);
 		} catch (e) {
 			console.warn("Share slide failed", e);
+		} finally {
+			setIsCapturingShare(false);
 		}
 	}, [data, currentSlideId, shareSlideText]);
 
@@ -424,22 +499,33 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 						<p className={`${ACCENT} text-xs sm:text-sm font-semibold uppercase tracking-wide mb-1`}>Overview</p>
 						<h2 className='text-xl md:text-3xl font-bold text-white mb-1 leading-tight'>Your {data.season} season</h2>
 						<div className='border-t border-white/10 my-2' />
-						<p className='text-white/55 text-base mb-0.5'>This season you played</p>
-						<p className={`text-4xl sm:text-5xl md:text-6xl font-extrabold ${ACCENT} tabular-nums leading-none`}>
-							{data.totalMatches}
+						<p className='text-white/55 text-base mb-2'>
+							This season you played{"  "}
+							<span className={`text-2xl sm:text-3xl font-extrabold ${ACCENT} tabular-nums leading-none`}>
+								{data.totalMatches}
+							</span>{" "}
+							<span className={`font-semibold ${ACCENT}`}>matches</span>
 						</p>
-						<p className={`text-base font-semibold ${ACCENT} mb-2`}>matches</p>
 						<p className='text-white/75 text-base leading-snug mb-2'>
 							<span className='text-white/55'>{data.totalMinutes.toLocaleString()} minutes</span>
 							{" · "}
 							<span className={MINT}>{data.totalStarts}</span> starts
-							{" · "}
-							Most played: <span className='text-white font-medium'>{data.mostPlayedPosition}</span>
+						</p>
+						<p className='text-white/75 text-base leading-snug mb-2'>
+							Most played position: <span className='text-white font-medium'>{data.mostPlayedPosition}</span>
+						</p>
+						<p className='text-white/75 text-base leading-snug mb-6'>
+							Most played for team: <span className='text-white font-medium'>{data.wrappedDominantTeam || "-"}</span>
 						</p>
 						<div className='grid grid-cols-3 gap-1.5 text-center border-y border-white/10 py-2.5'>
 							<div>
-								<p className={`text-2xl font-bold ${ACCENT}`}>{data.totalGoals}</p>
-								<p className='text-white/45 text-[10px] sm:text-xs mt-0.5'>Goals</p>
+								<p className={`text-2xl font-bold ${ACCENT}`}>{data.totalGoals + data.totalPenaltiesScored}</p>
+								<p className='text-white/45 text-[10px] sm:text-xs mt-0.5'>
+									Goals
+									{data.totalPenaltiesScored > 0 ? (
+										<span className='block'>{formatPenaltySuffix(data.totalPenaltiesScored)}</span>
+									) : null}
+								</p>
 							</div>
 							<div className='border-l border-r border-white/10'>
 								<p className={`text-2xl font-bold ${ACCENT}`}>{data.totalAssists}</p>
@@ -460,7 +546,7 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 						<div className='border-t border-white/10 my-2' />
 						<p className='text-white/85 text-base sm:text-lg leading-snug'>
 							You played more matches than <span className={`${MINT} font-semibold`}>{data.matchesPercentile}%</span> of
-							the club this season.
+							the club this season
 						</p>
 					</>
 				);
@@ -471,11 +557,15 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 						<h2 className='text-xl md:text-3xl font-bold text-white mb-2'>{data.bestMonth}</h2>
 						<div className='border-t border-white/10 my-2' />
 						<p className='text-white/75 text-xs sm:text-sm mb-2'>
-							<span className={MINT}>{data.bestMonthMatches}</span> games · FTP{" "}
-							<span className={MINT}>{data.bestMonthFantasyPoints}</span>
+							<span className={MINT}>{data.bestMonthMatches}</span> games · {" "} 
+							<span className={MINT}>{data.bestMonthFantasyPoints}</span> {" "} Fantasy Points
 						</p>
-						<p className='text-white/85 text-base sm:text-lg'>
-							{data.bestMonthGoals} goals · {data.bestMonthAssists} assists
+						<p className='text-white/85 text-base sm:text-lg mb-1.5'>
+							{data.bestMonthGoals + data.bestMonthPenaltiesScored} goals {formatPenaltySuffix(data.bestMonthPenaltiesScored)} · {data.bestMonthAssists} assists · {data.bestMonthMom} MoM
+						</p>
+						<p className='text-white/70 text-xs sm:text-sm'>
+							{data.bestMonthMinutes.toLocaleString()} mins · {data.bestMonthStarts} starts ·{" "}
+							{data.bestMonthYellowCards}Y · {data.bestMonthRedCards}R
 						</p>
 					</>
 				);
@@ -511,7 +601,7 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 						<p className={`${ACCENT} text-xs sm:text-sm font-semibold uppercase tracking-wide mb-1`}>Player type</p>
 						<p className='text-white/50 text-base mb-2'>Your player type this season</p>
 						<div className='border-t border-white/10 my-2' />
-						<h2 className={`text-xl md:text-3xl font-bold ${ACCENT} mb-2 leading-tight`}>{data.playerType}</h2>
+						<h2 className={`text-xl md:text-3xl font-bold ${MINT} mb-2 leading-tight`}>{data.playerType}</h2>
 						<p className='text-white/70 text-sm sm:text-base leading-snug'>{data.playerTypeReason}</p>
 					</>
 				);
@@ -523,13 +613,19 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 							Match rating <span className={ACCENT}>{data.peakMatchRating}</span>
 						</h2>
 						<div className='border-t border-white/10 my-2' />
-						<p className='text-white/85 text-base sm:text-lg mb-1'>
-							vs {data.peakMatchOpposition} - {data.peakMatchGoals}G {data.peakMatchAssists}A
-						</p>
-						<p className='text-white/75 text-sm sm:text-base'>
+						<p className='text-white/75 text-sm sm:text-base mb-1'>
 							Result: <span className={`font-semibold ${MINT}`}>{data.peakMatchResultLabel}</span>
 							{" · "}
 							<span className='text-white font-medium'>{data.peakMatchScoreline}</span>
+							{" "}vs {data.peakMatchOpposition}
+						</p>
+						
+						<p className='text-white/70 text-xs sm:text-sm'>
+						{data.peakMatchStarted ? "Started" : "Sub"} · {data.peakMatchMinutes} mins {data.peakMatchGoals + data.peakMatchPenaltiesScored > 0 ? "· " + (data.peakMatchGoals + data.peakMatchPenaltiesScored) + "G " + formatPenaltySuffix(data.peakMatchPenaltiesScored) : ""} {data.peakMatchMomCount > 0 ? "· " + data.peakMatchMomCount + " MoM" : ""} {data.peakMatchAssists > 0 ? "· " + data.peakMatchAssists + "A" : ""} {data.peakMatchYellowCards > 0 ? "· " + data.peakMatchYellowCards + "Y" : ""} {data.peakMatchRedCards > 0 ? "· " + data.peakMatchRedCards + "R" : ""}
+						</p>
+
+						<p className='text-white/70 text-xs sm:text-sm'>
+						<span className={`font-semibold ${MINT}`}>{data.peakMatchFantasyPoints}</span> Fantasy Points
 						</p>
 					</>
 				);
@@ -542,38 +638,104 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 				const row = data.wrappedDominantTeamLeagueRow;
 				const leagueFinishLine =
 					row && row.position > 0 ?
-						`${teamLabel} finished ${formatOrdinal(row.position)} in the league${divSuffix}.`
+						<>
+							<span className={MINT}>{teamLabel}</span> finished <span className={MINT}>{formatOrdinal(row.position)}</span> in the league{divSuffix}.
+						</>
 					:	null;
 				return (
 					<>
 						<p className={`${ACCENT} text-xs sm:text-sm font-semibold uppercase tracking-wide mb-1`}>Team season</p>
-						<h2 className='text-xl md:text-3xl font-bold text-white mb-2'>Points, cups, table</h2>
+						<h2 className='text-xl md:text-3xl font-bold text-white mb-2'>League Points and Cups</h2>
 						<div className='border-t border-white/10 my-2' />
 						<ul className='text-white/85 text-xs sm:text-sm md:text-base space-y-2 text-left' data-testid='wrapped-team-season-slide'>
-							<li>
-								<span className={`${MINT} font-semibold`}>{data.wrappedLeaguePointsContributed}</span> league points from
-								games you played.
-							</li>
-							<li>
-								<span className={`${MINT} font-semibold`}>{data.wrappedCupTiesAdvanced}</span> cup ties advanced.
-							</li>
+							{data.wrappedLeaguePointsContributed > 0 ? (
+								<li>
+									<span className={`${MINT} font-semibold`}>{data.wrappedLeaguePointsContributed}</span> league points from
+									games you played{" "}
+									<span className='text-white/70'>
+										({data.wrappedLeagueWinsFromPlayedGames} wins, {data.wrappedLeagueDrawsFromPlayedGames} draws)
+									</span>
+								</li>
+							) : null}
+							{data.wrappedCupTiesAdvanced > 0 ? (
+								<li>
+									<span className={`${MINT} font-semibold`}>{data.wrappedCupTiesAdvanced}</span> cup ties advanced
+								</li>
+							) : null}
 							{leagueFinishLine ? <li className='text-white/70'>{leagueFinishLine}</li> : null}
 						</ul>
 						{row ? <WrappedLeagueSnapshotTable row={row} /> : null}
+						{(data.wrappedTrophiesWon ?? []).length > 0 ? (
+							<div className='mt-3 text-left text-white/85 text-xs sm:text-sm md:text-base space-y-1.5'>
+								{data.wrappedTrophiesWon.map((trophy) => (
+									<p key={trophy}>
+										Won the <span className={MINT}>{trophy}</span>
+									</p>
+								))}
+							</div>
+						) : null}
 					</>
 				);
 			}
 			case 7: {
 				const streakType = data.longestStreakType ?? "";
 				const isDisciplineNoCardsStreak = /discipline|no\s*cards/i.test(streakType);
+				let streakContextLine: string | null = null;
+				if (/scoring/i.test(streakType)) {
+					streakContextLine = `Season total: ${data.totalGoals} goals`;
+				} else if (/assist/i.test(streakType)) {
+					streakContextLine = `Season total: ${data.totalAssists} assists`;
+				} else if (/clean/i.test(streakType)) {
+					streakContextLine = `Season total: ${data.totalCleanSheets} clean sheets`;
+				} else if (/appearance/i.test(streakType)) {
+					streakContextLine = `Season total: ${data.totalMatches} appearances`;
+				} else if (isDisciplineNoCardsStreak) {
+					streakContextLine = `Season total: ${data.totalYellowCards + data.totalRedCards} cards (${data.totalYellowCards}Y, ${data.totalRedCards}R)`;
+				} else if (/win/i.test(streakType)) {
+					streakContextLine = `Season total: ${data.totalWins} wins, ${data.totalDraws} draws`;
+				}
 				return (
 					<>
 						<p className={`${ACCENT} text-xs sm:text-sm font-semibold uppercase tracking-wide mb-1`}>Streak</p>
 						<h2 className='text-xl md:text-3xl font-bold text-white mb-2 leading-tight'>{data.longestStreakType}</h2>
 						<div className='border-t border-white/10 my-2' />
-						<p className={`text-white/85 text-3xl sm:text-4xl font-bold ${MINT}`}>
+						<p className={`text-white/85 text-3xl sm:text-4xl ${MINT}`}>
 							{data.longestStreakValue}
-							{isDisciplineNoCardsStreak ? " games" : ""}
+							{isDisciplineNoCardsStreak ? " games without a card" : ""}
+						</p>
+						{streakContextLine ? <p className='text-white/70 text-xs sm:text-sm mt-2'>{streakContextLine}</p> : null}
+					</>
+				);
+			}
+			case 12: {
+				const homeLead = data.wrappedHomeWinRate - data.wrappedAwayWinRate;
+				const homeLeadText = `${homeLead.toFixed(1)}%`;
+				const homeLeadClass = homeLead >= 0 ? MINT : "text-red-400";
+				return (
+					<>
+						<p className={`${ACCENT} text-xs sm:text-sm font-semibold uppercase tracking-wide mb-1`}>Home vs Away</p>
+						<h2 className='text-xl md:text-3xl font-bold text-white mb-2'>Split story</h2>
+						<div className='border-t border-white/10 my-2' />
+						<div className='grid grid-cols-2 gap-2 text-sm'>
+							<div className='rounded-lg border border-white/10 bg-black/15 p-2.5'>
+								<p className='text-white/55 text-xs uppercase tracking-wide'>Home</p>
+								<p className='text-white/90 mt-1'>{data.wrappedHomeApps} apps</p>
+								<p className='text-white/70'>
+									{data.wrappedHomeGoals + data.wrappedHomePenaltiesScored}G {formatPenaltySuffix(data.wrappedHomePenaltiesScored)} · {data.wrappedHomeAssists}A
+								</p>
+								<p className={MINT}>{data.wrappedHomeWinRate}% win rate</p>
+							</div>
+							<div className='rounded-lg border border-white/10 bg-black/15 p-2.5'>
+								<p className='text-white/55 text-xs uppercase tracking-wide'>Away</p>
+								<p className='text-white/90 mt-1'>{data.wrappedAwayApps} apps</p>
+								<p className='text-white/70'>
+									{data.wrappedAwayGoals + data.wrappedAwayPenaltiesScored}G {formatPenaltySuffix(data.wrappedAwayPenaltiesScored)} · {data.wrappedAwayAssists}A
+								</p>
+								<p className={MINT}>{data.wrappedAwayWinRate}% win rate</p>
+							</div>
+						</div>
+						<p className='text-white/75 text-xs sm:text-sm mt-2'>
+							Your win rate was higher at home by <span className={homeLeadClass}>{homeLeadText}</span>.
 						</p>
 					</>
 				);
@@ -681,7 +843,9 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 				disabled={index >= total - 1}
 				className='text-xs sm:text-sm px-3 py-1.5 rounded-lg border border-white/15 text-white/90 disabled:opacity-30'
 				aria-label={isPaused ? "Resume autoplay" : "Pause autoplay"}>
-				{isPaused ? "▶" : "⏸"}
+				{isPaused ?
+					<PlayIcon className='h-4 w-4 sm:h-5 sm:w-5' aria-hidden />
+				:	<PauseIcon className='h-4 w-4 sm:h-5 sm:w-5' aria-hidden />}
 			</button>
 			<button
 				type='button'
@@ -773,6 +937,9 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 							data-testid='wrapped-slide-swipe-area'>
 							<SlideFrame
 								slideRef={slideRef}
+								playerName={data.playerName}
+								seasonLabel={data.season}
+								showShareHeader={isCapturingShare}
 								timerPct={timerPct}
 								showTimer={showTimer}
 								footerControls={wrappedNavControls}

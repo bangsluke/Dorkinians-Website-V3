@@ -1,10 +1,8 @@
-/**
- * Live streak computation for Player Stats (aligned with database-dorkinians/services/streakDetection.js).
- * Pure functions - callers supply match rows and appearance slots from Neo4j (optionally filtered).
- */
-
 export type NormalizedMatch = {
 	season: string;
+	seasonWeek: string;
+	seasonWeekObj: { key: string; season: string; week: number } | null;
+	team: string;
 	date: unknown;
 	dateMs: number;
 	goals: number;
@@ -20,6 +18,28 @@ export type NormalizedMatch = {
 	fixtureResult: string;
 	fixtureId: string;
 };
+
+export type NormalizedSeasonFixture = {
+	season: string;
+	team: string;
+	seasonWeek: string;
+	seasonWeekObj: { key: string; season: string; week: number } | null;
+	dateMs: number;
+};
+
+export type StreakDateRange = {
+	startDate: string | null;
+	endDate: string | null;
+};
+
+export type StreakTooltipMeta = Record<
+	string,
+	{
+		current: StreakDateRange;
+		seasonBest: StreakDateRange;
+		allTimeBest: StreakDateRange;
+	}
+>;
 
 function toNum(v: unknown): number {
 	if (v === null || v === undefined) return 0;
@@ -49,6 +69,12 @@ export function dateToMillis(dateVal: unknown): number {
 	return 0;
 }
 
+function dateToIso(dateVal: unknown): string | null {
+	const ms = dateToMillis(dateVal);
+	if (!ms) return null;
+	return new Date(ms).toISOString().slice(0, 10);
+}
+
 function compareSeasonKeys(a: string, b: string): number {
 	const pa = String(a || "").split("/");
 	const pb = String(b || "").split("/");
@@ -56,6 +82,22 @@ function compareSeasonKeys(a: string, b: string): number {
 	const yb = toNum(pb[0]);
 	if (ya !== yb) return ya - yb;
 	return String(a).localeCompare(String(b));
+}
+
+function parseSeasonWeek(v: unknown): { key: string; season: string; week: number } | null {
+	if (v === null || v === undefined) return null;
+	const raw = String(v).trim();
+	if (!raw) return null;
+	const m = raw.match(/^(.+)-(\d+)$/);
+	if (!m) return null;
+	const season = String(m[1]);
+	const week = toNum(m[2]);
+	if (!season || week <= 0) return null;
+	return { key: `${season}-${week}`, season, week };
+}
+
+function seasonWeekSortKey(sw: { season: string; week: number }, dateMs: number): string {
+	return `${String(sw.season).padStart(20, "0")}::${String(sw.week).padStart(4, "0")}::${String(dateMs).padStart(16, "0")}`;
 }
 
 export function detectStreaks<T>(itemsOrdered: T[], conditionFn: (item: T) => boolean | null): { current: number; longest: number } {
@@ -103,8 +145,13 @@ export function normalizePlayerMatches(rawMatches: unknown[]): NormalizedMatch[]
 		.filter((m): m is Record<string, unknown> => !!m && m != null && (m as Record<string, unknown>).season != null && (m as Record<string, unknown>).date != null)
 		.map((m) => {
 			const r = m as Record<string, unknown>;
+			const seasonWeekParsed = parseSeasonWeek(r.seasonWeek);
+			const season = r.season != null ? String(r.season) : seasonWeekParsed ? seasonWeekParsed.season : "";
 			return {
-				season: String(r.season),
+				season,
+				seasonWeek: seasonWeekParsed ? seasonWeekParsed.key : "",
+				seasonWeekObj: seasonWeekParsed,
+				team: r.team != null ? String(r.team) : "",
 				date: r.date,
 				dateMs: dateToMillis(r.date),
 				goals: toNum(r.goals),
@@ -120,7 +167,8 @@ export function normalizePlayerMatches(rawMatches: unknown[]): NormalizedMatch[]
 				fixtureResult: r.fixtureResult != null ? String(r.fixtureResult).toUpperCase() : "",
 				fixtureId: r.fixtureId != null ? String(r.fixtureId) : "",
 			};
-		});
+		})
+		.filter((m) => m.seasonWeekObj !== null);
 	rows.sort((a, b) => {
 		if (a.dateMs !== b.dateMs) return a.dateMs - b.dateMs;
 		return compareSeasonKeys(a.season, b.season);
@@ -128,7 +176,34 @@ export function normalizePlayerMatches(rawMatches: unknown[]): NormalizedMatch[]
 	const seen = new Set<string>();
 	const out: NormalizedMatch[] = [];
 	for (const r of rows) {
-		const key = `${r.fixtureId}::${r.season}`;
+		const key = `${r.fixtureId}::${r.season}::${r.team}`;
+		if (seen.has(key)) continue;
+		seen.add(key);
+		out.push(r);
+	}
+	return out;
+}
+
+export function normalizeSeasonFixtures(rawSeasonFixtures: unknown[]): NormalizedSeasonFixture[] {
+	const rows = (rawSeasonFixtures || [])
+		.filter((f): f is Record<string, unknown> => !!f && f != null && (f as Record<string, unknown>).season != null && (f as Record<string, unknown>).team != null && (f as Record<string, unknown>).seasonWeek != null)
+		.map((f) => {
+			const r = f as Record<string, unknown>;
+			const parsed = parseSeasonWeek(r.seasonWeek);
+			const season = r.season != null ? String(r.season) : parsed ? parsed.season : "";
+			return {
+				season,
+				team: String(r.team),
+				seasonWeek: parsed ? parsed.key : "",
+				seasonWeekObj: parsed,
+				dateMs: dateToMillis(r.date),
+			};
+		})
+		.filter((f) => f.seasonWeekObj !== null);
+	const seen = new Set<string>();
+	const out: NormalizedSeasonFixture[] = [];
+	for (const r of rows) {
+		const key = `${r.seasonWeek}::${r.team}`;
 		if (seen.has(key)) continue;
 		seen.add(key);
 		out.push(r);
@@ -176,6 +251,10 @@ function conditionWin(m: NormalizedMatch) {
 	return m.fixtureResult === "W";
 }
 
+function conditionUnbeaten(m: NormalizedMatch) {
+	return m.fixtureResult !== "L";
+}
+
 export function pickLatestSeason(matches: Pick<NormalizedMatch, "season" | "dateMs">[]): string | null {
 	if (!matches.length) return null;
 	let best = matches[0];
@@ -185,23 +264,160 @@ export function pickLatestSeason(matches: Pick<NormalizedMatch, "season" | "date
 	return best.season;
 }
 
-export type AppearanceNormalized = { season: string; minutes: number | null };
+function getAnchorTeamsBySeason(matchesOrdered: NormalizedMatch[]): Map<string, string> {
+	const seasonStats = new Map<string, Map<string, { count: number; latestDateMs: number }>>();
+	for (const m of matchesOrdered) {
+		const season = String(m.season || "");
+		const team = String(m.team || "");
+		if (!season || !team || toNum(m.minutes) <= 0) continue;
+		if (!seasonStats.has(season)) seasonStats.set(season, new Map<string, { count: number; latestDateMs: number }>());
+		const teamMap = seasonStats.get(season)!;
+		const existing = teamMap.get(team) ?? { count: 0, latestDateMs: 0 };
+		existing.count += 1;
+		existing.latestDateMs = Math.max(existing.latestDateMs, toNum(m.dateMs));
+		teamMap.set(team, existing);
+	}
+	const out = new Map<string, string>();
+	for (const [season, teamMap] of seasonStats.entries()) {
+		let bestTeam = "";
+		let bestCount = -1;
+		let bestLatest = -1;
+		for (const [team, stat] of teamMap.entries()) {
+			if (stat.count > bestCount || (stat.count === bestCount && stat.latestDateMs > bestLatest)) {
+				bestTeam = team;
+				bestCount = stat.count;
+				bestLatest = stat.latestDateMs;
+			}
+		}
+		if (bestTeam) out.set(season, bestTeam);
+	}
+	return out;
+}
 
-export function normalizeAppearanceSlots(rawSlots: unknown[], latestSeason: string | null): {
+function buildWeekIndex(matchesOrdered: NormalizedMatch[], seasonFixtures: NormalizedSeasonFixture[]): Array<{
+	key: string;
+	season: string;
+	week: number;
+	sortDateMs: number;
+	matches: NormalizedMatch[];
+}> {
+	const weekMap = new Map<string, { key: string; season: string; week: number; sortDateMs: number; matches: NormalizedMatch[] }>();
+	const registerWeek = (seasonWeekObj: { key: string; season: string; week: number }, season: string, dateMs: number) => {
+		const key = seasonWeekObj.key;
+		const existing = weekMap.get(key);
+		if (!existing) {
+			weekMap.set(key, { key, season, week: seasonWeekObj.week, sortDateMs: dateMs, matches: [] });
+			return;
+		}
+		if (existing.sortDateMs === 0 || (dateMs > 0 && dateMs < existing.sortDateMs)) {
+			existing.sortDateMs = dateMs;
+		}
+	};
+	for (const m of matchesOrdered) {
+		if (!m.seasonWeekObj) continue;
+		registerWeek(m.seasonWeekObj, m.season, m.dateMs);
+		weekMap.get(m.seasonWeekObj.key)?.matches.push(m);
+	}
+	for (const f of seasonFixtures) {
+		if (!f.seasonWeekObj) continue;
+		registerWeek(f.seasonWeekObj, f.season, f.dateMs);
+	}
+	const weeks = [...weekMap.values()];
+	weeks.sort((a, b) => {
+		if (a.sortDateMs !== b.sortDateMs) return a.sortDateMs - b.sortDateMs;
+		return seasonWeekSortKey({ season: a.season, week: a.week }, a.sortDateMs).localeCompare(
+			seasonWeekSortKey({ season: b.season, week: b.week }, b.sortDateMs)
+		);
+	});
+	return weeks;
+}
+
+function buildAnchorTeamFixtureWeeks(seasonFixtures: NormalizedSeasonFixture[]): Map<string, Set<string>> {
+	const map = new Map<string, Set<string>>();
+	for (const f of seasonFixtures) {
+		const season = String(f.season || "");
+		const team = String(f.team || "");
+		if (!season || !team || !f.seasonWeek) continue;
+		const key = `${season}::${team}`;
+		const existing = map.get(key) ?? new Set<string>();
+		existing.add(String(f.seasonWeek));
+		map.set(key, existing);
+	}
+	return map;
+}
+
+function computeWeeklyStreak(
+	weeksOrdered: Array<{ key: string; season: string; matches: NormalizedMatch[] }>,
+	anchorBySeason: Map<string, string>,
+	anchorTeamFixtureWeeks: Map<string, Set<string>>,
+	conditionFn: ((match: NormalizedMatch) => boolean | null) | null
+): {
 	current: number;
 	longest: number;
-	slotsForLatestSeason: AppearanceNormalized[];
+	currentRange: StreakDateRange;
+	longestRange: StreakDateRange;
 } {
-	const slots: AppearanceNormalized[] = (rawSlots || []).map((s) => {
-		const r = s as Record<string, unknown>;
-		return {
-			season: r.season != null ? String(r.season) : "",
-			minutes: r.minutes === null || r.minutes === undefined ? null : toNum(r.minutes),
-		};
-	});
-	const { current, longest } = detectAppearanceStreak(slots);
-	const slotsForLatestSeason = latestSeason ? slots.filter((x) => x.season === latestSeason) : [];
-	return { current, longest, slotsForLatestSeason };
+	let current = 0;
+	let longest = 0;
+	let currentStart: string | null = null;
+	let currentEnd: string | null = null;
+	let longestStart: string | null = null;
+	let longestEnd: string | null = null;
+
+	const onWin = (dateIso: string | null) => {
+		if (current === 0) {
+			currentStart = dateIso;
+		}
+		current += 1;
+		if (dateIso) currentEnd = dateIso;
+		if (current > longest) {
+			longest = current;
+			longestStart = currentStart;
+			longestEnd = currentEnd;
+		}
+	};
+
+	const onBreak = () => {
+		current = 0;
+		currentStart = null;
+		currentEnd = null;
+	};
+
+	for (const week of weeksOrdered) {
+		const season = String(week.season || "");
+		const matches = [...week.matches].sort((a, b) => a.dateMs - b.dateMs);
+		if (conditionFn === null) {
+			if (matches.length > 0) {
+				for (const match of matches) {
+					onWin(dateToIso(match.date));
+				}
+				continue;
+			}
+			const anchorTeam = anchorBySeason.get(season);
+			if (!anchorTeam) continue;
+			const fixtureKey = `${season}::${anchorTeam}`;
+			const fixtureWeeks = anchorTeamFixtureWeeks.get(fixtureKey);
+			const hasAnchorFixture = fixtureWeeks ? fixtureWeeks.has(String(week.key)) : false;
+			if (hasAnchorFixture) onBreak();
+			continue;
+		}
+		if (matches.length === 0) continue;
+		for (const match of matches) {
+			const r = conditionFn(match);
+			if (r === null) continue;
+			if (r) {
+				onWin(dateToIso(match.date));
+			} else {
+				onBreak();
+			}
+		}
+	}
+	return {
+		current,
+		longest,
+		currentRange: { startDate: currentStart, endDate: currentEnd },
+		longestRange: { startDate: longestStart, endDate: longestEnd },
+	};
 }
 
 /** All streak fields used by Player Stats UI (live / filter-scoped). */
@@ -216,6 +432,7 @@ export type LiveStreakPayload = {
 	currentMomStreak: number;
 	currentDisciplineStreak: number;
 	currentWinStreak: number;
+	currentUnbeatenStreak: number;
 	seasonBestScoringStreak: number;
 	seasonBestAssistStreak: number;
 	seasonBestGoalInvolvementStreak: number;
@@ -226,6 +443,7 @@ export type LiveStreakPayload = {
 	seasonBestMomStreak: number;
 	seasonBestDisciplineStreak: number;
 	seasonBestWinStreak: number;
+	seasonBestUnbeatenStreak: number;
 	allTimeBestScoringStreak: number;
 	allTimeBestAssistStreak: number;
 	allTimeBestGoalInvolvementStreak: number;
@@ -236,50 +454,113 @@ export type LiveStreakPayload = {
 	allTimeBestMomStreak: number;
 	allTimeBestDisciplineStreak: number;
 	allTimeBestWinStreak: number;
+	allTimeBestUnbeatenStreak: number;
+	tooltipMeta: StreakTooltipMeta;
 };
 
-export function computeLiveStreakPayload(rawMatches: unknown[], rawAppearanceSlots: unknown[] | null): LiveStreakPayload {
+export function computeLiveStreakPayload(rawMatches: unknown[], rawSeasonFixtures: unknown[] | null): LiveStreakPayload {
 	const matchesOrdered = normalizePlayerMatches(Array.isArray(rawMatches) ? rawMatches : []);
+	const seasonFixtures = normalizeSeasonFixtures(Array.isArray(rawSeasonFixtures) ? rawSeasonFixtures : []);
 	const latestSeason = pickLatestSeason(matchesOrdered);
-	const appearance = normalizeAppearanceSlots(Array.isArray(rawAppearanceSlots) ? rawAppearanceSlots : [], latestSeason);
-	const inLatest = latestSeason ? matchesOrdered.filter((m) => m.season === latestSeason) : [];
+	const anchorBySeason = getAnchorTeamsBySeason(matchesOrdered);
+	const anchorTeamFixtureWeeks = buildAnchorTeamFixtureWeeks(seasonFixtures);
+	const allWeeks = buildWeekIndex(matchesOrdered, seasonFixtures);
+	const latestWeeks = latestSeason ? allWeeks.filter((w) => w.season === latestSeason) : [];
 
-	const scoringAll = detectStreaks(matchesOrdered, conditionScoring);
-	const assistAll = detectStreaks(matchesOrdered, conditionAssists);
-	const giAll = detectStreaks(matchesOrdered, conditionGoalInvolvement);
-	const csAll = detectStreaks(matchesOrdered, conditionCleanSheet);
-	const startAll = detectStreaks(matchesOrdered, conditionStart);
-	const fmAll = detectStreaks(matchesOrdered, conditionFullMatch);
-	const momAll = detectStreaks(matchesOrdered, conditionMom);
-	const discAll = detectStreaks(matchesOrdered, conditionDiscipline);
-	const winAll = detectStreaks(matchesOrdered, conditionWin);
+	const appearanceAll = computeWeeklyStreak(allWeeks, anchorBySeason, anchorTeamFixtureWeeks, null);
+	const appearanceLatest = computeWeeklyStreak(latestWeeks, anchorBySeason, anchorTeamFixtureWeeks, null);
+	const scoringAll = computeWeeklyStreak(allWeeks, anchorBySeason, anchorTeamFixtureWeeks, conditionScoring);
+	const assistAll = computeWeeklyStreak(allWeeks, anchorBySeason, anchorTeamFixtureWeeks, conditionAssists);
+	const giAll = computeWeeklyStreak(allWeeks, anchorBySeason, anchorTeamFixtureWeeks, conditionGoalInvolvement);
+	const csAll = computeWeeklyStreak(allWeeks, anchorBySeason, anchorTeamFixtureWeeks, conditionCleanSheet);
+	const startAll = computeWeeklyStreak(allWeeks, anchorBySeason, anchorTeamFixtureWeeks, conditionStart);
+	const fmAll = computeWeeklyStreak(allWeeks, anchorBySeason, anchorTeamFixtureWeeks, conditionFullMatch);
+	const momAll = computeWeeklyStreak(allWeeks, anchorBySeason, anchorTeamFixtureWeeks, conditionMom);
+	const discAll = computeWeeklyStreak(allWeeks, anchorBySeason, anchorTeamFixtureWeeks, conditionDiscipline);
+	const winAll = computeWeeklyStreak(allWeeks, anchorBySeason, anchorTeamFixtureWeeks, conditionWin);
+	const unbeatenAll = computeWeeklyStreak(allWeeks, anchorBySeason, anchorTeamFixtureWeeks, conditionUnbeaten);
 
-	const scoringLatest = inLatest.length ? detectStreaks(inLatest, conditionScoring) : { current: 0, longest: 0 };
-	const assistLatest = inLatest.length ? detectStreaks(inLatest, conditionAssists) : { current: 0, longest: 0 };
-	const giLatest = inLatest.length ? detectStreaks(inLatest, conditionGoalInvolvement) : { current: 0, longest: 0 };
-	const csLatest = inLatest.length ? detectStreaks(inLatest, conditionCleanSheet) : { current: 0, longest: 0 };
-	const startLatest = inLatest.length ? detectStreaks(inLatest, conditionStart) : { current: 0, longest: 0 };
-	const fmLatest = inLatest.length ? detectStreaks(inLatest, conditionFullMatch) : { current: 0, longest: 0 };
-	const momLatest = inLatest.length ? detectStreaks(inLatest, conditionMom) : { current: 0, longest: 0 };
-	const discLatest = inLatest.length ? detectStreaks(inLatest, conditionDiscipline) : { current: 0, longest: 0 };
-	const winLatest = inLatest.length ? detectStreaks(inLatest, conditionWin) : { current: 0, longest: 0 };
+	const scoringLatest = computeWeeklyStreak(latestWeeks, anchorBySeason, anchorTeamFixtureWeeks, conditionScoring);
+	const assistLatest = computeWeeklyStreak(latestWeeks, anchorBySeason, anchorTeamFixtureWeeks, conditionAssists);
+	const giLatest = computeWeeklyStreak(latestWeeks, anchorBySeason, anchorTeamFixtureWeeks, conditionGoalInvolvement);
+	const csLatest = computeWeeklyStreak(latestWeeks, anchorBySeason, anchorTeamFixtureWeeks, conditionCleanSheet);
+	const startLatest = computeWeeklyStreak(latestWeeks, anchorBySeason, anchorTeamFixtureWeeks, conditionStart);
+	const fmLatest = computeWeeklyStreak(latestWeeks, anchorBySeason, anchorTeamFixtureWeeks, conditionFullMatch);
+	const momLatest = computeWeeklyStreak(latestWeeks, anchorBySeason, anchorTeamFixtureWeeks, conditionMom);
+	const discLatest = computeWeeklyStreak(latestWeeks, anchorBySeason, anchorTeamFixtureWeeks, conditionDiscipline);
+	const winLatest = computeWeeklyStreak(latestWeeks, anchorBySeason, anchorTeamFixtureWeeks, conditionWin);
+	const unbeatenLatest = computeWeeklyStreak(latestWeeks, anchorBySeason, anchorTeamFixtureWeeks, conditionUnbeaten);
 
-	const appearanceLatest =
-		appearance.slotsForLatestSeason && appearance.slotsForLatestSeason.length
-			? detectAppearanceStreak(appearance.slotsForLatestSeason)
-			: { current: 0, longest: 0 };
+	const tooltipMeta: StreakTooltipMeta = {
+		currentAppearanceStreak: {
+			current: appearanceAll.currentRange,
+			seasonBest: appearanceLatest.longestRange,
+			allTimeBest: appearanceAll.longestRange,
+		},
+		currentStartStreak: {
+			current: startAll.currentRange,
+			seasonBest: startLatest.longestRange,
+			allTimeBest: startAll.longestRange,
+		},
+		currentGoalInvolvementStreak: {
+			current: giAll.currentRange,
+			seasonBest: giLatest.longestRange,
+			allTimeBest: giAll.longestRange,
+		},
+		currentMomStreak: {
+			current: momAll.currentRange,
+			seasonBest: momLatest.longestRange,
+			allTimeBest: momAll.longestRange,
+		},
+		currentScoringStreak: {
+			current: scoringAll.currentRange,
+			seasonBest: scoringLatest.longestRange,
+			allTimeBest: scoringAll.longestRange,
+		},
+		currentAssistStreak: {
+			current: assistAll.currentRange,
+			seasonBest: assistLatest.longestRange,
+			allTimeBest: assistAll.longestRange,
+		},
+		currentCleanSheetStreak: {
+			current: csAll.currentRange,
+			seasonBest: csLatest.longestRange,
+			allTimeBest: csAll.longestRange,
+		},
+		currentFullMatchStreak: {
+			current: fmAll.currentRange,
+			seasonBest: fmLatest.longestRange,
+			allTimeBest: fmAll.longestRange,
+		},
+		currentDisciplineStreak: {
+			current: discAll.currentRange,
+			seasonBest: discLatest.longestRange,
+			allTimeBest: discAll.longestRange,
+		},
+		currentWinStreak: {
+			current: winAll.currentRange,
+			seasonBest: winLatest.longestRange,
+			allTimeBest: winAll.longestRange,
+		},
+		currentUnbeatenStreak: {
+			current: unbeatenAll.currentRange,
+			seasonBest: unbeatenLatest.longestRange,
+			allTimeBest: unbeatenAll.longestRange,
+		},
+	};
 
 	return {
 		currentScoringStreak: scoringAll.current,
 		currentAssistStreak: assistAll.current,
 		currentGoalInvolvementStreak: giAll.current,
 		currentCleanSheetStreak: csAll.current,
-		currentAppearanceStreak: appearance.current,
+		currentAppearanceStreak: appearanceAll.current,
 		currentStartStreak: startAll.current,
 		currentFullMatchStreak: fmAll.current,
 		currentMomStreak: momAll.current,
 		currentDisciplineStreak: discAll.current,
 		currentWinStreak: winAll.current,
+		currentUnbeatenStreak: unbeatenAll.current,
 
 		seasonBestScoringStreak: scoringLatest.longest,
 		seasonBestAssistStreak: assistLatest.longest,
@@ -291,16 +572,19 @@ export function computeLiveStreakPayload(rawMatches: unknown[], rawAppearanceSlo
 		seasonBestMomStreak: momLatest.longest,
 		seasonBestDisciplineStreak: discLatest.longest,
 		seasonBestWinStreak: winLatest.longest,
+		seasonBestUnbeatenStreak: unbeatenLatest.longest,
 
 		allTimeBestScoringStreak: scoringAll.longest,
 		allTimeBestAssistStreak: assistAll.longest,
 		allTimeBestGoalInvolvementStreak: giAll.longest,
 		allTimeBestCleanSheetStreak: csAll.longest,
-		allTimeBestAppearanceStreak: appearance.longest,
+		allTimeBestAppearanceStreak: appearanceAll.longest,
 		allTimeBestStartStreak: startAll.longest,
 		allTimeBestFullMatchStreak: fmAll.longest,
 		allTimeBestMomStreak: momAll.longest,
 		allTimeBestDisciplineStreak: discAll.longest,
 		allTimeBestWinStreak: winAll.longest,
+		allTimeBestUnbeatenStreak: unbeatenAll.longest,
+		tooltipMeta,
 	};
 }

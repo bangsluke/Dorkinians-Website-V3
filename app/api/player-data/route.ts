@@ -122,16 +122,19 @@ export const PLAYER_STREAK_PROPERTY_RETURN = `
 			coalesce(p.currentMomStreak, 0) as currentMomStreak,
 			coalesce(p.currentDisciplineStreak, 0) as currentDisciplineStreak,
 			coalesce(p.currentWinStreak, 0) as currentWinStreak,
+			coalesce(p.currentUnbeatenStreak, 0) as currentUnbeatenStreak,
 			coalesce(p.seasonBestScoringStreak, 0) as seasonBestScoringStreak,
 			coalesce(p.seasonBestAssistStreak, 0) as seasonBestAssistStreak,
 			coalesce(p.seasonBestCleanSheetStreak, 0) as seasonBestCleanSheetStreak,
 			coalesce(p.seasonBestAppearanceStreak, 0) as seasonBestAppearanceStreak,
 			coalesce(p.seasonBestDisciplineStreak, 0) as seasonBestDisciplineStreak,
 			coalesce(p.seasonBestWinStreak, 0) as seasonBestWinStreak,
+			coalesce(p.seasonBestUnbeatenStreak, 0) as seasonBestUnbeatenStreak,
 			coalesce(p.allTimeBestScoringStreak, 0) as allTimeBestScoringStreak,
 			coalesce(p.allTimeBestAppearanceStreak, 0) as allTimeBestAppearanceStreak,
 			coalesce(p.allTimeBestCleanSheetStreak, 0) as allTimeBestCleanSheetStreak,
-			coalesce(p.allTimeBestWinStreak, 0) as allTimeBestWinStreak`;
+			coalesce(p.allTimeBestWinStreak, 0) as allTimeBestWinStreak,
+			coalesce(p.allTimeBestUnbeatenStreak, 0) as allTimeBestUnbeatenStreak`;
 
 /** Neo4j RETURN fragment: Feature 7 graph insights on `p` (independent of stat filters). */
 export const PLAYER_GRAPH_INSIGHT_PROPERTY_RETURN = `
@@ -160,16 +163,19 @@ export function mapPlayerStreakFieldsFromRecord(record: { get: (key: string) => 
 		currentMomStreak: toNumber(record.get("currentMomStreak")),
 		currentDisciplineStreak: toNumber(record.get("currentDisciplineStreak")),
 		currentWinStreak: toNumber(record.get("currentWinStreak")),
+		currentUnbeatenStreak: toNumber(record.get("currentUnbeatenStreak")),
 		seasonBestScoringStreak: toNumber(record.get("seasonBestScoringStreak")),
 		seasonBestAssistStreak: toNumber(record.get("seasonBestAssistStreak")),
 		seasonBestCleanSheetStreak: toNumber(record.get("seasonBestCleanSheetStreak")),
 		seasonBestAppearanceStreak: toNumber(record.get("seasonBestAppearanceStreak")),
 		seasonBestDisciplineStreak: toNumber(record.get("seasonBestDisciplineStreak")),
 		seasonBestWinStreak: toNumber(record.get("seasonBestWinStreak")),
+		seasonBestUnbeatenStreak: toNumber(record.get("seasonBestUnbeatenStreak")),
 		allTimeBestScoringStreak: toNumber(record.get("allTimeBestScoringStreak")),
 		allTimeBestAppearanceStreak: toNumber(record.get("allTimeBestAppearanceStreak")),
 		allTimeBestCleanSheetStreak: toNumber(record.get("allTimeBestCleanSheetStreak")),
 		allTimeBestWinStreak: toNumber(record.get("allTimeBestWinStreak")),
+		allTimeBestUnbeatenStreak: toNumber(record.get("allTimeBestUnbeatenStreak")),
 	};
 }
 
@@ -427,15 +433,28 @@ export function buildStreakMatchesCollectQuery(playerName: string, filters: any)
 		OPTIONAL MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
 		OPTIONAL MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)`;
 	if (conditions.length > 0) {
-		query += ` WHERE md IS NULL OR (f IS NOT NULL AND ${conditions.join(" AND ")})`;
+		query += ` WHERE md IS NULL OR (
+			f IS NOT NULL
+			AND f.seasonWeek IS NOT NULL
+			AND f.seasonWeek <> ''
+			AND (f.status IS NULL OR NOT (f.status IN ['Void', 'Postponed', 'Abandoned']))
+			AND ${conditions.join(" AND ")}
+		)`;
 	} else {
-		query += ` WHERE md IS NULL OR f IS NOT NULL`;
+		query += ` WHERE md IS NULL OR (
+			f IS NOT NULL
+			AND f.seasonWeek IS NOT NULL
+			AND f.seasonWeek <> ''
+			AND (f.status IS NULL OR NOT (f.status IN ['Void', 'Postponed', 'Abandoned']))
+		)`;
 	}
 	query += `
 		WITH p, md, f
 		ORDER BY f.date ASC
 		WITH p, collect(CASE WHEN md IS NULL OR f IS NULL THEN null ELSE {
 			season: md.season,
+			seasonWeek: f.seasonWeek,
+			team: md.team,
 			date: f.date,
 			goals: md.goals,
 			penaltiesScored: md.penaltiesScored,
@@ -454,28 +473,30 @@ export function buildStreakMatchesCollectQuery(playerName: string, filters: any)
 	return { query, params };
 }
 
-/** Appearance slots for `p.mostPlayedForTeam` fixtures (filtered), ordered by date. */
-export function buildStreakAppearanceSlotsCollectQuery(playerName: string, filters: any): { query: string; params: Record<string, unknown> } {
+/** Season fixture schedule for teams the player appeared for (unfiltered full schedule for break checks). */
+export function buildStreakAppearanceSlotsCollectQuery(playerName: string, _filters: any): { query: string; params: Record<string, unknown> } {
 	const graphLabel = neo4jService.getGraphLabel();
 	const params: Record<string, unknown> = { graphLabel, playerName };
 	let query = `
 		MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
-		WHERE coalesce(p.mostPlayedForTeam, '') <> ''
-		MATCH (f:Fixture {graphLabel: $graphLabel, team: p.mostPlayedForTeam})
-		OPTIONAL MATCH (f)-[:HAS_MATCH_DETAILS]->(md:MatchDetail {graphLabel: $graphLabel})<-[:PLAYED_IN]-(p)`;
-	const conditions = buildFilterConditions(filters, params);
-	if (conditions.length > 0) {
-		const { fixture, matchDetail } = partitionFilterConditions(conditions);
-		const parts: string[] = [];
-		if (fixture.length > 0) parts.push(`(${fixture.join(" AND ")})`);
-		if (matchDetail.length > 0) parts.push(`(md IS NOT NULL AND ${matchDetail.join(" AND ")})`);
-		if (parts.length > 0) query += ` WHERE ${parts.join(" AND ")}`;
-	}
+		OPTIONAL MATCH (p)-[:PLAYED_IN]->(mdp:MatchDetail {graphLabel: $graphLabel})
+		WHERE mdp.season IS NOT NULL AND mdp.team IS NOT NULL
+		OPTIONAL MATCH (f:Fixture {graphLabel: $graphLabel})
+		WHERE f.season = mdp.season
+		  AND f.team = mdp.team
+		  AND f.seasonWeek IS NOT NULL
+		  AND f.seasonWeek <> ''
+		  AND (f.status IS NULL OR NOT (f.status IN ['Void', 'Postponed', 'Abandoned']))
+		WITH collect(DISTINCT CASE WHEN f IS NULL THEN null ELSE {
+			season: f.season,
+			seasonWeek: f.seasonWeek,
+			team: f.team,
+			date: f.date,
+			fixtureId: f.id
+		} END) AS seasonFixturesRaw`;
 	query += `
-		WITH p, f, md
-		ORDER BY f.date ASC
-		WITH p, collect({ season: f.season, minutes: CASE WHEN md IS NOT NULL THEN coalesce(md.minutes, 0) ELSE null END }) as appearanceSlots
-		RETURN appearanceSlots`;
+		WITH [sf IN seasonFixturesRaw WHERE sf IS NOT NULL] AS seasonFixtures
+		RETURN seasonFixtures AS appearanceSlots`;
 	return { query, params };
 }
 
@@ -831,10 +852,34 @@ ${PLAYER_STREAK_PROPERTY_RETURN}
 	return { query, params };
 }
 
+export function buildPlayerProfileHeadlineQuery(playerName: string): { query: string; params: any } {
+	const graphLabel = neo4jService.getGraphLabel();
+	return {
+		params: { graphLabel, playerName },
+		query: `
+		MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
+		MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+		MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+		RETURN p.playerName AS playerName,
+			p.allowOnSite AS allowOnSite,
+			count(md) AS appearances,
+			sum(coalesce(md.minutes, 0)) AS minutes,
+			sum(coalesce(md.goals, 0)) + sum(coalesce(md.penaltiesScored, 0)) AS allGoalsScored,
+			sum(coalesce(md.assists, 0)) AS assists,
+			sum(coalesce(md.mom, 0)) AS mom,
+			sum(coalesce(md.fantasyPoints, 0)) AS fantasyPoints,
+			round(avg(coalesce(md.matchRating, 0)) * 10) / 10 AS averageMatchRating,
+			count(DISTINCT md.team) AS numberTeamsPlayedFor
+		LIMIT 1
+		`,
+	};
+}
+
 export async function GET(request: NextRequest) {
 	try {
 		const { searchParams } = new URL(request.url);
 		const playerName = searchParams.get("playerName");
+		const profileHeadlineMode = searchParams.get("profileHeadline") === "1";
 
 		if (!playerName) {
 			return NextResponse.json({ error: "Player name is required" }, { status: 400, headers: corsHeaders });
@@ -846,17 +891,6 @@ export async function GET(request: NextRequest) {
 			return NextResponse.json({ error: "Database connection failed" }, { status: 500, headers: corsHeaders });
 		}
 
-		const graphLabel = neo4jService.getGraphLabel();
-
-		// Build query with no filters
-		const { query, params } = buildPlayerStatsQuery(playerName, null);
-
-		const result = await neo4jService.runQuery(query, params);
-
-		if (result.records.length === 0) {
-			return NextResponse.json({ error: "Player not found" }, { status: 404, headers: corsHeaders });
-		}
-
 		// Helper function to convert Neo4j Integer/Float to JavaScript number
 		const toNumber = (value: any): number => {
 			if (value === null || value === undefined) return 0;
@@ -864,13 +898,11 @@ export async function GET(request: NextRequest) {
 				if (isNaN(value)) return 0;
 				return value;
 			}
-			// Handle Neo4j Integer objects
 			if (typeof value === "object") {
 				if ("toNumber" in value && typeof value.toNumber === "function") {
 					return value.toNumber();
 				}
 				if ("low" in value && "high" in value) {
-					// Neo4j Integer format: low + high * 2^32
 					const low = value.low || 0;
 					const high = value.high || 0;
 					return low + high * 4294967296;
@@ -883,6 +915,39 @@ export async function GET(request: NextRequest) {
 			const num = Number(value);
 			return isNaN(num) ? 0 : num;
 		};
+
+		if (profileHeadlineMode) {
+			const { query, params } = buildPlayerProfileHeadlineQuery(playerName);
+			const result = await neo4jService.runQuery(query, params);
+			if (result.records.length === 0) {
+				return NextResponse.json({ error: "Player not found" }, { status: 404, headers: corsHeaders });
+			}
+			const record = result.records[0];
+			if (record.get("allowOnSite") === false) {
+				return NextResponse.json({ error: "Player not found" }, { status: 404, headers: corsHeaders });
+			}
+			const playerData = {
+				playerName: record.get("playerName"),
+				appearances: toNumber(record.get("appearances")),
+				allGoalsScored: toNumber(record.get("allGoalsScored")),
+				assists: toNumber(record.get("assists")),
+				minutes: toNumber(record.get("minutes")),
+				mom: toNumber(record.get("mom")),
+				fantasyPoints: Math.round(toNumber(record.get("fantasyPoints"))),
+				averageMatchRating: Math.round(toNumber(record.get("averageMatchRating")) * 10) / 10,
+				numberTeamsPlayedFor: toNumber(record.get("numberTeamsPlayedFor")),
+			};
+			return NextResponse.json({ playerData }, { headers: { ...corsHeaders, "Cache-Control": "public, max-age=120" } });
+		}
+
+		// Build query with no filters
+		const { query, params } = buildPlayerStatsQuery(playerName, null);
+
+		const result = await neo4jService.runQuery(query, params);
+
+		if (result.records.length === 0) {
+			return NextResponse.json({ error: "Player not found" }, { status: 404, headers: corsHeaders });
+		}
 
 		// Extract aggregated stats from result
 		const record = result.records[0];

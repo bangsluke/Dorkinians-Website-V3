@@ -2,7 +2,7 @@
 
 **Purpose:** Single source of truth for what shipped, what remains, how major areas work, and setup outside the codebase. Use this file (not legacy split docs) when briefing an AI or resuming implementation.
 
-**Last updated:** 2026-04-02 (consolidated from former `NEW-FEATURES.md`, `IMPLEMENTATION-STATUS.md`, `FEATURE-IMPLEMENTATION-REPORT.md`).
+**Last updated:** 2026-04-04 (consolidated from former `NEW-FEATURES.md`, `IMPLEMENTATION-STATUS.md`, `FEATURE-IMPLEMENTATION-REPORT.md`).
 
 **Repos:**
 
@@ -15,7 +15,7 @@
 
 ## 1. Executive feature summary
 
-The site includes a **foundation** layer (starters, `playerOrder`, `matchRating`, `inferredFormation` on fixtures, aggregates on `Player`), **per-90** stats (360-minute threshold), **Form** (EWMA on `MatchDetail` + summary on `Player`, chart + chatbot `FORM_CURRENT`), **Streaks** (DB-backed fields + **live filter-scoped** `POST /api/player-streaks`, home banner, team streak leaders), **Club records** (`ClubRecord`, `/api/club-records`, Records on Club Information), **graph insights** (partnerships ≥5 games, impact delta; optional GDS PageRank/Louvain for Squad Backbone), **Season Wrapped** (`/wrapped/[playerSlug]`, APIs, OG, share modal / autoplay per Phase 9), **achievement badges** (DB + APIs + catalogue + profile grid + club leaderboard), **Player Profile** (shell parity, Season Wrapped → Headline Stats → Achievement Badges), merged **Club Captains and Awards**, **Veo** on fixtures and latest-result UI, **TOTW** previous-week strip + share, **dev branding + CI** (develop E2E on push, main PR pass-rate gate ≥90%). **Most Connected** was **retired** (2026-03-31); use Partnerships for co-appearance context.
+The site includes a **foundation** layer (starters, `playerOrder`, `matchRating`, `inferredFormation` on fixtures, aggregates on `Player`), **per-90** stats (360-minute threshold), **Form** (EWMA on `MatchDetail` + summary on `Player`, chart + chatbot `FORM_CURRENT`), **Streaks** (DB-backed fields + **live filter-scoped** `POST /api/player-streaks`, Team XI streak cards, Team/Club longest-active streak leaders with date ranges), **Club records** (`ClubRecord`, `/api/club-records`, Records on Club Information), **graph insights** (partnerships ≥5 games, impact delta; optional GDS PageRank/Louvain for Squad Backbone), **Season Wrapped** (`/wrapped/[playerSlug]`, APIs, OG, share modal / autoplay per Phase 9), **achievement badges** (DB + APIs + catalogue + profile grid + club leaderboard), **Player Profile** (shell parity, Season Wrapped → Headline Stats → Achievement Badges), merged **Club Captains and Awards**, **Veo** on fixtures and latest-result UI, **TOTW** previous-week strip + share, **dev branding + CI** (develop E2E on push, main PR pass-rate gate ≥90%). **Most Connected** was **retired** (2026-03-31); use Partnerships for co-appearance context.
 
 **Naming guardrail (persistent):** Do not name new implementation artifacts using rollout labels like `Phase 1` / `phase2`. Use stable feature names (`foundation`, `per90`, `form`, `streaks`, `records`, `wrapped`, `badges`, etc.) in filenames, functions, tests, and logs. Original “Phase N” wording in historical notes below is documentation-only.
 
@@ -31,7 +31,7 @@ Status values: **Shipped** | **Partial** | **Deferred** | **Retired** | **Verify
 | **4** | Automated match ratings | **Shipped** | Same foundation pipeline; `matchRating` on `MatchDetail`; aggregates on `Player`. UI: All Games badges, TOTW modal, etc. Change formula: edit DB `calculateMatchRating` → `npm run test:match-derived` → **full re-seed**. |
 | **2** | Per-90 normalised stats | **Shipped** | DB: per-90 props on `Player`, 360-min threshold. Site: table tabs Totals / Per App / Per 90, key card toggle, comparison radar “Per 90”, Team Top Players options. |
 | **3** | EWMA form curves | **Shipped** | DB: `ewmaReactive` / `ewmaBaseline` on `MatchDetail`, form summary on `Player`. Site: `app/api/player-form/route.ts`, Form section, Team `bestCurrentForm`. Chatbot: `FORM_CURRENT` + rankings. |
-| **5** | Streak detection | **Shipped** | DB: `streakDetection.js`, Player streak fields. Site: `POST /api/player-streaks`, `team-data-filtered` `streakLeaders`, Player Stats `#streaks-section`, Team streak leaders. Tests: `test:streak-detection`, Playwright `3.24`. |
+| **5** | Streak detection | **Shipped** | DB: `streakDetection.js`, Player streak fields. Site: `POST /api/player-streaks`; Team/Club via `team-data-filtered` (`teamStreaks`, `streakLeaders` with ranges), Player Stats `#streaks-section`, Team Stats `#team-streaks-section` + `#team-streak-leaders`, Club Stats `#club-streak-leaders`. Tests: `test:streak-detection`, Playwright `3.24`. |
 | **6** | Records wall | **Shipped** | DB: `ClubRecord`, `clubRecordsComputation.js`, orchestrator after aggregates. Site: `GET /api/club-records`, `RecordsSection` on **Club Information** (above Milestones; Feature 12). Playwright `5.29`–`5.30`. |
 | **7** | Graph insights | **Partial** | **7a/7b Shipped** (partnerships, impact; filter-scoped APIs + copy). **7c/7d Deferred** until Aura **GDS** enabled: PageRank / Louvain / Squad Backbone population. Code skips GDS when `gds.version()` fails. Guide: `docs/Neo4j_Aura_GDS_Setup_Guide.md`. |
 | **8** | Season Wrapped | **Shipped** | `app/wrapped/[playerSlug]/page.tsx`, `GET /api/wrapped/[playerSlug]`, OG routes, `lib/wrapped/*`. Homepage banner uses `featureFlags.seasonWrapped` from `config/config.ts` (branch presets). **Phase 9** (2026-04-01): autoplay, share modal, swipe, data/copy updates, tests. |
@@ -102,6 +102,7 @@ Order may shift slightly with nav menu; use live `StatsNavigationMenu` + tests a
 | Match rating / formation / per-90 / EWMA (DB) | `database-dorkinians/services/matchDerivedFields.js`, `relationshipManager.js` |
 | Streaks (DB) | `database-dorkinians/services/streakDetection.js` |
 | Streaks (live site) | `app/api/player-streaks/route.ts`, `lib/stats/playerStreaksComputation.ts` |
+| Streaks (team/club cards + leaders) | `app/api/team-data-filtered/route.ts`, `lib/stats/teamStreaksComputation.ts`, `components/stats/TeamStats.tsx`, `components/stats/ClubStats.tsx` |
 | Graph insights (DB) | `database-dorkinians/services/graphInsightsComputation.js` |
 | Badges (DB) | `badgeDefinitions.js`, `badgeComputation.js`, `playerBadgesComputation.js` |
 | Badges (site catalogue) | `lib/badges/catalog.ts` (**sync with DB**) |
