@@ -3608,9 +3608,14 @@ export default function PlayerStats() {
 								pluralUnit: "matches",
 							},
 						];
+						const orderedCards = [...activeCards].sort((a, b) => {
+							const aVal = sn(a.cur);
+							const bVal = sn(b.cur);
+							return Number(bVal > 0) - Number(aVal > 0);
+						});
 						return (
 							<div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2'>
-								{activeCards.map(({ label, cur, seasonBest, allTimeBest, tip, singularUnit, pluralUnit }) => {
+								{orderedCards.map(({ label, cur, seasonBest, allTimeBest, tip, singularUnit, pluralUnit }) => {
 									const currentValue = sn(cur);
 									const seasonBestValue = seasonBest ? sn(seasonBest) : 0;
 									const allTimeBestValue = allTimeBest ? sn(allTimeBest) : 0;

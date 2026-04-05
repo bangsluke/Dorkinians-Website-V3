@@ -48,8 +48,8 @@ const statsNavigationItems = [
 		label: "Team Stats",
 		sections: [
 			{ id: "team-key-performance-stats", label: "Key Performance Stats" },
-			{ id: "team-streaks-section", label: "Streaks (this XI)" },
-			{ id: "team-streak-leaders", label: "Longest active streaks (this XI)" },
+			{ id: "team-streaks-section", label: "Streaks" },
+			{ id: "team-streak-leaders", label: "Team Streaks" },
 			{ id: "team-recent-games", label: "Recent Form" },
 			{ id: "team-top-players", label: "Top Players" },
 			{ id: "team-seasonal-performance", label: "Seasonal Performance" },
@@ -68,7 +68,7 @@ const statsNavigationItems = [
 		label: "Club Stats",
 		sections: [
 			{ id: "club-key-performance-stats", label: "Key Performance Stats" },
-			{ id: "club-streak-leaders", label: "Longest active streaks (club)" },
+			{ id: "club-streak-leaders", label: "Club Streaks" },
 			{ id: "club-team-comparison", label: "Team Comparison" },
 			{ id: "club-top-players", label: "Top Players" },
 			{ id: "club-squad-backbone", label: "Squad Backbone" },
@@ -120,7 +120,8 @@ export default function StatsNavigationMenu({ isOpen, onClose }: StatsNavigation
 				const filtered = page.sections.filter((s) => {
 					if (s.id === "team-formation-breakdown" && !f.teamStatsFormationsUsed) return false;
 					if (s.id === "team-recordings" && !f.teamStatsTeamRecordings) return false;
-					if ((s.id === "team-streaks-section" || s.id === "team-streak-leaders") && !f.teamStatsStreakAndForm) return false;
+					if (s.id === "team-streaks-section" && !f.teamStatsXiStreakCards) return false;
+					if (s.id === "team-streak-leaders" && !f.teamStatsStreakAndForm) return false;
 					return true;
 				});
 				return { ...page, sections: filtered };
@@ -131,7 +132,7 @@ export default function StatsNavigationMenu({ isOpen, onClose }: StatsNavigation
 					sections: page.sections.filter((s) => {
 						if (s.id === "club-squad-backbone" && !f.clubStatsSquadBackbone) return false;
 						if (s.id === "club-recordings" && !f.clubStatsClubRecordings) return false;
-						if (s.id === "club-streak-leaders" && !f.teamStatsStreakAndForm) return false;
+						if (s.id === "club-streak-leaders" && !f.clubStatsLongestActiveStreaks) return false;
 						return true;
 					}),
 				};
