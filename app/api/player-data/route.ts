@@ -122,16 +122,19 @@ export const PLAYER_STREAK_PROPERTY_RETURN = `
 			coalesce(p.currentMomStreak, 0) as currentMomStreak,
 			coalesce(p.currentDisciplineStreak, 0) as currentDisciplineStreak,
 			coalesce(p.currentWinStreak, 0) as currentWinStreak,
+			coalesce(p.currentUnbeatenStreak, 0) as currentUnbeatenStreak,
 			coalesce(p.seasonBestScoringStreak, 0) as seasonBestScoringStreak,
 			coalesce(p.seasonBestAssistStreak, 0) as seasonBestAssistStreak,
 			coalesce(p.seasonBestCleanSheetStreak, 0) as seasonBestCleanSheetStreak,
 			coalesce(p.seasonBestAppearanceStreak, 0) as seasonBestAppearanceStreak,
 			coalesce(p.seasonBestDisciplineStreak, 0) as seasonBestDisciplineStreak,
 			coalesce(p.seasonBestWinStreak, 0) as seasonBestWinStreak,
+			coalesce(p.seasonBestUnbeatenStreak, 0) as seasonBestUnbeatenStreak,
 			coalesce(p.allTimeBestScoringStreak, 0) as allTimeBestScoringStreak,
 			coalesce(p.allTimeBestAppearanceStreak, 0) as allTimeBestAppearanceStreak,
 			coalesce(p.allTimeBestCleanSheetStreak, 0) as allTimeBestCleanSheetStreak,
-			coalesce(p.allTimeBestWinStreak, 0) as allTimeBestWinStreak`;
+			coalesce(p.allTimeBestWinStreak, 0) as allTimeBestWinStreak,
+			coalesce(p.allTimeBestUnbeatenStreak, 0) as allTimeBestUnbeatenStreak`;
 
 /** Neo4j RETURN fragment: Feature 7 graph insights on `p` (independent of stat filters). */
 export const PLAYER_GRAPH_INSIGHT_PROPERTY_RETURN = `
@@ -160,16 +163,19 @@ export function mapPlayerStreakFieldsFromRecord(record: { get: (key: string) => 
 		currentMomStreak: toNumber(record.get("currentMomStreak")),
 		currentDisciplineStreak: toNumber(record.get("currentDisciplineStreak")),
 		currentWinStreak: toNumber(record.get("currentWinStreak")),
+		currentUnbeatenStreak: toNumber(record.get("currentUnbeatenStreak")),
 		seasonBestScoringStreak: toNumber(record.get("seasonBestScoringStreak")),
 		seasonBestAssistStreak: toNumber(record.get("seasonBestAssistStreak")),
 		seasonBestCleanSheetStreak: toNumber(record.get("seasonBestCleanSheetStreak")),
 		seasonBestAppearanceStreak: toNumber(record.get("seasonBestAppearanceStreak")),
 		seasonBestDisciplineStreak: toNumber(record.get("seasonBestDisciplineStreak")),
 		seasonBestWinStreak: toNumber(record.get("seasonBestWinStreak")),
+		seasonBestUnbeatenStreak: toNumber(record.get("seasonBestUnbeatenStreak")),
 		allTimeBestScoringStreak: toNumber(record.get("allTimeBestScoringStreak")),
 		allTimeBestAppearanceStreak: toNumber(record.get("allTimeBestAppearanceStreak")),
 		allTimeBestCleanSheetStreak: toNumber(record.get("allTimeBestCleanSheetStreak")),
 		allTimeBestWinStreak: toNumber(record.get("allTimeBestWinStreak")),
+		allTimeBestUnbeatenStreak: toNumber(record.get("allTimeBestUnbeatenStreak")),
 	};
 }
 

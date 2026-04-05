@@ -27,6 +27,20 @@ export type NormalizedSeasonFixture = {
 	dateMs: number;
 };
 
+export type StreakDateRange = {
+	startDate: string | null;
+	endDate: string | null;
+};
+
+export type StreakTooltipMeta = Record<
+	string,
+	{
+		current: StreakDateRange;
+		seasonBest: StreakDateRange;
+		allTimeBest: StreakDateRange;
+	}
+>;
+
 function toNum(v: unknown): number {
 	if (v === null || v === undefined) return 0;
 	const n = Number(v);
@@ -53,6 +67,12 @@ export function dateToMillis(dateVal: unknown): number {
 	}
 	if (dateVal instanceof Date) return dateVal.getTime();
 	return 0;
+}
+
+function dateToIso(dateVal: unknown): string | null {
+	const ms = dateToMillis(dateVal);
+	if (!ms) return null;
+	return new Date(ms).toISOString().slice(0, 10);
 }
 
 function compareSeasonKeys(a: string, b: string): number {
@@ -231,6 +251,10 @@ function conditionWin(m: NormalizedMatch) {
 	return m.fixtureResult === "W";
 }
 
+function conditionUnbeaten(m: NormalizedMatch) {
+	return m.fixtureResult !== "L";
+}
+
 export function pickLatestSeason(matches: Pick<NormalizedMatch, "season" | "dateMs">[]): string | null {
 	if (!matches.length) return null;
 	let best = matches[0];
@@ -327,16 +351,46 @@ function computeWeeklyStreak(
 	anchorBySeason: Map<string, string>,
 	anchorTeamFixtureWeeks: Map<string, Set<string>>,
 	conditionFn: ((match: NormalizedMatch) => boolean | null) | null
-): { current: number; longest: number } {
+): {
+	current: number;
+	longest: number;
+	currentRange: StreakDateRange;
+	longestRange: StreakDateRange;
+} {
 	let current = 0;
 	let longest = 0;
+	let currentStart: string | null = null;
+	let currentEnd: string | null = null;
+	let longestStart: string | null = null;
+	let longestEnd: string | null = null;
+
+	const onWin = (dateIso: string | null) => {
+		if (current === 0) {
+			currentStart = dateIso;
+		}
+		current += 1;
+		if (dateIso) currentEnd = dateIso;
+		if (current > longest) {
+			longest = current;
+			longestStart = currentStart;
+			longestEnd = currentEnd;
+		}
+	};
+
+	const onBreak = () => {
+		current = 0;
+		currentStart = null;
+		currentEnd = null;
+	};
+
 	for (const week of weeksOrdered) {
 		const season = String(week.season || "");
 		const matches = [...week.matches].sort((a, b) => a.dateMs - b.dateMs);
 		if (conditionFn === null) {
 			if (matches.length > 0) {
-				current += matches.length;
-				longest = Math.max(longest, current);
+				for (const match of matches) {
+					onWin(dateToIso(match.date));
+				}
 				continue;
 			}
 			const anchorTeam = anchorBySeason.get(season);
@@ -344,7 +398,7 @@ function computeWeeklyStreak(
 			const fixtureKey = `${season}::${anchorTeam}`;
 			const fixtureWeeks = anchorTeamFixtureWeeks.get(fixtureKey);
 			const hasAnchorFixture = fixtureWeeks ? fixtureWeeks.has(String(week.key)) : false;
-			if (hasAnchorFixture) current = 0;
+			if (hasAnchorFixture) onBreak();
 			continue;
 		}
 		if (matches.length === 0) continue;
@@ -352,14 +406,18 @@ function computeWeeklyStreak(
 			const r = conditionFn(match);
 			if (r === null) continue;
 			if (r) {
-				current += 1;
-				longest = Math.max(longest, current);
+				onWin(dateToIso(match.date));
 			} else {
-				current = 0;
+				onBreak();
 			}
 		}
 	}
-	return { current, longest };
+	return {
+		current,
+		longest,
+		currentRange: { startDate: currentStart, endDate: currentEnd },
+		longestRange: { startDate: longestStart, endDate: longestEnd },
+	};
 }
 
 /** All streak fields used by Player Stats UI (live / filter-scoped). */
@@ -374,6 +432,7 @@ export type LiveStreakPayload = {
 	currentMomStreak: number;
 	currentDisciplineStreak: number;
 	currentWinStreak: number;
+	currentUnbeatenStreak: number;
 	seasonBestScoringStreak: number;
 	seasonBestAssistStreak: number;
 	seasonBestGoalInvolvementStreak: number;
@@ -384,6 +443,7 @@ export type LiveStreakPayload = {
 	seasonBestMomStreak: number;
 	seasonBestDisciplineStreak: number;
 	seasonBestWinStreak: number;
+	seasonBestUnbeatenStreak: number;
 	allTimeBestScoringStreak: number;
 	allTimeBestAssistStreak: number;
 	allTimeBestGoalInvolvementStreak: number;
@@ -394,6 +454,8 @@ export type LiveStreakPayload = {
 	allTimeBestMomStreak: number;
 	allTimeBestDisciplineStreak: number;
 	allTimeBestWinStreak: number;
+	allTimeBestUnbeatenStreak: number;
+	tooltipMeta: StreakTooltipMeta;
 };
 
 export function computeLiveStreakPayload(rawMatches: unknown[], rawSeasonFixtures: unknown[] | null): LiveStreakPayload {
@@ -416,6 +478,7 @@ export function computeLiveStreakPayload(rawMatches: unknown[], rawSeasonFixture
 	const momAll = computeWeeklyStreak(allWeeks, anchorBySeason, anchorTeamFixtureWeeks, conditionMom);
 	const discAll = computeWeeklyStreak(allWeeks, anchorBySeason, anchorTeamFixtureWeeks, conditionDiscipline);
 	const winAll = computeWeeklyStreak(allWeeks, anchorBySeason, anchorTeamFixtureWeeks, conditionWin);
+	const unbeatenAll = computeWeeklyStreak(allWeeks, anchorBySeason, anchorTeamFixtureWeeks, conditionUnbeaten);
 
 	const scoringLatest = computeWeeklyStreak(latestWeeks, anchorBySeason, anchorTeamFixtureWeeks, conditionScoring);
 	const assistLatest = computeWeeklyStreak(latestWeeks, anchorBySeason, anchorTeamFixtureWeeks, conditionAssists);
@@ -426,6 +489,65 @@ export function computeLiveStreakPayload(rawMatches: unknown[], rawSeasonFixture
 	const momLatest = computeWeeklyStreak(latestWeeks, anchorBySeason, anchorTeamFixtureWeeks, conditionMom);
 	const discLatest = computeWeeklyStreak(latestWeeks, anchorBySeason, anchorTeamFixtureWeeks, conditionDiscipline);
 	const winLatest = computeWeeklyStreak(latestWeeks, anchorBySeason, anchorTeamFixtureWeeks, conditionWin);
+	const unbeatenLatest = computeWeeklyStreak(latestWeeks, anchorBySeason, anchorTeamFixtureWeeks, conditionUnbeaten);
+
+	const tooltipMeta: StreakTooltipMeta = {
+		currentAppearanceStreak: {
+			current: appearanceAll.currentRange,
+			seasonBest: appearanceLatest.longestRange,
+			allTimeBest: appearanceAll.longestRange,
+		},
+		currentStartStreak: {
+			current: startAll.currentRange,
+			seasonBest: startLatest.longestRange,
+			allTimeBest: startAll.longestRange,
+		},
+		currentGoalInvolvementStreak: {
+			current: giAll.currentRange,
+			seasonBest: giLatest.longestRange,
+			allTimeBest: giAll.longestRange,
+		},
+		currentMomStreak: {
+			current: momAll.currentRange,
+			seasonBest: momLatest.longestRange,
+			allTimeBest: momAll.longestRange,
+		},
+		currentScoringStreak: {
+			current: scoringAll.currentRange,
+			seasonBest: scoringLatest.longestRange,
+			allTimeBest: scoringAll.longestRange,
+		},
+		currentAssistStreak: {
+			current: assistAll.currentRange,
+			seasonBest: assistLatest.longestRange,
+			allTimeBest: assistAll.longestRange,
+		},
+		currentCleanSheetStreak: {
+			current: csAll.currentRange,
+			seasonBest: csLatest.longestRange,
+			allTimeBest: csAll.longestRange,
+		},
+		currentFullMatchStreak: {
+			current: fmAll.currentRange,
+			seasonBest: fmLatest.longestRange,
+			allTimeBest: fmAll.longestRange,
+		},
+		currentDisciplineStreak: {
+			current: discAll.currentRange,
+			seasonBest: discLatest.longestRange,
+			allTimeBest: discAll.longestRange,
+		},
+		currentWinStreak: {
+			current: winAll.currentRange,
+			seasonBest: winLatest.longestRange,
+			allTimeBest: winAll.longestRange,
+		},
+		currentUnbeatenStreak: {
+			current: unbeatenAll.currentRange,
+			seasonBest: unbeatenLatest.longestRange,
+			allTimeBest: unbeatenAll.longestRange,
+		},
+	};
 
 	return {
 		currentScoringStreak: scoringAll.current,
@@ -438,6 +560,7 @@ export function computeLiveStreakPayload(rawMatches: unknown[], rawSeasonFixture
 		currentMomStreak: momAll.current,
 		currentDisciplineStreak: discAll.current,
 		currentWinStreak: winAll.current,
+		currentUnbeatenStreak: unbeatenAll.current,
 
 		seasonBestScoringStreak: scoringLatest.longest,
 		seasonBestAssistStreak: assistLatest.longest,
@@ -449,6 +572,7 @@ export function computeLiveStreakPayload(rawMatches: unknown[], rawSeasonFixture
 		seasonBestMomStreak: momLatest.longest,
 		seasonBestDisciplineStreak: discLatest.longest,
 		seasonBestWinStreak: winLatest.longest,
+		seasonBestUnbeatenStreak: unbeatenLatest.longest,
 
 		allTimeBestScoringStreak: scoringAll.longest,
 		allTimeBestAssistStreak: assistAll.longest,
@@ -460,5 +584,7 @@ export function computeLiveStreakPayload(rawMatches: unknown[], rawSeasonFixture
 		allTimeBestMomStreak: momAll.longest,
 		allTimeBestDisciplineStreak: discAll.longest,
 		allTimeBestWinStreak: winAll.longest,
+		allTimeBestUnbeatenStreak: unbeatenAll.longest,
+		tooltipMeta,
 	};
 }

@@ -37,7 +37,7 @@ import AllGamesModal from "@/components/stats/AllGamesModal";
 import PlayerRecentFormBoxes, { type PlayerFormRecentMatch } from "@/components/stats/PlayerRecentFormBoxes";
 import { type EarnedBadgeRow, type ProgressRow } from "@/components/stats/PlayerBadgeMilestoneGrid";
 import { getPlayerProfileHref } from "@/lib/profile/slug";
-import type { LiveStreakPayload } from "@/lib/stats/playerStreaksComputation";
+import type { LiveStreakPayload, StreakDateRange, StreakTooltipMeta } from "@/lib/stats/playerStreaksComputation";
 import { matchRatingCircleStyle } from "@/lib/utils/matchRatingDisplay";
 import { formatXiTeamLabel } from "@/lib/utils/formatXiTeamLabel";
 import RecordingsSection from "@/components/stats/RecordingsSection";
@@ -148,12 +148,18 @@ function StreakStatTile({
 	seasonBest,
 	allTimeBest,
 	tip,
+	currentLine,
+	seasonBestLine,
+	allTimeBestLine,
 }: {
 	label: string;
 	current: number;
 	seasonBest: string;
 	allTimeBest: string;
 	tip: string;
+	currentLine: string;
+	seasonBestLine: string;
+	allTimeBestLine: string;
 }) {
 	const lit = current > 0;
 	return (
@@ -175,6 +181,11 @@ function StreakStatTile({
 			<p className='text-white/45 text-[10px] leading-tight w-full'>All-time best: {allTimeBest}</p>
 			<div className='pointer-events-none absolute left-1/2 bottom-full z-40 mb-2 hidden w-[17rem] -translate-x-1/2 rounded-md bg-black/95 p-2 text-left text-[11px] text-white shadow-xl ring-1 ring-white/15 group-hover:block group-focus-within:block'>
 				<p className='text-white/95 leading-snug'>{tip}</p>
+				<div className='mt-2 pt-2 border-t border-white/20 space-y-1 text-white/90'>
+					<p>{currentLine}</p>
+					<p>{seasonBestLine}</p>
+					<p>{allTimeBestLine}</p>
+				</div>
 			</div>
 		</div>
 	);
@@ -516,6 +527,27 @@ function toNumber(val: any): number {
 	}
 	const num = Number(val);
 	return isNaN(num) ? 0 : num;
+}
+
+function formatTooltipDate(dateIso: string | null): string {
+	if (!dateIso) return "";
+	const [year, month, day] = dateIso.split("-");
+	if (!year || !month || !day) return dateIso;
+	return `${day}/${month}/${year}`;
+}
+
+function formatTooltipDateRange(range: StreakDateRange | null | undefined): string {
+	const start = formatTooltipDate(range?.startDate ?? null);
+	const end = formatTooltipDate(range?.endDate ?? null);
+	if (!start && !end) return "";
+	if (start && end) {
+		return start === end ? ` (${start})` : ` (${start} - ${end})`;
+	}
+	return ` (${start || end})`;
+}
+
+function formatStreakCountLabel(count: number, singular: string, plural: string): string {
+	return `${count} ${count === 1 ? singular : plural}`;
 }
 
 // Penalty Stats Visualization Component
@@ -1968,8 +2000,13 @@ export default function PlayerStats() {
 	const streakDisplaySource = useMemo((): PlayerData | null => {
 		if (!playerData) return null;
 		if (!liveStreaks) return playerData;
-		return { ...playerData, ...liveStreaks };
+		const { tooltipMeta: _tooltipMeta, ...streakCounts } = liveStreaks;
+		return { ...playerData, ...streakCounts };
 	}, [playerData, liveStreaks]);
+
+	const streakTooltipMeta = useMemo((): StreakTooltipMeta | null => {
+		return liveStreaks?.tooltipMeta ?? null;
+	}, [liveStreaks]);
 
 	// Debug log for position counts (must be before early returns)
 	useEffect(() => {
@@ -3457,6 +3494,8 @@ export default function PlayerStats() {
 							seasonBest?: keyof PlayerData;
 							allTimeBest?: keyof PlayerData;
 							tip: string;
+							singularUnit: string;
+							pluralUnit: string;
 						};
 						const src = streakDisplaySource;
 						const sn = (k: keyof PlayerData) => {
@@ -3470,11 +3509,49 @@ export default function PlayerStats() {
 						};
 						const activeCards: StreakCard[] = [
 							{
+								label: "Appearances",
+								cur: "currentAppearanceStreak",
+								seasonBest: "seasonBestAppearanceStreak",
+								allTimeBest: "allTimeBestAppearanceStreak",
+								tip: "Consecutive matches played. Weeks with no fixture for your season anchor team are protected; if that anchor team plays and you do not appear, the run breaks.",
+								singularUnit: "appearance",
+								pluralUnit: "appearances",
+							},
+							{
+								label: "Starts",
+								cur: "currentStartStreak",
+								seasonBest: "seasonBestStartStreak",
+								allTimeBest: "allTimeBestStartStreak",
+								tip: "Consecutive matches where you started. A bench cameo in a played match resets the run.",
+								singularUnit: "start",
+								pluralUnit: "starts",
+							},
+							{
+								label: "Goal involvement",
+								cur: "currentGoalInvolvementStreak",
+								seasonBest: "seasonBestGoalInvolvementStreak",
+								allTimeBest: "allTimeBestGoalInvolvementStreak",
+								tip: "Consecutive matches with a goal or assist (or both).",
+								singularUnit: "game",
+								pluralUnit: "games",
+							},
+							{
+								label: "MoM",
+								cur: "currentMomStreak",
+								seasonBest: "seasonBestMomStreak",
+								allTimeBest: "allTimeBestMomStreak",
+								tip: "Consecutive matches where you were named Player of the Match.",
+								singularUnit: "MoM",
+								pluralUnit: "MoMs",
+							},
+							{
 								label: "Scoring",
 								cur: "currentScoringStreak",
 								seasonBest: "seasonBestScoringStreak",
 								allTimeBest: "allTimeBestScoringStreak",
 								tip: "Counts consecutive games where you scored (goals or penalties). A blank scores resets the run.",
+								singularUnit: "game",
+								pluralUnit: "games",
 							},
 							{
 								label: "Assists",
@@ -3482,13 +3559,8 @@ export default function PlayerStats() {
 								seasonBest: "seasonBestAssistStreak",
 								allTimeBest: "allTimeBestAssistStreak",
 								tip: "Counts consecutive games with at least one assist. A game with no assist resets the run.",
-							},
-							{
-								label: "Goal involvement",
-								cur: "currentGoalInvolvementStreak",
-								seasonBest: "seasonBestGoalInvolvementStreak",
-								allTimeBest: "allTimeBestGoalInvolvementStreak",
-								tip: "Counts consecutive games with a goal or assist (or both). A game with neither resets the run.",
+								singularUnit: "game",
+								pluralUnit: "games",
 							},
 							{
 								label: "Clean sheet",
@@ -3496,20 +3568,8 @@ export default function PlayerStats() {
 								seasonBest: "seasonBestCleanSheetStreak",
 								allTimeBest: "allTimeBestCleanSheetStreak",
 								tip: "As a defender or keeper: consecutive games where your side conceded zero while you played. Conceding resets the run.",
-							},
-							{
-								label: "Appearances",
-								cur: "currentAppearanceStreak",
-								seasonBest: "seasonBestAppearanceStreak",
-								allTimeBest: "allTimeBestAppearanceStreak",
-								tip: "Consecutive games where you appeared for your most-played XI. If that side played a fixture without you in the squad, the run ends.",
-							},
-							{
-								label: "Starts",
-								cur: "currentStartStreak",
-								seasonBest: "seasonBestStartStreak",
-								allTimeBest: "allTimeBestStartStreak",
-								tip: "Consecutive games where you started. A bench cameo or omission resets the run.",
+								singularUnit: "clean sheet",
+								pluralUnit: "clean sheets",
 							},
 							{
 								label: "85+ mins",
@@ -3517,13 +3577,8 @@ export default function PlayerStats() {
 								seasonBest: "seasonBestFullMatchStreak",
 								allTimeBest: "allTimeBestFullMatchStreak",
 								tip: "Consecutive games with at least 85 minutes played. Subbing earlier resets the run.",
-							},
-							{
-								label: "MoM",
-								cur: "currentMomStreak",
-								seasonBest: "seasonBestMomStreak",
-								allTimeBest: "allTimeBestMomStreak",
-								tip: "Consecutive games named Player of the Match. Missing MoM resets the run.",
+								singularUnit: "match",
+								pluralUnit: "matches",
 							},
 							{
 								label: "No cards",
@@ -3531,6 +3586,8 @@ export default function PlayerStats() {
 								seasonBest: "seasonBestDisciplineStreak",
 								allTimeBest: "allTimeBestDisciplineStreak",
 								tip: "Consecutive games with no yellow or red card. Any booking resets the run.",
+								singularUnit: "match",
+								pluralUnit: "matches",
 							},
 							{
 								label: "Wins",
@@ -3538,20 +3595,43 @@ export default function PlayerStats() {
 								seasonBest: "seasonBestWinStreak",
 								allTimeBest: "allTimeBestWinStreak",
 								tip: "Consecutive games your side won while you played. A draw or loss resets the run.",
+								singularUnit: "win",
+								pluralUnit: "wins",
+							},
+							{
+								label: "Unbeaten",
+								cur: "currentUnbeatenStreak",
+								seasonBest: "seasonBestUnbeatenStreak",
+								allTimeBest: "allTimeBestUnbeatenStreak",
+								tip: "Consecutive matches without a loss while you played (wins or draws). A loss resets the run.",
+								singularUnit: "match",
+								pluralUnit: "matches",
 							},
 						];
 						return (
 							<div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2'>
-								{activeCards.map(({ label, cur, seasonBest, allTimeBest, tip }) => (
-									<StreakStatTile
-										key={String(cur)}
-										label={label}
-										current={sn(cur)}
-										seasonBest={fmtOpt(seasonBest)}
-										allTimeBest={fmtOpt(allTimeBest)}
-										tip={tip}
-									/>
-								))}
+								{activeCards.map(({ label, cur, seasonBest, allTimeBest, tip, singularUnit, pluralUnit }) => {
+									const currentValue = sn(cur);
+									const seasonBestValue = seasonBest ? sn(seasonBest) : 0;
+									const allTimeBestValue = allTimeBest ? sn(allTimeBest) : 0;
+									const meta = streakTooltipMeta?.[String(cur)];
+									const currentLine = `Current: ${formatStreakCountLabel(currentValue, singularUnit, pluralUnit)}${formatTooltipDateRange(meta?.current)}`;
+									const seasonBestLine = `Season best: ${formatStreakCountLabel(seasonBestValue, singularUnit, pluralUnit)}${formatTooltipDateRange(meta?.seasonBest)}`;
+									const allTimeBestLine = `All-time best: ${formatStreakCountLabel(allTimeBestValue, singularUnit, pluralUnit)}${formatTooltipDateRange(meta?.allTimeBest)}`;
+									return (
+										<StreakStatTile
+											key={String(cur)}
+											label={label}
+											current={currentValue}
+											seasonBest={fmtOpt(seasonBest)}
+											allTimeBest={fmtOpt(allTimeBest)}
+											tip={tip}
+											currentLine={currentLine}
+											seasonBestLine={seasonBestLine}
+											allTimeBestLine={allTimeBestLine}
+										/>
+									);
+								})}
 							</div>
 						);
 					})()}
