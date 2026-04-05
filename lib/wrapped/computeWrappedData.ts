@@ -137,6 +137,7 @@ type WrappedSeasonMetadataContext = {
 	graphLabel: string;
 	playerRecord: Neo4jRecord;
 	numberTeamsPlayedFor: number;
+	siteCurrentSeasonRaw: string | null;
 	seasonsAvailable: string[];
 	seasonNorm: string;
 	seasonHyphen: string;
@@ -236,6 +237,7 @@ export async function computeWrappedSeasonMetadata(options: {
 			graphLabel,
 			playerRecord: pr,
 			numberTeamsPlayedFor: toNumber(pr.get("numberTeamsPlayedFor")),
+			siteCurrentSeasonRaw,
 			seasonsAvailable,
 			seasonNorm,
 			seasonHyphen,
@@ -254,7 +256,16 @@ export async function computeWrappedData(options: {
 	if ("error" in metadata) {
 		return metadata;
 	}
-	const { graphLabel, playerRecord: pr, numberTeamsPlayedFor, seasonsAvailable, seasonNorm, seasonHyphen, seasonLabel } =
+	const {
+		graphLabel,
+		playerRecord: pr,
+		numberTeamsPlayedFor,
+		siteCurrentSeasonRaw,
+		seasonsAvailable,
+		seasonNorm,
+		seasonHyphen,
+		seasonLabel,
+	} =
 		metadata.data;
 
 	const seasonAgg = await neo4jService.runQuery(
@@ -716,20 +727,26 @@ export async function computeWrappedData(options: {
 		? Array.from(new Set(rawTeams.map((t) => String(t ?? "").trim()).filter((t) => t.length > 0)))
 		: [];
 	const wrappedTrophiesWon: string[] = [];
-	for (const team of uniquePlayedTeams) {
-		const leagueTableTeamKey = fixtureDisplayTeamToLeagueTableKey(team);
-		if (!leagueTableTeamKey) continue;
-		const finish = await fetchDorkiniansLeagueFinishForTeamSeason({
-			graphLabel,
-			seasonNorm,
-			seasonHyphen,
-			leagueTableTeamKey,
-		});
-		if (finish.position === 1) {
-			const teamLabel = formatTeamDisplayForTrophy(team);
-			const division = finish.division?.trim();
-			const suffix = division ? `${division} Champions` : "League Champions";
-			wrappedTrophiesWon.push(`${teamLabel} ${suffix} ${seasonLabel}`);
+	const isCurrentWrappedSeason =
+		typeof siteCurrentSeasonRaw === "string" &&
+		siteCurrentSeasonRaw.trim().length > 0 &&
+		seasonsEquivalent(seasonLabel, siteCurrentSeasonRaw);
+	if (!isCurrentWrappedSeason) {
+		for (const team of uniquePlayedTeams) {
+			const leagueTableTeamKey = fixtureDisplayTeamToLeagueTableKey(team);
+			if (!leagueTableTeamKey) continue;
+			const finish = await fetchDorkiniansLeagueFinishForTeamSeason({
+				graphLabel,
+				seasonNorm,
+				seasonHyphen,
+				leagueTableTeamKey,
+			});
+			if (finish.position === 1) {
+				const teamLabel = formatTeamDisplayForTrophy(team);
+				const division = finish.division?.trim();
+				const suffix = division ? `${division} Champions` : "League Champions";
+				wrappedTrophiesWon.push(`${teamLabel} ${suffix} ${seasonLabel}`);
+			}
 		}
 	}
 

@@ -620,14 +620,23 @@ export const BADGE_DEFINITIONS: Record<string, BadgeDefinition> = {
 	nullifier: {
 		name: "Nullifier",
 		category: "defence",
-		description: "Play 10+ matches in defence while conceding under 1 goal per game.",
+		description: "Play 10+ matches in defence and keep your goals conceded per game low.",
 		tiers: {
-			diamond: { threshold: 1, description: "Play 10+ matches as DEF and concede < 1.0 goals per game" },
+			bronze: { threshold: 1, description: "Play 10+ matches as DEF and concede < 2.0 goals per game" },
+			silver: { threshold: 2, description: "Play 10+ matches as DEF and concede < 1.7 goals per game" },
+			gold: { threshold: 3, description: "Play 10+ matches as DEF and concede < 1.3 goals per game" },
+			diamond: { threshold: 4, description: "Play 10+ matches as DEF and concede < 1.0 goals per game" },
 		},
 		evaluate: (player) => {
 			const apps = Number(player.defAppearances ?? 0) || 0;
 			const conceded = Number(player.defConceded ?? 0) || 0;
-			return apps >= 10 && conceded / apps < 1 ? 1 : 0;
+			if (apps < 10) return 0;
+			const concededPerGame = conceded / apps;
+			if (concededPerGame < 1) return 4;
+			if (concededPerGame < 1.3) return 3;
+			if (concededPerGame < 1.7) return 2;
+			if (concededPerGame < 2) return 1;
+			return 0;
 		},
 	},
 	shot_stopper: {
@@ -669,14 +678,23 @@ export const BADGE_DEFINITIONS: Record<string, BadgeDefinition> = {
 	goalkeeper_nullifier: {
 		name: "Goalkeeper Nullifier",
 		category: "keeping",
-		description: "Play 10+ matches in goal while conceding under 1 goal per game.",
+		description: "Play 10+ matches in goal and keep your goals conceded per game low.",
 		tiers: {
-			diamond: { threshold: 1, description: "Play 10+ matches as GK and concede < 1.0 goals per game" },
+			bronze: { threshold: 1, description: "Play 10+ matches as GK and concede < 2.0 goals per game" },
+			silver: { threshold: 2, description: "Play 10+ matches as GK and concede < 1.7 goals per game" },
+			gold: { threshold: 3, description: "Play 10+ matches as GK and concede < 1.3 goals per game" },
+			diamond: { threshold: 4, description: "Play 10+ matches as GK and concede < 1.0 goals per game" },
 		},
 		evaluate: (player) => {
 			const apps = Number(player.gkAppearances ?? 0) || 0;
 			const conceded = Number(player.gkConceded ?? 0) || 0;
-			return apps >= 10 && conceded / apps < 1 ? 1 : 0;
+			if (apps < 10) return 0;
+			const concededPerGame = conceded / apps;
+			if (concededPerGame < 1) return 4;
+			if (concededPerGame < 1.3) return 3;
+			if (concededPerGame < 1.7) return 2;
+			if (concededPerGame < 2) return 1;
+			return 0;
 		},
 	},
 	gk_clean_sheet_specilaist: {
