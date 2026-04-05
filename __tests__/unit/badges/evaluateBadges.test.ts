@@ -60,14 +60,22 @@ describe("badge threshold evaluation", () => {
 		expect(tierForBadge(player, "ever_present")).toBe("silver");
 	});
 
-	it("awards Nullifier for defender games with <1 conceded per game", () => {
-		const player: BadgePlayer = { defAppearances: 12, defConceded: 8 };
-		expect(tierForBadge(player, "nullifier")).toBe("diamond");
+	it("awards Nullifier tiers from defender conceded-per-game thresholds", () => {
+		expect(tierForBadge({ defAppearances: 9, defConceded: 0 }, "nullifier")).toBeNull();
+		expect(tierForBadge({ defAppearances: 10, defConceded: 19 }, "nullifier")).toBe("bronze");
+		expect(tierForBadge({ defAppearances: 10, defConceded: 16.9 }, "nullifier")).toBe("silver");
+		expect(tierForBadge({ defAppearances: 10, defConceded: 12.9 }, "nullifier")).toBe("gold");
+		expect(tierForBadge({ defAppearances: 10, defConceded: 9.9 }, "nullifier")).toBe("diamond");
+		expect(tierForBadge({ defAppearances: 10, defConceded: 20 }, "nullifier")).toBeNull();
 	});
 
-	it("awards Goalkeeper Nullifier for keeper games with <1 conceded per game", () => {
-		const player: BadgePlayer = { gkAppearances: 14, gkConceded: 9 };
-		expect(tierForBadge(player, "goalkeeper_nullifier")).toBe("diamond");
+	it("awards Goalkeeper Nullifier tiers from keeper conceded-per-game thresholds", () => {
+		expect(tierForBadge({ gkAppearances: 9, gkConceded: 0 }, "goalkeeper_nullifier")).toBeNull();
+		expect(tierForBadge({ gkAppearances: 10, gkConceded: 19 }, "goalkeeper_nullifier")).toBe("bronze");
+		expect(tierForBadge({ gkAppearances: 10, gkConceded: 16.9 }, "goalkeeper_nullifier")).toBe("silver");
+		expect(tierForBadge({ gkAppearances: 10, gkConceded: 12.9 }, "goalkeeper_nullifier")).toBe("gold");
+		expect(tierForBadge({ gkAppearances: 10, gkConceded: 9.9 }, "goalkeeper_nullifier")).toBe("diamond");
+		expect(tierForBadge({ gkAppearances: 10, gkConceded: 20 }, "goalkeeper_nullifier")).toBeNull();
 	});
 
 	it("counts Double Provider from games with 2+ assists", () => {
