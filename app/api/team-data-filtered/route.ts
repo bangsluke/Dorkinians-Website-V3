@@ -302,6 +302,12 @@ async function fetchTeamStreakLeaders(
 ): Promise<TeamStreakLeadersPayload> {
 	const isWholeClub = teamName === "Whole Club";
 	const teamAliases = buildTeamNameAliases(teamName);
+	const activeCutoffMs = (() => {
+		const d = new Date();
+		d.setFullYear(d.getFullYear() - 2);
+		d.setHours(0, 0, 0, 0);
+		return d.getTime();
+	})();
 	const query = `
 		MATCH (p:Player {graphLabel: $graphLabel})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})<-[:HAS_MATCH_DETAILS]-(f:Fixture {graphLabel: $graphLabel})
 		WHERE coalesce(p.allowOnSite, true) = true
@@ -425,17 +431,21 @@ async function fetchTeamStreakLeaders(
 				startDate: allTimeRun.startDate,
 				endDate: allTimeRun.endDate,
 			};
-			if (!bestActive) {
-				bestActive = activeCandidate;
-			} else if (activeCandidate.value > bestActive.value) {
-				bestActive = activeCandidate;
-			} else if (activeCandidate.value === bestActive.value) {
-				const bestEnd = Date.parse(bestActive.endDate ?? "");
-				const candEnd = Date.parse(activeCandidate.endDate ?? "");
-				if (Number.isFinite(candEnd) && (!Number.isFinite(bestEnd) || candEnd > bestEnd)) {
+			const activeEndMs = Date.parse(activeCandidate.endDate ?? "");
+			const activeIsRecent = Number.isFinite(activeEndMs) && activeEndMs >= activeCutoffMs;
+			if (activeIsRecent) {
+				if (!bestActive) {
 					bestActive = activeCandidate;
-				} else if (candEnd === bestEnd && activeCandidate.playerName.localeCompare(bestActive.playerName) < 0) {
+				} else if (activeCandidate.value > bestActive.value) {
 					bestActive = activeCandidate;
+				} else if (activeCandidate.value === bestActive.value) {
+					const bestEnd = Date.parse(bestActive.endDate ?? "");
+					const candEnd = Date.parse(activeCandidate.endDate ?? "");
+					if (Number.isFinite(candEnd) && (!Number.isFinite(bestEnd) || candEnd > bestEnd)) {
+						bestActive = activeCandidate;
+					} else if (candEnd === bestEnd && activeCandidate.playerName.localeCompare(bestActive.playerName) < 0) {
+						bestActive = activeCandidate;
+					}
 				}
 			}
 
