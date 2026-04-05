@@ -355,7 +355,7 @@ async function fetchPlayerCurrentStreakRange(
 	if (currentValue <= 0) return { startDate: null, endDate: null };
 	const query = `
 		MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})<-[:HAS_MATCH_DETAILS]-(f:Fixture {graphLabel: $graphLabel})
-		WHERE f.date IS NOT NULL AND coalesce(f.status, '') NOT IN ['Void', 'Postponed', 'Abandoned']
+		WHERE f.date IS NOT NULL AND NOT coalesce(f.status, '') IN ['Void', 'Postponed', 'Abandoned']
 		RETURN f.date AS date, f.result AS result, f.dorkiniansGoals AS goalsScored, f.conceded AS goalsConceded,
 		       md.yellowCards AS yellowCards, md.redCards AS redCards
 		ORDER BY f.date ASC
