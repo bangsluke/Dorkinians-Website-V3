@@ -1020,8 +1020,8 @@ export default function TeamOfTheWeek() {
 
 			{/* Filters */}
 			{!(loading || !totwData || appConfig.forceSkeletonView) && (
-				<div className='flex flex-row gap-4 mb-6'>
-					<div className='w-1/3 md:w-1/2'>
+				<div className='flex flex-row justify-center gap-4 mb-6 w-full'>
+					<div className='w-1/3 md:w-full md:max-w-[14rem]'>
 						<Listbox value={selectedSeason} onChange={setSelectedSeason}>
 							<div className='relative'>
 								<Listbox.Button data-testid="totw-season-selector" className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-[0.65rem] md:text-sm'>
@@ -1052,7 +1052,7 @@ export default function TeamOfTheWeek() {
 							</div>
 						</Listbox>
 					</div>
-					<div className='flex-1 md:w-1/2'>
+					<div className='flex-1 md:w-full md:max-w-[18.2rem]'>
 						<Listbox
 							value={selectedWeek || 0}
 							onChange={(newWeek) => {
@@ -1131,7 +1131,28 @@ export default function TeamOfTheWeek() {
 			{(loading || !totwData || appConfig.forceSkeletonView) ? (
 				<div data-testid="loading-skeleton">
 					<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-						<TOTWPitchSkeleton />
+						<div className='lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(220px,320px)] lg:gap-6 lg:items-start'>
+							<div className='min-w-0'>
+								<TOTWPitchSkeleton />
+							</div>
+							<div className='hidden lg:block mb-6 lg:mb-0 min-w-0 mt-2 lg:mt-0'>
+								<div className='mb-2'>
+									<Skeleton height={16} width={128} />
+								</div>
+								<div className='grid grid-cols-2 gap-2'>
+									{Array.from({ length: 10 }).map((_, index) => (
+										<div
+											key={`totw-previous-week-skeleton-${index}`}
+											className='rounded-md border border-white/20 bg-white/5 px-1 py-1.5 text-center'
+										>
+											<Skeleton height={10} width={26} className='mx-auto mb-1' />
+											<Skeleton height={20} width={34} className='mx-auto mb-1' />
+											<Skeleton height={9} width={52} className='mx-auto' />
+										</div>
+									))}
+								</div>
+							</div>
+						</div>
 					</SkeletonTheme>
 				</div>
 			) : (

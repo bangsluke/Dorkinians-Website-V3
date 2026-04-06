@@ -20,11 +20,12 @@ import { getPlayerProfileHref } from "@/lib/profile/slug";
 import { featureFlags } from "@/config/config";
 import { getPublicSiteRoot } from "@/lib/utils/publicSiteUrl";
 import { formatRecordingDateMobile, formatRecordingScore } from "@/lib/utils/recordingsDisplay";
-import type { WrappedData, WrappedLeagueTableRow } from "@/lib/wrapped/types";
+import type { WrappedData, WrappedDeferredData, WrappedInitialData, WrappedLeagueTableRow } from "@/lib/wrapped/types";
 
 const SWIPE_PX = 56;
 const VEO_WRAP_PREVIEW_COUNT = 3;
 const AUTOPLAY_MS = 15_000;
+const DEFAULT_SLIDE_IDS: number[] = [1, 2, 3, 4, 12, 5, 6, 11, 10, 7, 8, 9];
 
 function formatOrdinal(n: number): string {
 	const abs = Math.floor(Math.abs(n));
@@ -126,6 +127,13 @@ const CARD =
 const ACCENT = "text-[#E8C547]";
 const MINT = "text-[#5DCAA5]";
 
+function mergeWrappedData(initial: WrappedInitialData, deferred: WrappedDeferredData): WrappedData {
+	return {
+		...initial,
+		...deferred,
+	};
+}
+
 function SlideFrame({
 	children,
 	slideRef,
@@ -157,6 +165,7 @@ function SlideFrame({
 					height={512}
 					loading='eager'
 					decoding='sync'
+					fetchPriority={featureFlags.wrappedPriorityLogos ? "high" : "auto"}
 					className='h-64 w-64 md:h-80 md:w-80'
 				/>
 			</div>
@@ -170,6 +179,7 @@ function SlideFrame({
 							height={32}
 							loading='eager'
 							decoding='sync'
+							fetchPriority={featureFlags.wrappedPriorityLogos ? "high" : "auto"}
 							className='h-8 w-8 rounded-full border border-[#E8C547]/40'
 						/>
 						<div className='min-w-0'>
@@ -230,8 +240,11 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 	const seasonQ = searchParams.get("season")?.trim();
 
 	const [data, setData] = useState<WrappedData | null>(null);
+	const [initialData, setInitialData] = useState<WrappedInitialData | null>(null);
+	const [deferredData, setDeferredData] = useState<WrappedDeferredData | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [loading, setLoading] = useState(true);
+	const [loadingDeferred, setLoadingDeferred] = useState(false);
 	const [index, setIndex] = useState(0);
 	const [timerPct, setTimerPct] = useState(100);
 	const [isPaused, setIsPaused] = useState(false);
@@ -248,8 +261,67 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 		(async () => {
 			setLoading(true);
 			setError(null);
+			setData(null);
+			setInitialData(null);
+			setDeferredData(null);
 			try {
 				const q = seasonQ ? `?season=${encodeURIComponent(seasonQ)}` : "";
+				if (featureFlags.wrappedStagedLoad) {
+					const initialRes = await fetch(`/api/wrapped/${encodeURIComponent(playerSlug)}${q}${q ? "&" : "?"}stage=initial`);
+					const initialJson = await initialRes.json();
+					if (!initialRes.ok) {
+						throw new Error(initialJson?.error || "Could not load wrapped");
+					}
+					if (cancelled) return;
+					setInitialData(initialJson as WrappedInitialData);
+					if (typeof performance !== "undefined") {
+						performance.mark("wrapped:first-slide-visible");
+					}
+
+					setLoading(false);
+					setLoadingDeferred(true);
+					const runDeferred = async () => {
+						try {
+							const deferredRes = await fetch(
+								`/api/wrapped/${encodeURIComponent(playerSlug)}${q}${q ? "&" : "?"}stage=deferred`,
+							);
+							const deferredJson = await deferredRes.json();
+							if (!deferredRes.ok) {
+								throw new Error(deferredJson?.error || "Could not load wrapped details");
+							}
+							if (!cancelled) {
+								const nextDeferred = (deferredJson?.deferred ?? null) as WrappedDeferredData | null;
+								if (nextDeferred) {
+									setDeferredData(nextDeferred);
+									setData(mergeWrappedData(initialJson as WrappedInitialData, nextDeferred));
+									if (typeof performance !== "undefined") {
+										performance.mark("wrapped:deferred-slides-ready");
+									}
+								}
+							}
+						} catch (e) {
+							if (!cancelled) {
+								setError(e instanceof Error ? e.message : "Could not load wrapped details");
+							}
+						} finally {
+							if (!cancelled) {
+								setLoadingDeferred(false);
+							}
+						}
+					};
+					const hasIdle = typeof window !== "undefined" && "requestIdleCallback" in window;
+					if (hasIdle) {
+						(window as Window & { requestIdleCallback: (cb: () => void) => number }).requestIdleCallback(() => {
+							void runDeferred();
+						});
+					} else {
+						setTimeout(() => {
+							void runDeferred();
+						}, 0);
+					}
+					return;
+				}
+
 				const res = await fetch(`/api/wrapped/${encodeURIComponent(playerSlug)}${q}`);
 				const json = await res.json();
 				if (!res.ok) {
@@ -257,6 +329,9 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 				}
 				if (!cancelled) {
 					setData(json as WrappedData);
+					if (typeof performance !== "undefined") {
+						performance.mark("wrapped:first-slide-visible");
+					}
 				}
 			} catch (e) {
 				if (!cancelled) {
@@ -302,8 +377,17 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 		};
 	}, []);
 
+	useEffect(() => {
+		if (loading) return;
+		if (typeof performance === "undefined") return;
+		const raf = requestAnimationFrame(() => {
+			performance.mark("wrapped:logo-visible");
+		});
+		return () => cancelAnimationFrame(raf);
+	}, [loading]);
+
 	const slideIds = useMemo(() => {
-		if (!data) return [1];
+		if (!data) return DEFAULT_SLIDE_IDS;
 		const showTeamSeasonSlide =
 			data.wrappedLeaguePointsContributed > 0 ||
 			data.wrappedCupTiesAdvanced > 0 ||
@@ -474,13 +558,15 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 
 	if (loading) {
 		return (
-			<div className='relative min-h-screen min-h-[100dvh] w-full max-w-[100dvw] overflow-x-hidden overscroll-x-none flex items-center justify-center bg-[#12180e] text-white'>
+			<div className='relative min-h-screen min-h-[100dvh] w-full max-w-[100dvw] overflow-x-hidden overscroll-x-none flex flex-col items-center justify-center gap-3 bg-[#12180e] text-white'>
 				<p className='text-white/70'>Loading your season…</p>
 			</div>
 		);
 	}
 
-	if (error || !data) {
+	const activeData = data ?? initialData;
+
+	if (error || !activeData) {
 		return (
 			<div className='relative min-h-screen min-h-[100dvh] w-full max-w-[100dvw] overflow-x-hidden overscroll-x-none flex flex-col items-center justify-center gap-4 px-6 bg-[#12180e] text-white'>
 				<p className='text-center text-white/85'>{error || "Something went wrong"}</p>
@@ -490,6 +576,9 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 			</div>
 		);
 	}
+
+	{
+		const data = activeData as WrappedData;
 
 	const renderSlide = () => {
 		switch (currentSlideId) {
@@ -861,7 +950,7 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 				className='text-xs sm:text-sm font-medium px-3 py-1.5 rounded-lg bg-[#E8C547] text-black hover:opacity-90'>
 				Share
 			</button>
-			{index >= total - 1 ? (
+			{!loadingDeferred && total > 1 && index >= total - 1 ? (
 				<button
 					type='button'
 					onClick={() => {
@@ -895,6 +984,8 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 						alt='Dorkinians FC'
 						width={44}
 						height={44}
+						priority={featureFlags.wrappedPriorityLogos}
+						fetchPriority={featureFlags.wrappedPriorityLogos ? "high" : "auto"}
 						className='rounded-full shrink-0 ring-2 ring-[#E8C547]/30'
 					/>
 					<div className='text-left min-w-0'>
@@ -1005,4 +1096,5 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 			) : null}
 		</div>
 	);
+	}
 }

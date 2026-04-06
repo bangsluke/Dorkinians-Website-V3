@@ -18,6 +18,9 @@ export type FeatureFlags = {
 	playerProfile: boolean;
 	achievementBadges: boolean;
 	seasonWrapped: boolean;
+	profileServerHeadline: boolean;
+	wrappedStagedLoad: boolean;
+	wrappedPriorityLogos: boolean;
 	playerStatsKeyPerformance: boolean;
 	playerStatsForm: boolean;
 	playerStatsStreaks: boolean;
@@ -42,6 +45,9 @@ const featureFlagsAllEnabled: FeatureFlags = {
 	playerProfile: true,
 	achievementBadges: true,
 	seasonWrapped: true,
+	profileServerHeadline: true,
+	wrappedStagedLoad: true,
+	wrappedPriorityLogos: true,
 	playerStatsKeyPerformance: true,
 	playerStatsForm: true,
 	playerStatsStreaks: true,
@@ -66,6 +72,9 @@ const featureFlagsProductionDefault: FeatureFlags = {
 	playerProfile: true,
 	achievementBadges: true,
 	seasonWrapped: true,
+	profileServerHeadline: true,
+	wrappedStagedLoad: true,
+	wrappedPriorityLogos: true,
 	playerStatsKeyPerformance: false,
 	playerStatsForm: false,
 	playerStatsStreaks: false,

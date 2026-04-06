@@ -4,7 +4,7 @@ import { classifyPlayerType } from "@/lib/wrapped/classifyPlayerType";
 import { distanceMilesToEquivalent } from "@/lib/wrapped/distanceEquivalent";
 import { percentileHigherIsBetter } from "@/lib/wrapped/percentile";
 import { playerNameToWrappedSlug } from "@/lib/wrapped/slug";
-import type { WrappedData, WrappedVeoFixture } from "@/lib/wrapped/types";
+import type { WrappedData, WrappedDeferredData, WrappedInitialData, WrappedVeoFixture } from "@/lib/wrapped/types";
 import {
 	fetchDorkiniansLeagueFinishForTeamSeason,
 	fetchDorkiniansLeagueTableRowForTeamSeason,
@@ -835,6 +835,116 @@ export async function computeWrappedData(options: {
 	};
 
 	return { data };
+}
+
+export async function computeWrappedInitialData(options: {
+	playerName: string;
+	season: string | null | undefined;
+	sitePublicOrigin: string;
+}): Promise<{ data: WrappedInitialData } | { error: string; status: number }> {
+	const playerName = options.playerName.trim();
+	const metadata = await computeWrappedSeasonMetadata({ playerName, season: options.season });
+	if ("error" in metadata) {
+		return metadata;
+	}
+	const { graphLabel, seasonsAvailable, seasonNorm, seasonHyphen, seasonLabel } = metadata.data;
+	const seasonAgg = await neo4jService.runQuery(
+		`
+		MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
+		MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+		MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+		WHERE f.season = $seasonNorm OR f.season = $seasonHyphen
+		RETURN count(md) AS apps,
+			sum(coalesce(md.goals, 0)) AS goals,
+			sum(coalesce(md.penaltiesScored, 0)) AS penaltiesScored,
+			sum(coalesce(md.assists, 0)) AS assists,
+			sum(coalesce(md.mom, 0)) AS mom,
+			sum(coalesce(md.minutes, 0)) AS minutes,
+			sum(CASE WHEN coalesce(md.started, false) THEN 1 ELSE 0 END) AS starts
+		`,
+		{ graphLabel, playerName, seasonNorm, seasonHyphen },
+	);
+	const s0 = seasonAgg.records[0];
+	const totalMatches = Math.round(toNumber(s0?.get("apps")));
+	if (totalMatches === 0) {
+		return { error: "No appearances in this season", status: 404 };
+	}
+	const dominantRes = await neo4jService.runQuery(
+		`
+		MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
+		MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+		MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+		WHERE (f.season = $seasonNorm OR f.season = $seasonHyphen)
+		  AND coalesce(md.minutes, 0) > 0
+		  AND NOT coalesce(f.status, '') IN ['Void', 'Postponed', 'Abandoned']
+		WITH coalesce(f.team, '') AS team, count(*) AS apps, sum(coalesce(md.minutes, 0)) AS mins
+		WHERE trim(team) <> ''
+		RETURN team
+		ORDER BY apps DESC, mins DESC, team ASC
+		LIMIT 1
+		`,
+		{ graphLabel, playerName, seasonNorm, seasonHyphen },
+	);
+	const domRec = dominantRes.records[0];
+	const wrappedDominantTeam = domRec?.get("team") != null ? String(domRec.get("team")).trim() : "";
+
+	const posRes = await neo4jService.runQuery(
+		`
+		MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
+		MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+		MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+		WHERE f.season = $seasonNorm OR f.season = $seasonHyphen
+		WITH coalesce(md.class, 'UNK') AS cls, count(*) AS c
+		RETURN cls
+		ORDER BY c DESC
+		LIMIT 1
+		`,
+		{ graphLabel, playerName, seasonNorm, seasonHyphen },
+	);
+	const rawCls = posRes.records[0]?.get("cls");
+	const mostPlayedPosition = formatWrappedPositionClass(rawCls != null ? String(rawCls) : "");
+
+	const slug = playerNameToWrappedSlug(playerName);
+	const base = options.sitePublicOrigin.replace(/\/$/, "");
+	const wrappedUrl = `${base}/wrapped/${slug}?season=${encodeURIComponent(seasonLabel)}`;
+
+	return {
+		data: {
+			playerName,
+			season: seasonLabel,
+			seasonsAvailable,
+			totalMatches,
+			totalMinutes: Math.round(toNumber(s0?.get("minutes"))),
+			totalStarts: Math.round(toNumber(s0?.get("starts"))),
+			mostPlayedPosition,
+			totalGoals: Math.round(toNumber(s0?.get("goals"))),
+			totalPenaltiesScored: Math.round(toNumber(s0?.get("penaltiesScored"))),
+			totalAssists: Math.round(toNumber(s0?.get("assists"))),
+			totalMom: Math.round(toNumber(s0?.get("mom"))),
+			wrappedDominantTeam,
+			wrappedUrl,
+		},
+	};
+}
+
+export function splitWrappedDeferredData(data: WrappedData): WrappedDeferredData {
+	const {
+		playerName: _playerName,
+		season: _season,
+		seasonsAvailable: _seasonsAvailable,
+		totalMatches: _totalMatches,
+		totalMinutes: _totalMinutes,
+		totalStarts: _totalStarts,
+		mostPlayedPosition: _mostPlayedPosition,
+		totalGoals: _totalGoals,
+		totalPenaltiesScored: _totalPenaltiesScored,
+		totalAssists: _totalAssists,
+		totalMom: _totalMom,
+		wrappedDominantTeam: _wrappedDominantTeam,
+		wrappedUrl: _wrappedUrl,
+		...deferred
+	} = data;
+	return deferred;
 }
 
 async function fetchCurrentSeason(graphLabel: string): Promise<string | null> {

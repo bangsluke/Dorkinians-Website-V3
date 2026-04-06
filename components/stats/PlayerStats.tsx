@@ -24,7 +24,7 @@ import LazyWhenVisible from "@/components/perf/LazyWhenVisible";
 import { safeLocalStorageGet, safeLocalStorageSet } from "@/lib/utils/pwaDebug";
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
-import { ChartSkeleton, TableSkeleton, StatCardSkeleton, AwardsListSkeleton, DataTableSkeleton } from "@/components/skeletons";
+import { ChartSkeleton, TableSkeleton, StatCardSkeleton, AwardsListSkeleton, DataTableSkeleton, MapSkeleton } from "@/components/skeletons";
 import { log } from "@/lib/utils/logger";
 import { UmamiEvents } from "@/lib/analytics/events";
 import { trackStatsStatSelected } from "@/lib/analytics/statsTracking";
@@ -45,7 +45,7 @@ import type { RecordingFixture } from "@/lib/utils/recordingsDisplay";
 
 // Dynamically import OppositionMap to reduce initial bundle size (includes Google Maps)
 const OppositionMap = dynamic(() => import("@/components/maps/OppositionMap"), {
-	loading: () => <div className="text-white/60 text-sm p-4">Loading map...</div>,
+	loading: () => <MapSkeleton />,
 	ssr: false,
 });
 const OppositionPerformanceScatter = dynamic(
@@ -54,23 +54,23 @@ const OppositionPerformanceScatter = dynamic(
 );
 const FormComposedChart = dynamic(() => import("./player-stats/FormComposedChart"), {
 	ssr: false,
-	loading: () => <ChartSkeleton />,
+	loading: () => <ChartSkeleton noContainer />,
 });
 const SeasonalPerformanceChart = dynamic(() => import("./player-stats/SeasonalPerformanceChart"), {
 	ssr: false,
-	loading: () => <ChartSkeleton />,
+	loading: () => <ChartSkeleton noContainer />,
 });
 const TeamPerformanceChart = dynamic(() => import("./player-stats/TeamPerformanceChart"), {
 	ssr: false,
-	loading: () => <ChartSkeleton />,
+	loading: () => <ChartSkeleton noContainer />,
 });
 const MatchResultsPieChart = dynamic(() => import("./player-stats/MatchResultsPieChart"), {
 	ssr: false,
-	loading: () => <ChartSkeleton />,
+	loading: () => <ChartSkeleton noContainer />,
 });
 const MonthlyPerformanceChart = dynamic(() => import("./player-stats/MonthlyPerformanceChart"), {
 	ssr: false,
-	loading: () => <ChartSkeleton />,
+	loading: () => <ChartSkeleton noContainer />,
 });
 
 type PlayerStatsTableMode = "totals" | "perApp" | "per90";
@@ -1847,6 +1847,7 @@ export default function PlayerStats() {
 	const [formSummary, setFormSummary] = useState<{ formCurrent: number | null; formBaseline: number | null; formTrend: FormTrend; formPeak: number | null; formPeakWeek: string | null; seasonAvg: number | null } | null>(null);
 	const [goldenCrosses, setGoldenCrosses] = useState<Array<{ week: string; date: string }>>([]);
 	const [isLoadingFormData, setIsLoadingFormData] = useState(false);
+	const [isFormChartReady, setIsFormChartReady] = useState(false);
 	const [recentFormMatches, setRecentFormMatches] = useState<PlayerFormRecentMatch[]>([]);
 	const [liveStreaks, setLiveStreaks] = useState<LiveStreakPayload | null>(null);
 
@@ -2165,8 +2166,10 @@ export default function PlayerStats() {
 			setIsLoadingOppositionPerformance(true);
 			if (featureFlags.playerStatsForm) {
 				setIsLoadingFormData(true);
+				setIsFormChartReady(false);
 			} else {
 				setIsLoadingFormData(false);
+				setIsFormChartReady(false);
 				setFormData([]);
 				setFormSummary(null);
 				setGoldenCrosses([]);
@@ -2797,7 +2800,7 @@ export default function PlayerStats() {
 							</div>
 							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 								<Skeleton height={20} width={56} className='mb-2' />
-								<ChartSkeleton />
+								<ChartSkeleton noContainer />
 							</div>
 						</div>
 						<div className='md:break-inside-avoid md:mb-4'>
@@ -3266,9 +3269,18 @@ export default function PlayerStats() {
 			) : formData.length > 0 ? (
 				<>
 					{recentFormMatches.length > 0 ? <PlayerRecentFormBoxes matchesNewestFirst={recentFormMatches} /> : null}
-					<LazyWhenVisible rootMargin="120px" className="min-h-[220px] -my-2 md:my-0" fallback={<ChartSkeleton />}>
-						<FormComposedChart formData={formData} />
-					</LazyWhenVisible>
+					<div className='relative min-h-[220px] -my-2 md:my-0'>
+						{!isFormChartReady && (
+							<div className='absolute inset-0 z-10'>
+								<ChartSkeleton noContainer />
+							</div>
+						)}
+						<div className={isFormChartReady ? "opacity-100 transition-opacity duration-200" : "opacity-0"}>
+							<LazyWhenVisible rootMargin="120px" className="min-h-[220px]" fallback={<ChartSkeleton noContainer />}>
+								<FormComposedChart formData={formData} onRenderReady={() => setIsFormChartReady(true)} />
+							</LazyWhenVisible>
+						</div>
+					</div>
 					<div className='grid grid-cols-2 md:grid-cols-3 gap-2 mt-3'>
 						{(() => {
 							const v = formSummary?.formCurrent;
@@ -3702,10 +3714,10 @@ export default function PlayerStats() {
 					<>
 						{isLoadingSeasonalStats ? (
 							<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-								<ChartSkeleton />
+								<ChartSkeleton noContainer />
 							</SkeletonTheme>
 						) : seasonalChartData.length > 0 ? (
-							<LazyWhenVisible rootMargin="120px" className="min-h-[240px]" fallback={<ChartSkeleton />}>
+							<LazyWhenVisible rootMargin="120px" className="min-h-[240px]" fallback={<ChartSkeleton noContainer />}>
 								<SeasonalPerformanceChart
 									data={seasonalChartData}
 									showTrend={showTrend}
@@ -3771,10 +3783,10 @@ export default function PlayerStats() {
 					<>
 						{isLoadingTeamStats ? (
 							<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-								<ChartSkeleton />
+								<ChartSkeleton noContainer />
 							</SkeletonTheme>
 						) : teamChartData.length > 0 ? (
-							<LazyWhenVisible rootMargin="120px" className="min-h-[240px]" fallback={<ChartSkeleton />}>
+							<LazyWhenVisible rootMargin="120px" className="min-h-[240px]" fallback={<ChartSkeleton noContainer />}>
 								<TeamPerformanceChart data={teamChartData} tooltipContent={teamTooltip} />
 							</LazyWhenVisible>
 						) : (
@@ -3831,7 +3843,7 @@ export default function PlayerStats() {
 					<div id='match-results' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 						<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Match Results</h3>
 						<p className='text-white text-sm mb-2 text-center'>Points per game: {pointsPerGameFormatted}</p>
-						<LazyWhenVisible rootMargin="120px" className="min-h-[220px] -my-2" fallback={<ChartSkeleton />}>
+						<LazyWhenVisible rootMargin="120px" className="min-h-[220px] -my-2" fallback={<ChartSkeleton noContainer />}>
 							<MatchResultsPieChart data={pieChartData} tooltipContent={customTooltip} />
 						</LazyWhenVisible>
 					</div>
@@ -4038,10 +4050,10 @@ export default function PlayerStats() {
 				</div>
 				{isLoadingMonthlyStats ? (
 					<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-						<ChartSkeleton />
+						<ChartSkeleton noContainer />
 					</SkeletonTheme>
 				) : monthlyChartData.length > 0 ? (
-					<LazyWhenVisible rootMargin="120px" className="min-h-[240px]" fallback={<ChartSkeleton />}>
+					<LazyWhenVisible rootMargin="120px" className="min-h-[240px]" fallback={<ChartSkeleton noContainer />}>
 						<MonthlyPerformanceChart data={monthlyChartData} tooltipContent={seasonalTooltip} />
 					</LazyWhenVisible>
 				) : (
@@ -4225,7 +4237,7 @@ export default function PlayerStats() {
 					<LazyWhenVisible
 						rootMargin="180px"
 						className="min-h-[280px]"
-						fallback={<div className="text-white/60 text-sm p-4">Scroll for map…</div>}
+						fallback={<MapSkeleton />}
 					>
 						<OppositionMap oppositions={oppositionMapData} isLoading={isLoadingOppositionMap} />
 					</LazyWhenVisible>

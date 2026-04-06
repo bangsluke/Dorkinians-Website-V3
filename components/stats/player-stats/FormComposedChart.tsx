@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import type { CSSProperties } from "react";
 import {
 	CartesianGrid,
@@ -66,10 +67,28 @@ export type GoldenCrossPoint = { week: string; date: string };
 
 export default function FormComposedChart({
 	formData,
+	onRenderReady,
 }: {
 	formData: FormChartPoint[];
 	goldenCrosses?: GoldenCrossPoint[];
+	onRenderReady?: () => void;
 }) {
+	useEffect(() => {
+		if (!onRenderReady || formData.length === 0) return;
+		let raf1 = 0;
+		let raf2 = 0;
+		// Wait for the chart to paint before notifying parent to remove the skeleton.
+		raf1 = window.requestAnimationFrame(() => {
+			raf2 = window.requestAnimationFrame(() => {
+				onRenderReady();
+			});
+		});
+		return () => {
+			window.cancelAnimationFrame(raf1);
+			window.cancelAnimationFrame(raf2);
+		};
+	}, [formData, onRenderReady]);
+
 	return (
 		<div className='chart-container -my-2' style={{ touchAction: "pan-y" }}>
 			<div className='mb-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[11px] text-white/85'>
@@ -100,9 +119,9 @@ export default function FormComposedChart({
 						axisLine={{ stroke: "rgba(255,255,255,0.35)" }}
 					/>
 					<Tooltip content={<FormTooltip />} />
-					<Scatter dataKey='rawScore' fill='rgba(255,255,255,0.4)' />
-					<Line type='monotone' dataKey='ewmaBaseline' stroke='#5DCAA5' strokeWidth={1.5} dot={false} opacity={0.75} />
-					<Line type='monotone' dataKey='ewmaReactive' stroke='#E8C547' strokeWidth={2.5} dot={false} />
+					<Scatter dataKey='rawScore' fill='rgba(255,255,255,0.4)' isAnimationActive={false} />
+					<Line type='monotone' dataKey='ewmaBaseline' stroke='#5DCAA5' strokeWidth={1.5} dot={false} opacity={0.75} isAnimationActive={false} />
+					<Line type='monotone' dataKey='ewmaReactive' stroke='#E8C547' strokeWidth={2.5} dot={false} isAnimationActive={false} />
 				</ComposedChart>
 			</ResponsiveContainer>
 		</div>

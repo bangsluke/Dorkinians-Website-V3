@@ -18,13 +18,14 @@ slug: /projects/dorkinians-website/club-info-page
   - [League Details](#league-details)
   - [Season Progress](#season-progress)
   - [My Seasons](#my-seasons)
-- [Club Captains](#club-captains)
-- [Club Awards](#club-awards)
+- [Club Captains and Awards](#club-captains-and-awards)
+  - [Club Captains](#club-captains)
+  - [Club Awards](#club-awards)
 - [Useful Links](#useful-links)
 
 ## Overview
 
-The Club Info section provides comprehensive information about Dorkinians FC, including club achievements, player milestones, league information, current and historical captains, individual awards, and useful external links.
+The Club Info section provides comprehensive information about Dorkinians FC, including club achievements, player milestones, league information, club captains and awards, and useful external links.
 
 <div className="sideBySide">
   <img
@@ -41,12 +42,11 @@ The Club Info section provides comprehensive information about Dorkinians FC, in
 
 ## Navigation
 
-The Club Info section has five main sub-pages accessible via navigation:
+The Club Info section has four main sub-pages accessible via navigation:
 
 - **[Club Information](5ClubInfoPage.md#club-information)**: Club history, milestones, and location
 - **[League Information](5ClubInfoPage.md#league-information)**: League details and standings
-- **[Club Captains](5ClubInfoPage.md#club-captains)**: Current and historical captains
-- **[Club Awards](5ClubInfoPage.md#club-awards)**: Award information and winners
+- **[Club Captains and Awards](5ClubInfoPage.md#club-captains-and-awards)**: Captains and awards in one merged page
 - **[Useful Links](5ClubInfoPage.md#useful-links)**: External resources and links
 
 :::tip
@@ -156,9 +156,13 @@ It contains all of the same features that the normal league details section has.
 
 > [Back to Table of Contents](#table-of-contents)
 
-## Club Captains
+## Club Captains and Awards
 
-The Club Captains sub-page displays information about current and historical team captains.
+The Club Captains and Awards sub-page displays both current and historical team captains and the club's individual awards in one place.
+
+### Club Captains
+
+The Club Captains section displays information about current and historical team captains.
 
 <div className="sideBySide">
   <img
@@ -177,9 +181,9 @@ Click on a captain's name to view all of their captaincies.
 
 > [Back to Table of Contents](#table-of-contents)
 
-## Club Awards
+### Club Awards
 
-The Club Awards sub-page provides information about the club's individual awards.
+The Club Awards section provides information about the club's individual awards.
 
 <div className="sideBySide">
   <img

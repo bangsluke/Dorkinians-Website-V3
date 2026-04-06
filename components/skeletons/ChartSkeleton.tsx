@@ -1,4 +1,4 @@
-import Skeleton from "react-loading-skeleton";
+import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 
 interface ChartSkeletonProps {
 	showDropdown?: boolean;
@@ -65,13 +65,19 @@ export default function ChartSkeleton({ showDropdown = true, showTrend = true, n
 		</>
 	);
 
+	const themedContent = (
+		<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+			{content}
+		</SkeletonTheme>
+	);
+
 	if (noContainer) {
-		return content;
+		return themedContent;
 	}
 
 	return (
 		<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-			{content}
+			{themedContent}
 		</div>
 	);
 }
