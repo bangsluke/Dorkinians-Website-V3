@@ -1518,20 +1518,70 @@ export default function TeamStats() {
 			) : (isLoadingTeamData || appConfig.forceSkeletonView) ? (
 				<div data-testid="loading-skeleton" className='flex-1 flex flex-col md:min-h-0'>
 					<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-						<div className='flex-1 px-2 md:px-4 pb-4 md:overflow-y-auto md:min-h-0 player-stats-masonry'>
-							<div className='mb-4 md:break-inside-avoid md:mb-4'>
-								<TopPlayersTableSkeleton />
-							</div>
-							<div className='mb-4 md:break-inside-avoid md:mb-4'>
+						<div className='flex-1 px-2 md:px-4 pb-6 md:overflow-y-auto md:min-h-0 space-y-4 md:space-y-0 md:grid md:grid-cols-2 md:gap-4'>
+							<div className='mb-4 md:mb-0'>
 								<StatCardSkeleton />
 							</div>
-							<div className='mb-4 md:break-inside-avoid md:mb-4'>
+							<div className='mb-4 md:mb-0'>
+								<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+									<Skeleton height={20} width="35%" className="mb-3" />
+									<div className='grid grid-cols-5 gap-2 md:gap-3'>
+										{[...Array(5)].map((_, i) => (
+											<div key={i} className='bg-white/5 rounded-lg p-2 md:p-3'>
+												<Skeleton height={30} width={30} circle className="mb-2 mx-auto" />
+												<Skeleton height={10} width="70%" className="mx-auto mb-1" />
+												<Skeleton height={14} width="50%" className="mx-auto" />
+											</div>
+										))}
+									</div>
+								</div>
+							</div>
+							<div className='mb-4 md:mb-0'>
+								<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+									<Skeleton height={20} width="40%" className="mb-3" />
+									<TableSkeleton rows={4} />
+								</div>
+							</div>
+							<div className='mb-4 md:mb-0'>
 								<RecentGamesSkeleton />
 							</div>
-							<div className='mb-4 md:break-inside-avoid md:mb-4'>
+							<div className='mb-4 md:mb-0'>
+								<TopPlayersTableSkeleton />
+							</div>
+							<div className='mb-4 md:mb-0'>
 								<ChartSkeleton showDropdown={true} showTrend={true} noContainer={false} />
 							</div>
-							<div className='mb-4 md:break-inside-avoid md:mb-4'>
+							<div className='mb-4 md:mb-0'>
+								<ChartSkeleton showDropdown={false} showTrend={false} noContainer={false} />
+							</div>
+							<div className='mb-4 md:mb-0'>
+								<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+									<Skeleton height={20} width="45%" className="mb-3" />
+									<div className='grid grid-cols-2 gap-2 md:gap-4'>
+										<div className='bg-white/5 rounded-lg p-3'>
+											<Skeleton height={12} width="55%" className="mb-3" />
+											<Skeleton height={120} width="100%" />
+										</div>
+										<div className='bg-white/5 rounded-lg p-3'>
+											<Skeleton height={12} width="55%" className="mb-3" />
+											<Skeleton height={120} width="100%" />
+										</div>
+									</div>
+								</div>
+							</div>
+							<div className='mb-4 md:mb-0'>
+								<StatCardSkeleton count={8} />
+							</div>
+							<div className='mb-4 md:mb-0'>
+								<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+									<Skeleton height={20} width="50%" className="mb-3" />
+									<TableSkeleton rows={6} />
+								</div>
+							</div>
+							<div className='mb-4 md:mb-0'>
+								<BestSeasonFinishSkeleton />
+							</div>
+							<div className='mb-4 md:mb-0'>
 								<ChartSkeleton showDropdown={false} showTrend={false} noContainer={false} />
 							</div>
 						</div>
