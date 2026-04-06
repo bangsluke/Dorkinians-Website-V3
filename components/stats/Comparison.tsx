@@ -991,15 +991,16 @@ export default function Comparison() {
 						<p className='text-white text-sm md:text-base text-center'>Select Second Player to begin the comparison</p>
 					</div>
 				) : (
-					<div className='space-y-1'>
-						{/* Radar Comparison Header and Radar Chart */}
-						<div id='comparison-radar-chart' className='mb-6'>
+					<div className='w-full md:max-w-4xl md:mx-auto'>
+						<div className='space-y-1'>
+							{/* Radar Comparison Header and Radar Chart */}
+							<div id='comparison-radar-chart' className='mb-6'>
 							<h3 className='text-white font-semibold text-sm md:text-base mb-4'>Radar Comparison</h3>
 									
 									{/* Stat Category Dropdown */}
 									<div className='mb-4'>
 										<Listbox value={selectedStatCategory} onChange={setSelectedStatCategory}>
-											<div className='relative'>
+											<div className='relative w-1/2 md:w-[30%] mx-auto'>
 												<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-sm md:text-base'>
 													<span className='block truncate text-white'>
 														{selectedStatCategory}
@@ -1133,28 +1134,29 @@ export default function Comparison() {
 											<p className='text-white text-sm'>No data available for comparison</p>
 										</div>
 									)}
-						</div>
-
-						<div id='comparison-full-comparison'>
-							<h3 className='text-white font-semibold text-sm md:text-base mb-4'>Full Comparison</h3>
-
-							<div className='text-xs md:text-sm text-white/70 italic mb-4 text-center'>
-								<span className='md:hidden'>Press and hold on any stat row to see an explanation of the stat</span>
-								<span className='hidden md:inline'>Click on any stat row to see an explanation of the stat</span>
 							</div>
+
+							<div id='comparison-full-comparison'>
+								<h3 className='text-white font-semibold text-sm md:text-base mb-4'>Full Comparison</h3>
+
+								<div className='text-xs md:text-sm text-white/70 italic mb-4 text-center'>
+									<span className='md:hidden'>Press and hold on any stat row to see an explanation of the stat</span>
+									<span className='hidden md:inline'>Click on any stat row to see an explanation of the stat</span>
+								</div>
+							</div>
+							{filteredStatEntries.map(([key, stat]) => (
+								<ComparisonStatRow
+									key={key}
+									statKey={key}
+									stat={stat}
+									player1Data={player1Data}
+									player2Data={secondPlayerData}
+									player1Name={selectedPlayer}
+									player2Name={secondPlayer}
+								/>
+							))}
+							<div className='pb-8 md:pb-12'></div>
 						</div>
-						{filteredStatEntries.map(([key, stat]) => (
-							<ComparisonStatRow
-								key={key}
-								statKey={key}
-								stat={stat}
-								player1Data={player1Data}
-								player2Data={secondPlayerData}
-								player1Name={selectedPlayer}
-								player2Name={secondPlayer}
-							/>
-						))}
-						<div className='pb-8 md:pb-12'></div>
 					</div>
 				)}
 			</div>

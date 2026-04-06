@@ -2,22 +2,24 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigationStore } from "@/lib/stores/navigation";
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
-import PlayerBadgeMilestoneGrid, {
-	type EarnedBadgeRow,
-	type ProgressRow,
-} from "@/components/stats/PlayerBadgeMilestoneGrid";
 import { profileSlugToPlayerName } from "@/lib/profile/slug";
 import { generatePageCacheKey } from "@/lib/utils/pageCache";
 import { isSeasonWrappedPromoMonth } from "@/lib/wrapped/seasonWrappedPromo";
 import { playerNameToWrappedSlug } from "@/lib/wrapped/slug";
 import type { PlayerData } from "@/lib/stores/navigation";
+import type { EarnedBadgeRow, ProgressRow } from "@/components/stats/PlayerBadgeMilestoneGrid";
 import { featureFlags } from "@/config/config";
+
+const PlayerBadgeMilestoneGrid = dynamic(() => import("@/components/stats/PlayerBadgeMilestoneGrid"), {
+	ssr: false,
+});
 
 type BadgePayload = {
 	playerName: string;
@@ -39,6 +41,12 @@ type PlayerProfileCachePayload = {
 	wrappedDefaultSeason: string | null;
 };
 
+type InitialWrappedMeta = {
+	seasons: string[];
+	selectedSeason: string | null;
+	defaultSeason: string | null;
+};
+
 function isPlayerProfileCachePayload(value: unknown): value is PlayerProfileCachePayload {
 	if (!value || typeof value !== "object") return false;
 	const record = value as Record<string, unknown>;
@@ -51,7 +59,15 @@ function isPlayerProfileCachePayload(value: unknown): value is PlayerProfileCach
 	);
 }
 
-export default function PlayerProfileView({ playerSlug }: { playerSlug: string }) {
+export default function PlayerProfileView({
+	playerSlug,
+	initialHeadlineData,
+	initialWrappedMeta,
+}: {
+	playerSlug: string;
+	initialHeadlineData?: PlayerData | null;
+	initialWrappedMeta?: InitialWrappedMeta | null;
+}) {
 	const router = useRouter();
 	const enterEditMode = useNavigationStore((s) => s.enterEditMode);
 	const setMainPage = useNavigationStore((s) => s.setMainPage);
@@ -79,11 +95,15 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 		router.push("/");
 	}, [enterEditMode, setMainPage, router]);
 
-	const [playerData, setPlayerData] = useState<PlayerData | null>(() => cachedProfilePayload?.playerData ?? null);
+	const [playerData, setPlayerData] = useState<PlayerData | null>(
+		() => cachedProfilePayload?.playerData ?? initialHeadlineData ?? null,
+	);
 	const [badgePayload, setBadgePayload] = useState<BadgePayload | null>(() => cachedProfilePayload?.badgePayload ?? null);
-	const [wrappedSeasons, setWrappedSeasons] = useState<string[]>(() => cachedProfilePayload?.wrappedSeasons ?? []);
+	const [wrappedSeasons, setWrappedSeasons] = useState<string[]>(
+		() => cachedProfilePayload?.wrappedSeasons ?? initialWrappedMeta?.seasons ?? [],
+	);
 	const [wrappedSelectedSeason, setWrappedSelectedSeason] = useState<string | null>(
-		() => cachedProfilePayload?.wrappedSelectedSeason ?? null,
+		() => cachedProfilePayload?.wrappedSelectedSeason ?? initialWrappedMeta?.selectedSeason ?? null,
 	);
 	const [seasonPickerOpen, setSeasonPickerOpen] = useState(false);
 	const [seasonMenuPos, setSeasonMenuPos] = useState<{ top: number; left: number } | null>(null);
@@ -94,9 +114,9 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 	const pastSeasonsTriggerRef = useRef<HTMLButtonElement>(null);
 	const pastSeasonsDropdownRef = useRef<HTMLDivElement>(null);
 	const [wrappedDefaultSeason, setWrappedDefaultSeason] = useState<string | null>(
-		() => cachedProfilePayload?.wrappedDefaultSeason ?? null,
+		() => cachedProfilePayload?.wrappedDefaultSeason ?? initialWrappedMeta?.defaultSeason ?? null,
 	);
-	const [isLoading, setIsLoading] = useState(() => !cachedProfilePayload);
+	const [isLoading, setIsLoading] = useState(() => !cachedProfilePayload && !initialHeadlineData);
 	const [isLoadingBadges, setIsLoadingBadges] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [seasonWrappedPromoActive, setSeasonWrappedPromoActive] = useState(() => isSeasonWrappedPromoMonth(new Date()));
@@ -227,14 +247,26 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 			};
 		}
 
+		if (initialHeadlineData) {
+			setPlayerData(initialHeadlineData);
+			setIsLoading(false);
+		}
+		if (initialWrappedMeta) {
+			setWrappedSeasons(initialWrappedMeta.seasons);
+			setWrappedSelectedSeason(initialWrappedMeta.selectedSeason);
+			setWrappedDefaultSeason(initialWrappedMeta.defaultSeason);
+		}
+
 		const load = async () => {
-			setIsLoading(true);
+			setIsLoading(!initialHeadlineData);
 			setError(null);
 			setIsLoadingBadges(featureFlags.achievementBadges);
 			setBadgePayload(null);
-			setWrappedSeasons([]);
-			setWrappedSelectedSeason(null);
-			setWrappedDefaultSeason(null);
+			if (!initialWrappedMeta) {
+				setWrappedSeasons([]);
+				setWrappedSelectedSeason(null);
+				setWrappedDefaultSeason(null);
+			}
 			const cacheDraft: PlayerProfileCachePayload = {
 				playerData: null,
 				badgePayload: null,
@@ -246,81 +278,103 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 				if (!profileCacheKey) return;
 				setCachedPageData(profileCacheKey, cacheDraft);
 			};
+			if (initialHeadlineData) {
+				cacheDraft.playerData = initialHeadlineData;
+				persistProfileCache();
+			}
+			if (initialWrappedMeta) {
+				cacheDraft.wrappedSeasons = initialWrappedMeta.seasons;
+				cacheDraft.wrappedSelectedSeason = initialWrappedMeta.selectedSeason;
+				cacheDraft.wrappedDefaultSeason = initialWrappedMeta.defaultSeason;
+				persistProfileCache();
+			}
 			try {
-				const playerRes = await fetch(`/api/player-data?playerName=${encodeURIComponent(playerName)}&profileHeadline=1`);
+				const playerPromise = initialHeadlineData
+					? Promise.resolve(initialHeadlineData)
+					: (async () => {
+							const playerRes = await fetch(`/api/player-data?playerName=${encodeURIComponent(playerName)}&profileHeadline=1`);
+							if (!playerRes.ok) {
+								throw new Error("Could not load player profile data.");
+							}
+							const playerJson = (await playerRes.json()) as { playerData?: PlayerData };
+							return playerJson.playerData ?? null;
+						})();
+				const wrappedPromise =
+					featureFlags.seasonWrapped && wrappedSlug
+						? (async () => {
+								const wrappedRes = await fetch(`/api/wrapped/${encodeURIComponent(wrappedSlug)}?meta=1`);
+								if (!wrappedRes.ok) {
+									return { seasons: [], selectedSeason: null as string | null };
+								}
+								const wj = (await wrappedRes.json()) as {
+									seasonsAvailable?: string[];
+									season?: string;
+								};
+								const seasons = Array.isArray(wj.seasonsAvailable) ? wj.seasonsAvailable : [];
+								const season = typeof wj.season === "string" ? wj.season : null;
+								return { seasons, selectedSeason: season ?? seasons[0] ?? null };
+							})()
+						: Promise.resolve({ seasons: [], selectedSeason: null as string | null });
+				const badgesPromise = featureFlags.achievementBadges
+					? (async () => {
+							const badgesRes = await fetch(`/api/player-badges?playerName=${encodeURIComponent(playerName)}`);
+							if (!badgesRes.ok) throw new Error("Could not load badge data.");
+							return (await badgesRes.json()) as BadgePayload;
+						})()
+					: Promise.resolve(null);
 
-				if (!playerRes.ok) {
-					throw new Error("Could not load player profile data.");
+				const [nextPlayerData, wrappedResult, badgesResult] = await Promise.allSettled([
+					playerPromise,
+					wrappedPromise,
+					badgesPromise,
+				]);
+
+				if (nextPlayerData.status === "rejected") {
+					throw nextPlayerData.reason instanceof Error
+						? nextPlayerData.reason
+						: new Error("Could not load player profile data.");
 				}
-				const playerJson = (await playerRes.json()) as { playerData?: PlayerData };
-				const nextPlayerData = playerJson.playerData ?? null;
-				cacheDraft.playerData = nextPlayerData;
+
+				cacheDraft.playerData = nextPlayerData.value;
 				if (!cancelled) {
-					setPlayerData(nextPlayerData);
-					setIsLoading(false);
+					setPlayerData(nextPlayerData.value);
 				}
 				persistProfileCache();
 
-				if (featureFlags.seasonWrapped && wrappedSlug) {
-					void (async () => {
-						try {
-							const wrappedRes = await fetch(`/api/wrapped/${encodeURIComponent(wrappedSlug)}?meta=1`);
-							if (!wrappedRes.ok) return;
-							const wj = (await wrappedRes.json()) as {
-								seasonsAvailable?: string[];
-								season?: string;
-							};
-							const seasons = Array.isArray(wj.seasonsAvailable) ? wj.seasonsAvailable : [];
-							const season = typeof wj.season === "string" ? wj.season : null;
-							const selectedSeason = season ?? seasons[0] ?? null;
-							cacheDraft.wrappedSeasons = seasons;
-							cacheDraft.wrappedSelectedSeason = selectedSeason;
-							cacheDraft.wrappedDefaultSeason = selectedSeason;
-							if (!cancelled) {
-								setWrappedSeasons(seasons);
-								setWrappedSelectedSeason(selectedSeason);
-								setWrappedDefaultSeason(selectedSeason);
-							}
-						} catch {
-							cacheDraft.wrappedSeasons = [];
-							cacheDraft.wrappedSelectedSeason = null;
-							cacheDraft.wrappedDefaultSeason = null;
-							if (!cancelled) {
-								setWrappedSeasons([]);
-								setWrappedSelectedSeason(null);
-								setWrappedDefaultSeason(null);
-							}
-						} finally {
-							persistProfileCache();
-						}
-					})();
+				if (wrappedResult.status === "fulfilled") {
+					cacheDraft.wrappedSeasons = wrappedResult.value.seasons;
+					cacheDraft.wrappedSelectedSeason = wrappedResult.value.selectedSeason;
+					cacheDraft.wrappedDefaultSeason = wrappedResult.value.selectedSeason;
+					if (!cancelled) {
+						setWrappedSeasons(wrappedResult.value.seasons);
+						setWrappedSelectedSeason(wrappedResult.value.selectedSeason);
+						setWrappedDefaultSeason(wrappedResult.value.selectedSeason);
+					}
 				}
 
 				if (featureFlags.achievementBadges) {
-					void (async () => {
-						try {
-							const badgesRes = await fetch(`/api/player-badges?playerName=${encodeURIComponent(playerName)}`);
-							if (!badgesRes.ok) throw new Error("Could not load badge data.");
-							const badgesJson = (await badgesRes.json()) as BadgePayload;
-							cacheDraft.badgePayload = badgesJson;
-							if (!cancelled) setBadgePayload(badgesJson);
-						} catch {
-							const fallbackBadgePayload: BadgePayload = {
-								playerName,
-								totalBadges: 0,
-								highestBadgeTier: null,
-								earned: [],
-								progress: [],
-							};
-							cacheDraft.badgePayload = fallbackBadgePayload;
-							if (!cancelled) {
-								setBadgePayload(fallbackBadgePayload);
-							}
-						} finally {
-							if (!cancelled) setIsLoadingBadges(false);
-							persistProfileCache();
+					if (badgesResult.status === "fulfilled" && badgesResult.value) {
+						cacheDraft.badgePayload = badgesResult.value;
+						if (!cancelled) {
+							setBadgePayload(badgesResult.value);
 						}
-					})();
+					} else {
+						const fallbackBadgePayload: BadgePayload = {
+							playerName,
+							totalBadges: 0,
+							highestBadgeTier: null,
+							earned: [],
+							progress: [],
+						};
+						cacheDraft.badgePayload = fallbackBadgePayload;
+						if (!cancelled) {
+							setBadgePayload(fallbackBadgePayload);
+						}
+					}
+					if (!cancelled) {
+						setIsLoadingBadges(false);
+					}
+					persistProfileCache();
 				} else if (!cancelled) {
 					setIsLoadingBadges(false);
 					cacheDraft.badgePayload = null;
@@ -341,7 +395,7 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 		return () => {
 			cancelled = true;
 		};
-	}, [cachedProfilePayload, playerName, profileCacheKey, setCachedPageData, wrappedSlug]);
+	}, [cachedProfilePayload, initialHeadlineData, initialWrappedMeta, playerName, profileCacheKey, setCachedPageData, wrappedSlug]);
 
 	const showPastWrappedFooter =
 		featureFlags.seasonWrapped &&
@@ -350,6 +404,12 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 		pastWrappedSeasons.length > 0;
 
 	const showSeasonWrappedPromoBlock = featureFlags.seasonWrapped && seasonWrappedPromoActive;
+	const showWrappedPromoContent = showSeasonWrappedPromoBlock && wrappedSelectedSeason !== null;
+
+	useEffect(() => {
+		if (!openWrappedHref || !featureFlags.seasonWrapped) return;
+		void router.prefetch(openWrappedHref);
+	}, [featureFlags.seasonWrapped, openWrappedHref, router]);
 
 	return (
 		<div className='h-full px-4 py-6 md:px-8 md:py-8' data-testid='player-profile-page'>
@@ -439,6 +499,14 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 				) : (
 					<>
 						{showSeasonWrappedPromoBlock ? (
+						!showWrappedPromoContent ? (
+							<div
+								className='rounded-xl border-2 border-[#E8C547]/60 bg-gradient-to-br from-[#E8C547]/25 via-[#E8C547]/15 to-[#b8941f]/12 p-4 md:p-5 shadow-md ring-1 ring-inset ring-[#E8C547]/25'
+								data-testid='player-profile-season-wrapped-loading'>
+								<h3 className='text-dorkinians-yellow font-semibold text-base md:text-lg'>Season Wrapped</h3>
+								<p className='mt-2 text-white/75 text-sm'>Loading season options…</p>
+							</div>
+						) : (
 						<div
 							id='player-profile-season-wrapped'
 							data-testid='player-profile-season-wrapped'
@@ -493,6 +561,8 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 									alt='Dorkinians FC'
 									width={48}
 									height={48}
+									priority={featureFlags.wrappedPriorityLogos}
+									fetchPriority={featureFlags.wrappedPriorityLogos ? "high" : "auto"}
 									className='rounded-full shrink-0 ring-2 ring-[#E8C547]/40'
 								/>
 							</div>
@@ -546,6 +616,7 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 								</div>
 							) : null}
 						</div>
+						)
 						) : null}
 
 						<div

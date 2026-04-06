@@ -926,43 +926,34 @@ export default function PlayersOfMonth() {
 		if (selectedIndex === -1) return [];
 		
 		const rows: Array<{rank: number | null; playerName: string; score: number | null; isDots?: boolean; isSelected?: boolean}> = [];
-		const selectedRank = selectedIndex + 1;
-		
-		// Always show rank 1
-		rows.push(rankings[0]);
-		
-		// Show rank 2 if it exists and is not the selected player
-		if (rankings.length > 1 && selectedRank !== 2) {
-			rows.push(rankings[1]);
+
+		// Always render top 5 first, highlighting the selected player when present.
+		const topFiveRows = rankings.slice(0, 5).map((row) => ({
+			...row,
+			isSelected: row.playerName === selectedPlayerName,
+		}));
+		rows.push(...topFiveRows);
+
+		// If selected player is already in top 5, avoid appending duplicate rows.
+		if (selectedIndex < 5) {
+			return rows;
 		}
-		
-		// Show rank 3 if it exists and is not the selected player
-		if (rankings.length > 2 && selectedRank !== 3) {
-			rows.push(rankings[2]);
-		}
-		
-		// If selected player is not in top 3, add dots
-		if (selectedRank > 3) {
-			rows.push({ playerName: "...", score: null, rank: null, isDots: true });
-		}
-		
-		// Add player above (if exists and not already shown)
-		if (selectedRank > 1 && selectedIndex > 0) {
+
+		rows.push({ playerName: "...", score: null, rank: null, isDots: true });
+
+		// Add immediate neighbors and selected row for out-of-top-5 selections.
+		if (selectedIndex > 0) {
 			const abovePlayer = rankings[selectedIndex - 1];
-			// Only add if not already shown (not in top 3)
-			if (abovePlayer.rank > 3) {
+			if (abovePlayer.rank > 5) {
 				rows.push(abovePlayer);
 			}
 		}
-		
-		// Add selected player (highlighted)
+
 		rows.push({ ...rankings[selectedIndex], isSelected: true });
-		
-		// Add player below (if exists and not already shown)
+
 		if (selectedIndex < rankings.length - 1) {
 			const belowPlayer = rankings[selectedIndex + 1];
-			// Only add if not already shown (not in top 3)
-			if (belowPlayer.rank > 3) {
+			if (belowPlayer.rank > 5) {
 				rows.push(belowPlayer);
 			}
 		}
@@ -976,6 +967,20 @@ export default function PlayersOfMonth() {
 	};
 
 	const isInitialLoading = seasons.length === 0;
+	const allVisiblePlayerStatsLoaded = players.length > 0 && players.every((player) => playerStats[player.playerName] !== undefined);
+	const leftPanelIsReady = !loading
+		&& !loadingStats
+		&& !isFetchingMonthData
+		&& !isMonthValidating
+		&& !isMonthValidatingRef.current
+		&& (players.length === 0 || allVisiblePlayerStatsLoaded);
+	const shouldShowLeftPanelSkeleton = appConfig.forceSkeletonView || !leftPanelIsReady;
+	const rightPanelIsReady = !loading
+		&& !loadingStats
+		&& !isFetchingMonthData
+		&& !isMonthValidating
+		&& !isMonthValidatingRef.current;
+	const shouldShowRightPanelSkeleton = appConfig.forceSkeletonView || !rightPanelIsReady;
 
 	return (
 		<div className='flex flex-col p-2 md:p-4 relative md:max-w-2xl md:mx-auto lg:max-w-6xl lg:mx-auto w-full'>
@@ -987,11 +992,11 @@ export default function PlayersOfMonth() {
 			{/* Loading Skeleton - Show during initial load */}
 			{isInitialLoading && (
 				<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-					<div className='flex flex-row gap-4 mb-6'>
-						<div className='flex-1'>
+					<div className='flex flex-row justify-center gap-4 mb-6 w-full'>
+						<div className='w-full max-w-[14rem]'>
 							<Skeleton height={36} width="100%" className="rounded-md" />
 						</div>
-						<div className='flex-1'>
+						<div className='w-full max-w-[14rem]'>
 							<Skeleton height={36} width="100%" className="rounded-md" />
 						</div>
 					</div>
@@ -1007,7 +1012,8 @@ export default function PlayersOfMonth() {
 							</div>
 						</div>
 						<div className='min-w-0 mt-8 lg:mt-0'>
-							<div className='bg-white/10 rounded-lg p-4 md:p-6'>
+							<div className='bg-white/10 rounded-lg p-4 md:p-6 space-y-14'>
+								<RankingTableSkeleton />
 								<RankingTableSkeleton />
 							</div>
 						</div>
@@ -1017,8 +1023,8 @@ export default function PlayersOfMonth() {
 
 			{/* Filters - Hide during initial load */}
 			{!isInitialLoading && (
-				<div className='flex flex-row gap-4 mb-4'>
-					<div className='flex-1'>
+				<div className='flex flex-row justify-center gap-4 mb-4 w-full'>
+					<div className='w-full max-w-[14rem]'>
 						<Listbox value={selectedSeason} onChange={(newSeason) => {
 							log("info", `[PlayersOfMonth] User selected season: "${newSeason}"`);
 							// Set loading state immediately when season changes
@@ -1054,7 +1060,7 @@ export default function PlayersOfMonth() {
 							</div>
 						</Listbox>
 					</div>
-					<div className='flex-1'>
+					<div className='w-full max-w-[14rem]'>
 						<Listbox value={selectedMonth} onChange={(newMonth) => {
 							log("info", `[PlayersOfMonth] User selected month: "${newMonth}"`);
 							if (newMonth !== selectedMonth) {
@@ -1118,21 +1124,23 @@ export default function PlayersOfMonth() {
 				<div className='lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start'>
 					<div className='min-w-0'>
 						{/* Loading Skeleton - Show when loading month data */}
-						{(loading || loadingStats || appConfig.forceSkeletonView) && (
+						{shouldShowLeftPanelSkeleton && (
 							<div data-testid="loading-skeleton" className='mt-0'>
 								<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
 									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-										<Skeleton height={22} width='55%' className='mb-3' />
-										{[1, 2, 3, 4, 5].map((i) => (
-											<Skeleton key={i} height={48} className='mb-2 rounded-md' />
-										))}
+										<div className='mb-4'>
+											<h2 className='text-lg md:text-xl font-bold text-dorkinians-yellow mb-1'>
+												<Skeleton height={24} width='60%' />
+											</h2>
+										</div>
+										<PlayersTableSkeleton />
 									</div>
 								</SkeletonTheme>
 							</div>
 						)}
 
 						{/* Players Table */}
-						{!loading && !loadingStats && players.length > 0 && players.every((player) => playerStats[player.playerName] !== undefined) && (
+						{leftPanelIsReady && players.length > 0 && (
 				<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 					<div className='mb-4'>
 						<h2 className='text-lg md:text-xl font-bold text-dorkinians-yellow mb-1'>
@@ -1316,7 +1324,7 @@ export default function PlayersOfMonth() {
 						)}
 
 						{/* Empty State - Only show when loading is complete and no players found */}
-						{!loading && !loadingStats && !isFetchingMonthData && !isMonthValidating && !isMonthValidatingRef.current && players.length === 0 && selectedSeason && selectedMonth && (
+						{leftPanelIsReady && players.length === 0 && selectedSeason && selectedMonth && (
 				<div className='text-center py-2 text-gray-400'>
 					<p>No players found for {selectedMonth} {selectedSeason}</p>
 				</div>
@@ -1324,19 +1332,20 @@ export default function PlayersOfMonth() {
 					</div>
 
 					<div className='min-w-0 mt-8 lg:mt-0'>
-						{(loading || loadingStats || appConfig.forceSkeletonView) && (
+						{shouldShowRightPanelSkeleton && (
 							<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-								<div className='bg-white/10 rounded-lg p-4 md:p-6'>
+								<div className='bg-white/10 rounded-lg p-4 md:p-6 space-y-14'>
+									<RankingTableSkeleton />
 									<RankingTableSkeleton />
 								</div>
 							</SkeletonTheme>
 						)}
 
 						{/* FTP Ranking Section */}
-						{!loading && !loadingStats && (
+						{rightPanelIsReady && (
 				<div>
 					{selectedPlayer ? (
-						<div className='bg-white/10 rounded-lg p-4 md:p-6 space-y-6'>
+						<div className='bg-white/10 rounded-lg p-4 md:p-6 space-y-14'>
 							{/* Current Month Ranking Table */}
 							<div>
 								<h2 className='text-lg md:text-xl font-bold text-dorkinians-yellow mb-1'>
