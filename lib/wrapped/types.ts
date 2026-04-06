@@ -117,3 +117,22 @@ export interface WrappedData {
 	wrappedHomeAssists: number;
 	wrappedAwayAssists: number;
 }
+
+export type WrappedInitialData = Pick<
+	WrappedData,
+	| "playerName"
+	| "season"
+	| "seasonsAvailable"
+	| "totalMatches"
+	| "totalMinutes"
+	| "totalStarts"
+	| "mostPlayedPosition"
+	| "totalGoals"
+	| "totalPenaltiesScored"
+	| "totalAssists"
+	| "totalMom"
+	| "wrappedDominantTeam"
+	| "wrappedUrl"
+>;
+
+export type WrappedDeferredData = Omit<WrappedData, keyof WrappedInitialData>;
