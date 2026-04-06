@@ -160,20 +160,20 @@ It contains all of the same features that the normal league details section has.
 
 The Club Captains and Awards sub-page displays both current and historical team captains and the club's individual awards in one place.
 
-### Club Captains
-
-The Club Captains section displays information about current and historical team captains.
-
 <div className="sideBySide">
   <img
-    src="https://bangsluke-assets.netlify.app/images/dorkinians/Club-Captains-Mobile.png"
-    alt="Club Captains Mobile Screenshot"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Club-Captains-and-Awards-Mobile.png"
+    alt="Club Captains and Awards Mobile Screenshot"
   />
   <img
-    src="https://bangsluke-assets.netlify.app/images/dorkinians/Club-Captains-Desktop.png"
-    alt="Club Captains Desktop Screenshot"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Club-Captains-and-Awards-Desktop.png"
+    alt="Club Captains and Awards Desktop Screenshot"
   />
 </div>
+
+### Club Captains
+
+The Club Captains section displays information about current and historical team captains - pictured above.
 
 :::tip
 Click on a captain's name to view all of their captaincies.
@@ -183,18 +183,7 @@ Click on a captain's name to view all of their captaincies.
 
 ### Club Awards
 
-The Club Awards section provides information about the club's individual awards.
-
-<div className="sideBySide">
-  <img
-    src="https://bangsluke-assets.netlify.app/images/dorkinians/Club-Awards-Mobile.png"
-    alt="Club Awards Mobile Screenshot"
-  />
-  <img
-    src="https://bangsluke-assets.netlify.app/images/dorkinians/Club-Awards-Desktop.png"
-    alt="Club Awards Desktop Screenshot"
-  />
-</div>
+The Club Awards section provides information about the club's individual awards - pictured above.
 
 :::tip
 Click on a player's name to view all of their awards.

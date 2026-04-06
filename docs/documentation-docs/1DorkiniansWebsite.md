@@ -198,11 +198,11 @@ This page is designed for fast player-level insights, with links to deeper stats
 
 <div className="sideBySide">
   <img
-    src="__IMAGE_PLACEHOLDER__/Player-Profile-Mobile.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Player-Profile-Mobile.png"
     alt="Player Profile Mobile Screenshot Placeholder"
   />
   <img
-    src="__IMAGE_PLACEHOLDER__/Player-Profile-Desktop.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Player-Profile-Desktop.png"
     alt="Player Profile Desktop Screenshot Placeholder"
   />
 </div>
