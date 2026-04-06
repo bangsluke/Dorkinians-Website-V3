@@ -82,9 +82,14 @@ The Available Screens section provides a comprehensive navigation tree showing a
 - **[Club Info](5ClubInfoPage.md)**: Club information section with sub-pages
   - **[Club Information](5ClubInfoPage.md#club-information)**: Club information including achievements and milestones
   - **[League Information](5ClubInfoPage.md#league-information)**: League table information
-  - **[Club Captains](5ClubInfoPage.md#club-captains)**: Club captains including current and historical captains
-  - **[Club Awards](5ClubInfoPage.md#club-awards)**: Club awards including individual awards and historical awards
+  - **[Club Captains and Awards](5ClubInfoPage.md#club-captains-and-awards)**: Combined captains and awards page
+    - **[Club Captains](5ClubInfoPage.md#club-captains)**: Club captains including current and historical captains
+    - **[Club Awards](5ClubInfoPage.md#club-awards)**: Club awards including individual awards and historical awards
   - **[Useful Links](5ClubInfoPage.md#useful-links)**: Useful links including official club links, social media links and other relevant external links
+- **[Player Profile](7PlayerProfilePage.md)**: Dedicated selected player summary page
+  - **[Season Wrapped](7PlayerProfilePage.md#season-wrapped)**: Embedded season story with access to the full wrapped experience
+  - **[Headline Stats](7PlayerProfilePage.md#headline-stats)**: High-level player stat summary
+  - **[Achievement Badges](7PlayerProfilePage.md#achievement-badges)**: Player achievements and milestones
 
 :::tip
 Use the sub-page navigation to jump directly to a specific section without having to navigate through the main pages first.
