@@ -71,7 +71,7 @@ export default function AdminPanelEnhanced() {
 
 	// Email configuration state
 	const [emailAddress, setEmailAddress] = useState("bangsluke@gmail.com");
-	const [sendEmailAtStart, setSendEmailAtStart] = useState(false);
+	const [sendEmailAtStart, setSendEmailAtStart] = useState(true);
 	const [sendEmailAtCompletion, setSendEmailAtCompletion] = useState(true);
 	const [saveLogs, setSaveLogs] = useState(false);
 	/** When full rebuild is used, seed staging graph first then swap (default on). */

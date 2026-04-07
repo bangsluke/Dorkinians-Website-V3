@@ -36,11 +36,11 @@ The Player Profile page is designed to be quick to scan, with links to deeper vi
 
 <div className="sideBySide">
   <img
-    src="__IMAGE_PLACEHOLDER__/Player-Profile-Mobile.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Player-Profile-Mobile.png"
     alt="Player Profile Mobile Screenshot Placeholder"
   />
   <img
-    src="__IMAGE_PLACEHOLDER__/Player-Profile-Desktop.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Player-Profile-Desktop.png"
     alt="Player Profile Desktop Screenshot Placeholder"
   />
 </div>
@@ -71,11 +71,11 @@ Season Wrapped appears first on the profile and highlights season-by-season stor
 
 <div className="sideBySide">
   <img
-    src="__IMAGE_PLACEHOLDER__/Player-Profile-Season-Wrapped-Mobile.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Season-Wrapped-Mobile.png"
     alt="Player Profile Season Wrapped Mobile Screenshot Placeholder"
   />
   <img
-    src="__IMAGE_PLACEHOLDER__/Player-Profile-Season-Wrapped-Desktop.png"
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Season-Wrapped-Desktop.png"
     alt="Player Profile Season Wrapped Desktop Screenshot Placeholder"
   />
 </div>
@@ -116,17 +116,6 @@ Promo visibility can vary depending on season timing and feature-flag configurat
 
 Headline Stats provides a compact summary of important player metrics so you can quickly understand season and career performance at a glance.
 
-<div className="sideBySide">
-  <img
-    src="__IMAGE_PLACEHOLDER__/Player-Profile-Headline-Stats-Mobile.png"
-    alt="Player Profile Headline Stats Mobile Screenshot Placeholder"
-  />
-  <img
-    src="__IMAGE_PLACEHOLDER__/Player-Profile-Headline-Stats-Desktop.png"
-    alt="Player Profile Headline Stats Desktop Screenshot Placeholder"
-  />
-</div>
-
 :::info
 Use Headline Stats as a quick summary, then move to Stats pages for deeper drill-down analysis.
 :::
@@ -138,17 +127,6 @@ Use Headline Stats as a quick summary, then move to Stats pages for deeper drill
 Achievement Badges shows earned milestones and badge categories for the selected player.
 
 This section helps you track progress and long-term accomplishments across different achievement types.
-
-<div className="sideBySide">
-  <img
-    src="__IMAGE_PLACEHOLDER__/Player-Profile-Achievement-Badges-Mobile.png"
-    alt="Player Profile Achievement Badges Mobile Screenshot Placeholder"
-  />
-  <img
-    src="__IMAGE_PLACEHOLDER__/Player-Profile-Achievement-Badges-Desktop.png"
-    alt="Player Profile Achievement Badges Desktop Screenshot Placeholder"
-  />
-</div>
 
 :::tip
 Hover (desktop) or tap (mobile) badge cards to view more context where tooltips are available.
