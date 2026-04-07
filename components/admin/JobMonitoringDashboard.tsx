@@ -51,6 +51,10 @@ interface StorageStats {
   memoryJobs: number;
   storageDir: string;
   totalJobs: number;
+  graphLabelNodeCounts?: {
+    live: number;
+    staging: number;
+  } | null;
 }
 
 const JobMonitoringDashboard: React.FC = () => {
@@ -407,6 +411,16 @@ const JobMonitoringDashboard: React.FC = () => {
               </div>
             </div>
           </div>
+          {storageStats.graphLabelNodeCounts &&
+            storageStats.graphLabelNodeCounts.live !== storageStats.graphLabelNodeCounts.staging && (
+              <div className="mt-4 rounded-md border border-amber-300 bg-amber-50 p-3">
+                <p className="text-sm font-semibold text-amber-800">Live data may be stale</p>
+                <p className="text-sm text-amber-700">
+                  Live graph nodes: <strong>{storageStats.graphLabelNodeCounts.live.toLocaleString()}</strong> | Staging graph nodes:{' '}
+                  <strong>{storageStats.graphLabelNodeCounts.staging.toLocaleString()}</strong>. Counts differ, so staging may not be fully promoted.
+                </p>
+              </div>
+            )}
         </div>
       )}
 
