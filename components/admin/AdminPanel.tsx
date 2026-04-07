@@ -88,7 +88,7 @@ export default function AdminPanel() {
 
 	// Email configuration state
 	const [emailAddress, setEmailAddress] = useState("bangsluke@gmail.com");
-	const [sendEmailAtStart, setSendEmailAtStart] = useState(false);
+	const [sendEmailAtStart, setSendEmailAtStart] = useState(true);
 	const [sendEmailAtCompletion, setSendEmailAtCompletion] = useState(true);
 
 	// Season configuration state
