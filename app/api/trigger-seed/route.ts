@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
 		const requestBody = await request.json();
 		const emailConfig = requestBody.emailConfig || {
 			emailAddress: process.env.SMTP_TO_EMAIL || "bangsluke@gmail.com",
-			sendEmailAtStart: false,
+			sendEmailAtStart: true,
 			sendEmailAtCompletion: true,
 		};
 		const seasonConfig = {
