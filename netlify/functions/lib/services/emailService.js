@@ -154,6 +154,7 @@ class EmailService {
 			const statusIcon = success ? "✅" : "❌";
 			const statusText = success ? "Completed Successfully" : "Failed";
 			const durationText = duration ? `${Math.round(duration / 1000)} seconds` : "Unknown";
+			const failureCypher = success ? null : this.getFailureCypherFromSummary({ errors });
 
 			const mailOptions = {
 				from: this.config.from,
@@ -182,6 +183,16 @@ class EmailService {
 					`
 							: ""
 					}
+
+					${
+						failureCypher
+							? `
+						<h3>Neo4j Debug Query</h3>
+						<p>Copy and paste this into Neo4j Aura Browser to inspect the failure:</p>
+						<pre style="white-space: pre-wrap; font-family: Consolas, Monaco, monospace; font-size: 12px; line-height: 1.45; background: #111827; color: #f9fafb; padding: 12px; border-radius: 6px;">${this.escapeHtml(failureCypher)}</pre>
+					`
+							: ""
+					}
 					
 					<hr>
 					<p><em>This is an automated notification from the Dorkinians FC Statistics Website seeding system.</em></p>
@@ -195,6 +206,67 @@ class EmailService {
 			console.error("❌ EMAIL: Failed to send summary email:", error);
 			throw error;
 		}
+	}
+
+	escapeHtml(value) {
+		return String(value || "")
+			.replace(/&/g, "&amp;")
+			.replace(/</g, "&lt;")
+			.replace(/>/g, "&gt;")
+			.replace(/"/g, "&quot;")
+			.replace(/'/g, "&#39;");
+	}
+
+	getFailureCypherFromSummary(summary) {
+		const combinedText = [
+			...(Array.isArray(summary.errors) ? summary.errors : []),
+			summary.error || "",
+			summary.errorMessage || ""
+		]
+			.join(" ")
+			.toLowerCase();
+
+		if (!combinedText.trim()) {
+			return null;
+		}
+
+		if (combinedText.includes("relationship") || combinedText.includes("played_in")) {
+			return `// Relationship diagnostics
+MATCH (md:MatchDetail)
+WHERE NOT EXISTS { MATCH (:Player)-[:PLAYED_IN]->(md) }
+RETURN md.id AS matchDetailId, md.fixtureId AS fixtureId, md.date AS date
+LIMIT 100;`;
+		}
+
+		if (combinedText.includes("missing") || combinedText.includes("required") || combinedText.includes("node")) {
+			return `// Node diagnostics
+MATCH (n)
+WHERE n.id IS NULL OR n.graphLabel IS NULL
+RETURN labels(n) AS labels, count(*) AS affectedNodes
+ORDER BY affectedNodes DESC
+LIMIT 50;`;
+		}
+
+		if (combinedText.includes("stale") || combinedText.includes("league")) {
+			return `// League freshness diagnostics
+MATCH (lt:LeagueTable)
+RETURN lt.team AS team, lt.lastUpdated AS lastUpdated
+ORDER BY lt.lastUpdated ASC
+LIMIT 100;`;
+		}
+
+		if (combinedText.includes("integrity") || combinedText.includes("consistency") || combinedText.includes("duplicate")) {
+			return `// Duplicate ID diagnostics
+MATCH (n)
+WHERE n.id IS NOT NULL
+WITH labels(n) AS labels, n.id AS id, count(*) AS duplicates
+WHERE duplicates > 1
+RETURN labels, id, duplicates
+ORDER BY duplicates DESC
+LIMIT 50;`;
+		}
+
+		return null;
 	}
 
 	generateCSVValidationSummaryEmail(summary) {

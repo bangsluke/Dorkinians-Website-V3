@@ -199,6 +199,7 @@ Started: ${new Date().toLocaleString()}
 		const statusIcon = summary.success ? '✅' : '❌';
 		const statusText = summary.success ? 'Success' : 'Failed';
 		const statusColor = summary.success ? '#28a745' : '#dc3545';
+		const failureCypher = summary.success ? null : this.getFailureCypherFromSummary(summary);
 		
 		const startTime = summary.startTime ? new Date(summary.startTime).toLocaleString() : 'Not recorded';
 		const endTime = summary.endTime ? new Date(summary.endTime).toLocaleString() : 'Not recorded';
@@ -263,6 +264,14 @@ Started: ${new Date().toLocaleString()}
 				</ul>
 			</div>
 			` : ''}
+
+			${failureCypher ? `
+			<div style="background: #fff8e1; border: 1px solid #ffe082; padding: 20px; border-radius: 5px; margin-bottom: 20px;">
+				<h3 style="margin-top: 0; color: #856404;">Neo4j Debug Query</h3>
+				<p style="margin: 0 0 10px 0;">Copy and paste this into Neo4j Aura Browser to inspect the failure:</p>
+				<pre style="white-space: pre-wrap; font-family: Consolas, Monaco, monospace; font-size: 12px; line-height: 1.45; margin: 0; background: #111827; color: #f9fafb; padding: 12px; border-radius: 6px;">${this.escapeHtml(failureCypher)}</pre>
+			</div>
+			` : ''}
 			
 			<div style="background: #f8f9fa; padding: 15px; border-radius: 5px; font-size: 14px; color: #6c757d;">
 				<p style="margin: 0;"><strong>Service:</strong> Dorkinians Database Seeder</p>
@@ -277,6 +286,7 @@ Started: ${new Date().toLocaleString()}
 	generateSeedingSummaryEmailText(summary) {
 		const statusIcon = summary.success ? '✅' : '❌';
 		const statusText = summary.success ? 'Success' : 'Failed';
+		const failureCypher = summary.success ? null : this.getFailureCypherFromSummary(summary);
 		
 		const startTime = summary.startTime ? new Date(summary.startTime).toLocaleString() : 'Not recorded';
 		const endTime = summary.endTime ? new Date(summary.endTime).toLocaleString() : 'Not recorded';
@@ -301,10 +311,77 @@ Errors:
 ${summary.errors.map(error => `- ${error}`).join('\n')}
 ` : ''}
 
+${failureCypher ? `
+NEO4J DEBUG QUERY
+Copy and paste into Neo4j Aura Browser:
+${failureCypher}
+` : ''}
+
 Service: Dorkinians Database Seeder
 Environment: ${summary.environment}
 Generated: ${new Date().toLocaleString()}
 		`.trim();
+	}
+
+	escapeHtml(value) {
+		return String(value || "")
+			.replace(/&/g, "&amp;")
+			.replace(/</g, "&lt;")
+			.replace(/>/g, "&gt;")
+			.replace(/"/g, "&quot;")
+			.replace(/'/g, "&#39;");
+	}
+
+	getFailureCypherFromSummary(summary) {
+		const combinedText = [
+			...(Array.isArray(summary.errors) ? summary.errors : []),
+			summary.error || "",
+			summary.errorMessage || ""
+		]
+			.join(" ")
+			.toLowerCase();
+
+		if (!combinedText.trim()) {
+			return null;
+		}
+
+		if (combinedText.includes("relationship") || combinedText.includes("played_in")) {
+			return `// Relationship diagnostics
+MATCH (md:MatchDetail)
+WHERE NOT EXISTS { MATCH (:Player)-[:PLAYED_IN]->(md) }
+RETURN md.id AS matchDetailId, md.fixtureId AS fixtureId, md.date AS date
+LIMIT 100;`;
+		}
+
+		if (combinedText.includes("missing") || combinedText.includes("required") || combinedText.includes("node")) {
+			return `// Node diagnostics
+MATCH (n)
+WHERE n.id IS NULL OR n.graphLabel IS NULL
+RETURN labels(n) AS labels, count(*) AS affectedNodes
+ORDER BY affectedNodes DESC
+LIMIT 50;`;
+		}
+
+		if (combinedText.includes("stale") || combinedText.includes("league")) {
+			return `// League freshness diagnostics
+MATCH (lt:LeagueTable)
+RETURN lt.team AS team, lt.lastUpdated AS lastUpdated
+ORDER BY lt.lastUpdated ASC
+LIMIT 100;`;
+		}
+
+		if (combinedText.includes("integrity") || combinedText.includes("consistency") || combinedText.includes("duplicate")) {
+			return `// Duplicate ID diagnostics
+MATCH (n)
+WHERE n.id IS NOT NULL
+WITH labels(n) AS labels, n.id AS id, count(*) AS duplicates
+WHERE duplicates > 1
+RETURN labels, id, duplicates
+ORDER BY duplicates DESC
+LIMIT 50;`;
+		}
+
+		return null;
 	}
 
 	generateCriticalErrorEmail(errorInfo) {
