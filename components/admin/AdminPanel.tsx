@@ -1109,8 +1109,8 @@ export default function AdminPanel() {
 				</div>
 			)}
 
-			{/* Umami Analytics Link */}
-			<div className='mb-6 text-center'>
+			{/* Admin resource links */}
+			<div className='mb-6 flex flex-col items-center gap-3 lg:flex-row lg:justify-center'>
 				<a
 					href='https://cloud.umami.is/analytics/eu/websites/351bdc1f-abd3-4b55-8e6f-23b3693b13b4'
 					target='_blank'
@@ -1118,10 +1118,6 @@ export default function AdminPanel() {
 					className='inline-block px-6 py-3 rounded-lg text-sm font-semibold text-white transition-colors bg-green-600 hover:bg-green-700'>
 					See Umami Analytics of the site here
 				</a>
-			</div>
-
-			{/* League Table Scraper Link */}
-			<div className='mb-6 text-center'>
 				<a
 					href='https://dashboard.scraperapi.com/home'
 					target='_blank'
