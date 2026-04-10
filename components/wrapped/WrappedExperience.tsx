@@ -858,7 +858,7 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 					</>
 				);
 			case 10: {
-				const veoAll = data.veoFixtures;
+				const veoAll = data.veoFixtures ?? [];
 				const veoTotal = veoAll.length;
 				const veoRows = veoAll.slice(0, VEO_WRAP_PREVIEW_COUNT);
 				const statsHref = featureFlags.playerProfile ? getPlayerProfileHref(data.playerName) : "/";

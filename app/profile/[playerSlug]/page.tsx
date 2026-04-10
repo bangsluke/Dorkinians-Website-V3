@@ -33,7 +33,13 @@ export default async function PlayerProfilePage({ params }: { params: Promise<{ 
 		notFound();
 	}
 	const { playerSlug } = await params;
-	const playerName = decodeURIComponent(playerSlug).replace(/-/g, " ");
+	let decodedPlayerSlug = playerSlug;
+	try {
+		decodedPlayerSlug = decodeURIComponent(playerSlug);
+	} catch {
+		decodedPlayerSlug = playerSlug;
+	}
+	const playerName = decodedPlayerSlug.replace(/-/g, " ");
 	let initialHeadlineData: PlayerData | null = null;
 	let initialWrappedMeta: InitialWrappedMeta | null = null;
 	if (featureFlags.profileServerHeadline) {
