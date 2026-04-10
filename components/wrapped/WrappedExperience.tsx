@@ -64,6 +64,11 @@ function formatPenaltySuffix(count: number): string {
 	return `(${count} penalties)`;
 }
 
+function safeNumber(value: unknown, fallback = 0): number {
+	const n = typeof value === "number" ? value : Number(value);
+	return Number.isFinite(n) ? n : fallback;
+}
+
 function WrappedLeagueSnapshotTable({ row }: { row: WrappedLeagueTableRow }) {
 	return (
 		<div className='mt-3 rounded-lg border border-white/10 bg-black/20 overflow-x-auto' data-testid='wrapped-league-snapshot-table'>
@@ -392,11 +397,13 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 			data.wrappedLeaguePointsContributed > 0 ||
 			data.wrappedCupTiesAdvanced > 0 ||
 			(data.wrappedTrophiesWon?.length ?? 0) > 0;
+		const showDistanceSlide = data.wrappedAwayApps > 0;
 		const ids: number[] = [1, 2, 3, 4, 12, 5, 6];
 		if (showTeamSeasonSlide) ids.push(11);
 		if (data.veoFixtures?.length) ids.push(10);
 		if (data.longestStreakValue != null && data.longestStreakValue >= 3) ids.push(7);
-		ids.push(8, 9);
+		if (showDistanceSlide) ids.push(8);
+		ids.push(9);
 		return ids;
 	}, [data]);
 
@@ -640,24 +647,36 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 					</>
 				);
 			case 3:
+				{
+				const bestMonthGoals = safeNumber(data.bestMonthGoals);
+				const bestMonthPenaltiesScored = safeNumber(data.bestMonthPenaltiesScored);
+				const bestMonthAssists = safeNumber(data.bestMonthAssists);
+				const bestMonthMom = safeNumber(data.bestMonthMom);
+				const bestMonthMatches = safeNumber(data.bestMonthMatches);
+				const bestMonthFantasyPoints = safeNumber(data.bestMonthFantasyPoints);
+				const bestMonthMinutes = safeNumber(data.bestMonthMinutes);
+				const bestMonthStarts = safeNumber(data.bestMonthStarts);
+				const bestMonthYellowCards = safeNumber(data.bestMonthYellowCards);
+				const bestMonthRedCards = safeNumber(data.bestMonthRedCards);
 				return (
 					<>
 						<p className={`${ACCENT} text-xs sm:text-sm font-semibold uppercase tracking-wide mb-1`}>Best month</p>
 						<h2 className='text-xl md:text-3xl font-bold text-white mb-2'>{data.bestMonth}</h2>
 						<div className='border-t border-white/10 my-2' />
 						<p className='text-white/75 text-xs sm:text-sm mb-2'>
-							<span className={MINT}>{data.bestMonthMatches}</span> games · {" "} 
-							<span className={MINT}>{data.bestMonthFantasyPoints}</span> {" "} Fantasy Points
+							<span className={MINT}>{bestMonthMatches}</span> games · {" "}
+							<span className={MINT}>{bestMonthFantasyPoints}</span> {" "} Fantasy Points
 						</p>
 						<p className='text-white/85 text-base sm:text-lg mb-1.5'>
-							{data.bestMonthGoals + data.bestMonthPenaltiesScored} goals {formatPenaltySuffix(data.bestMonthPenaltiesScored)} · {data.bestMonthAssists} assists · {data.bestMonthMom} MoM
+							{bestMonthGoals + bestMonthPenaltiesScored} goals {formatPenaltySuffix(bestMonthPenaltiesScored)} · {bestMonthAssists} assists · {bestMonthMom} MoM
 						</p>
 						<p className='text-white/70 text-xs sm:text-sm'>
-							{data.bestMonthMinutes.toLocaleString()} mins · {data.bestMonthStarts} starts ·{" "}
-							{data.bestMonthYellowCards}Y · {data.bestMonthRedCards}R
+							{bestMonthMinutes.toLocaleString()} mins · {bestMonthStarts} starts ·{" "}
+							{bestMonthYellowCards}Y · {bestMonthRedCards}R
 						</p>
 					</>
 				);
+				}
 			case 4:
 				return (
 					<>
