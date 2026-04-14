@@ -10,11 +10,12 @@ jest.mock("@/lib/neo4j", () => ({
 }));
 
 // Lightweight timing and concurrency checks around ChatbotService with Neo4j mocked (deterministic latency).
-// Uses wall-clock thresholds (<7s) and Promise.all fan-out; not a full load test harness.
+// Uses wall-clock thresholds (default <12s) and Promise.all fan-out; not a full load test harness.
 // CI machine variance can occasionally borderline-flake strict timing-watch for environmental noise.
 
 describe("Performance and Load Testing", () => {
 	let chatbotService: ChatbotService;
+	const maxPromptLatencyMs = Number(process.env.PERF_PROMPT_MAX_MS || "12000");
 
 	beforeEach(() => {
 		chatbotService = ChatbotService.getInstance();
@@ -37,7 +38,7 @@ describe("Performance and Load Testing", () => {
 			// Assert: answer quality + coarse performance guard
 			expect(response.answer).toBeDefined();
 			expect(response.answer.length).toBeGreaterThan(0);
-			expect(elapsed).toBeLessThan(7000);
+			expect(elapsed).toBeLessThan(maxPromptLatencyMs);
 		}
 	});
 

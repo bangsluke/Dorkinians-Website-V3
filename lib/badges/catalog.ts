@@ -397,7 +397,7 @@ export const BADGE_DEFINITIONS: Record<string, BadgeDefinition> = {
 		category: "performance",
 		description: "Contribute to the club kitty through card fines.",
 		tiers: {
-			bronze: { threshold: 10, description: "Pay £10 in card fines" },
+			bronze: { threshold: 50, description: "Pay £50 in card fines" },
 			silver: { threshold: 100, description: "Pay £100 in card fines" },
 			gold: { threshold: 200, description: "Pay £200 in card fines" },
 			diamond: { threshold: 350, description: "Pay £350 in card fines" },
@@ -413,8 +413,8 @@ export const BADGE_DEFINITIONS: Record<string, BadgeDefinition> = {
 		category: "performance",
 		description: "Build appearances for the 1st XI.",
 		tiers: {
-			bronze: { threshold: 1, description: "Make 1 appearances for the 1st XI" },
-			silver: { threshold: 20, description: "Make 20 appearances for the 1st XI" },
+			bronze: { threshold: 10, description: "Make 10 appearances for the 1st XI" },
+			silver: { threshold: 25, description: "Make 25 appearances for the 1st XI" },
 			gold: { threshold: 50, description: "Make 50 appearances for the 1st XI" },
 			diamond: { threshold: 100, description: "Make 100 appearances for the 1st XI" },
 		},
