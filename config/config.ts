@@ -1,7 +1,7 @@
 import { isDevelopBranchDeploy } from "@/lib/utils/isDevelopBranchDeploy";
 
 export const appConfig = {
-	version: "3.2.2",
+	version: "3.3.1",
 	name: "Dorkinians FC",
 	description: "Comprehensive source for club statistics, player performance, and team insights",
 	author: "Luke Bangs",
@@ -18,6 +18,9 @@ export type FeatureFlags = {
 	playerProfile: boolean;
 	achievementBadges: boolean;
 	seasonWrapped: boolean;
+	profileServerHeadline: boolean;
+	wrappedStagedLoad: boolean;
+	wrappedPriorityLogos: boolean;
 	playerStatsKeyPerformance: boolean;
 	playerStatsForm: boolean;
 	playerStatsStreaks: boolean;
@@ -29,6 +32,8 @@ export type FeatureFlags = {
 	teamStatsFormationsUsed: boolean;
 	teamStatsTeamRecordings: boolean;
 	teamStatsStreakAndForm: boolean;
+	teamStatsXiStreakCards: boolean;
+	clubStatsLongestActiveStreaks: boolean;
 	clubStatsSquadBackbone: boolean;
 	clubStatsClubRecordings: boolean;
 	clubInfoRecords: boolean;
@@ -40,6 +45,9 @@ const featureFlagsAllEnabled: FeatureFlags = {
 	playerProfile: true,
 	achievementBadges: true,
 	seasonWrapped: true,
+	profileServerHeadline: true,
+	wrappedStagedLoad: true,
+	wrappedPriorityLogos: true,
 	playerStatsKeyPerformance: true,
 	playerStatsForm: true,
 	playerStatsStreaks: true,
@@ -51,6 +59,8 @@ const featureFlagsAllEnabled: FeatureFlags = {
 	teamStatsFormationsUsed: true,
 	teamStatsTeamRecordings: true,
 	teamStatsStreakAndForm: true,
+	teamStatsXiStreakCards: true,
+	clubStatsLongestActiveStreaks: true,
 	clubStatsSquadBackbone: true,
 	clubStatsClubRecordings: true,
 	clubInfoRecords: true,
@@ -59,9 +69,12 @@ const featureFlagsAllEnabled: FeatureFlags = {
 
 /** Conservative defaults for production (main) deploys. */
 const featureFlagsProductionDefault: FeatureFlags = {
-	playerProfile: false,
-	achievementBadges: false,
-	seasonWrapped: false,
+	playerProfile: true,
+	achievementBadges: true,
+	seasonWrapped: true,
+	profileServerHeadline: true,
+	wrappedStagedLoad: true,
+	wrappedPriorityLogos: true,
 	playerStatsKeyPerformance: false,
 	playerStatsForm: false,
 	playerStatsStreaks: false,
@@ -73,6 +86,8 @@ const featureFlagsProductionDefault: FeatureFlags = {
 	teamStatsFormationsUsed: false,
 	teamStatsTeamRecordings: false,
 	teamStatsStreakAndForm: false,
+	teamStatsXiStreakCards: false,
+	clubStatsLongestActiveStreaks: false,
 	clubStatsSquadBackbone: false,
 	clubStatsClubRecordings: false,
 	clubInfoRecords: false,

@@ -39,16 +39,23 @@ export interface WrappedData {
 	/** Most common position class in the wrapped season (e.g. `MID`). */
 	mostPlayedPosition: string;
 	totalGoals: number;
+	totalPenaltiesScored: number;
 	totalAssists: number;
 	totalMom: number;
 	matchesPercentile: number;
 	bestMonth: string;
 	bestMonthGoals: number;
+	bestMonthPenaltiesScored: number;
 	bestMonthAssists: number;
+	bestMonthMom: number;
 	/** Appearances in the player’s best month bucket. */
 	bestMonthMatches: number;
 	/** Sum of fantasy (FTP) points in the best month bucket. */
 	bestMonthFantasyPoints: number;
+	bestMonthMinutes: number;
+	bestMonthStarts: number;
+	bestMonthYellowCards: number;
+	bestMonthRedCards: number;
 	topPartnerName: string;
 	topPartnerMatches: number;
 	topPartnerWinRate: number;
@@ -57,18 +64,35 @@ export interface WrappedData {
 	peakMatchRating: number;
 	peakMatchOpposition: string;
 	peakMatchGoals: number;
+	peakMatchPenaltiesScored: number;
 	peakMatchAssists: number;
+	peakMatchFantasyPoints: number;
+	peakMatchMinutes: number;
+	peakMatchStarted: boolean;
+	peakMatchMom: boolean;
+	peakMatchMomCount: number;
+	peakMatchYellowCards: number;
+	peakMatchRedCards: number;
 	/** Short result label for the peak match (e.g. Win / Draw / Loss). */
 	peakMatchResultLabel: string;
 	/** Scoreline from the club’s perspective (e.g. `3-1`). */
 	peakMatchScoreline: string;
 	longestStreakType: string | null;
 	longestStreakValue: number | null;
+	totalYellowCards: number;
+	totalRedCards: number;
+	totalWins: number;
+	totalDraws: number;
+	totalCleanSheets: number;
 	totalDistance: number;
 	distanceEquivalent: string;
 	wrappedUrl: string;
 	/** League points (3 win, 1 draw) from league fixtures the player played in this season. */
 	wrappedLeaguePointsContributed: number;
+	/** League wins from fixtures the player played in this season. */
+	wrappedLeagueWinsFromPlayedGames: number;
+	/** League draws from fixtures the player played in this season. */
+	wrappedLeagueDrawsFromPlayedGames: number;
 	/** Cup fixtures played where the club advanced (win or draw + penalty heuristic). */
 	wrappedCupTiesAdvanced: number;
 	/** XI / team string with the most appearances this season (tie-break: minutes, then name). */
@@ -79,4 +103,36 @@ export interface WrappedData {
 	wrappedDominantTeamLeagueDivision: string;
 	/** Dorkinians’ league table row for that XI/league file when available. */
 	wrappedDominantTeamLeagueRow: WrappedLeagueTableRow | null;
+	/** Trophy-style labels won by squads the player appeared for in this wrapped season. */
+	wrappedTrophiesWon: string[];
+	/** Home/away split from fixtures the player played in this season. */
+	wrappedHomeApps: number;
+	wrappedAwayApps: number;
+	wrappedHomeWinRate: number;
+	wrappedAwayWinRate: number;
+	wrappedHomeGoals: number;
+	wrappedAwayGoals: number;
+	wrappedHomePenaltiesScored: number;
+	wrappedAwayPenaltiesScored: number;
+	wrappedHomeAssists: number;
+	wrappedAwayAssists: number;
 }
+
+export type WrappedInitialData = Pick<
+	WrappedData,
+	| "playerName"
+	| "season"
+	| "seasonsAvailable"
+	| "totalMatches"
+	| "totalMinutes"
+	| "totalStarts"
+	| "mostPlayedPosition"
+	| "totalGoals"
+	| "totalPenaltiesScored"
+	| "totalAssists"
+	| "totalMom"
+	| "wrappedDominantTeam"
+	| "wrappedUrl"
+>;
+
+export type WrappedDeferredData = Omit<WrappedData, keyof WrappedInitialData>;

@@ -28,11 +28,11 @@ export default function TOTWPitchSkeleton() {
 	return (
 		<div className='w-full'>
 			{/* Dropdown Filters */}
-			<div className='flex flex-row gap-4 mb-6'>
-				<div className='w-1/3 md:w-1/2'>
+			<div className='flex flex-row justify-center gap-4 mb-6 w-full'>
+				<div className='w-1/3 md:w-full md:max-w-[14rem]'>
 					<Skeleton height={32} width="100%" />
 				</div>
-				<div className='flex-1 md:w-1/2'>
+				<div className='flex-1 md:w-full md:max-w-[18.2rem]'>
 					<Skeleton height={32} width="100%" />
 				</div>
 			</div>
@@ -41,15 +41,15 @@ export default function TOTWPitchSkeleton() {
 			<div className='flex flex-row flex-nowrap gap-8 md:gap-20 mb-6 justify-center'>
 				{/* TOTW TOTAL POINTS section */}
 				<div className='text-center flex flex-col md:w-auto'>
-					<Skeleton height={20} width={140} className="mb-2 mx-auto" />
-					<Skeleton height={96} width={120} className="mx-auto" />
-					<Skeleton height={16} width={160} className="mt-2 mx-auto" />
+					<Skeleton height={18} width={136} className="mb-2 mx-auto" />
+					<Skeleton height={84} width={96} className="mx-auto" />
+					<Skeleton height={14} width={156} className="mt-2 mx-auto" />
 				</div>
 				{/* STAR MAN section */}
 				<div className='flex flex-col items-center flex-shrink-0'>
-					<Skeleton height={20} width={80} className="mb-2" />
-					<Skeleton circle height={36} width={36} className="mb-2" />
-					<Skeleton height={50} width={80} className="mb-1" />
+					<Skeleton height={18} width={76} className="mb-2" />
+					<Skeleton circle height={44} width={44} className="mb-2" />
+					<Skeleton height={44} width={86} className="mb-1" />
 				</div>
 			</div>
 
@@ -79,9 +79,9 @@ export default function TOTWPitchSkeleton() {
 						}}
 					>
 					<div className='relative flex flex-col items-center'>
-						{/* Kit circle + name block - smaller than prior skeleton to match loaded markers */}
-						<Skeleton circle height={32} width={32} className="mb-0.5" />
-						<Skeleton height={28} width={48} />
+						{/* Kit circle + name block to mirror loaded player marker proportions */}
+						<Skeleton circle height={36} width={36} className="mb-1" />
+						<Skeleton height={34} width={56} />
 					</div>
 					</div>
 				))}

@@ -3,7 +3,7 @@
 import { useNavigationStore, type TeamData } from "@/lib/stores/navigation";
 import { statObject, statsPageConfig, appConfig, calculateCardFineTotal, featureFlags } from "@/config/config";
 import Image from "next/image";
-import { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback, type ReactNode } from "react";
 import { cachedFetch, generatePageCacheKey } from "@/lib/utils/pageCache";
 import { createPortal } from "react-dom";
 import { Listbox } from "@headlessui/react";
@@ -355,6 +355,99 @@ function toNumber(val: any): number {
 	}
 	const num = Number(val);
 	return isNaN(num) ? 0 : num;
+}
+
+function formatStreakDate(dateIso: string | null | undefined): string {
+	if (!dateIso) return "";
+	const [year, month, day] = String(dateIso).split("-");
+	if (!year || !month || !day) return String(dateIso);
+	return `${day}/${month}/${year}`;
+}
+
+function formatStreakRange(startDate: string | null | undefined, endDate: string | null | undefined): string {
+	const start = formatStreakDate(startDate);
+	const end = formatStreakDate(endDate);
+	if (!start && !end) return "";
+	if (start && end) return start === end ? ` (${start})` : ` (${start} - ${end})`;
+	return ` (${start || end})`;
+}
+
+function FloatingTooltipTrigger({
+	tooltip,
+	children,
+	className,
+}: {
+	tooltip: ReactNode;
+	children: ReactNode;
+	className: string;
+}) {
+	const [visible, setVisible] = useState(false);
+	const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
+	const triggerRef = useRef<HTMLDivElement>(null);
+	const tooltipRef = useRef<HTMLDivElement>(null);
+
+	const updatePosition = () => {
+		if (!triggerRef.current || typeof window === "undefined") return;
+		const triggerRect = triggerRef.current.getBoundingClientRect();
+		const tooltipWidth = tooltipRef.current?.offsetWidth ?? 320;
+		const tooltipHeight = tooltipRef.current?.offsetHeight ?? 120;
+		const margin = 8;
+		const gap = 8;
+		let left = triggerRect.left + triggerRect.width / 2 - tooltipWidth / 2;
+		left = Math.max(margin, Math.min(left, window.innerWidth - tooltipWidth - margin));
+		const aboveTop = triggerRect.top - tooltipHeight - gap;
+		const belowTop = triggerRect.bottom + gap;
+		const top = aboveTop >= margin ? aboveTop : belowTop;
+		setPosition({ top, left });
+	};
+
+	useEffect(() => {
+		if (!visible) return;
+		updatePosition();
+		const onViewportChange = () => updatePosition();
+		window.addEventListener("resize", onViewportChange);
+		window.addEventListener("scroll", onViewportChange, true);
+		return () => {
+			window.removeEventListener("resize", onViewportChange);
+			window.removeEventListener("scroll", onViewportChange, true);
+		};
+	}, [visible]);
+
+	return (
+		<>
+			<div
+				ref={triggerRef}
+				tabIndex={0}
+				className={className}
+				onMouseEnter={() => setVisible(true)}
+				onMouseLeave={() => setVisible(false)}
+				onFocus={() => setVisible(true)}
+				onBlur={() => setVisible(false)}
+			>
+				{children}
+			</div>
+			{visible &&
+				position &&
+				typeof document !== "undefined" &&
+				document.body &&
+				createPortal(
+					<div
+						ref={tooltipRef}
+						className='pointer-events-none rounded-md bg-black/95 p-2 text-left text-[11px] text-white shadow-xl ring-1 ring-white/15'
+						style={{
+							position: "fixed",
+							top: position.top,
+							left: position.left,
+							zIndex: 9999,
+							maxWidth: "min(20rem, calc(100vw - 16px))",
+						}}
+					>
+						{tooltip}
+					</div>,
+					document.body,
+				)}
+		</>
+	);
 }
 
 export default function ClubStats() {
@@ -1753,6 +1846,120 @@ export default function ClubStats() {
 									</div>
 								</div>
 								)}
+
+								{/* Longest Active Streaks (whole club) */}
+								{!isDataTableMode &&
+									featureFlags.clubStatsLongestActiveStreaks &&
+									((teamData.streakLeaders && teamData.streakLeaders.length > 0) ||
+										(teamData.streakLeadersAllTime && teamData.streakLeadersAllTime.length > 0)) && (
+										<div id='club-streak-leaders' className='md:break-inside-avoid md:mb-4'>
+											<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+												<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Club Streaks</h3>
+												{teamData.streakLeaders && teamData.streakLeaders.length > 0 && (
+													<>
+														<div className='flex items-center gap-2 mb-2'>
+															<h4 className='text-white/85 font-medium text-xs md:text-sm'>Longest Active Streaks</h4>
+															<FloatingTooltipTrigger
+																className='inline-flex items-center justify-center w-4 h-4 text-[10px] rounded-full border border-white/40 text-white/80 cursor-help outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow/80'
+																tooltip={
+																	<>
+																		Shows the player with the longest current run for each category across the full club (all XIs).
+																	</>
+																}
+															>
+																i
+															</FloatingTooltipTrigger>
+														</div>
+														<div className='grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3'>
+															{teamData.streakLeaders.map((row) => {
+																const tipByCategory: Record<string, string> = {
+																	wins: "Consecutive games won by the player while playing for the club.",
+																	unbeaten: "Consecutive games without a loss while the player is on the pitch (wins or draws).",
+																	goalsScored: "Consecutive games where the player scores at least once (goal or penalty).",
+																	cleanSheets: "Consecutive clean sheets while the player plays.",
+																	noCards: "Consecutive games with no yellow or red card while the player plays.",
+																};
+																const tip = tipByCategory[row.category] ?? "Current active run for this streak category.";
+																return (
+																	<FloatingTooltipTrigger
+																		key={`active-${row.category}`}
+																		className='bg-white/5 rounded-lg px-3 py-2 flex flex-col gap-0.5 cursor-help outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow/80'
+																		tooltip={
+																			<>
+																				<p className='text-white/95 leading-snug'>{tip}</p>
+																				<div className='mt-2 pt-2 border-t border-white/20 space-y-1 text-white/90'>
+																					<p>Player: {row.playerName}</p>
+																					<p>Active run: {row.value} in a row</p>
+																					<p>Date range: {formatStreakRange(row.startDate, row.endDate) || "-"}</p>
+																				</div>
+																			</>
+																		}
+																	>
+																		<span className='text-white/70 text-xs'>{row.label}</span>
+																		<span className='text-white font-semibold text-sm md:text-base'>{row.playerName}</span>
+																		<span className='text-dorkinians-yellow text-xs md:text-sm'>
+																			{row.value} in a row{formatStreakRange(row.startDate, row.endDate)}
+																		</span>
+																	</FloatingTooltipTrigger>
+																);
+															})}
+														</div>
+													</>
+												)}
+												{teamData.streakLeadersAllTime && teamData.streakLeadersAllTime.length > 0 && (
+													<>
+														<div className='flex items-center gap-2 mb-2'>
+															<h4 className='text-white/85 font-medium text-xs md:text-sm'>Longest All Time Streaks</h4>
+															<FloatingTooltipTrigger
+																className='inline-flex items-center justify-center w-4 h-4 text-[10px] rounded-full border border-white/40 text-white/80 cursor-help outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow/80'
+																tooltip={
+																	<>
+																		Shows the player with the longest historical run for each category across the full club (all XIs).
+																	</>
+																}
+															>
+																i
+															</FloatingTooltipTrigger>
+														</div>
+														<div className='grid grid-cols-1 sm:grid-cols-2 gap-2'>
+															{teamData.streakLeadersAllTime.map((row) => {
+																const tipByCategory: Record<string, string> = {
+																	wins: "Longest historical run of games won by the player while playing for the club.",
+																	unbeaten: "Longest historical run of games without a loss while the player is on the pitch (wins or draws).",
+																	goalsScored: "Longest historical run of games where the player scores at least once (goal or penalty).",
+																	cleanSheets: "Longest historical run of clean sheets while the player plays.",
+																	noCards: "Longest historical run of games with no yellow or red card while the player plays.",
+																};
+																const tip = tipByCategory[row.category] ?? "Longest all-time run for this streak category.";
+																return (
+																	<FloatingTooltipTrigger
+																		key={`alltime-${row.category}`}
+																		className='bg-white/[0.07] border border-white/20 rounded-lg px-3 py-2 flex flex-col gap-0.5 cursor-help outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow/80'
+																		tooltip={
+																			<>
+																				<p className='text-white/95 leading-snug'>{tip}</p>
+																				<div className='mt-2 pt-2 border-t border-white/20 space-y-1 text-white/90'>
+																					<p>Player: {row.playerName}</p>
+																					<p>All-time run: {row.value} in a row</p>
+																					<p>Date range: {formatStreakRange(row.startDate, row.endDate) || "-"}</p>
+																				</div>
+																			</>
+																		}
+																	>
+																		<span className='text-white/70 text-xs'>{row.label}</span>
+																		<span className='text-white font-semibold text-sm md:text-base'>{row.playerName}</span>
+																		<span className='text-white/90 text-xs md:text-sm'>
+																			{row.value} in a row{formatStreakRange(row.startDate, row.endDate)}
+																		</span>
+																	</FloatingTooltipTrigger>
+																);
+															})}
+														</div>
+													</>
+												)}
+											</div>
+										</div>
+									)}
 
 								{/* Team Comparison Section */}
 					{!isDataTableMode && (isLoadingTeamComparison ? (

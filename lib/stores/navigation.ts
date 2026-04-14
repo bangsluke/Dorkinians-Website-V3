@@ -134,6 +134,7 @@ export interface PlayerData {
 	currentMomStreak?: number;
 	currentDisciplineStreak?: number;
 	currentWinStreak?: number;
+	currentUnbeatenStreak?: number;
 	seasonBestScoringStreak?: number;
 	seasonBestAssistStreak?: number;
 	seasonBestGoalInvolvementStreak?: number;
@@ -144,6 +145,7 @@ export interface PlayerData {
 	seasonBestMomStreak?: number;
 	seasonBestDisciplineStreak?: number;
 	seasonBestWinStreak?: number;
+	seasonBestUnbeatenStreak?: number;
 	allTimeBestScoringStreak?: number;
 	allTimeBestAssistStreak?: number;
 	allTimeBestGoalInvolvementStreak?: number;
@@ -154,6 +156,7 @@ export interface PlayerData {
 	allTimeBestMomStreak?: number;
 	allTimeBestDisciplineStreak?: number;
 	allTimeBestWinStreak?: number;
+	allTimeBestUnbeatenStreak?: number;
 	/** Feature 7 - graph insights (full graph; not filter-dependent) */
 	bestPartnerName?: string | null;
 	bestPartnerWinRate?: number | null;
@@ -224,8 +227,18 @@ export interface TeamData {
 	numberOfPlayers: number;
 	/** Foundation tactical (from team-data-filtered) */
 	formationBreakdown?: Array<{ formation: string; games: number; wins: number; winPercentage: number }>;
-	/** Feature 5: longest active streak holder per category (single-XI view only) */
-	streakLeaders?: Array<{ category: string; label: string; playerName: string; value: number }>;
+	/** Team/club streak card payload for current filter scope. */
+	teamStreaks?: {
+		wins: { current: number; seasonBest: number; allTimeBest: number; currentRange: { startDate: string | null; endDate: string | null }; seasonBestRange: { startDate: string | null; endDate: string | null }; allTimeBestRange: { startDate: string | null; endDate: string | null } };
+		unbeaten: { current: number; seasonBest: number; allTimeBest: number; currentRange: { startDate: string | null; endDate: string | null }; seasonBestRange: { startDate: string | null; endDate: string | null }; allTimeBestRange: { startDate: string | null; endDate: string | null } };
+		goalsScored: { current: number; seasonBest: number; allTimeBest: number; currentRange: { startDate: string | null; endDate: string | null }; seasonBestRange: { startDate: string | null; endDate: string | null }; allTimeBestRange: { startDate: string | null; endDate: string | null } };
+		cleanSheets: { current: number; seasonBest: number; allTimeBest: number; currentRange: { startDate: string | null; endDate: string | null }; seasonBestRange: { startDate: string | null; endDate: string | null }; allTimeBestRange: { startDate: string | null; endDate: string | null } };
+		noCards: { current: number; seasonBest: number; allTimeBest: number; currentRange: { startDate: string | null; endDate: string | null }; seasonBestRange: { startDate: string | null; endDate: string | null }; allTimeBestRange: { startDate: string | null; endDate: string | null } };
+	};
+	/** Longest active streak holder per category (XI or whole-club scope). */
+	streakLeaders?: Array<{ category: string; label: string; playerName: string; value: number; startDate: string | null; endDate: string | null }>;
+	/** Longest all-time streak holder per category (XI or whole-club scope). */
+	streakLeadersAllTime?: Array<{ category: string; label: string; playerName: string; value: number; startDate: string | null; endDate: string | null }>;
 }
 
 // TOTW cache interfaces

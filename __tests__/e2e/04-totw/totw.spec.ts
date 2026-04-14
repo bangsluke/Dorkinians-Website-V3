@@ -311,6 +311,32 @@ test.describe("TOTW Page Tests", () => {
 		await expect(seasonRow).toBeVisible({ timeout: 20000 });
 		await expect(monthRow).toHaveClass(/bg-yellow-400\/20/);
 		await expect(seasonRow).toHaveClass(/bg-yellow-400\/20/);
+
+		// Selected player should only appear once per ranking table.
+		const monthSelectedRows = monthSection.locator("tbody tr", { hasText: DEFAULT_PLAYER });
+		const seasonSelectedRows = seasonSection.locator("tbody tr", { hasText: DEFAULT_PLAYER });
+		await expect(monthSelectedRows).toHaveCount(1);
+		await expect(seasonSelectedRows).toHaveCount(1);
+	});
+
+	test("4.12b. players-of-month left panel should transition from skeleton to populated or empty state without a blank gap", async ({ page }) => {
+		await navigateToMainPage(page, "totw");
+		await goToTOTWSubPage(page, "players-of-month");
+
+		const leftSkeleton = page.getByTestId("loading-skeleton").first();
+		if (!(await leftSkeleton.isVisible({ timeout: 10000 }).catch(() => false))) {
+			test.skip(true, "PoM left loading skeleton not visible during initial load - skipping transition assertion.");
+			return;
+		}
+
+		await waitForTotwSkeletonsGone(page, 60000);
+
+		const topPlayersHeading = page.getByRole("heading", { name: "This Months Top Players" });
+		const emptyState = page.getByText(/No players found for/i);
+		const topPlayersVisible = await topPlayersHeading.isVisible({ timeout: 10000 }).catch(() => false);
+		const emptyStateVisible = await emptyState.isVisible({ timeout: 10000 }).catch(() => false);
+
+		expect(topPlayersVisible || emptyStateVisible).toBeTruthy();
 	});
 
 	test("4.13. rank 1 in This Month FTP Ranking should also appear in This Season FTP Ranking when both tables have data", async ({ page }) => {

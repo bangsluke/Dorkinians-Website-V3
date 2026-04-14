@@ -139,9 +139,9 @@ export default function ClubCaptainsSection({ embedded = false }: { embedded?: b
 					<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-4 text-center'>Club Captains</h2>
 				)}
 
-				<div className='mb-2'>
+				<div className='mb-6'>
 					{loading || seasons.length === 0 ? (
-						<div className='w-[60%] md:w-full mx-auto'>
+						<div className='w-full max-w-[14rem] mx-auto'>
 							<SkeletonTheme baseColor='var(--skeleton-base)' highlightColor='var(--skeleton-highlight)'>
 								<Skeleton height={48} className='rounded-md' />
 							</SkeletonTheme>
@@ -155,16 +155,16 @@ export default function ClubCaptainsSection({ embedded = false }: { embedded?: b
 									localStorage.setItem(CAPTAINS_SELECTED_SEASON_KEY, newSeason);
 								}
 							}}>
-							<div className='relative w-[60%] md:w-full mx-auto'>
-								<Listbox.Button className='relative w-full cursor-default dark-dropdown py-3 pl-4 pr-10 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-sm md:text-base'>
+							<div className='relative w-full max-w-[14rem] mx-auto'>
+								<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-[0.65rem] md:text-sm'>
 									<span className={`block truncate ${selectedSeason ? "text-white" : "text-yellow-300"}`}>
 										{selectedSeason || "Select season..."}
 									</span>
 									<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
-										<ChevronUpDownIcon className='h-5 w-5 text-yellow-300' aria-hidden='true' />
+										<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
 									</span>
 								</Listbox.Button>
-								<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-sm md:text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
+								<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-[0.65rem] md:text-sm shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
 									{seasons.map((season) => (
 										<Listbox.Option
 											key={season}

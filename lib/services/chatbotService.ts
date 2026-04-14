@@ -4452,10 +4452,11 @@ export class ChatbotService {
 			} else {
 				// Handle other streak types (goals, assists, etc.)
 				const streakData = (data.data as StreakData[]) || [];
-				if (streakData.length === 0) {
+				const explicitCount = typeof data.streakCount === "number" ? data.streakCount : null;
+				const streakLength = explicitCount ?? streakData.length;
+				if (streakLength === 0) {
 					answer = "No streak data found.";
 				} else {
-					const streakLength = streakData.length;
 					answer = `Your longest ${streakType} streak is ${streakLength} ${streakLength === 1 ? "game" : "games"}.`;
 					answerValue = streakLength;
 				}

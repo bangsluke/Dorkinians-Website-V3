@@ -2,21 +2,24 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigationStore } from "@/lib/stores/navigation";
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
-import PlayerBadgeMilestoneGrid, {
-	type EarnedBadgeRow,
-	type ProgressRow,
-} from "@/components/stats/PlayerBadgeMilestoneGrid";
 import { profileSlugToPlayerName } from "@/lib/profile/slug";
+import { generatePageCacheKey } from "@/lib/utils/pageCache";
 import { isSeasonWrappedPromoMonth } from "@/lib/wrapped/seasonWrappedPromo";
 import { playerNameToWrappedSlug } from "@/lib/wrapped/slug";
 import type { PlayerData } from "@/lib/stores/navigation";
+import type { EarnedBadgeRow, ProgressRow } from "@/components/stats/PlayerBadgeMilestoneGrid";
 import { featureFlags } from "@/config/config";
+
+const PlayerBadgeMilestoneGrid = dynamic(() => import("@/components/stats/PlayerBadgeMilestoneGrid"), {
+	ssr: false,
+});
 
 type BadgePayload = {
 	playerName: string;
@@ -30,10 +33,61 @@ type BadgePayload = {
 	milestoneLeadersByBadgeKey?: Record<string, { playerName: string; value: number }>;
 };
 
-export default function PlayerProfileView({ playerSlug }: { playerSlug: string }) {
+type PlayerProfileCachePayload = {
+	playerData: PlayerData | null;
+	badgePayload: BadgePayload | null;
+	wrappedSeasons: string[];
+	wrappedSelectedSeason: string | null;
+	wrappedDefaultSeason: string | null;
+};
+
+type InitialWrappedMeta = {
+	seasons: string[];
+	selectedSeason: string | null;
+	defaultSeason: string | null;
+};
+
+function isPlayerProfileCachePayload(value: unknown): value is PlayerProfileCachePayload {
+	if (!value || typeof value !== "object") return false;
+	const record = value as Record<string, unknown>;
+	return (
+		Array.isArray(record.wrappedSeasons) &&
+		"playerData" in record &&
+		"badgePayload" in record &&
+		"wrappedSelectedSeason" in record &&
+		"wrappedDefaultSeason" in record
+	);
+}
+
+export default function PlayerProfileView({
+	playerSlug,
+	initialHeadlineData,
+	initialWrappedMeta,
+}: {
+	playerSlug: string;
+	initialHeadlineData?: PlayerData | null;
+	initialWrappedMeta?: InitialWrappedMeta | null;
+}) {
 	const router = useRouter();
 	const enterEditMode = useNavigationStore((s) => s.enterEditMode);
 	const setMainPage = useNavigationStore((s) => s.setMainPage);
+	const getCachedPageData = useNavigationStore((s) => s.getCachedPageData);
+	const setCachedPageData = useNavigationStore((s) => s.setCachedPageData);
+	const playerName = useMemo(() => profileSlugToPlayerName(playerSlug), [playerSlug]);
+	const wrappedSlug = useMemo(() => {
+		if (!playerName) return null;
+		return playerNameToWrappedSlug(playerName);
+	}, [playerName]);
+	const profileCacheKey = useMemo(() => {
+		if (!playerName) return null;
+		return generatePageCacheKey("stats", "player-stats", "player-profile", { playerName });
+	}, [playerName]);
+	const cachedProfilePayload = useMemo(() => {
+		if (!profileCacheKey) return null;
+		const cached = getCachedPageData(profileCacheKey);
+		if (!cached) return null;
+		return isPlayerProfileCachePayload(cached.data) ? cached.data : null;
+	}, [profileCacheKey, getCachedPageData]);
 
 	const handleEditPlayerClick = useCallback(() => {
 		enterEditMode();
@@ -41,10 +95,16 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 		router.push("/");
 	}, [enterEditMode, setMainPage, router]);
 
-	const [playerData, setPlayerData] = useState<PlayerData | null>(null);
-	const [badgePayload, setBadgePayload] = useState<BadgePayload | null>(null);
-	const [wrappedSeasons, setWrappedSeasons] = useState<string[]>([]);
-	const [wrappedSelectedSeason, setWrappedSelectedSeason] = useState<string | null>(null);
+	const [playerData, setPlayerData] = useState<PlayerData | null>(
+		() => cachedProfilePayload?.playerData ?? initialHeadlineData ?? null,
+	);
+	const [badgePayload, setBadgePayload] = useState<BadgePayload | null>(() => cachedProfilePayload?.badgePayload ?? null);
+	const [wrappedSeasons, setWrappedSeasons] = useState<string[]>(
+		() => cachedProfilePayload?.wrappedSeasons ?? initialWrappedMeta?.seasons ?? [],
+	);
+	const [wrappedSelectedSeason, setWrappedSelectedSeason] = useState<string | null>(
+		() => cachedProfilePayload?.wrappedSelectedSeason ?? initialWrappedMeta?.selectedSeason ?? null,
+	);
 	const [seasonPickerOpen, setSeasonPickerOpen] = useState(false);
 	const [seasonMenuPos, setSeasonMenuPos] = useState<{ top: number; left: number } | null>(null);
 	const [pastSeasonsOpen, setPastSeasonsOpen] = useState(false);
@@ -53,10 +113,13 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 	const seasonDropdownRef = useRef<HTMLDivElement>(null);
 	const pastSeasonsTriggerRef = useRef<HTMLButtonElement>(null);
 	const pastSeasonsDropdownRef = useRef<HTMLDivElement>(null);
-	const [wrappedDefaultSeason, setWrappedDefaultSeason] = useState<string | null>(null);
-	const [isLoading, setIsLoading] = useState(true);
+	const [wrappedDefaultSeason, setWrappedDefaultSeason] = useState<string | null>(
+		() => cachedProfilePayload?.wrappedDefaultSeason ?? initialWrappedMeta?.defaultSeason ?? null,
+	);
+	const [isLoading, setIsLoading] = useState(() => !cachedProfilePayload && !initialHeadlineData);
+	const [isLoadingBadges, setIsLoadingBadges] = useState(false);
 	const [error, setError] = useState<string | null>(null);
-	const [seasonWrappedPromoActive, setSeasonWrappedPromoActive] = useState(false);
+	const [seasonWrappedPromoActive, setSeasonWrappedPromoActive] = useState(() => isSeasonWrappedPromoMonth(new Date()));
 
 	const updateSeasonMenuPosition = useCallback(() => {
 		const btn = seasonTriggerRef.current;
@@ -143,12 +206,6 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 		};
 	}, [pastSeasonsOpen]);
 
-	const playerName = useMemo(() => profileSlugToPlayerName(playerSlug), [playerSlug]);
-	const wrappedSlug = useMemo(() => {
-		if (!playerName) return null;
-		return playerNameToWrappedSlug(playerName);
-	}, [playerName]);
-
 	const openWrappedHref = useMemo(() => {
 		if (!wrappedSlug) return null;
 		const base = `/wrapped/${wrappedSlug}`;
@@ -164,76 +221,164 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 
 	useEffect(() => {
 		let cancelled = false;
+		const promo = isSeasonWrappedPromoMonth(new Date());
+		setSeasonWrappedPromoActive(promo);
+
+		if (!playerName) {
+			setError("Invalid player profile link.");
+			setIsLoading(false);
+			setIsLoadingBadges(false);
+			return () => {
+				cancelled = true;
+			};
+		}
+
+		if (cachedProfilePayload) {
+			setPlayerData(cachedProfilePayload.playerData ?? null);
+			setBadgePayload(cachedProfilePayload.badgePayload ?? null);
+			setWrappedSeasons(cachedProfilePayload.wrappedSeasons);
+			setWrappedSelectedSeason(cachedProfilePayload.wrappedSelectedSeason ?? null);
+			setWrappedDefaultSeason(cachedProfilePayload.wrappedDefaultSeason ?? null);
+			setError(null);
+			setIsLoading(false);
+			setIsLoadingBadges(false);
+			return () => {
+				cancelled = true;
+			};
+		}
+
+		if (initialHeadlineData) {
+			setPlayerData(initialHeadlineData);
+			setIsLoading(false);
+		}
+		if (initialWrappedMeta) {
+			setWrappedSeasons(initialWrappedMeta.seasons);
+			setWrappedSelectedSeason(initialWrappedMeta.selectedSeason);
+			setWrappedDefaultSeason(initialWrappedMeta.defaultSeason);
+		}
 
 		const load = async () => {
-			if (!playerName) {
-				setError("Invalid player profile link.");
-				setIsLoading(false);
-				return;
-			}
-
-			setIsLoading(true);
+			setIsLoading(!initialHeadlineData);
 			setError(null);
-			const promo = isSeasonWrappedPromoMonth(new Date());
-			setSeasonWrappedPromoActive(promo);
+			setIsLoadingBadges(featureFlags.achievementBadges);
+			setBadgePayload(null);
+			if (!initialWrappedMeta) {
+				setWrappedSeasons([]);
+				setWrappedSelectedSeason(null);
+				setWrappedDefaultSeason(null);
+			}
+			const cacheDraft: PlayerProfileCachePayload = {
+				playerData: null,
+				badgePayload: null,
+				wrappedSeasons: [],
+				wrappedSelectedSeason: null,
+				wrappedDefaultSeason: null,
+			};
+			const persistProfileCache = () => {
+				if (!profileCacheKey) return;
+				setCachedPageData(profileCacheKey, cacheDraft);
+			};
+			if (initialHeadlineData) {
+				cacheDraft.playerData = initialHeadlineData;
+				persistProfileCache();
+			}
+			if (initialWrappedMeta) {
+				cacheDraft.wrappedSeasons = initialWrappedMeta.seasons;
+				cacheDraft.wrappedSelectedSeason = initialWrappedMeta.selectedSeason;
+				cacheDraft.wrappedDefaultSeason = initialWrappedMeta.defaultSeason;
+				persistProfileCache();
+			}
 			try {
+				const playerPromise = initialHeadlineData
+					? Promise.resolve(initialHeadlineData)
+					: (async () => {
+							const playerRes = await fetch(`/api/player-data?playerName=${encodeURIComponent(playerName)}&profileHeadline=1`);
+							if (!playerRes.ok) {
+								throw new Error("Could not load player profile data.");
+							}
+							const playerJson = (await playerRes.json()) as { playerData?: PlayerData };
+							return playerJson.playerData ?? null;
+						})();
 				const wrappedPromise =
 					featureFlags.seasonWrapped && wrappedSlug
-						? fetch(`/api/wrapped/${encodeURIComponent(wrappedSlug)}`)
-						: Promise.resolve(new Response("", { status: 404 }));
-
+						? (async () => {
+								const wrappedRes = await fetch(`/api/wrapped/${encodeURIComponent(wrappedSlug)}?meta=1`);
+								if (!wrappedRes.ok) {
+									return { seasons: [], selectedSeason: null as string | null };
+								}
+								const wj = (await wrappedRes.json()) as {
+									seasonsAvailable?: string[];
+									season?: string;
+								};
+								const seasons = Array.isArray(wj.seasonsAvailable) ? wj.seasonsAvailable : [];
+								const season = typeof wj.season === "string" ? wj.season : null;
+								return { seasons, selectedSeason: season ?? seasons[0] ?? null };
+							})()
+						: Promise.resolve({ seasons: [], selectedSeason: null as string | null });
 				const badgesPromise = featureFlags.achievementBadges
-					? fetch(`/api/player-badges?playerName=${encodeURIComponent(playerName)}`)
-					: Promise.resolve(
-							new Response(
-								JSON.stringify({
-									playerName,
-									totalBadges: 0,
-									highestBadgeTier: null,
-									earned: [],
-									progress: [],
-								}),
-								{ status: 200, headers: { "Content-Type": "application/json" } },
-							),
-						);
+					? (async () => {
+							const badgesRes = await fetch(`/api/player-badges?playerName=${encodeURIComponent(playerName)}`);
+							if (!badgesRes.ok) throw new Error("Could not load badge data.");
+							return (await badgesRes.json()) as BadgePayload;
+						})()
+					: Promise.resolve(null);
 
-				const [playerRes, badgesRes, wrappedRes] = await Promise.all([
-					fetch(`/api/player-data?playerName=${encodeURIComponent(playerName)}`),
-					badgesPromise,
+				const [nextPlayerData, wrappedResult, badgesResult] = await Promise.allSettled([
+					playerPromise,
 					wrappedPromise,
+					badgesPromise,
 				]);
 
-				if (!playerRes.ok) {
-					throw new Error("Could not load player profile data.");
-				}
-				if (featureFlags.achievementBadges && !badgesRes.ok) {
-					throw new Error("Could not load badge data.");
-				}
-
-				const playerJson = (await playerRes.json()) as { playerData?: PlayerData };
-				const badgesJson = (await badgesRes.json()) as BadgePayload;
-
-				if (featureFlags.seasonWrapped && wrappedRes.ok) {
-					const wj = (await wrappedRes.json()) as {
-						seasonsAvailable?: string[];
-						season?: string;
-					};
-					const seasons = Array.isArray(wj.seasonsAvailable) ? wj.seasonsAvailable : [];
-					const season = typeof wj.season === "string" ? wj.season : null;
-					if (!cancelled) {
-						setWrappedSeasons(seasons);
-						setWrappedSelectedSeason(season ?? seasons[0] ?? null);
-						setWrappedDefaultSeason(season ?? seasons[0] ?? null);
-					}
-				} else if (!cancelled) {
-					setWrappedSeasons([]);
-					setWrappedSelectedSeason(null);
-					setWrappedDefaultSeason(null);
+				if (nextPlayerData.status === "rejected") {
+					throw nextPlayerData.reason instanceof Error
+						? nextPlayerData.reason
+						: new Error("Could not load player profile data.");
 				}
 
+				cacheDraft.playerData = nextPlayerData.value;
 				if (!cancelled) {
-					setPlayerData(playerJson.playerData ?? null);
-					setBadgePayload(badgesJson);
+					setPlayerData(nextPlayerData.value);
+				}
+				persistProfileCache();
+
+				if (wrappedResult.status === "fulfilled") {
+					cacheDraft.wrappedSeasons = wrappedResult.value.seasons;
+					cacheDraft.wrappedSelectedSeason = wrappedResult.value.selectedSeason;
+					cacheDraft.wrappedDefaultSeason = wrappedResult.value.selectedSeason;
+					if (!cancelled) {
+						setWrappedSeasons(wrappedResult.value.seasons);
+						setWrappedSelectedSeason(wrappedResult.value.selectedSeason);
+						setWrappedDefaultSeason(wrappedResult.value.selectedSeason);
+					}
+				}
+
+				if (featureFlags.achievementBadges) {
+					if (badgesResult.status === "fulfilled" && badgesResult.value) {
+						cacheDraft.badgePayload = badgesResult.value;
+						if (!cancelled) {
+							setBadgePayload(badgesResult.value);
+						}
+					} else {
+						const fallbackBadgePayload: BadgePayload = {
+							playerName,
+							totalBadges: 0,
+							highestBadgeTier: null,
+							earned: [],
+							progress: [],
+						};
+						cacheDraft.badgePayload = fallbackBadgePayload;
+						if (!cancelled) {
+							setBadgePayload(fallbackBadgePayload);
+						}
+					}
+					if (!cancelled) {
+						setIsLoadingBadges(false);
+					}
+					persistProfileCache();
+				} else if (!cancelled) {
+					setIsLoadingBadges(false);
+					cacheDraft.badgePayload = null;
+					persistProfileCache();
 				}
 			} catch (e) {
 				if (!cancelled) {
@@ -250,7 +395,7 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 		return () => {
 			cancelled = true;
 		};
-	}, [playerName, wrappedSlug]);
+	}, [cachedProfilePayload, initialHeadlineData, initialWrappedMeta, playerName, profileCacheKey, setCachedPageData, wrappedSlug]);
 
 	const showPastWrappedFooter =
 		featureFlags.seasonWrapped &&
@@ -259,6 +404,12 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 		pastWrappedSeasons.length > 0;
 
 	const showSeasonWrappedPromoBlock = featureFlags.seasonWrapped && seasonWrappedPromoActive;
+	const showWrappedPromoContent = showSeasonWrappedPromoBlock && wrappedSelectedSeason !== null;
+
+	useEffect(() => {
+		if (!openWrappedHref || !featureFlags.seasonWrapped) return;
+		void router.prefetch(openWrappedHref);
+	}, [featureFlags.seasonWrapped, openWrappedHref, router]);
 
 	return (
 		<div className='h-full px-4 py-6 md:px-8 md:py-8' data-testid='player-profile-page'>
@@ -317,6 +468,18 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 								</div>
 								<Skeleton height={6} className='rounded-full w-full' />
 							</div>
+							<div className='rounded-xl border border-white/10 bg-black/15 p-3 mb-3'>
+								<Skeleton height={14} width={130} className='mb-2' />
+								<div className='space-y-2'>
+										<div className='flex items-center justify-between gap-2'>
+											<div className='flex items-center gap-2'>
+												<Skeleton circle height={40} width={40} />
+												<Skeleton height={10} width={120} />
+											</div>
+											<Skeleton height={10} width={50} />
+										</div>
+								</div>
+							</div>
 							<div className='rounded-xl border border-white/10 bg-black/15 p-3'>
 								<Skeleton height={16} width='42%' className='mb-3' />
 								<div className='grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3'>
@@ -336,6 +499,14 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 				) : (
 					<>
 						{showSeasonWrappedPromoBlock ? (
+						!showWrappedPromoContent ? (
+							<div
+								className='rounded-xl border-2 border-[#E8C547]/60 bg-gradient-to-br from-[#E8C547]/25 via-[#E8C547]/15 to-[#b8941f]/12 p-4 md:p-5 shadow-md ring-1 ring-inset ring-[#E8C547]/25'
+								data-testid='player-profile-season-wrapped-loading'>
+								<h3 className='text-dorkinians-yellow font-semibold text-base md:text-lg'>Season Wrapped</h3>
+								<p className='mt-2 text-white/75 text-sm'>Loading season options…</p>
+							</div>
+						) : (
 						<div
 							id='player-profile-season-wrapped'
 							data-testid='player-profile-season-wrapped'
@@ -390,6 +561,8 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 									alt='Dorkinians FC'
 									width={48}
 									height={48}
+									priority={featureFlags.wrappedPriorityLogos}
+									fetchPriority={featureFlags.wrappedPriorityLogos ? "high" : "auto"}
 									className='rounded-full shrink-0 ring-2 ring-[#E8C547]/40'
 								/>
 							</div>
@@ -421,6 +594,9 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 													onClick={() => {
 														setWrappedSelectedSeason(s);
 														setSeasonPickerOpen(false);
+														if (wrappedSlug) {
+															router.push(`/wrapped/${wrappedSlug}?season=${encodeURIComponent(s)}`);
+														}
 													}}>
 													{s}
 												</button>
@@ -440,6 +616,7 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 								</div>
 							) : null}
 						</div>
+						)
 						) : null}
 
 						<div
@@ -464,7 +641,41 @@ export default function PlayerProfileView({ playerSlug }: { playerSlug: string }
 								data-testid='player-profile-milestones'
 								className='rounded-lg bg-white/10 backdrop-blur-sm p-4'>
 								<h3 className='text-white font-semibold text-sm md:text-base'>Achievement Badges</h3>
-								{badgePayload ? (
+								{isLoadingBadges ? (
+									<SkeletonTheme baseColor='var(--skeleton-base)' highlightColor='var(--skeleton-highlight)'>
+										<div className='mt-3 rounded-xl border border-white/10 bg-black/15 p-3 mb-3'>
+											<div className='flex items-center justify-between mb-2'>
+												<Skeleton height={16} width={110} />
+												<Skeleton height={16} width={44} />
+											</div>
+											<Skeleton height={6} className='rounded-full w-full' />
+										</div>
+										<div className='rounded-xl border border-white/10 bg-black/15 p-3 mb-3'>
+											<Skeleton height={14} width={130} className='mb-2' />
+											<div className='space-y-2'>
+													<div className='flex items-center justify-between gap-2'>
+														<div className='flex items-center gap-2'>
+															<Skeleton circle height={40} width={40} />
+															<Skeleton height={10} width={120} />
+														</div>
+														<Skeleton height={10} width={50} />
+													</div>
+											</div>
+										</div>
+										<div className='rounded-xl border border-white/10 bg-black/15 p-3'>
+											<Skeleton height={16} width='42%' className='mb-3' />
+											<div className='grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3'>
+												{Array.from({ length: 8 }).map((_, i) => (
+													<div key={i} className='flex flex-col items-center text-center gap-1.5 p-2 rounded-lg'>
+														<Skeleton circle height={36} width={36} />
+														<Skeleton height={10} width='75%' />
+														<Skeleton height={10} width='45%' />
+													</div>
+												))}
+											</div>
+										</div>
+									</SkeletonTheme>
+								) : badgePayload ? (
 									<>
 										<p className='text-white/75 text-sm mt-1'>
 											Unlocked: <span className='text-dorkinians-yellow font-semibold'>{badgePayload.totalBadges}</span>

@@ -19,6 +19,7 @@ Navigate to the Settings Page using the icon in the top right of the screen and 
 - [TOTW Page Documentation](4TOTWPage.md)
 - [Club Info Page Documentation](5ClubInfoPage.md)
 - [Settings Page Documentation](6SettingsPage.md)
+- [Player Profile Page Documentation](7PlayerProfilePage.md)
 
 ## Table of Contents
 
@@ -32,6 +33,7 @@ Navigate to the Settings Page using the icon in the top right of the screen and 
   - [TOTW](#totw)
   - [Club Info](#club-info)
   - [Settings](#settings)
+  - [Player Profile](#player-profile)
 - [Dorkinians Website Useful Links](#dorkinians-website-useful-links)
 
 ## Overview
@@ -147,8 +149,7 @@ The Club Info section contains information about the club, leagues, captains, aw
 **Sub-sections:**
 - **Club Information**: Club history, milestones, and location
 - **League Information**: League details and standings
-- **Club Captains**: Current and historical captains
-- **Club Awards**: Award information and winners
+- **Club Captains and Awards**: Current and historical captains plus award information and winners
 - **Useful Links**: External resources and links
 
 <div className="sideBySide">
@@ -185,6 +186,29 @@ The Settings page provides PWA installation options, links to help documentation
 
 :::info
 [View the Settings page documentation here.](6SettingsPage.md)
+:::
+
+> [Back to Table of Contents](#table-of-contents)
+
+### Player Profile
+
+The Player Profile page provides a dedicated player summary and includes a Season Wrapped section, headline metrics and achievement badges.
+
+This page is designed for fast player-level insights, with links to deeper stats and wrapped views.
+
+<div className="sideBySide">
+  <img
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Player-Profile-Mobile.png"
+    alt="Player Profile Mobile Screenshot Placeholder"
+  />
+  <img
+    src="https://bangsluke-assets.netlify.app/images/dorkinians/Player-Profile-Desktop.png"
+    alt="Player Profile Desktop Screenshot Placeholder"
+  />
+</div>
+
+:::info
+[View the Player Profile page documentation here.](7PlayerProfilePage.md)
 :::
 
 > [Back to Table of Contents](#table-of-contents)
