@@ -579,9 +579,13 @@ exports.handler = async (event, context) => {
 			requestBody.debug === "true" ||
 			seasonConfig.debug === true ||
 			seasonConfig.debug === "true";
+		const postRunRecycle =
+			requestBody.postRunRecycle === true ||
+			requestBody.postRunRecycle === "true";
 		
 		console.log(`🗓️ TRIGGER: Season configuration received:`, JSON.stringify(seasonConfig, null, 2));
 		console.log(`🔧 TRIGGER: Debug configuration received: ${debug ? "ENABLED ✅" : "DISABLED ❌"}`);
+		console.log(`🔁 TRIGGER: Post-run recycle received: ${postRunRecycle ? "ENABLED ✅" : "DISABLED ❌"}`);
 
 		// Detect if this is a cron job call (no email config) and set defaults
 		const isCronJob = !requestBody.emailConfig || Object.keys(requestBody.emailConfig).length === 0;
@@ -674,6 +678,7 @@ exports.handler = async (event, context) => {
 							},
 							seasonConfig: { ...seasonConfig, debug },
 							debug,
+							postRunRecycle,
 							triggerSource: isCronJob ? "cron" : "admin",
 						}),
 					},
