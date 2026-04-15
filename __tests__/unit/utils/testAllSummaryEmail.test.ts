@@ -94,4 +94,54 @@ describe("test-all summary email helpers", () => {
 
 		expect(text).toContain("Database package tests: run in the database-dorkinians repository pipeline.");
 	});
+
+	it("marks skipped-only E2E folders as SKIPPED, not FAILED", () => {
+		const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "test-all-email-skips-"));
+		try {
+			const paths = getTestAllArtifactPaths(tmpRoot);
+			fs.mkdirSync(path.dirname(paths.junit), { recursive: true });
+			fs.writeFileSync(
+				paths.junit,
+				`<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+  <testsuite name="root">
+    <testcase name="home skipped test" file="__tests__/e2e/02-home/home.spec.ts" time="0.2">
+      <skipped />
+    </testcase>
+  </testsuite>
+</testsuites>`,
+				"utf8",
+			);
+
+			const sections = buildSectionsFromArtifacts({
+				artifactsEnabled: true,
+				repoRoot: tmpRoot,
+				suitePass: {
+					unit: true,
+					integration: true,
+					otherJest: true,
+					e2e: true,
+					chatbotReport: true,
+					questionsReport: true,
+				},
+				logs: {},
+			});
+			const e2eSection = sections.find((s: any) => s.displayName === "E2E (Playwright)");
+			expect(e2eSection).toBeDefined();
+			expect(e2eSection.subsections).toEqual([{ name: "Home", status: "skipped", passed: false }]);
+
+			const text = buildTestAllEmailPlainText({
+				summaryItems: [{ name: "E2E Tests", result: true }],
+				passedCount: 1,
+				totalCount: 1,
+				e2eSkippedCount: 1,
+				e2eSkipNote: "Expected skips",
+				sections: [e2eSection],
+			});
+			expect(text).toContain("  - Home: SKIPPED");
+			expect(text).not.toContain("  - Home: FAILED");
+		} finally {
+			fs.rmSync(tmpRoot, { recursive: true, force: true });
+		}
+	});
 });
