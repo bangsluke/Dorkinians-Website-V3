@@ -352,8 +352,18 @@ export async function goToClubInfoSubPage(page: Page, subPageId: ClubInfoSubPage
 		if (isMobile) {
 			const idx = CLUB_INFO_SUBPAGE_DOT_INDEX[effectiveSubPageId];
 			const dot = page.getByTestId(`club-info-subpage-indicator-${idx}`);
-			await dot.waitFor({ state: "visible", timeout: 15000 });
-			await dot.click({ force: true, timeout: 10000 });
+			try {
+				await dot.waitFor({ state: "visible", timeout: 15000 });
+				await dot.click({ force: true, timeout: 10000 });
+			} catch {
+				const sidebarFallback = page.locator("aside").getByTestId(`nav-sidebar-${effectiveSubPageId}`).first();
+				if (await sidebarFallback.isVisible({ timeout: 3000 }).catch(() => false)) {
+					await sidebarFallback.click({ force: true, timeout: 10000 }).catch(() => {});
+				} else {
+					await page.keyboard.press("Escape").catch(() => {});
+					continue;
+				}
+			}
 		} else if (attempt < 2) {
 			await page.keyboard.press("Escape").catch(() => {});
 			const btn = page.locator("aside").getByTestId(`nav-sidebar-${effectiveSubPageId}`);

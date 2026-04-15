@@ -17,8 +17,8 @@ export default defineConfig({
 	forbidOnly: !!process.env.CI,
 	/* Retry on CI only */
 	retries: process.env.CI ? 2 : 0,
-	/* Run tests sequentially to maintain order */
-	workers: 1,
+	/* Keep CI deterministic; speed up local runs with modest parallelism. */
+	workers: process.env.CI ? 1 : Number(process.env.PLAYWRIGHT_WORKERS || 2),
 	/* Reporter to use. See https://playwright.dev/docs/test-reporters */
 	reporter: process.env.CI
 		? [
@@ -42,8 +42,8 @@ export default defineConfig({
 		trace: 'on-first-retry',
 		/* Screenshot on failure */
 		screenshot: 'only-on-failure',
-		/* Video recording disabled - only screenshots on failure */
-		video: 'on',
+		/* Keep failure artifacts without recording every passing test video. */
+		video: 'retain-on-failure',
 		/* Maximum time each action such as `click()` can take. Defaults to 0 (no limit). */
 		actionTimeout: 60000,
 	},

@@ -235,6 +235,23 @@ const extractFailureReason = (output, testLineIndex, lines) => {
 const PLAYWRIGHT_LINE_RE =
 	/^\s*([✓✗✘×⊘-])\s+\d+\s+\[([^\]]+)\]\s+›\s+([^:]+):\d+:\d+\s+›\s+(.+?)\s+›\s+(.+?)\s+\(([\d.]+)s\)/;
 
+const classifyStatusFromIcon = (icon) => {
+	if (icon === '✓') return 'passed';
+	if (icon === '⊘' || icon === '-') return 'skipped';
+	return 'failed';
+};
+
+const mergeStatus = (a, b) => {
+	const rank = { passed: 0, skipped: 1, failed: 2 };
+	return rank[a] >= rank[b] ? a : b;
+};
+
+const iconForStatus = (status) => {
+	if (status === 'passed') return '✓';
+	if (status === 'skipped') return '⊘';
+	return '✗';
+};
+
 const parseTestResults = () => {
 	const lines = testOutput.split('\n');
 	const rawRows = [];
@@ -273,12 +290,13 @@ const parseTestResults = () => {
 			mergeMap.set(key, { ...row });
 			continue;
 		}
-		const anyFail = prev.statusIcon !== '✓' || row.statusIcon !== '✓';
-		const lineIndex =
-			row.statusIcon !== '✓' ? row.lineIndex : prev.statusIcon !== '✓' ? prev.lineIndex : row.lineIndex;
+		const mergedStatus = mergeStatus(classifyStatusFromIcon(prev.statusIcon), classifyStatusFromIcon(row.statusIcon));
+		const lineIndex = mergedStatus === 'failed'
+			? (classifyStatusFromIcon(row.statusIcon) === 'failed' ? row.lineIndex : prev.lineIndex)
+			: row.lineIndex;
 		mergeMap.set(key, {
 			lineIndex,
-			statusIcon: anyFail ? '✗' : '✓',
+			statusIcon: iconForStatus(mergedStatus),
 			filePath: row.filePath,
 			suite: row.suite,
 			testName: row.testName,
@@ -290,12 +308,14 @@ const parseTestResults = () => {
 	let mergedCount = 0;
 	let passedCount = 0;
 	let failedCount = 0;
+	let skippedCount = 0;
 
 	for (const row of mergeMap.values()) {
 		mergedCount++;
-		const status = row.statusIcon === '✓' ? 'passed' : 'failed';
+		const status = classifyStatusFromIcon(row.statusIcon);
 		if (status === 'passed') passedCount++;
-		else failedCount++;
+		else if (status === 'failed') failedCount++;
+		else skippedCount++;
 
 		let failureReason = null;
 		if (status === 'failed') {
@@ -308,6 +328,7 @@ const parseTestResults = () => {
 				tests: [],
 				passed: 0,
 				failed: 0,
+				skipped: 0,
 			};
 		}
 
@@ -320,7 +341,8 @@ const parseTestResults = () => {
 		});
 
 		if (status === 'passed') testResults[row.suite].passed++;
-		else testResults[row.suite].failed++;
+		else if (status === 'failed') testResults[row.suite].failed++;
+		else testResults[row.suite].skipped++;
 	}
 
 	if (rawRows.length === 0) {
@@ -328,7 +350,7 @@ const parseTestResults = () => {
 		console.warn(lines.slice(0, 20).join('\n'));
 	} else {
 		console.log(
-			`📊 Parsed ${rawRows.length} result lines → ${mergedCount} tests (${passedCount} passed, ${failedCount} failed)`,
+			`📊 Parsed ${rawRows.length} result lines → ${mergedCount} tests (${passedCount} passed, ${failedCount} failed, ${skippedCount} skipped)`,
 		);
 	}
 
@@ -377,15 +399,15 @@ function loadSkippedFromJsonReport() {
 	try {
 		if (!fs.existsSync(JSON_REPORT_PATH)) {
 			console.warn('⚠️ Playwright JSON report not found:', JSON_REPORT_PATH);
-			return [];
+			return { rows: [], available: false };
 		}
 		const raw = fs.readFileSync(JSON_REPORT_PATH, 'utf8');
 		const report = JSON.parse(raw);
 		const rows = extractSkippedTestsFromPlaywrightJson(report);
-		return mergeSkippedTestsForEmail(rows);
+		return { rows: mergeSkippedTestsForEmail(rows), available: true };
 	} catch (e) {
 		console.warn('⚠️ Could not parse Playwright JSON for skips:', e.message);
-		return [];
+		return { rows: [], available: false };
 	}
 }
 
@@ -393,7 +415,8 @@ const sendEmailReport = async () => {
 	const summary = getTestSummary();
 	const testResults = parseTestResults();
 	const screenshots = getScreenshots();
-	const skippedMerged = loadSkippedFromJsonReport();
+	const skippedMeta = loadSkippedFromJsonReport();
+	const skippedMerged = skippedMeta.rows;
 	const timestamp = new Date().toLocaleString('en-GB', { timeZone: 'Europe/London' });
 
 	const status = testPassed ? '✅ PASSED' : '❌ FAILED';
@@ -420,24 +443,24 @@ const sendEmailReport = async () => {
 
 		for (const suiteName of sortedSuites) {
 			const suiteData = testResults[suiteName];
-			const suiteStatus = suiteData.failed === 0 ? 'passed' : 'failed';
-			const suiteStatusColor = suiteStatus === 'passed' ? '#28a745' : '#dc3545';
-			const suiteStatusIcon = suiteStatus === 'passed' ? '✅' : '❌';
+			const suiteStatus = suiteData.failed > 0 ? 'failed' : suiteData.passed > 0 ? 'passed' : 'skipped';
+			const suiteStatusColor = suiteStatus === 'passed' ? '#28a745' : suiteStatus === 'skipped' ? '#b45309' : '#dc3545';
+			const suiteStatusIcon = suiteStatus === 'passed' ? '✅' : suiteStatus === 'skipped' ? '⊘' : '❌';
 
 			html += `
 			<div style="margin:12px 0;border:1px solid #eaecf0;border-radius:10px;overflow:hidden;background:#ffffff;">
 				<div style="color:white;padding:12px 14px;background:${suiteStatusColor};">
-					<h3 style="margin:0;font-size:16px;">${suiteStatusIcon} ${escapeHtml(suiteName)} - ${suiteData.passed} passed, ${suiteData.failed} failed</h3>
+					<h3 style="margin:0;font-size:16px;">${suiteStatusIcon} ${escapeHtml(suiteName)} - ${suiteData.passed} passed, ${suiteData.failed} failed, ${suiteData.skipped || 0} skipped</h3>
 				</div>
 				<div style="padding:12px 14px;">
 					<ul style="list-style:none;padding:0;margin:0;">
 			`;
 
 			for (const test of suiteData.tests) {
-				const testStatusIcon = test.status === 'passed' ? '✓' : '✗';
-				const testStatusColor = test.status === 'passed' ? '#28a745' : '#dc3545';
-				const bg = test.status === 'passed' ? '#ecfdf3' : '#fef3f2';
-				const border = test.status === 'passed' ? '#bbf7d0' : '#fecdca';
+				const testStatusIcon = test.status === 'passed' ? '✓' : test.status === 'skipped' ? '⊘' : '✗';
+				const testStatusColor = test.status === 'passed' ? '#28a745' : test.status === 'skipped' ? '#b45309' : '#dc3545';
+				const bg = test.status === 'passed' ? '#ecfdf3' : test.status === 'skipped' ? '#fffbeb' : '#fef3f2';
+				const border = test.status === 'passed' ? '#bbf7d0' : test.status === 'skipped' ? '#fedf89' : '#fecdca';
 
 				html += `
 					<li style="display:flex;align-items:flex-start;padding:10px;margin:6px 0;border-radius:6px;background:${bg};border-left:3px solid ${border};">
@@ -479,8 +502,12 @@ const sendEmailReport = async () => {
 		</div>
 	`;
 
+	const skippedSectionMessage =
+		!skippedMeta.available && summary.skipped > 0
+			? '<p style="margin:0;color:#b42318;">Skipped tests were detected, but the Playwright JSON report was unavailable, so per-test skip reasons could not be extracted.</p>'
+			: renderSkippedTestsTableHtml(skippedMerged);
 	const skippedSectionHtml = wrapSectionCard(
-		`<p style="margin:0 0 10px 0;font-size:12px;color:#667085;">Skipped tests and reasons (from Playwright JSON report).</p>${renderSkippedTestsTableHtml(skippedMerged)}`,
+		`<p style="margin:0 0 10px 0;font-size:12px;color:#667085;">Skipped tests and reasons (from Playwright JSON report).</p>${skippedSectionMessage}`,
 		{ heading: 'Skipped tests' },
 	);
 
@@ -517,11 +544,11 @@ const sendEmailReport = async () => {
 		let text = '';
 		for (const suiteName of sortedSuites) {
 			const suiteData = testResults[suiteName];
-			const suiteStatus = suiteData.failed === 0 ? '✅' : '❌';
-			text += `\n${suiteStatus} ${suiteName} (${suiteData.passed} passed, ${suiteData.failed} failed)\n`;
+			const suiteStatus = suiteData.failed > 0 ? '❌' : suiteData.passed > 0 ? '✅' : '⊘';
+			text += `\n${suiteStatus} ${suiteName} (${suiteData.passed} passed, ${suiteData.failed} failed, ${suiteData.skipped || 0} skipped)\n`;
 			text += `${'='.repeat(50)}\n`;
 			for (const test of suiteData.tests) {
-				const icon = test.status === 'passed' ? '✓' : '✗';
+				const icon = test.status === 'passed' ? '✓' : test.status === 'skipped' ? '⊘' : '✗';
 				text += `  ${icon} ${test.name} (${test.duration.toFixed(1)}s)`;
 				if (test.failureReason) text += ` - ${test.failureReason}`;
 				text += '\n';
@@ -534,6 +561,8 @@ const sendEmailReport = async () => {
 	let skippedText = '';
 	if (skippedMerged.length) {
 		skippedText = '\nSkipped tests:\n' + skippedMerged.map((s) => `  - [${s.projects?.join(', ') || s.projectName}] ${s.title} (${s.file}${s.line ? ':' + s.line : ''}): ${s.reason}`).join('\n');
+	} else if (!skippedMeta.available && summary.skipped > 0) {
+		skippedText = '\nSkipped tests:\n  - Per-test skip reasons unavailable because the Playwright JSON report was missing or unreadable.';
 	}
 
 	const textBody = `E2E Test Results - ${status}
