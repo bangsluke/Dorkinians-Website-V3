@@ -57,13 +57,23 @@ class Neo4jService {
 			}
 		);
 
-		// Test connection with timeout
-		await Promise.race([
-			this.driver.verifyConnectivity(),
-			new Promise((_, reject) => 
-				setTimeout(() => reject(new Error("Connection verification timeout after 30 seconds")), 30000)
-			)
-		]);
+		// Test connection with timeout and clear timer to avoid leaked handles in tests.
+		let connectivityTimeout = null;
+		try {
+			await Promise.race([
+				this.driver.verifyConnectivity(),
+				new Promise((_, reject) => {
+					connectivityTimeout = setTimeout(() => reject(new Error("Connection verification timeout after 30 seconds")), 30000);
+					if (typeof connectivityTimeout.unref === "function") {
+						connectivityTimeout.unref();
+					}
+				}),
+			]);
+		} finally {
+			if (connectivityTimeout) {
+				clearTimeout(connectivityTimeout);
+			}
+		}
 			this.isConnected = true;
 
 			logDebug("✅ Neo4j connection established");

@@ -35,8 +35,9 @@ if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) 
 // In-memory rate limit store (fallback for development)
 const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
 
-// Cleanup old entries periodically to prevent memory leaks
-setInterval(() => {
+// Cleanup old entries periodically to prevent memory leaks.
+// Unref so this timer does not keep Node/Jest worker processes alive.
+const cleanupInterval = setInterval(() => {
 	const now = Date.now();
 	for (const [ip, data] of rateLimitStore.entries()) {
 		if (now > data.resetTime) {
@@ -44,6 +45,9 @@ setInterval(() => {
 		}
 	}
 }, 60 * 1000); // Cleanup every minute
+if (typeof (cleanupInterval as any).unref === "function") {
+	(cleanupInterval as any).unref();
+}
 
 // In-memory rate limiter (fallback)
 function createInMemoryRateLimiter(config: RateLimitConfig) {
