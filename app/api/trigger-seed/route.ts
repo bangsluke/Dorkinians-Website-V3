@@ -45,11 +45,15 @@ export async function POST(request: NextRequest) {
 			requestBody.debug === "true" ||
 			seasonConfig.debug === true ||
 			seasonConfig.debug === "true";
+		const postRunRecycle =
+			requestBody.postRunRecycle === true ||
+			requestBody.postRunRecycle === "true";
 
 		logRequest("Seed request received", {
 			hasEmailConfig: !!emailConfig,
 			hasSeasonConfig: !!seasonConfig,
 			debugEnabled: debug,
+			postRunRecycle,
 		});
 
 		// Trigger Heroku seeding service (fire-and-forget)
@@ -101,6 +105,7 @@ export async function POST(request: NextRequest) {
 					emailConfig,
 					seasonConfig: { ...seasonConfig, debug },
 					debug,
+					postRunRecycle,
 				}),
 				signal: controller.signal,
 			});

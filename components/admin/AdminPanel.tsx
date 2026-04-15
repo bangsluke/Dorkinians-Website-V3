@@ -131,7 +131,6 @@ export default function AdminPanel() {
 
 	// UI state
 	const [isInfoTooltipOpen, setIsInfoTooltipOpen] = useState(false);
-	const [isInfoTooltipHovered, setIsInfoTooltipHovered] = useState(false);
 	
 	// Toast notification state
 	const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -323,7 +322,6 @@ export default function AdminPanel() {
 		setLastStatusCheck(null);
 		setElapsedTime(0);
 		setIsInfoTooltipOpen(false);
-		setIsInfoTooltipHovered(false);
 		startTimeRef.current = Date.now();
 		addDebugLog("Starting seeding process...");
 
@@ -1110,8 +1108,6 @@ export default function AdminPanel() {
 					type='button'
 					aria-label='Admin panel help and capabilities'
 					title='How this admin panel works'
-					onMouseEnter={() => setIsInfoTooltipHovered(true)}
-					onMouseLeave={() => setIsInfoTooltipHovered(false)}
 					onClick={() => setIsInfoTooltipOpen((prev) => !prev)}
 					onTouchStart={(event) => {
 						event.preventDefault();
@@ -1122,12 +1118,11 @@ export default function AdminPanel() {
 					i
 				</button>
 			</div>
-			{(isInfoTooltipOpen || isInfoTooltipHovered) && (
+			{isInfoTooltipOpen && (
 				<div
 					className='fixed inset-0 z-50 flex items-center justify-center p-4'
 					onClick={() => {
 						setIsInfoTooltipOpen(false);
-						setIsInfoTooltipHovered(false);
 					}}
 				>
 					<div className='absolute inset-0 bg-black/40' />
@@ -1136,8 +1131,6 @@ export default function AdminPanel() {
 						aria-modal='true'
 						className='relative bg-white rounded-lg shadow-xl border border-blue-200 p-4 sm:p-5 w-[90vw] md:w-[70vw] max-h-[80vh] overflow-y-auto'
 						onClick={(event) => event.stopPropagation()}
-						onMouseEnter={() => setIsInfoTooltipHovered(true)}
-						onMouseLeave={() => setIsInfoTooltipHovered(false)}
 					>
 						<p className='text-sm font-semibold text-blue-900 mb-2'>Admin Panel Capabilities</p>
 						<ul className='text-xs sm:text-sm text-gray-700 space-y-2'>
@@ -1151,10 +1144,7 @@ export default function AdminPanel() {
 						<div className='mt-4 text-right'>
 							<button
 								type='button'
-								onClick={() => {
-									setIsInfoTooltipOpen(false);
-									setIsInfoTooltipHovered(false);
-								}}
+								onClick={() => setIsInfoTooltipOpen(false)}
 								className='px-3 py-1.5 rounded bg-blue-600 text-white text-xs sm:text-sm hover:bg-blue-700'
 							>
 								Close
