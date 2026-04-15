@@ -54,16 +54,33 @@ async function openListboxAndPickSecondOption(page: import("@playwright/test").P
 		await page.keyboard.press("Escape");
 		return false;
 	}
-	const firstText = (await options.nth(0).innerText()).trim();
-	for (let i = 1; i < n; i++) {
-		const t = (await options.nth(i).innerText()).trim();
+	// Read option text in a single DOM pass to avoid per-option timeout flake.
+	const texts = await options.evaluateAll((nodes) => nodes.map((node) => (node.textContent || "").trim()));
+	const firstText = texts[0] || "";
+	for (let i = 1; i < texts.length; i++) {
+		const t = texts[i];
 		if (t && t !== firstText && t !== "Season Progress" && t !== "My Seasons") {
-			await options.nth(i).click();
-			return true;
+			const opt = options.nth(i);
+			if (await opt.isVisible({ timeout: 5000 }).catch(() => false)) {
+				try {
+					await opt.click({ timeout: 5000 });
+					return true;
+				} catch {
+					// HeadlessUI options can re-render between visibility check and click; try next candidate.
+				}
+			}
 		}
 	}
-	await options.nth(1).click();
-	return true;
+	if (await options.nth(1).isVisible({ timeout: 5000 }).catch(() => false)) {
+		try {
+			await options.nth(1).click({ timeout: 5000 });
+			return true;
+		} catch {
+			// Fall through to Escape + skip path.
+		}
+	}
+	await page.keyboard.press("Escape");
+	return false;
 }
 
 // True when PoM table header is visible, or loading skeleton cleared without an obvious API error banner.

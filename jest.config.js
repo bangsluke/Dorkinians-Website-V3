@@ -31,8 +31,7 @@ module.exports = {
 	testTimeout: 60000,
 	// Enable verbose output for database operations
 	verbose: process.env.JEST_VERBOSE === "true",
-	// Handle async operations properly
-	forceExit: true,
+	// Let Jest exit naturally so open-handle leaks are visible/fixable.
 	// Clean up after tests
 	clearMocks: true,
 	resetMocks: true,

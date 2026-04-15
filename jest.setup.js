@@ -26,3 +26,23 @@ if (isVerbose) {
 	// Clean, minimal output for regular test runs
 	console.log("🧪 Jest setup: Production database testing configured");
 }
+
+afterAll(async () => {
+	// Ensure singleton DB drivers do not keep Jest alive.
+	try {
+		const { neo4jService } = require("./lib/neo4j");
+		if (neo4jService && typeof neo4jService.disconnect === "function") {
+			await neo4jService.disconnect();
+		}
+	} catch {
+		// Ignore when tests mock/replace neo4j module.
+	}
+	try {
+		const { neo4jService } = require("./netlify/functions/lib/neo4j.js");
+		if (neo4jService && typeof neo4jService.disconnect === "function") {
+			await neo4jService.disconnect();
+		}
+	} catch {
+		// Ignore when tests mock/replace the Netlify neo4j module.
+	}
+});
