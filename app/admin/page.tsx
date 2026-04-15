@@ -39,7 +39,7 @@ export default function AdminPage() {
 					</div>
 					<button
 						onClick={() => signOut({ callbackUrl: "/" })}
-						className='px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors whitespace-nowrap min-w-fit'>
+						className='px-2.5 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700 transition-colors whitespace-nowrap min-w-fit'>
 						Sign Out
 					</button>
 				</div>
