@@ -102,6 +102,7 @@ export default function AdminPanel() {
 	
 	// Debug logs state
 	const [debugLogs, setDebugLogs] = useState<boolean>(false);
+	const [postRunRecycle, setPostRunRecycle] = useState<boolean>(true);
 
 	// Helper function to build Heroku API URLs with proper path handling
 	const buildHerokuUrl = (path: string): string => {
@@ -129,7 +130,8 @@ export default function AdminPanel() {
 	const [showDebugInfo, setShowDebugInfo] = useState(false);
 
 	// UI state
-	const [showProcessInfo, setShowProcessInfo] = useState(false);
+	const [isInfoTooltipOpen, setIsInfoTooltipOpen] = useState(false);
+	const [isInfoTooltipHovered, setIsInfoTooltipHovered] = useState(false);
 	
 	// Toast notification state
 	const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -320,7 +322,8 @@ export default function AdminPanel() {
 		setResult(null);
 		setLastStatusCheck(null);
 		setElapsedTime(0);
-		setShowProcessInfo(false); // Collapse process info when seeding starts
+		setIsInfoTooltipOpen(false);
+		setIsInfoTooltipHovered(false);
 		startTimeRef.current = Date.now();
 		addDebugLog("Starting seeding process...");
 
@@ -382,6 +385,7 @@ export default function AdminPanel() {
 							blueGreenCutover: fullRebuild ? blueGreenCutover : false,
 						},
 						debug: debugLogs,
+						postRunRecycle,
 					};
 
 					// Debug logging
@@ -1100,7 +1104,65 @@ export default function AdminPanel() {
 
 	return (
 		<div className='w-full min-h-screen p-2 sm:p-6 bg-white overflow-x-hidden py-4 px-4'>
-			<h2 className='text-xl sm:text-2xl font-bold text-gray-900 mb-6 text-center'>Dorkinians Database Seeding Admin Panel</h2>
+			<div className='mb-6 flex items-center justify-center gap-2'>
+				<h2 className='text-xl sm:text-2xl font-bold text-gray-900 text-center'>Dorkinians Database Seeding Admin Panel</h2>
+				<button
+					type='button'
+					aria-label='Admin panel help and capabilities'
+					title='How this admin panel works'
+					onMouseEnter={() => setIsInfoTooltipHovered(true)}
+					onMouseLeave={() => setIsInfoTooltipHovered(false)}
+					onClick={() => setIsInfoTooltipOpen((prev) => !prev)}
+					onTouchStart={(event) => {
+						event.preventDefault();
+						setIsInfoTooltipOpen((prev) => !prev);
+					}}
+					className='h-7 w-7 rounded-full border border-blue-400 text-blue-700 text-sm font-bold bg-white hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500'
+				>
+					i
+				</button>
+			</div>
+			{(isInfoTooltipOpen || isInfoTooltipHovered) && (
+				<div
+					className='fixed inset-0 z-50 flex items-center justify-center p-4'
+					onClick={() => {
+						setIsInfoTooltipOpen(false);
+						setIsInfoTooltipHovered(false);
+					}}
+				>
+					<div className='absolute inset-0 bg-black/40' />
+					<div
+						role='dialog'
+						aria-modal='true'
+						className='relative bg-white rounded-lg shadow-xl border border-blue-200 p-4 sm:p-5 w-[90vw] md:w-[70vw] max-h-[80vh] overflow-y-auto'
+						onClick={(event) => event.stopPropagation()}
+						onMouseEnter={() => setIsInfoTooltipHovered(true)}
+						onMouseLeave={() => setIsInfoTooltipHovered(false)}
+					>
+						<p className='text-sm font-semibold text-blue-900 mb-2'>Admin Panel Capabilities</p>
+						<ul className='text-xs sm:text-sm text-gray-700 space-y-2'>
+							<li>• Trigger production seeding with run-specific options for notifications, debug logging, season scope, and post-run recycle behavior.</li>
+							<li>• Configure selective mode, full rebuild mode, blue/green cutover, and optional season override for targeted reruns.</li>
+							<li>• Track jobs in real time with status checks, elapsed time, progress details, online job logs, warnings logs, and full jobs listing.</li>
+							<li>• Use the Live Logs command to tail backend Heroku logs during active runs for deep diagnostics.</li>
+							<li>• Review result and error context, including troubleshooting guidance and operational metadata.</li>
+							<li>• Access related tools from this page, including monitoring dashboards and admin support utilities.</li>
+						</ul>
+						<div className='mt-4 text-right'>
+							<button
+								type='button'
+								onClick={() => {
+									setIsInfoTooltipOpen(false);
+									setIsInfoTooltipHovered(false);
+								}}
+								className='px-3 py-1.5 rounded bg-blue-600 text-white text-xs sm:text-sm hover:bg-blue-700'
+							>
+								Close
+							</button>
+						</div>
+					</div>
+				</div>
+			)}
 			{siteDetails && (
 				<div className='mb-4 text-center'>
 					<p className='text-sm text-gray-600'>
@@ -1118,70 +1180,13 @@ export default function AdminPanel() {
 					className='inline-block px-6 py-3 rounded-lg text-sm font-semibold text-white transition-colors bg-green-600 hover:bg-green-700'>
 					See Umami Analytics of the site here
 				</a>
-				<a
-					href='https://dashboard.scraperapi.com/home'
-					target='_blank'
-					rel='noopener noreferrer'
-					className='inline-block px-6 py-3 rounded-lg text-sm font-semibold text-white transition-colors bg-blue-400 hover:bg-blue-500'>
-					See League Table Scraper
-				</a>
-			</div>
-
-					{/* How the Database Seeding Process Works - Collapsible */}
-					<div className='mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg'>
-				<button
-					onClick={() => setShowProcessInfo(!showProcessInfo)}
-					className='flex items-center justify-between w-full text-left'>
-					<h3 className='text-sm font-semibold text-blue-800'>How the Database Seeding Process Works</h3>
-					<span className='text-blue-600 text-xl font-bold'>{showProcessInfo ? '−' : '+'}</span>
-				</button>
-				{showProcessInfo && (
-					<div className='mt-3'>
-						<ul className='text-blue-700 text-xs space-y-2'>
-							<li>
-								• <strong>Step 1:</strong> Configure season settings (optional) - Use season override for historical data correction or enable full rebuild to clear all data
-							</li>
-							<li>
-								• <strong>Step 2:</strong> Click &quot;Trigger Database Seeding&quot; to start the process. This triggers the Netlify function to make the call to Heroku
-							</li>
-							<li>
-								• <strong>Step 3:</strong> The system will show &quot;Pending&quot; status while initializing, then &quot;Running&quot; as seeding begins
-							</li>
-							<li>
-								• <strong>Step 4:</strong> Data clearing occurs based on your configuration:
-								<ul className='ml-4 mt-1 space-y-1'>
-									<li>• <strong>Selective Mode (default):</strong> 
-										<ul className='ml-4 mt-1 space-y-1'>
-											<li>- <strong>SiteDetail & TestData:</strong> Cleared and rebuilt</li>
-											<li>- <strong>Fixture & MatchDetail:</strong> Only current season cleared (historical preserved)</li>
-											<li>- <strong>Player, WeeklyTOTW, SeasonTOTW, PlayersOfTheMonth, CaptainsAndAwards, OppositionDetails, UnansweredQuestions:</strong> Preserved (only new items added)</li>
-										</ul>
-									</li>
-									<li>• <strong>Full Rebuild:</strong> ALL data is cleared and reseeded from scratch</li>
-								</ul>
-							</li>
-							<li>
-								• <strong>Step 5:</strong> CSV data is fetched and processed, with non-current season rows skipped in selective mode
-							</li>
-							<li>
-								• <strong>Step 6:</strong> Use &quot;Check Seeding Status&quot; to monitor progress and get final results
-							</li>
-							<li>
-								• <strong>Step 7:</strong> Check your email for detailed completion notifications with season information
-							</li>
-							<li>
-								• <strong>Debug:</strong> Use &quot;Debug: List All Jobs&quot; to view all jobs and their statuses
-							</li>
-						</ul>
-					</div>
-				)}
 			</div>
 
 			{/* Email Configuration Section */}
 			<div className='mb-6 p-4 bg-gray-50 rounded-lg'>
 				<h3 className='text-lg font-semibold text-gray-800 mb-2'>Email Notifications</h3>
 				<div className='space-y-4'>
-					<div>
+					<div className='w-full lg:w-1/2 lg:mx-auto'>
 						<label htmlFor='emailAddress' className='block text-sm font-medium text-gray-700'>
 							Email Address for Notifications:
 						</label>
@@ -1225,7 +1230,7 @@ export default function AdminPanel() {
 
 					{/* Debug Configuration Section */}
 			<div className='mb-6 p-4 bg-gray-50 rounded-lg'>
-				<h3 className='text-lg font-semibold text-gray-800 mb-2'>Debug Configuration</h3>
+				<h3 className='text-lg font-semibold text-gray-800 mb-2'>Debug and Run Options Configuration</h3>
 				<div className='space-y-2'>
 					<div className='flex items-center'>
 						<input
@@ -1243,6 +1248,21 @@ export default function AdminPanel() {
 						When enabled, all debug information, query details, and object properties will be logged. 
 						When disabled, only essential progress and completion logs are shown.
 					</p>
+					<div className='flex items-center'>
+						<input
+							type='checkbox'
+							id='postRunRecycle'
+							checked={postRunRecycle}
+							onChange={(e) => setPostRunRecycle(e.target.checked)}
+							className='mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded'
+						/>
+						<label htmlFor='postRunRecycle' className='text-sm text-gray-700'>
+							Post Run Recycle (restart process after terminal run if memory remains critical)
+						</label>
+					</div>
+					<p className='text-xs text-gray-600 ml-6'>
+						Enabled by default. This applies guarded recycle logic only after terminal job state is persisted and no active runs remain.
+					</p>
 				</div>
 			</div>
 
@@ -1250,7 +1270,7 @@ export default function AdminPanel() {
 			<div className='mb-6 p-4 bg-blue-50 rounded-lg'>
 				<h3 className='text-lg font-semibold text-gray-800 mb-2'>Season Configuration</h3>
 				<div className='space-y-4'>
-					<div className='p-3 bg-white rounded-md border'>
+					<div className='p-3 bg-white rounded-md border w-full lg:w-1/2 lg:mx-auto'>
 						<div className='flex items-center justify-between mb-2'>
 							<span className='text-sm font-medium text-gray-700'>Current Season:</span>
 							<span className='text-sm font-mono bg-gray-100 text-gray-800 px-2 py-1 rounded'>{currentSeason}</span>
@@ -1298,7 +1318,7 @@ export default function AdminPanel() {
 					</div>
 					
 					{useSeasonOverride && (
-						<div>
+						<div className='w-full lg:w-1/2 lg:mx-auto'>
 							<label htmlFor='seasonOverride' className='block text-sm font-medium text-gray-700'>
 								Override Season (format: YYYY/YY):
 							</label>
@@ -1358,6 +1378,29 @@ export default function AdminPanel() {
 							</>
 						)}
 					</div>
+				</div>
+			</div>
+
+			{/* Live Heroku Logs Instruction */}
+			<div className='mb-6 p-4 bg-gray-50 border border-gray-200 rounded-lg w-full lg:w-1/2 lg:mx-auto'>
+				<p className='text-sm text-gray-800 font-semibold mb-1'>Live Logs (Heroku CLI)</p>
+				<p className='text-xs text-gray-700'>While seeding is running, you can stream full backend logs locally:</p>
+				<div className='mt-2 relative'>
+					<pre className='p-2 bg-gray-900 text-gray-100 text-xs rounded pr-10'><code>heroku logs --tail --app dorkinians-database-v3</code></pre>
+					<button
+						onClick={async () => {
+							try {
+								await navigator.clipboard.writeText('heroku logs --tail --app dorkinians-database-v3');
+								showToast('Command copied to clipboard!', 'success');
+							} catch (err) {
+								showToast('Failed to copy to clipboard', 'error');
+							}
+						}}
+						className='absolute top-1 right-1 p-1 text-gray-400 hover:text-white transition-colors'
+						title='Copy to clipboard'
+					>
+						📋
+					</button>
 				</div>
 			</div>
 
@@ -1529,29 +1572,6 @@ export default function AdminPanel() {
 					className='w-full sm:w-64 px-6 py-3 rounded-lg text-xs sm:text-sm font-semibold text-white transition-colors bg-gray-600 hover:bg-gray-700'>
 					{jobsLoading ? "⏳ Loading..." : "🔍 Debug: List All Jobs"}
 				</button>
-			</div>
-
-			{/* Live Heroku Logs Instruction */}
-			<div className='mb-6 p-4 bg-gray-50 border border-gray-200 rounded-lg'>
-				<p className='text-sm text-gray-800 font-semibold mb-1'>Live Logs (Heroku CLI)</p>
-				<p className='text-xs text-gray-700'>While seeding is running, you can stream full backend logs locally:</p>
-				<div className='mt-2 relative'>
-					<pre className='p-2 bg-gray-900 text-gray-100 text-xs rounded pr-10'><code>heroku logs --tail --app dorkinians-database-v3</code></pre>
-					<button
-						onClick={async () => {
-							try {
-								await navigator.clipboard.writeText('heroku logs --tail --app dorkinians-database-v3');
-								showToast('Command copied to clipboard!', 'success');
-							} catch (err) {
-								showToast('Failed to copy to clipboard', 'error');
-							}
-						}}
-						className='absolute top-1 right-1 p-1 text-gray-400 hover:text-white transition-colors'
-						title='Copy to clipboard'
-					>
-						📋
-					</button>
-				</div>
 			</div>
 
 			{/* Status Information */}
