@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
 				sum(coalesce(md.yellowCards, 0)) as yellowCards,
 				sum(coalesce(md.redCards, 0)) as redCards,
 				sum(coalesce(md.fantasyPoints, 0)) as fantasyPoints,
-				sum(coalesce(md.goals, 0)) + sum(coalesce(md.assists, 0)) as goalInvolvements,
+				sum(coalesce(md.goals, 0)) + sum(coalesce(md.penaltiesScored, 0)) + sum(coalesce(md.assists, 0)) as goalInvolvements,
 				sum(coalesce(md.goals, 0)) + sum(coalesce(md.penaltiesScored, 0)) as totalGoals,
 				sum(coalesce(md.minutes, 0)) as minutes,
 				sum(coalesce(md.ownGoals, 0)) as ownGoals,
