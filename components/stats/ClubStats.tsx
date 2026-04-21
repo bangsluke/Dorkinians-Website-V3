@@ -1211,7 +1211,11 @@ export default function ClubStats() {
 				return `${Math.round(player.fantasyPoints)} ${Math.round(player.fantasyPoints) === 1 ? "Fantasy Point" : "Fantasy Points"} in ${apps}`;
 			case "goalInvolvements":
 				const totalGoalsForInvolvements = player.goals + player.penaltiesScored;
-				const goalsText = `${totalGoalsForInvolvements} ${totalGoalsForInvolvements === 1 ? "Goal" : "Goals"}`;
+				const penaltyTextGi =
+					player.penaltiesScored > 0
+						? ` (incl. ${player.penaltiesScored} ${player.penaltiesScored === 1 ? "penalty" : "penalties"})`
+						: "";
+				const goalsText = `${totalGoalsForInvolvements} ${totalGoalsForInvolvements === 1 ? "Goal" : "Goals"}${penaltyTextGi}`;
 				const assistsText = `${player.assists} ${player.assists === 1 ? "Assist" : "Assists"}`;
 				return `${goalsText} and ${assistsText} in ${apps}`;
 			case "minutes":

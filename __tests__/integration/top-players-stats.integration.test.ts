@@ -268,6 +268,119 @@ describe("top-players-stats API (POST)", () => {
 		expect(json.players[0].currentFormEwma).toBe(7.9);
 	});
 
+	it("goalInvolvements aggregate in Cypher includes open-play goals, penalties, and assists", async () => {
+		const { neo4jService } = mocked();
+		neo4jService.connect.mockResolvedValue(true);
+		let capturedQuery = "";
+		neo4jService.runQuery.mockImplementation(async (query: string) => {
+			capturedQuery = query;
+			return {
+				records: [
+					fakeRecord({
+						playerName: "Test Striker",
+						appearances: 26,
+						goals: 8,
+						assists: 8,
+						cleanSheets: 0,
+						mom: 0,
+						penaltiesScored: 2,
+						saves: 0,
+						yellowCards: 0,
+						redCards: 0,
+						fantasyPoints: 0,
+						goalInvolvements: 18,
+						minutes: 2340,
+						ownGoals: 0,
+						conceded: 0,
+						penaltiesMissed: 0,
+						penaltiesConceded: 0,
+						penaltiesSaved: 0,
+						distance: 0,
+						homeGames: 13,
+						awayGames: 13,
+						starts: 24,
+						averageMatchRating: 7.5,
+						matchesRated8Plus: 5,
+						goalsPer90: 0.31,
+						assistsPer90: 0.31,
+						goalInvolvementsPer90: 0.69,
+						ftpPer90: 5.0,
+					}),
+				],
+			};
+		});
+
+		const { POST } = await import("../../app/api/top-players-stats/route");
+		const req = new Request("http://localhost/api/top-players-stats", {
+			method: "POST",
+			body: JSON.stringify({ filters: {}, statType: "goalInvolvements" }),
+		});
+		const res = await POST(req as any);
+		expect(res.status).toBe(200);
+		expect(capturedQuery).toContain(
+			"sum(coalesce(md.goals, 0)) + sum(coalesce(md.penaltiesScored, 0)) + sum(coalesce(md.assists, 0)) as goalInvolvements"
+		);
+		const json = await res.json();
+		expect(json.players[0].goalInvolvements).toBe(18);
+	});
+
+	it("goalInvolvementsPer90 Cypher numerator matches goals + penalties + assists", async () => {
+		const { neo4jService } = mocked();
+		neo4jService.connect.mockResolvedValue(true);
+		let capturedQuery = "";
+		neo4jService.runQuery.mockImplementation(async (query: string) => {
+			capturedQuery = query;
+			return {
+				records: [
+					fakeRecord({
+						playerName: "Per90 Player",
+						appearances: 10,
+						goals: 5,
+						assists: 3,
+						cleanSheets: 1,
+						mom: 0,
+						penaltiesScored: 1,
+						saves: 0,
+						yellowCards: 0,
+						redCards: 0,
+						fantasyPoints: 40,
+						goalInvolvements: 9,
+						minutes: 900,
+						ownGoals: 0,
+						conceded: 2,
+						penaltiesMissed: 0,
+						penaltiesConceded: 0,
+						penaltiesSaved: 0,
+						distance: 0,
+						homeGames: 5,
+						awayGames: 5,
+						starts: 10,
+						averageMatchRating: 7.2,
+						matchesRated8Plus: 1,
+						goalsPer90: 0.5,
+						assistsPer90: 0.3,
+						goalInvolvementsPer90: 0.9,
+						ftpPer90: 4.0,
+					}),
+				],
+			};
+		});
+
+		const { POST } = await import("../../app/api/top-players-stats/route");
+		const req = new Request("http://localhost/api/top-players-stats", {
+			method: "POST",
+			body: JSON.stringify({ filters: {}, statType: "goalInvolvementsPer90" }),
+		});
+		const res = await POST(req as any);
+		expect(res.status).toBe(200);
+		expect(capturedQuery).toContain(
+			"(sum(coalesce(md.goals, 0)) + sum(coalesce(md.penaltiesScored, 0))) + sum(coalesce(md.assists, 0)))"
+		);
+		expect(capturedQuery).toContain("as goalInvolvementsPer90");
+		const json = await res.json();
+		expect(json.players[0].goalInvolvementsPer90).toBe(0.9);
+	});
+
 	it("rejects unknown statType", async () => {
 		const { neo4jService } = mocked();
 		neo4jService.connect.mockResolvedValue(true);

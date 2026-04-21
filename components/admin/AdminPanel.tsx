@@ -297,6 +297,14 @@ export default function AdminPanel() {
 		return `${secs}s`;
 	};
 
+	const getExpectedDurationSeconds = () => {
+		// Backend durations are reported in milliseconds.
+		if (lastCompletedJobDuration !== null) {
+			return Math.max(1, Math.round(lastCompletedJobDuration / 1000));
+		}
+		return fullRebuild ? 30 * 60 : 30 * 60;
+	};
+
 	// Calculate elapsed time from job start time
 	const calculateElapsedTimeFromStartTime = (startTime: string) => {
 		const start = new Date(startTime);
@@ -1718,16 +1726,15 @@ export default function AdminPanel() {
 									)}
 									<p className='text-xs text-blue-500 mt-2'>
 										Elapsed: {formatElapsedTime(elapsedTime)} | Expected duration:{" "}
-										{lastCompletedJobDuration !== null ? formatElapsedTime(lastCompletedJobDuration) : 
+										{lastCompletedJobDuration !== null ? formatElapsedTime(getExpectedDurationSeconds()) :
 											fullRebuild ? "~30 minutes" : "~30 minutes"}
 										{result.timestamp && (
 											<> | Expected end: {(() => {
 												const startTime = new Date(result.timestamp);
 												const startMs = startTime.getTime();
 												if (Number.isNaN(startMs)) return "-";
-												const expectedDurationMinutes = lastCompletedJobDuration !== null ? 
-													Math.floor(lastCompletedJobDuration / 60) : 20;
-												const expectedEndTime = new Date(startMs + (expectedDurationMinutes * 60 * 1000));
+												const expectedDurationSeconds = getExpectedDurationSeconds();
+												const expectedEndTime = new Date(startMs + (expectedDurationSeconds * 1000));
 												return Number.isNaN(expectedEndTime.getTime()) ? "-" : expectedEndTime.toLocaleTimeString();
 											})()}</>
 										)}

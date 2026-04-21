@@ -1191,7 +1191,11 @@ export default function TeamStats() {
 				return `${Math.round(player.fantasyPoints)} ${Math.round(player.fantasyPoints) === 1 ? "Fantasy Point" : "Fantasy Points"} in ${apps}`;
 			case "goalInvolvements":
 				const totalGoalsForInvolvements = player.goals + player.penaltiesScored;
-				const goalsText = `${totalGoalsForInvolvements} ${totalGoalsForInvolvements === 1 ? "Goal" : "Goals"}`;
+				const penaltyTextGi =
+					player.penaltiesScored > 0
+						? ` (incl. ${player.penaltiesScored} ${player.penaltiesScored === 1 ? "penalty" : "penalties"})`
+						: "";
+				const goalsText = `${totalGoalsForInvolvements} ${totalGoalsForInvolvements === 1 ? "Goal" : "Goals"}${penaltyTextGi}`;
 				const assistsText = `${player.assists} ${player.assists === 1 ? "Assist" : "Assists"}`;
 				return `${goalsText} and ${assistsText} in ${apps}`;
 			case "minutes":
@@ -1938,10 +1942,10 @@ export default function TeamStats() {
 									</div>
 								)}
 								{/* Top Players Table */}
-								<div id='team-top-players' className='mb-4 flex-shrink-0 md:break-inside-avoid md:mb-4'>
-									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+								<div id='team-top-players' className='relative z-30 mb-4 flex-shrink-0 md:break-inside-avoid md:mb-4'>
+									<div className='relative z-30 bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-2' data-testid="team-top-players-heading">Top 5 {getStatTypeLabel(selectedStatType)}</h3>
-										<div className='mb-2'>
+										<div className='relative z-40 mb-2'>
 											<Listbox value={selectedStatType} onChange={handleStatTypeSelect}>
 												<div className='relative'>
 													<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-xs md:text-sm'>
@@ -2194,7 +2198,7 @@ export default function TeamStats() {
 									const pointsPerGameFormatted = Math.min(3, Math.max(0, pointsPerGame)).toFixed(1);
 									
 									return (
-									<div id='team-match-results' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
+									<div id='team-match-results' className='relative z-10 bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Match Results</h3>
 										<p className='text-white text-sm mb-2 text-center'>Points per game: {pointsPerGameFormatted}</p>
 										<div className='chart-container -my-2' style={{ touchAction: 'pan-y' }}>
