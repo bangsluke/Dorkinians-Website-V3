@@ -27,13 +27,6 @@ import ProgressIndicator from "@/components/ui/ProgressIndicator";
 import { UmamiEvents } from "@/lib/analytics/events";
 import { trackEvent } from "@/lib/utils/trackEvent";
 
-function questionLengthBucket(q: string): string {
-	const len = q.trim().length;
-	if (len < 40) return "short";
-	if (len < 120) return "medium";
-	return "long";
-}
-
 interface SavedConversation {
 	question: string;
 	response: ChatbotResponse;
@@ -193,14 +186,8 @@ export default function ChatbotInterface() {
 			log("info", "🤖 [Cache Hit] Using cached response");
 			trackEvent(UmamiEvents.ChatbotQuestionSubmitted, {
 				hasSelectedPlayer: Boolean(selectedPlayer),
-				questionLengthBucket: questionLengthBucket(questionToSubmit),
 				cacheHit: true,
 				submissionSource,
-			});
-			trackEvent(UmamiEvents.ChatbotResponseRendered, {
-				hasVisualization: Boolean(cached.response.visualization),
-				responseType: cached.response.visualization?.type ?? "text",
-				cacheHit: true,
 			});
 			setResponse(cached.response);
 			setIsLoading(false);
@@ -223,7 +210,6 @@ export default function ChatbotInterface() {
 
 		trackEvent(UmamiEvents.ChatbotQuestionSubmitted, {
 			hasSelectedPlayer: Boolean(selectedPlayer),
-			questionLengthBucket: questionLengthBucket(questionToSubmit),
 			cacheHit: false,
 			submissionSource,
 		});
@@ -334,12 +320,6 @@ export default function ChatbotInterface() {
 			});
 
 			setResponse(data);
-
-			trackEvent(UmamiEvents.ChatbotResponseRendered, {
-				hasVisualization: Boolean(data.visualization),
-				responseType: data.visualization?.type ?? "text",
-				cacheHit: false,
-			});
 
 			// Cache the response
 			chatbotCache.set(cacheKey, {
@@ -708,7 +688,6 @@ export default function ChatbotInterface() {
 									className={`rounded-lg p-3 md:p-4 cursor-pointer hover:bg-yellow-400/5 transition-colors bg-gradient-to-b from-white/[0.22] to-white/[0.05]`}
 									onClick={() => {
 										scrollToTop();
-										trackEvent(UmamiEvents.ExampleQuestionSelected, { source: "homepage", questionId: q.id });
 										void submitQuestion(q.question, { submissionSource: "example" });
 									}}>
 									<div className='mb-2'>
@@ -723,7 +702,6 @@ export default function ChatbotInterface() {
 								variant="ghost"
 								size="sm"
 								onClick={() => {
-									trackEvent(UmamiEvents.ExampleQuestionsOpened, { source: "homepage" });
 									setShowExampleQuestionsModal(true);
 								}}
 								data-testid="chatbot-show-more-example-questions"
@@ -794,7 +772,6 @@ export default function ChatbotInterface() {
 										className={`rounded-lg p-3 md:p-4 cursor-pointer hover:bg-yellow-400/5 transition-colors bg-gradient-to-b from-white/[0.22] to-white/[0.05]`}
 										onClick={() => {
 											scrollToTop();
-											trackEvent(UmamiEvents.ExampleQuestionSelected, { source: "homepage", questionId: q.id });
 											void submitQuestion(q.question, { submissionSource: "example" });
 										}}>
 										<div className='mb-2'>
@@ -811,7 +788,6 @@ export default function ChatbotInterface() {
 									variant="ghost"
 									size="sm"
 									onClick={() => {
-										trackEvent(UmamiEvents.ExampleQuestionsOpened, { source: "conversation" });
 										setShowExampleQuestionsModal(true);
 									}}
 									className="underline text-yellow-300 hover:text-yellow-200">
@@ -828,7 +804,6 @@ export default function ChatbotInterface() {
 				isOpen={showExampleQuestionsModal}
 				onClose={() => setShowExampleQuestionsModal(false)}
 				onSelectQuestion={(question, questionId) => {
-					trackEvent(UmamiEvents.ExampleQuestionSelected, { source: "modal", questionId });
 					scrollToTop();
 					setShowExampleQuestionsModal(false);
 					void submitQuestion(question, { submissionSource: "example" });

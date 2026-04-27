@@ -1708,7 +1708,6 @@ export default function ClubStats() {
 						size="sm"
 						onClick={() => {
 							const next = !isDataTableMode;
-							trackEvent(UmamiEvents.DataTableToggled, { enabled: next, statsSubPage: "club-stats" });
 							setIsDataTableMode(next);
 						}}
 						className='underline'>
@@ -2236,10 +2235,6 @@ export default function ClubStats() {
 															<button
 																type='button'
 																onClick={() => {
-																	trackEvent(UmamiEvents.PlayerSelected, {
-																		source: "club-squad-backbone",
-																		playerName: row.playerName,
-																	});
 																	selectPlayer(row.playerName, "picker");
 																	setMainPage("stats");
 																	setStatsSubPage("player-stats");
