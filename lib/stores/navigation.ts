@@ -805,10 +805,6 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 			localStorage.setItem("dorkinians-current-main-page", page);
 		}
 
-		if (typeof window !== "undefined" && page !== currentPage) {
-			trackEvent(UmamiEvents.PageViewed, { page, section: page });
-		}
-
 		log("info", "📊 [Navigation] State after change:", {
 			selectedPlayer: get().selectedPlayer,
 			isPlayerSelected: get().isPlayerSelected,
@@ -859,7 +855,6 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 
 		if (typeof window !== "undefined" && page !== currentPage) {
 			trackEvent(UmamiEvents.SubpageViewed, { section: "stats", subSection: page });
-			trackEvent(UmamiEvents.StatsSubpageSwitched, { from: currentPage, to: page });
 		}
 	},
 
@@ -889,7 +884,6 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 
 		if (typeof window !== "undefined" && canonical !== prev) {
 			trackEvent(UmamiEvents.SubpageViewed, { section: "club-info", subSection: canonical });
-			trackEvent(UmamiEvents.ClubInfoSubpageViewed, { subSection: canonical });
 		}
 	},
 
@@ -923,9 +917,6 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 
 		if (typeof window !== "undefined") {
 			trackEvent(UmamiEvents.PlayerSelected, { source, playerName });
-			if (source === "recent") {
-				trackEvent(UmamiEvents.RecentPlayerSelected, { section: "home" });
-			}
 		}
 
 		// Fetch and cache player data asynchronously
@@ -1046,11 +1037,6 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 		// Persist to localStorage
 		if (typeof window !== "undefined") {
 			localStorage.setItem("dorkinians-player-filters-by-page", JSON.stringify(updatedFiltersByPage));
-			trackEvent(UmamiEvents.StatsSubpageSwitched, {
-				from: currentStatsSubPage,
-				to: nextPage,
-				source: "swipe",
-			});
 			trackEvent(UmamiEvents.SubpageViewed, { section: "stats", subSection: nextPage });
 		}
 	},
@@ -1084,11 +1070,6 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 		// Persist to localStorage
 		if (typeof window !== "undefined") {
 			localStorage.setItem("dorkinians-player-filters-by-page", JSON.stringify(updatedFiltersByPage));
-			trackEvent(UmamiEvents.StatsSubpageSwitched, {
-				from: currentStatsSubPage,
-				to: prevPage,
-				source: "swipe",
-			});
 			trackEvent(UmamiEvents.SubpageViewed, { section: "stats", subSection: prevPage });
 		}
 	},
@@ -1128,7 +1109,6 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 		set({ currentClubInfoSubPage: next });
 		if (typeof window !== "undefined" && next !== currentClubInfoSubPage) {
 			trackEvent(UmamiEvents.SubpageViewed, { section: "club-info", subSection: next, source: "swipe" });
-			trackEvent(UmamiEvents.ClubInfoSubpageViewed, { subSection: next, source: "swipe" });
 		}
 	},
 
@@ -1141,16 +1121,12 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 		set({ currentClubInfoSubPage: prev });
 		if (typeof window !== "undefined" && prev !== currentClubInfoSubPage) {
 			trackEvent(UmamiEvents.SubpageViewed, { section: "club-info", subSection: prev, source: "swipe" });
-			trackEvent(UmamiEvents.ClubInfoSubpageViewed, { subSection: prev, source: "swipe" });
 		}
 	},
 
 	// Filter actions
 	openFilterSidebar: () => {
 		set({ isFilterSidebarOpen: true });
-		if (typeof window !== "undefined") {
-			trackEvent(UmamiEvents.FilterOpened, { section: "stats" });
-		}
 	},
 
 	closeFilterSidebar: () => {
@@ -1161,12 +1137,6 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 
 	openAllGamesModal: () => {
 		set({ isAllGamesModalOpen: true });
-		if (typeof window !== "undefined") {
-			trackEvent(UmamiEvents.AllGamesModalOpened, {
-				section: "stats",
-				statsSubPage: get().currentStatsSubPage,
-			});
-		}
 	},
 	closeAllGamesModal: () => set({ isAllGamesModalOpen: false }),
 

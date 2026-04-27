@@ -511,7 +511,6 @@ export default function TeamOfTheWeek() {
 					setTotwAppearances(data.totwAppearances);
 					trackEvent(UmamiEvents.TotwPlayerOpened, {
 						playerName,
-						mode: isSeasonTOTWSelected ? "season-totw" : "all-time",
 						totwSubPage: "totw",
 					});
 					setShowModal(true);
@@ -540,7 +539,6 @@ export default function TeamOfTheWeek() {
 					setTotwAppearances(data.totwAppearances);
 					trackEvent(UmamiEvents.TotwPlayerOpened, {
 						playerName,
-						mode: "weekly",
 						week: selectedWeek,
 						totwSubPage: "totw",
 					});
@@ -1056,14 +1054,6 @@ export default function TeamOfTheWeek() {
 						<Listbox
 							value={selectedWeek || 0}
 							onChange={(newWeek) => {
-								if (newWeek !== selectedWeek) {
-									trackEvent(UmamiEvents.TotwWeekChanged, {
-										fromWeek: selectedWeek,
-										toWeek: newWeek,
-										season: selectedSeason,
-										totwSubPage: "totw",
-									});
-								}
 								setSelectedWeek(newWeek);
 							}}
 							disabled={isAllTimeSelected}>
@@ -1341,15 +1331,6 @@ export default function TeamOfTheWeek() {
 										data-testid='totw-previous-week-box'
 										data-week-target={String(weekItem.week)}
 										onClick={() => {
-											if (weekItem.week !== selectedWeek) {
-												trackEvent(UmamiEvents.TotwWeekChanged, {
-													fromWeek: selectedWeek,
-													toWeek: weekItem.week,
-													season: selectedSeason,
-													totwSubPage: "totw",
-													source: "previous-10-strip",
-												});
-											}
 											setSelectedWeek(weekItem.week);
 										}}
 										className='rounded-md border border-white/20 bg-white/5 hover:bg-white/10 transition-colors px-1 py-1.5 text-center'
@@ -1384,7 +1365,6 @@ export default function TeamOfTheWeek() {
 					aggregatedStats={aggregatedPlayerStats}
 					totwAppearances={totwAppearances}
 					onClose={() => {
-						trackEvent(UmamiEvents.TotwPlayerModalClosed, { playerName: selectedPlayer, totwSubPage: "totw" });
 						setShowModal(false);
 						setSelectedPlayer(null);
 						setPlayerDetails(null);

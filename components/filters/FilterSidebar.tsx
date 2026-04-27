@@ -427,7 +427,6 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess, renderAboveA
 				break;
 			}
 		}
-		trackEvent(UmamiEvents.FilterPresetApplied, { presetName, statsSubPage: currentStatsSubPage });
 	};
 
 	const handleTimeRangeTypeChange = (type: "allTime" | "season" | "beforeDate" | "afterDate" | "betweenDates") => {

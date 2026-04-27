@@ -23,15 +23,9 @@ export function trackStatsStatSelected(
 	blockId: StatsBlockId,
 	statKey: string,
 ): void {
-	const raw = String(statKey);
-	const segment = raw.replace(/\//g, "_");
-	const statsLeaderKey = `${statsSubPage}/${blockId}/${segment}`;
-	trackEvent(UmamiEvents.StatsStatSelected, {
-		statsLeaderKey,
-		statsSubPage,
-		blockId,
-		statKey: raw,
-	});
+	void statsSubPage;
+	void blockId;
+	void statKey;
 }
 
 export function trackTeamStatsTeamSelected(teamLabel: string): void {

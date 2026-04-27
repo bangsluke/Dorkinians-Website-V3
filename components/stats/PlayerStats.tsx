@@ -2780,7 +2780,6 @@ export default function PlayerStats() {
 							<button
 								onClick={() => {
 									const next = !isDataTableMode;
-									trackEvent(UmamiEvents.DataTableToggled, { enabled: next, statsSubPage: "player-stats" });
 									setIsDataTableMode(next);
 								}}
 								className='text-white underline hover:text-white/80 text-sm md:text-base cursor-pointer'>
@@ -4127,7 +4126,6 @@ export default function PlayerStats() {
 												<button
 													type='button'
 													onClick={() => {
-														trackEvent(UmamiEvents.PlayerSelected, { source: "player-graph-partner", playerName: p.name });
 														selectPlayer(p.name, "picker");
 														setMainPage("stats");
 														setStatsSubPage("player-stats");
@@ -4645,7 +4643,6 @@ export default function PlayerStats() {
 						size="sm"
 						onClick={() => {
 							const next = !isDataTableMode;
-							trackEvent(UmamiEvents.DataTableToggled, { enabled: next, statsSubPage: "player-stats" });
 							setIsDataTableMode(next);
 						}}
 						className='underline'>
