@@ -6,8 +6,6 @@ import { cachedFetch, generatePageCacheKey } from "@/lib/utils/pageCache";
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { appConfig } from "@/config/config";
-import { UmamiEvents } from "@/lib/analytics/events";
-import { trackEvent } from "@/lib/utils/trackEvent";
 
 type Row = { playerName: string; totalBadges: number; highestBadgeTier: string | null };
 type TierRow = { playerName: string; count: number };
@@ -24,7 +22,6 @@ export default function BadgeLeaderboardSection() {
 	const [error, setError] = useState<string | null>(null);
 
 	const goToPlayer = (playerName: string) => {
-		trackEvent(UmamiEvents.PlayerSelected, { source: "badge-leaderboard", playerName });
 		selectPlayer(playerName, "picker");
 		setStatsSubPage("player-stats");
 		setMainPage("stats");

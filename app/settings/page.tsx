@@ -201,7 +201,6 @@ export default function SettingsPage() {
 	};
 
 	useEffect(() => {
-		trackEvent(UmamiEvents.PageViewed, { page: "settings", section: "settings" });
 		trackEvent(UmamiEvents.SettingsOpened, { source: "settings_page" });
 	}, []);
 

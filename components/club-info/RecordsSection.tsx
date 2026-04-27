@@ -3,8 +3,6 @@
 import { useEffect, useState } from "react";
 import { useNavigationStore } from "@/lib/stores/navigation";
 import { cachedFetch, generatePageCacheKey } from "@/lib/utils/pageCache";
-import { UmamiEvents } from "@/lib/analytics/events";
-import { trackEvent } from "@/lib/utils/trackEvent";
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { formatXiTeamLabel } from "@/lib/utils/formatXiTeamLabel";
@@ -102,7 +100,6 @@ export default function RecordsSection() {
 	const setStatsSubPage = useNavigationStore((s) => s.setStatsSubPage);
 
 	const goToPlayerStats = (playerName: string) => {
-		trackEvent(UmamiEvents.PlayerSelected, { source: "club-records", playerName });
 		selectPlayer(playerName, "picker");
 		setStatsSubPage("player-stats");
 		setMainPage("stats");

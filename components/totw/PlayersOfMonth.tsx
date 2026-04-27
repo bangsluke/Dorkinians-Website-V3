@@ -1063,14 +1063,6 @@ export default function PlayersOfMonth() {
 					<div className='w-full max-w-[14rem]'>
 						<Listbox value={selectedMonth} onChange={(newMonth) => {
 							log("info", `[PlayersOfMonth] User selected month: "${newMonth}"`);
-							if (newMonth !== selectedMonth) {
-								trackEvent(UmamiEvents.PlayersOfMonthMonthChanged, {
-									fromMonth: selectedMonth,
-									toMonth: newMonth,
-									season: selectedSeason,
-									totwSubPage: "players-of-month",
-								});
-							}
 							// Set loading state immediately when month changes
 							setLoading(true);
 							setLoadingStats(true);

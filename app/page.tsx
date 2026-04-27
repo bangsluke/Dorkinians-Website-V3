@@ -58,8 +58,6 @@ import { useToast } from "@/lib/hooks/useToast";
 import { initializeCurrentSeason, getCurrentSeasonFromStorage } from "@/lib/services/currentSeasonService";
 import { preloadCaptainsData } from "@/lib/services/captainsPreloadService";
 import { log } from "@/lib/utils/logger";
-import { UmamiEvents } from "@/lib/analytics/events";
-import { trackEvent } from "@/lib/utils/trackEvent";
 
 export default function HomePage() {
 	const {
@@ -181,7 +179,6 @@ export default function HomePage() {
 	};
 
 	const handleMenuClick = () => {
-		trackEvent(UmamiEvents.StatsMenuOpened, { section: "stats" });
 		setShowStatsMenu(true);
 	};
 

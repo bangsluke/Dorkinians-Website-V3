@@ -83,18 +83,6 @@ const LEAGUE_TEAM_KEY_LABELS = {
 	"8s": "8th XI",
 };
 
-/** Stats Stat Selected leaderboard blocks (prefix must match client statsLeaderKey). */
-const STAT_LEADER_PREFIXES = [
-	{ prefix: "player-stats/seasonal-performance/", label: "Player - Seasonal Performance" },
-	{ prefix: "player-stats/team-performance/", label: "Player - Team Performance" },
-	{ prefix: "player-stats/monthly-performance/", label: "Player - Monthly Performance" },
-	{ prefix: "team-stats/team-top-players/", label: "Team - Top 5" },
-	{ prefix: "team-stats/team-seasonal-performance/", label: "Team - Seasonal Performance" },
-	{ prefix: "club-stats/club-top-players/", label: "Club - Top 5" },
-	{ prefix: "club-stats/club-seasonal-performance/", label: "Club - Seasonal Performance" },
-	{ prefix: "club-stats/club-stats-distribution/", label: "Club - Stats Distribution" },
-];
-
 function getOpts(apiKey) {
 	return { headers: { Accept: "application/json", "x-umami-api-key": apiKey } };
 }
@@ -291,12 +279,8 @@ function buildSubsectionEngagement(events, o) {
 	const homeEventNames = [
 		"Player Selected",
 		"Player Edit Started",
-		"Recent Player Selected",
 		"Chatbot Question Submitted",
-		"Chatbot Response Rendered",
 		"Chatbot Error",
-		"Example Questions Opened",
-		"Example Question Selected",
 		"Chatbot CTA Clicked",
 	];
 	for (const n of homeEventNames) eng.home += getEventCount(events, n);
@@ -350,13 +334,8 @@ function buildSubsectionEngagement(events, o) {
 		o.pomRowSubMap,
 		o.pomMonthSubMap,
 	);
-	const totwTrio =
-		getEventCount(events, "TOTW Player Opened") +
-		getEventCount(events, "TOTW Week Changed") +
-		getEventCount(events, "TOTW Player Modal Closed");
-	const pomPair =
-		getEventCount(events, "PlayersOfMonth Row Expanded") +
-		getEventCount(events, "PlayersOfMonth Month Changed");
+	const totwTrio = getEventCount(events, "TOTW Player Opened");
+	const pomPair = getEventCount(events, "PlayersOfMonth Row Expanded");
 
 	if (tProp === 0 && pProp === 0) {
 		eng.totw += totwTrio;
@@ -423,20 +402,6 @@ async function fetchEventValues(base, websiteId, apiKey, eventName, propertyName
 	return normalizeApiArray(json);
 }
 
-/** Top N rows where value starts with prefix; stat label = remainder after prefix */
-function topStatsForPrefix(rows, prefix, n) {
-	if (!Array.isArray(rows)) return [];
-	const list = rows
-		.filter((r) => r.value && String(r.value).startsWith(prefix))
-		.map((r) => ({
-			stat: String(r.value).slice(prefix.length) || "(unknown)",
-			total: Number(r.total) || 0,
-		}))
-		.sort((a, b) => b.total - a.total)
-		.slice(0, n);
-	return list;
-}
-
 function mergeLeagueTeamMaps(a, b) {
 	const m = { ...a };
 	for (const [k, v] of Object.entries(b)) {
@@ -460,6 +425,7 @@ function formatPeriodDate(ts) {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WEEK_MS = 7 * DAY_MS;
+const NORTH_STAR_WEEKS = 16;
 
 /**
  * Last completed UTC week: Sunday 00:00 inclusive start → next Sunday 00:00 exclusive end (7 days).
@@ -482,6 +448,17 @@ function getCompletedUtcWeekWindows(nowMs) {
 	const prevEndAt = weekStart;
 	const prevStartAt = weekStart - WEEK_MS;
 	return { startAt: weekStart, endAt: weekEnd, prevStartAt, prevEndAt };
+}
+
+function buildWeeklyRanges(endAt, weeks) {
+	const start = endAt - weeks * WEEK_MS;
+	return Array.from({ length: weeks }, (_, index) => {
+		const weekStart = start + index * WEEK_MS;
+		return {
+			startAt: weekStart,
+			endAt: weekStart + WEEK_MS,
+		};
+	});
 }
 
 function buildSecondaryTable(title, rowsHtml, explanationText = "") {
@@ -551,6 +528,7 @@ export default async () => {
 
 	try {
 		const f = (ev, prop, qp) => fetchEventValues(base, websiteId, apiKey, ev, prop, qp);
+		const northStarWeekRanges = buildWeeklyRanges(endAt, NORTH_STAR_WEEKS);
 
 		const [
 			statsRes,
@@ -617,6 +595,7 @@ export default async () => {
 			pomRowSubPrev,
 			pomMonthSubCurr,
 			pomMonthSubPrev,
+			...northStarSubSectionWeekRes
 		] = await Promise.all([
 			fetch(`${base}/websites/${websiteId}/stats?${q}`, getOpts(apiKey)),
 			fetch(`${base}/websites/${websiteId}/stats?${qPrev}`, getOpts(apiKey)),
@@ -682,6 +661,12 @@ export default async () => {
 			f("PlayersOfMonth Row Expanded", "totwSubPage", qPrev),
 			f("PlayersOfMonth Month Changed", "totwSubPage", q),
 			f("PlayersOfMonth Month Changed", "totwSubPage", qPrev),
+			...northStarWeekRanges.map((range) =>
+				f("Subpage Viewed", "subSection", `startAt=${range.startAt}&endAt=${range.endAt}`),
+			),
+			...northStarWeekRanges.map((range) =>
+				f("Player Selected", "playerName", `startAt=${range.startAt}&endAt=${range.endAt}`),
+			),
 		]);
 
 		const statsJson = statsRes.ok ? await statsRes.json() : {};
@@ -737,6 +722,17 @@ export default async () => {
 		const pomRowSubMapPrev = valuesByKey(pomRowSubPrev);
 		const pomMonthSubMap = valuesByKey(pomMonthSubCurr);
 		const pomMonthSubMapPrev = valuesByKey(pomMonthSubPrev);
+		const northStarSubSectionWeekMaps = northStarSubSectionWeekRes
+			.slice(0, NORTH_STAR_WEEKS)
+			.map((rows) => valuesByKey(rows));
+		const northStarPlayerSelectedWeekTotals = northStarSubSectionWeekRes
+			.slice(NORTH_STAR_WEEKS)
+			.map((rows) =>
+				(rows || []).reduce(
+					(sum, row) => sum + (Number(row.total ?? row.count ?? row.y ?? 0) || 0),
+					0,
+				),
+			);
 
 		const engagementCtx = (leaderRows, merged, maps) => ({
 			filtersSpMap: maps.filtersSpMap,
@@ -812,6 +808,64 @@ export default async () => {
 		const chatExampleRunPrev = sumPropertyMatches(chatSubSrcMapPrev, "example");
 		const filtersApplied = getEventCount(events, "Filters Applied");
 		const filtersAppliedPrev = getEventCount(eventsPrev, "Filters Applied");
+		const subSectionTotalsPrev = valuesByKey(spSubPrev);
+		const northStarActionDefs = [
+			{
+				label: "Player name selections (homepage)",
+				curr: getEventCount(events, "Player Selected"),
+				prev: getEventCount(eventsPrev, "Player Selected"),
+			},
+			{
+				label: "Player Stats page views",
+				curr: Number(subSectionTotals["player-stats"] || 0),
+				prev: Number(subSectionTotalsPrev["player-stats"] || 0),
+			},
+			{
+				label: "Team Stats page views",
+				curr: Number(subSectionTotals["team-stats"] || 0),
+				prev: Number(subSectionTotalsPrev["team-stats"] || 0),
+			},
+			{
+				label: "Club Stats page views",
+				curr: Number(subSectionTotals["club-stats"] || 0),
+				prev: Number(subSectionTotalsPrev["club-stats"] || 0),
+			},
+			{
+				label: "Player Comparison page views",
+				curr: Number(subSectionTotals.comparison || 0),
+				prev: Number(subSectionTotalsPrev.comparison || 0),
+			},
+			{
+				label: "League Information page views",
+				curr: Number(subSectionTotals["league-information"] || 0),
+				prev: Number(subSectionTotalsPrev["league-information"] || 0),
+			},
+		];
+		const northStarTotalCurr = northStarActionDefs.reduce((sum, row) => sum + row.curr, 0);
+		const northStarTotalPrev = northStarActionDefs.reduce((sum, row) => sum + row.prev, 0);
+		const northStarWeeklyTotals = northStarWeekRanges.map((range, index) => {
+			const subSectionMap = northStarSubSectionWeekMaps[index] || {};
+			const playerSelectedTotal = northStarPlayerSelectedWeekTotals[index] || 0;
+			const subPageTotal =
+				Number(subSectionMap["player-stats"] || 0) +
+				Number(subSectionMap["team-stats"] || 0) +
+				Number(subSectionMap["club-stats"] || 0) +
+				Number(subSectionMap.comparison || 0) +
+				Number(subSectionMap["league-information"] || 0);
+			return {
+				startAt: range.startAt,
+				endAt: range.endAt,
+				total: playerSelectedTotal + subPageTotal,
+			};
+		});
+		const northStarRecent4 = northStarWeeklyTotals.slice(-4);
+		const northStarPrior4 = northStarWeeklyTotals.slice(-8, -4);
+		const northStarRolling4WeekAvgCurr = northStarRecent4.length
+			? Math.round(northStarRecent4.reduce((sum, row) => sum + row.total, 0) / northStarRecent4.length)
+			: 0;
+		const northStarRolling4WeekAvgPrev = northStarPrior4.length
+			? Math.round(northStarPrior4.reduce((sum, row) => sum + row.total, 0) / northStarPrior4.length)
+			: 0;
 
 		let rowsHtml = "";
 		let i = 0;
@@ -902,30 +956,6 @@ export default async () => {
 			`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Subsection</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${subpageViewsRows}`,
 		);
 
-		let statBlockHtml = "";
-		for (const { prefix, label } of STAT_LEADER_PREFIXES) {
-			const top = topStatsForPrefix(statsLeaderCurr, prefix, 5);
-			if (top.length === 0) continue;
-			let inner = "";
-			top.forEach((row, idx) => {
-				const prevT = topStatsForPrefix(statsLeaderPrev, prefix, 50).find((x) => x.stat === row.stat)?.total ?? 0;
-				inner += simpleRow(
-					[
-						escapeHtml(row.stat),
-						String(row.total),
-						String(prevT),
-						trendArrows(row.total, prevT),
-					],
-					idx,
-					idx === top.length - 1,
-				);
-			});
-			statBlockHtml += buildSecondaryTable(
-				escapeHtml(label),
-				`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Stat</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${inner}`,
-			);
-		}
-
 		const topPlayers = Object.entries(playerNameMap)
 			.sort((a, b) => b[1] - a[1])
 			.slice(0, 10);
@@ -941,51 +971,48 @@ export default async () => {
 		const topPlayersBlock =
 			topPlayers.length > 0
 				? buildSecondaryTable(
-						"Top 10 - Player Selected (playerName)",
+						"Top 10 - Player Selected",
 						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Player</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${playersRows}`,
 					)
 				: "";
 
 		const teamLabelMap = valuesByKey(teamLabelCurr);
 		const teamLabelMapPrevLocal = valuesByKey(teamLabelPrev);
-		const teamXiTop = Object.entries(teamLabelMap)
+		const leagueResultsMap = valuesByKey(leagueResCurr);
+		const leagueResultsMapPrev = valuesByKey(leagueResPrev);
+		const combinedTeamViews = {};
+		const combinedTeamViewsPrev = {};
+		for (const [team, count] of Object.entries(teamLabelMap)) {
+			combinedTeamViews[team] = (combinedTeamViews[team] || 0) + (Number(count) || 0);
+		}
+		for (const [team, count] of Object.entries(teamLabelMapPrevLocal)) {
+			combinedTeamViewsPrev[team] = (combinedTeamViewsPrev[team] || 0) + (Number(count) || 0);
+		}
+		for (const [teamKey, count] of Object.entries(leagueResultsMap)) {
+			const team = formatLeagueKey(teamKey);
+			combinedTeamViews[team] = (combinedTeamViews[team] || 0) + (Number(count) || 0);
+		}
+		for (const [teamKey, count] of Object.entries(leagueResultsMapPrev)) {
+			const team = formatLeagueKey(teamKey);
+			combinedTeamViewsPrev[team] = (combinedTeamViewsPrev[team] || 0) + (Number(count) || 0);
+		}
+		const topViewedTeams = Object.entries(combinedTeamViews)
 			.sort((a, b) => b[1] - a[1])
 			.slice(0, 8);
-		let teamRows = "";
-		teamXiTop.forEach(([name, total], idx) => {
-			const prevT = teamLabelMapPrevLocal[name] || 0;
-			teamRows += simpleRow(
-				[escapeHtml(name), String(total), String(prevT), trendArrows(total, prevT)],
+		let topViewedTeamsRows = "";
+		topViewedTeams.forEach(([team, total], idx) => {
+			const prevT = combinedTeamViewsPrev[team] || 0;
+			topViewedTeamsRows += simpleRow(
+				[escapeHtml(team), String(total), String(prevT), trendArrows(total, prevT)],
 				idx,
-				idx === teamXiTop.length - 1,
+				idx === topViewedTeams.length - 1,
 			);
 		});
-		const teamXiBlock =
-			teamXiTop.length > 0
+		const topViewedTeamsBlock =
+			topViewedTeams.length > 0
 				? buildSecondaryTable(
-						"Team Stats - XI / team dropdown (teamLabel)",
-						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Team</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${teamRows}`,
-					)
-				: "";
-
-		const leagueTop = Object.entries(leagueMerged)
-			.sort((a, b) => b[1] - a[1])
-			.slice(0, 8);
-		let leagueRows = "";
-		leagueTop.forEach(([key, total], idx) => {
-			const prevT = leagueMergedPrev[key] || 0;
-			const label = formatLeagueKey(key);
-			leagueRows += simpleRow(
-				[escapeHtml(label), String(total), String(prevT), trendArrows(total, prevT)],
-				idx,
-				idx === leagueTop.length - 1,
-			);
-		});
-		const leagueBlock =
-			leagueTop.length > 0
-				? buildSecondaryTable(
-						"League - team focus + results (merged teamKey)",
-						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Team</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${leagueRows}`,
+						"Top Viewed Teams",
+						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Team</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${topViewedTeamsRows}`,
 					)
 				: "";
 
@@ -1033,42 +1060,12 @@ export default async () => {
 					)
 				: "";
 
-		const chatM = mapToRows(chatbotLenMap, valuesByKey(chatbotLenPrev), 8);
-		const chatBlock =
-			chatM.entries.length > 0
-				? buildSecondaryTable(
-						"Chatbot questions - questionLengthBucket",
-						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Bucket</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${chatM.html}`,
-					)
-				: "";
-
-		const totwM = mapToRows(totwModeMap, valuesByKey(totwModePrev), 6);
-		const totwBlock =
-			totwM.entries.length > 0
-				? buildSecondaryTable(
-						"TOTW Player Opened - mode",
-						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Mode</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${totwM.html}`,
-					)
-				: "";
-
 		const usefulM = mapToRows(usefulCatMap, valuesByKey(usefulCatPrev), 8);
 		const usefulBlock =
 			usefulM.entries.length > 0
 				? buildSecondaryTable(
 						"Useful links - linkCategory",
 						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Category</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${usefulM.html}`,
-					)
-				: "";
-
-		const webM = mapToRows(webVitalNameMap, valuesByKey(webVitalNamePrev), 8, webVitalDisplayName);
-		const webVitalsExplanation =
-			"The numbers are how many times each Web Vital was reported in this period (event counts), not the metric duration in seconds. For actual timings, open the Web Vital events in Umami and inspect the value field on individual events.";
-		const webBlock =
-			webM.entries.length > 0
-				? buildSecondaryTable(
-						"Web Vitals - samples per metric (not seconds)",
-						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Metric</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Samples</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${webM.html}`,
-						webVitalsExplanation,
 					)
 				: "";
 
@@ -1081,50 +1078,12 @@ export default async () => {
 					)
 				: "";
 
-		const exSourceMap = valuesByKey(exSourceCurr);
-		const exSourceMapPrev = valuesByKey(exSourcePrev);
-		const exSourceM = mapToRows(exSourceMap, exSourceMapPrev, 8);
-		const exSourceBlock =
-			exSourceM.entries.length > 0
-				? buildSecondaryTable(
-						"Example Question Selected - source (homepage / modal / conversation)",
-						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">Source</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${exSourceM.html}`,
-					)
-				: "";
-
-		const allGamesM = mapToRows(allGamesMap, allGamesMapPrev, 8);
-		const allGamesBlock =
-			allGamesM.entries.length > 0
-				? buildSecondaryTable(
-						"Stats - All Games Modal Opened · statsSubPage",
-						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">statsSubPage</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${allGamesM.html}`,
-					)
-				: "";
-
 		const dataTableM = mapToRows(dataTableMap, dataTableMapPrev, 8);
 		const dataTableBlock =
 			dataTableM.entries.length > 0
 				? buildSecondaryTable(
 						"Stats - Data Table Toggled · statsSubPage",
 						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">statsSubPage</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${dataTableM.html}`,
-					)
-				: "";
-
-		const statsNavSpM = mapToRows(statsNavSpMap, statsNavSpMapPrev, 10);
-		const statsNavSpBlock =
-			statsNavSpM.entries.length > 0
-				? buildSecondaryTable(
-						"Stats - Section Navigated · statsSubPage",
-						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">statsSubPage</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${statsNavSpM.html}`,
-					)
-				: "";
-
-		const statsNavSecM = mapToRows(statsNavSecMap, statsNavSecMapPrev, 12);
-		const statsNavSecBlock =
-			statsNavSecM.entries.length > 0
-				? buildSecondaryTable(
-						"Stats - Section Navigated · sectionId",
-						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">sectionId</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${statsNavSecM.html}`,
 					)
 				: "";
 
@@ -1137,17 +1096,80 @@ export default async () => {
 					)
 				: "";
 
-		const filterPresetM = mapToRows(filterPresetMap, filterPresetMapPrev, 8);
-		const filterPresetBlock =
-			filterPresetM.entries.length > 0
-				? buildSecondaryTable(
-						"Stats - Filter Preset Applied · statsSubPage",
-						`<tr style="background-color:#d1fae5;"><th style="text-align:left;padding:8px 12px;font-size:11px;color:#065f46;">statsSubPage</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">This week</th><th style="text-align:right;padding:8px 12px;font-size:11px;color:#065f46;">Prev</th><th style="text-align:center;padding:8px 12px;font-size:11px;color:#065f46;">Trend</th></tr>${filterPresetM.html}`,
-					)
-				: "";
+		const investFurtherBlock =
+			'            <div style="font-size:12px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:#047857;margin-top:16px;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid #bbf7d0;">Invest further (top 3)</div>\n' +
+			'            <p style="margin:0 0 8px;font-size:11px;color:#6b7280;">' +
+			escapeHtml(scoreHelp) +
+			"</p>\n" +
+			'            <ul style="padding-left:18px;margin:0 0 16px;font-size:13px;color:#14532d;">' +
+			investHtml +
+			"</ul>\n";
+		const improveOrRetireBlock =
+			'            <div style="font-size:12px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:#9a3412;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid #fecaca;">Improve or retire (bottom 3, disjoint)</div>\n' +
+			'            <ul style="padding-left:18px;margin:0;font-size:13px;color:#7c2d12;">' +
+			retireHtml +
+			"</ul>\n";
 
 		const tableWrapStyle =
 			"width:100%;border:1px solid #bbf7d0;border-radius:8px;overflow:hidden;border-collapse:collapse;";
+		const formatShortDate = (ts) =>
+			new Date(ts).toLocaleDateString("en-GB", {
+				day: "2-digit",
+				month: "short",
+				timeZone: "UTC",
+			});
+		const northStarTrendMax = Math.max(...northStarWeeklyTotals.map((week) => week.total), 1);
+		const northStarTotalTable = `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="${tableWrapStyle}">
+			<thead>
+				<tr>
+					<th style="background-color:#047857;color:#fff;padding:8px 12px;font-size:11px;font-weight:700;text-align:left;letter-spacing:0.5px;">Summary</th>
+					<th style="background-color:#047857;color:#fff;padding:8px 12px;font-size:11px;font-weight:700;text-align:right;letter-spacing:0.5px;">This week</th>
+					<th style="background-color:#047857;color:#fff;padding:8px 12px;font-size:11px;font-weight:700;text-align:right;letter-spacing:0.5px;">Prev. week</th>
+					<th style="background-color:#047857;color:#fff;padding:8px 12px;font-size:11px;font-weight:700;text-align:center;letter-spacing:0.5px;width:48px;">Trend</th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr style="background-color:#ecfdf5;">
+					<td style="padding:9px 12px;font-size:12px;font-weight:700;color:#14532d;border-bottom:1px solid #bbf7d0;">Total</td>
+					<td style="padding:9px 12px;font-size:12px;font-weight:700;color:#14532d;text-align:right;border-bottom:1px solid #bbf7d0;">${northStarTotalCurr}</td>
+					<td style="padding:9px 12px;font-size:12px;font-weight:700;color:#6b7280;text-align:right;border-bottom:1px solid #bbf7d0;">${northStarTotalPrev}</td>
+					<td style="padding:9px 12px;text-align:center;border-bottom:1px solid #bbf7d0;">${trendArrows(northStarTotalCurr, northStarTotalPrev)}</td>
+				</tr>
+				<tr style="background-color:#ffffff;">
+					<td style="padding:9px 12px;font-size:12px;font-weight:700;color:#14532d;">Rolling 4 Week Average</td>
+					<td style="padding:9px 12px;font-size:12px;font-weight:700;color:#14532d;text-align:right;">${northStarRolling4WeekAvgCurr}</td>
+					<td style="padding:9px 12px;font-size:12px;font-weight:700;color:#6b7280;text-align:right;">${northStarRolling4WeekAvgPrev}</td>
+					<td style="padding:9px 12px;text-align:center;">${trendArrows(northStarRolling4WeekAvgCurr, northStarRolling4WeekAvgPrev)}</td>
+				</tr>
+			</tbody>
+		</table>`;
+		const northStarDetailRows = northStarActionDefs
+			.map((row, index) =>
+				metricRow(row.label, row.curr, row.prev, index, {
+					trendHtml: trendArrows(row.curr, row.prev),
+					last: index === northStarActionDefs.length - 1,
+				}),
+			)
+			.join("");
+		const northStarTrendRows = northStarWeeklyTotals
+			.map((week, index) => {
+				const widthPct = Math.max(4, Math.round((week.total / northStarTrendMax) * 100));
+				const rowBorder = index === northStarWeeklyTotals.length - 1 ? "" : "border-bottom:1px solid #bbf7d0;";
+				const rangeLabel = `${formatShortDate(week.startAt)} - ${formatShortDate(week.endAt - DAY_MS)}`;
+				return `<tr style="background-color:${stripeBg(index)};">
+					<td style="padding:8px 12px;font-size:12px;color:#14532d;white-space:nowrap;${rowBorder}">${rangeLabel}</td>
+					<td style="padding:8px 12px;${rowBorder}">
+						<table width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;height:10px;background:#ecfdf5;border:1px solid #bbf7d0;border-radius:999px;table-layout:fixed;">
+							<tr>
+								<td width="${widthPct}%" style="width:${widthPct}%;background:#059669;border-radius:999px;font-size:0;line-height:0;">&nbsp;</td>
+								<td style="font-size:0;line-height:0;">&nbsp;</td>
+							</tr>
+						</table>
+					</td>
+					<td style="padding:8px 12px;font-size:12px;color:#14532d;font-weight:700;text-align:right;white-space:nowrap;${rowBorder}">${week.total}</td>
+				</tr>`;
+			})
+			.join("");
 		const navSep =
 			'<span style="color:#a3e635;padding:0 6px;">|</span>';
 		const navStyle =
@@ -1248,43 +1270,51 @@ export default async () => {
 			topPathPrevY +
 			")</p>\n" +
 			"          </td></tr>\n" +
-			'          <tr><td style="padding:0 28px 20px;">\n' +
-			'            <div style="font-size:12px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:#047857;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid #bbf7d0;">Invest further (top 3)</div>\n' +
-			'            <p style="margin:0 0 8px;font-size:11px;color:#6b7280;">' +
-			escapeHtml(scoreHelp) +
-			"</p>\n" +
-			'            <ul style="padding-left:18px;margin:0;font-size:13px;color:#14532d;">' +
-			investHtml +
-			"</ul>\n" +
-			"          </td></tr>\n" +
 			'          <tr><td style="padding:0 28px 24px;">\n' +
-			'            <div style="font-size:12px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:#9a3412;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid #fecaca;">Improve or retire (bottom 3, disjoint)</div>\n' +
-			'            <ul style="padding-left:18px;margin:0;font-size:13px;color:#7c2d12;">' +
-			retireHtml +
-			"</ul>\n" +
+			'            <div style="font-size:12px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:#047857;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #bbf7d0;">North Star Metric</div>\n' +
+			northStarTotalTable +
+			'            <p style="margin:12px 0 10px;font-size:12px;color:#6b7280;line-height:1.5;font-style:italic;">"Increase the number of users learning more about their stats and league position"</p>\n' +
+			'            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="' +
+			tableWrapStyle +
+			'">\n' +
+			"              <thead><tr>\n" +
+			'                <th style="background-color:#047857;color:#fff;padding:10px 14px;font-size:12px;font-weight:700;text-align:left;">Action</th>\n' +
+			'                <th style="background-color:#047857;color:#fff;padding:10px 14px;font-size:12px;font-weight:700;text-align:right;">This week</th>\n' +
+			'                <th style="background-color:#047857;color:#fff;padding:10px 14px;font-size:12px;font-weight:700;text-align:right;">Prev week</th>\n' +
+			'                <th style="background-color:#047857;color:#fff;padding:10px 14px;font-size:12px;font-weight:700;text-align:center;width:48px;">Trend</th>\n' +
+			"              </tr></thead>\n" +
+			"              <tbody>" +
+			northStarDetailRows +
+			"</tbody>\n" +
+			"            </table>\n" +
+			'            <div style="font-size:11px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:#047857;margin:14px 0 8px;">16-week total trend</div>\n' +
+			'            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="' +
+			tableWrapStyle +
+			'">\n' +
+			"              <thead><tr>\n" +
+			'                <th style="background-color:#047857;color:#fff;padding:8px 12px;font-size:11px;font-weight:700;text-align:left;">Week</th>\n' +
+			'                <th style="background-color:#047857;color:#fff;padding:8px 12px;font-size:11px;font-weight:700;text-align:left;">Trend</th>\n' +
+			'                <th style="background-color:#047857;color:#fff;padding:8px 12px;font-size:11px;font-weight:700;text-align:right;">Total</th>\n' +
+			"              </tr></thead>\n" +
+			"              <tbody>" +
+			northStarTrendRows +
+			"</tbody>\n" +
+			"            </table>\n" +
 			"          </td></tr>\n" +
 			'          <tr><td style="padding:0 28px 28px;">\n' +
 			'            <div style="font-size:12px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:#047857;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #bbf7d0;">Detail &amp; breakdowns</div>\n' +
 			subpageViewsBlock +
-			statBlockHtml +
+			investFurtherBlock +
+			improveOrRetireBlock +
 			topPlayersBlock +
-			teamXiBlock +
-			leagueBlock +
-			allGamesBlock +
+			topViewedTeamsBlock +
 			dataTableBlock +
-			statsNavSpBlock +
-			statsNavSecBlock +
 			filtersResetBlock +
-			filterPresetBlock +
 			filtersSpBlock +
 			filtersTrBlock +
 			shareBlock +
-			chatBlock +
-			totwBlock +
 			usefulBlock +
-			webBlock +
 			exBlock +
-			exSourceBlock +
 			"          </td></tr>\n" +
 			"          </table>\n" +
 			"        </td></tr>\n" +

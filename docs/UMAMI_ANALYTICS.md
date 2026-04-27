@@ -69,6 +69,14 @@ The job queries **`event-data/values`** for current and prior windows on propert
 
 - **Time windows:** **Completed UTC weeks** - Sunday **00:00** → next Sunday **00:00** (7 days). If the current week is incomplete, the report uses the **previous** full week. The **prior week** column uses the 7 days before that. Subject and body use **en-GB**-style date strings (weekday + day + month + year, UTC).
 - **Headline metrics:** site pageviews, visits, visitors; **custom** vs **example** chatbot submissions (from `submissionSource` on `Chatbot Question Submitted`); `Filters Applied` week-over-week.
+- **North Star Metric:** goal text = _"Increase the number of users learning more about their stats and league position"_. Includes:
+  - `Player Selected` total (homepage player-name picks)
+  - `Subpage Viewed` · `subSection=player-stats`
+  - `Subpage Viewed` · `subSection=team-stats`
+  - `Subpage Viewed` · `subSection=club-stats`
+  - `Subpage Viewed` · `subSection=comparison`
+  - `Subpage Viewed` · `subSection=league-information`
+  - Displays **Total**, **Rolling 4 Week Average** (latest 4 completed weeks vs prior 4), and a **16-week total trend** table.
 - **Top path (raw):** from Umami `metrics?type=path`.
 - **Recommendations:**
   - **Invest further:** top 3 **subsections** by score (e.g. Player Stats, League Information), not main tabs only.

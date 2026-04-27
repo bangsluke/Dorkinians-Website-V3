@@ -1503,7 +1503,6 @@ export default function TeamStats() {
 						size="sm"
 						onClick={() => {
 							const next = !isDataTableMode;
-							trackEvent(UmamiEvents.DataTableToggled, { enabled: next, statsSubPage: "team-stats" });
 							setIsDataTableMode(next);
 						}}
 						className='underline'>
