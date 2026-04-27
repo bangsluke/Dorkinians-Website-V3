@@ -55,18 +55,6 @@ const SUBSECTION_LABELS = {
 	"useful-links": "Useful Links",
 };
 
-/** Web Vital `name` from Umami → display column (acronym + full name). */
-const WEB_VITAL_DISPLAY_NAMES = {
-	LCP: "LCP (Largest Contentful Paint)",
-	FID: "FID (First Input Delay)",
-	INP: "INP (Interaction to Next Paint)",
-	CLS: "CLS (Cumulative Layout Shift)",
-	TTFB: "TTFB (Time to First Byte)",
-	FCP: "FCP (First Contentful Paint)",
-	TBT: "TBT (Total Blocking Time)",
-	SI: "SI (Speed Index)",
-};
-
 /** Default logos - prefer white asset for email; set UMAMI_EMAIL_LOGO_URL if needed. */
 const EMAIL_HEADER_LOGO_SRC =
 	"https://bangsluke-assets.netlify.app/images/company-logos/Dorkinians.png";
@@ -206,13 +194,6 @@ function escapeHtml(s) {
 
 function subsectionLabel(id) {
 	return SUBSECTION_LABELS[id] || id;
-}
-
-function webVitalDisplayName(rawKey) {
-	const k = String(rawKey || "").trim();
-	if (!k) return "-";
-	const upper = k.toUpperCase();
-	return WEB_VITAL_DISPLAY_NAMES[upper] || k;
 }
 
 /**
@@ -557,8 +538,6 @@ export default async () => {
 			totwModePrev,
 			usefulCatCurr,
 			usefulCatPrev,
-			webVitalNameCurr,
-			webVitalNamePrev,
 			exQCurr,
 			exQPrev,
 			exSourceCurr,
@@ -623,8 +602,6 @@ export default async () => {
 			f("TOTW Player Opened", "mode", qPrev),
 			f("Useful Link Clicked", "linkCategory", q),
 			f("Useful Link Clicked", "linkCategory", qPrev),
-			f("Web Vital", "name", q),
-			f("Web Vital", "name", qPrev),
 			f("Example Question Selected", "questionId", q),
 			f("Example Question Selected", "questionId", qPrev),
 			f("Example Question Selected", "source", q),
@@ -690,7 +667,6 @@ export default async () => {
 		const chatbotLenMap = valuesByKey(chatbotLenCurr);
 		const totwModeMap = valuesByKey(totwModeCurr);
 		const usefulCatMap = valuesByKey(usefulCatCurr);
-		const webVitalNameMap = valuesByKey(webVitalNameCurr);
 		const exampleQMap = valuesByKey(exQCurr);
 		const exampleQMapPrev = valuesByKey(exQPrev);
 		const playerNameMap = valuesByKey(playerNameCurr);
@@ -938,11 +914,23 @@ export default async () => {
 			if (b.id === "settings") return -1;
 			return b.curr - a.curr;
 		});
+		const prevWeekSubpageRanks = new Map(
+			[...subpageViewEntries]
+				.sort((a, b) => {
+					if (a.id === "settings") return 1;
+					if (b.id === "settings") return -1;
+					return b.prev - a.prev;
+				})
+				.map((row, index) => [row.id, index + 1]),
+		);
 		let subpageViewsRows = "";
 		subpageViewEntries.forEach((row, idx) => {
+			const currentRank = idx + 1;
+			const previousRank = prevWeekSubpageRanks.get(row.id) ?? currentRank;
+			const rankMovementArrow = trendArrows(previousRank, currentRank);
 			subpageViewsRows += simpleRow(
 				[
-					escapeHtml(subsectionLabel(row.id)),
+					`${rankMovementArrow} ${escapeHtml(subsectionLabel(row.id))}`,
 					String(row.curr),
 					String(row.prev),
 					trendArrows(row.curr, row.prev),
@@ -959,11 +947,19 @@ export default async () => {
 		const topPlayers = Object.entries(playerNameMap)
 			.sort((a, b) => b[1] - a[1])
 			.slice(0, 10);
+		const prevPlayerRanks = new Map(
+			Object.entries(playerNameMapPrev)
+				.sort((a, b) => b[1] - a[1])
+				.map(([name], index) => [name, index + 1]),
+		);
 		let playersRows = "";
 		topPlayers.forEach(([name, total], idx) => {
 			const prevT = playerNameMapPrev[name] || 0;
+			const currentRank = idx + 1;
+			const previousRank = prevPlayerRanks.get(name) ?? currentRank;
+			const rankMovementArrow = trendArrows(previousRank, currentRank);
 			playersRows += simpleRow(
-				[escapeHtml(name), String(total), String(prevT), trendArrows(total, prevT)],
+				[`${rankMovementArrow} ${escapeHtml(name)}`, String(total), String(prevT), trendArrows(total, prevT)],
 				idx,
 				idx === topPlayers.length - 1,
 			);
@@ -999,11 +995,19 @@ export default async () => {
 		const topViewedTeams = Object.entries(combinedTeamViews)
 			.sort((a, b) => b[1] - a[1])
 			.slice(0, 8);
+		const prevTopViewedTeamRanks = new Map(
+			Object.entries(combinedTeamViewsPrev)
+				.sort((a, b) => b[1] - a[1])
+				.map(([team], index) => [team, index + 1]),
+		);
 		let topViewedTeamsRows = "";
 		topViewedTeams.forEach(([team, total], idx) => {
 			const prevT = combinedTeamViewsPrev[team] || 0;
+			const currentRank = idx + 1;
+			const previousRank = prevTopViewedTeamRanks.get(team) ?? currentRank;
+			const rankMovementArrow = trendArrows(previousRank, currentRank);
 			topViewedTeamsRows += simpleRow(
-				[escapeHtml(team), String(total), String(prevT), trendArrows(total, prevT)],
+				[`${rankMovementArrow} ${escapeHtml(team)}`, String(total), String(prevT), trendArrows(total, prevT)],
 				idx,
 				idx === topViewedTeams.length - 1,
 			);
