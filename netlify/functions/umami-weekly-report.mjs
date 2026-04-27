@@ -1096,6 +1096,7 @@ export default async () => {
 					)
 				: "";
 
+		const scoreHelp = `Score = ${PAGEWEIGHT}x normalized subpage/main views (per subsection) + ${EVENTWEIGHT}x normalized engagement (events rolled up to that subsection). Bottom 3 excludes any subsection already in top 3 (no duplicate on ties). If you still see 0.00 everywhere, Umami had no matching custom events in this window or property breakdowns failed to load-check the dashboard for the same dates.`;
 		const investFurtherBlock =
 			'            <div style="font-size:12px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:#047857;margin-top:16px;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid #bbf7d0;">Invest further (top 3)</div>\n' +
 			'            <p style="margin:0 0 8px;font-size:11px;color:#6b7280;">' +
@@ -1195,7 +1196,6 @@ export default async () => {
 
 		const topPathY = topPath ? Number(topPath.y) || 0 : 0;
 		const topPathPrevY = topPathPrev ? Number(topPathPrev.y) || 0 : 0;
-		const scoreHelp = `Score = ${PAGEWEIGHT}x normalized subpage/main views (per subsection) + ${EVENTWEIGHT}x normalized engagement (events rolled up to that subsection). Bottom 3 excludes any subsection already in top 3 (no duplicate on ties). If you still see 0.00 everywhere, Umami had no matching custom events in this window or property breakdowns failed to load-check the dashboard for the same dates.`;
 		const customLogo = process.env.UMAMI_EMAIL_LOGO_URL?.trim();
 		const logoSrcForEmail = customLogo || EMAIL_HEADER_LOGO_SRC;
 		const logoImgStyle = customLogo
