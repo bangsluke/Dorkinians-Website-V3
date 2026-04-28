@@ -37,8 +37,31 @@ interface TOTWPlayer {
 	position: string;
 }
 
-const sortWeeksAscending = (weeks: Week[]): Week[] => {
-	return [...weeks].sort((a, b) => Number(a.week) - Number(b.week));
+const getWeekDateTimestamp = (week: Week): number | null => {
+	if (!week.dateLookup) return null;
+
+	// dateLookup format is expected like "Sat, 18 Apr 2026".
+	const parsed = Date.parse(week.dateLookup);
+	if (!Number.isNaN(parsed)) return parsed;
+
+	// Fallback: strip weekday prefix if present and try again.
+	const withoutWeekday = week.dateLookup.replace(/^[A-Za-z]{3},\s*/, "");
+	const parsedFallback = Date.parse(withoutWeekday);
+	return Number.isNaN(parsedFallback) ? null : parsedFallback;
+};
+
+const sortWeeksByDateLookup = (weeks: Week[]): Week[] => {
+	return [...weeks].sort((a, b) => {
+		const aTimestamp = getWeekDateTimestamp(a);
+		const bTimestamp = getWeekDateTimestamp(b);
+
+		if (aTimestamp !== null && bTimestamp !== null) {
+			return aTimestamp - bTimestamp;
+		}
+
+		// Keep deterministic order when date parsing is unavailable.
+		return Number(a.week) - Number(b.week);
+	});
 };
 
 export default function TeamOfTheWeek() {
@@ -148,7 +171,7 @@ export default function TeamOfTheWeek() {
 						})
 							.then(weeksData => {
 								if (weeksData?.weeks) {
-									const sortedWeeks = sortWeeksAscending(weeksData.weeks);
+									const sortedWeeks = sortWeeksByDateLookup(weeksData.weeks);
 									// Skip week 0 (Team of the Season) for default selection
 									const regularWeeks = sortedWeeks.filter((w: Week) => w.week !== 0);
 									const weekToSelect = weeksData.latestGameweek ? Number(weeksData.latestGameweek) : 
@@ -225,7 +248,7 @@ export default function TeamOfTheWeek() {
 
 		const cachedWeeks = getCachedTOTWWeeks(selectedSeason);
 		if (cachedWeeks) {
-			const sortedWeeks = sortWeeksAscending(cachedWeeks.weeks);
+			const sortedWeeks = sortWeeksByDateLookup(cachedWeeks.weeks);
 			setWeeks(sortedWeeks);
 			if (cachedWeeks.currentWeek !== null && cachedWeeks.currentWeek !== 0) {
 				setCurrentWeek(cachedWeeks.currentWeek);
@@ -259,7 +282,7 @@ export default function TeamOfTheWeek() {
 				}
 				
 				if (data.weeks && Array.isArray(data.weeks)) {
-					const sortedWeeks = sortWeeksAscending(data.weeks);
+					const sortedWeeks = sortWeeksByDateLookup(data.weeks);
 					setWeeks(sortedWeeks);
 					// Prioritize latestGameweek from SiteDetail, then currentWeek, then last week in list
 					// Skip week 0 (Team of the Season) for default selection
