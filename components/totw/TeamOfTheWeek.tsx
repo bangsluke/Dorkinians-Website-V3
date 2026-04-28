@@ -37,6 +37,10 @@ interface TOTWPlayer {
 	position: string;
 }
 
+const sortWeeksAscending = (weeks: Week[]): Week[] => {
+	return [...weeks].sort((a, b) => Number(a.week) - Number(b.week));
+};
+
 export default function TeamOfTheWeek() {
 	const {
 		cacheTOTWSeasons,
@@ -144,12 +148,13 @@ export default function TeamOfTheWeek() {
 						})
 							.then(weeksData => {
 								if (weeksData?.weeks) {
+									const sortedWeeks = sortWeeksAscending(weeksData.weeks);
 									// Skip week 0 (Team of the Season) for default selection
-									const regularWeeks = weeksData.weeks.filter((w: Week) => w.week !== 0);
+									const regularWeeks = sortedWeeks.filter((w: Week) => w.week !== 0);
 									const weekToSelect = weeksData.latestGameweek ? Number(weeksData.latestGameweek) : 
 										(weeksData.currentWeek ?? (regularWeeks.length > 0 ? regularWeeks[regularWeeks.length - 1].week : null));
 									if (weekToSelect && weekToSelect !== 0) {
-										cacheTOTWWeeks(seasonToUse, weeksData.weeks, weekToSelect, weeksData.latestGameweek);
+										cacheTOTWWeeks(seasonToUse, sortedWeeks, weekToSelect, weeksData.latestGameweek);
 										// Pre-fetch current week data in background with caching
 										const weekDataCacheKey = generatePageCacheKey("totw", "team-of-the-week", "week-data", { 
 											season: seasonToUse, 
@@ -220,13 +225,14 @@ export default function TeamOfTheWeek() {
 
 		const cachedWeeks = getCachedTOTWWeeks(selectedSeason);
 		if (cachedWeeks) {
-			setWeeks(cachedWeeks.weeks);
+			const sortedWeeks = sortWeeksAscending(cachedWeeks.weeks);
+			setWeeks(sortedWeeks);
 			if (cachedWeeks.currentWeek !== null && cachedWeeks.currentWeek !== 0) {
 				setCurrentWeek(cachedWeeks.currentWeek);
 				setSelectedWeek(cachedWeeks.currentWeek);
-			} else if (cachedWeeks.weeks.length > 0) {
+			} else if (sortedWeeks.length > 0) {
 				// Skip week 0 (Team of the Season) for default selection
-				const regularWeeks = cachedWeeks.weeks.filter(w => w.week !== 0);
+				const regularWeeks = sortedWeeks.filter((w) => w.week !== 0);
 				if (regularWeeks.length > 0) {
 					const weekToSelect = regularWeeks[regularWeeks.length - 1].week;
 					setCurrentWeek(weekToSelect);
@@ -253,7 +259,8 @@ export default function TeamOfTheWeek() {
 				}
 				
 				if (data.weeks && Array.isArray(data.weeks)) {
-					setWeeks(data.weeks);
+					const sortedWeeks = sortWeeksAscending(data.weeks);
+					setWeeks(sortedWeeks);
 					// Prioritize latestGameweek from SiteDetail, then currentWeek, then last week in list
 					// Skip week 0 (Team of the Season) for default selection
 					let weekToSelect: number | null = null;
@@ -268,9 +275,9 @@ export default function TeamOfTheWeek() {
 						weekToSelect = data.currentWeek;
 						log("info", "Setting week to currentWeek from API:", weekToSelect);
 					}
-					if (weekToSelect === null && data.weeks.length > 0) {
+					if (weekToSelect === null && sortedWeeks.length > 0) {
 						// Skip week 0 (Team of the Season) for default selection
-						const regularWeeks = data.weeks.filter((w: Week) => w.week !== 0);
+						const regularWeeks = sortedWeeks.filter((w: Week) => w.week !== 0);
 						if (regularWeeks.length > 0) {
 							weekToSelect = regularWeeks[regularWeeks.length - 1].week;
 							log("info", "Setting week to last week in list:", weekToSelect);
@@ -283,7 +290,7 @@ export default function TeamOfTheWeek() {
 						log("info", "No weeks found for season:", selectedSeason);
 						setWeeks([]);
 					}
-					cacheTOTWWeeks(selectedSeason, data.weeks, weekToSelect, data.latestGameweek);
+					cacheTOTWWeeks(selectedSeason, sortedWeeks, weekToSelect, data.latestGameweek);
 				} else {
 					log("error", "Invalid weeks data format:", data);
 					setWeeks([]);
