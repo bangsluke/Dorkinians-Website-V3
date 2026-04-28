@@ -713,8 +713,8 @@ npm run test:e2e:debug
 # Run tests with email notification
 npm run test:e2e:email
 
-# Run weekly consolidated test email (all major suites + subsections)
-npm run test:weekly:email
+# Run CI-style full-suite summary email (requires SMTP + env flags)
+npm run test:all
 
 # View test report
 npm run test:e2e:report
@@ -722,15 +722,15 @@ npm run test:e2e:report
 
 #### GitHub Actions Execution
 
-For GitHub Actions (automated weekly runs), the workflow uses:
+For GitHub Actions (including automated weekly runs), the workflow uses:
 
 ```bash
-npm run test:weekly:email
+npm run test:all
 ```
 
 This will:
-- Run the consolidated weekly matrix (Unit, Integration, Other Jest, E2E, and report scripts)
-- Build one email summary grouped by major sections and subsections (for example Navigation, Home, Player Stats)
+- Run the full matrix (Unit, Integration, Other Jest, E2E, and report scripts)
+- Build one CI summary email grouped by suites/subsections when `SEND_CI_TEST_ALL_SUMMARY_EMAIL=true`
 - Upload Playwright artifacts from E2E execution
 - Exit with non-zero code on failure
 
@@ -1167,7 +1167,7 @@ The workflow file is `.github/workflows/full-test-suite-and-email.yml`. It inclu
 - **Schedule**: Runs every Tuesday at 2:17 AM UTC (same cadence as before)
 - **Manual Trigger**: `workflow_dispatch` from the Actions tab
 - **Playwright Setup**: Installs Chromium with system dependencies
-- **Email Notifications**: Uses `npm run test:weekly:email` (consolidated HTML summary; subject includes trigger/ref when `WORKFLOW_TRIGGER_LABEL` is set in CI)
+- **Email Notifications**: Uses `npm run test:all` with `SEND_CI_TEST_ALL_SUMMARY_EMAIL=true` (consolidated HTML summary; subject includes trigger/ref when `WORKFLOW_TRIGGER_LABEL` is set in CI)
 - **Artifact Upload**: Saves Playwright reports and screenshots for 30 days
 
 #### Step 2: Configure GitHub Secrets
@@ -1223,7 +1223,7 @@ To trigger tests manually:
 5. **Test Suite Runs**: Unit, Integration, Other Jest, and E2E suites execute
 6. **Screenshots Captured**: On failure, screenshots are saved
 7. **Report Generated**: HTML report created in `__tests__/e2e/playwright-report/`
-8. **Email Sent**: One consolidated weekly email is sent with section/subsection status
+8. **Email Sent**: One full-suite CI summary email is sent with suite/subsection status
 9. **Artifacts Uploaded**: Test reports and screenshots are saved as artifacts
 
 #### Expected Duration
@@ -1240,11 +1240,11 @@ To trigger tests manually:
 
 #### Email Notifications
 
-Email notifications are automatically sent via the `test:weekly:email` script:
+Email notifications are automatically sent by `test:all` when `SEND_CI_TEST_ALL_SUMMARY_EMAIL=true`:
 
 - **On Success**: Email with test summary and pass rate
 - **On Failure**: Email with detailed failure information, screenshots, and test output
-- **Format**: HTML email grouped by Unit/Integration/E2E plus subsection breakdowns
+- **Format**: HTML email grouped by Unit/Integration/Other Jest/E2E/Reports plus subsection breakdowns
 
 #### GitHub Actions Notifications
 
@@ -1355,7 +1355,7 @@ The workflow file (`.github/workflows/full-test-suite-and-email.yml`) includes:
 - **Concurrency**: One run per ref/event; in-progress runs cancel when superseded
 - **Node.js 20**: LTS
 - **Playwright**: Chromium with dependencies
-- **Email Integration**: `npm run test:weekly:email` (consolidated matrix + SMTP)
+- **Email Integration**: `npm run test:all` + `SEND_CI_TEST_ALL_SUMMARY_EMAIL=true` (consolidated matrix + SMTP)
 - **Artifact Storage**: Reports and screenshots saved for 30 days
 - **Timeout**: 60 minutes for the job and test step
 

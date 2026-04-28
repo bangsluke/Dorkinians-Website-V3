@@ -792,7 +792,6 @@ The project uses a unified schema system where configuration files are synchroni
 - `npm run test` runs unit, integration, advanced, comprehensive, validation, performance, monitoring, security, ux, e2e, and report scripts as a strict all-pass pipeline (report emails suppressed).
 - `npm run test:all` runs unit, integration, advanced, comprehensive, validation, performance, monitoring, security, ux, e2e, and report scripts as a strict all-pass pipeline (report emails suppressed). With **`SEND_CI_TEST_ALL_SUMMARY_EMAIL=true`** and SMTP secrets, after the run it sends one HTML email: subject **`Dorkinians Stats Website - Full test suite - X/Y passed`**, Umami-style gradient header (**Full Test Suite** + “Dorkinians Website” eyebrow), overall status, then **per-suite cards** with subsection tables. Failed/skipped tests (Jest/Playwright) and failed report scripts get a second breakdown block; Jest writes JSON under `__tests__/e2e/test-results/jest-test-all-*.json` and Playwright (when **`CI=true`**) writes **`junit.xml`** there for detail parsing.
 - `npm run test:all:emails` runs the same strict pipeline but enables chatbot/questions report emails.
-- `npm run test:weekly:email` runs the weekly consolidated test summary email with Unit, Integration, E2E and subsection breakdowns.
 - `npm run test:coverage` generates Jest coverage output to `coverage/` (`text`, `lcov`, and `html`).
 
 ### CI on main and email
