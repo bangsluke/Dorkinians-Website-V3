@@ -1,6 +1,6 @@
 {
 	"name": "dorkinians-website-v3",
-	"version": "3.3.2",
+	"version": "3.3.3",
 	"description": "Dorkinians FC Statistics Website",
 	"private": true,
 	"scripts": {
@@ -20,7 +20,6 @@
 		"test:all": "node __tests__/scripts/test-all.js",
 		"test:all:emails": "node __tests__/scripts/test-all.js --emails",
 		"test:all:debug": "node __tests__/scripts/test-all.js --debug",
-		"test:weekly:email": "node __tests__/scripts/test-weekly-consolidated-email.js",
 		"test:unit": "jest --testPathPatterns=unit",
 		"test:debug": "cross-env JEST_VERBOSE=true jest --verbose",
 		"test:watch": "jest --watch",
