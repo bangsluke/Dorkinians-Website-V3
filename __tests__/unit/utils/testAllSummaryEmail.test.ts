@@ -95,6 +95,76 @@ describe("test-all summary email helpers", () => {
 		expect(text).toContain("Database package tests: run in the database-dorkinians repository pipeline.");
 	});
 
+	it("includes failed unit test titles in plain text when artifact details exist", () => {
+		const text = buildTestAllEmailPlainText({
+			summaryItems: [{ name: "Unit Tests", result: false }],
+			passedCount: 0,
+			totalCount: 1,
+			e2eSkippedCount: 0,
+			e2eSkipNote: "",
+			sections: [
+				{
+					displayName: "Unit",
+					command: "jest --testPathPatterns=unit",
+					suitePassed: false,
+					subsections: [{ name: "Summary", status: "failed" }],
+					counts: { passed: 8, failed: 1, skipped: 0 },
+					detailTests: [
+						{
+							title: "User auth › rejects expired token",
+							status: "failed",
+							durationSec: 0.2,
+							message: "Expected token to be valid",
+						},
+					],
+				},
+			],
+		});
+
+		expect(text).toContain("User auth › rejects expired token");
+		expect(text).toContain("[failed]");
+	});
+
+	it("adds deterministic fallback detail when a failed suite has no parsed test names", () => {
+		const html = buildTestAllEmailInnerHtml({
+			summaryItems: [{ name: "Unit Tests", result: false }],
+			passedCount: 0,
+			totalCount: 1,
+			e2eSkippedCount: 0,
+			e2eSkipNote: "",
+			sections: [
+				{
+					displayName: "Unit",
+					command: "jest --testPathPatterns=unit",
+					suitePassed: false,
+					subsections: [{ name: "Summary", status: "failed" }],
+					counts: { passed: 3, failed: 1, skipped: 0 },
+					detailTests: [],
+				},
+			],
+		});
+		const text = buildTestAllEmailPlainText({
+			summaryItems: [{ name: "Unit Tests", result: false }],
+			passedCount: 0,
+			totalCount: 1,
+			e2eSkippedCount: 0,
+			e2eSkipNote: "",
+			sections: [
+				{
+					displayName: "Unit",
+					command: "jest --testPathPatterns=unit",
+					suitePassed: false,
+					subsections: [{ name: "Summary", status: "failed" }],
+					counts: { passed: 3, failed: 1, skipped: 0 },
+					detailTests: [],
+				},
+			],
+		});
+
+		expect(html).toContain("Failing test details unavailable");
+		expect(text).toContain("Failing test details unavailable in artifacts");
+	});
+
 	it("marks skipped-only E2E folders as SKIPPED, not FAILED", () => {
 		const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "test-all-email-skips-"));
 		try {
