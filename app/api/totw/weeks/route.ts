@@ -38,11 +38,11 @@ export async function GET(request: NextRequest) {
 		const weeksQuery = `
 			MATCH (wt:WeeklyTOTW {graphLabel: $graphLabel, season: $season})
 			WHERE wt.week IS NOT NULL
-			RETURN wt.week as week, 
+			RETURN toInteger(wt.week) as week, 
 			       COALESCE(wt.dateLookup, '') as dateLookup, 
-			       COALESCE(wt.weekAdjusted, toString(wt.week)) as weekAdjusted,
+			       COALESCE(wt.weekAdjusted, toString(toInteger(wt.week))) as weekAdjusted,
 			       COALESCE(wt.totwScore, 0) as totwScore
-			ORDER BY wt.week ASC
+			ORDER BY toInteger(wt.week) ASC
 		`;
 
 		// Fetch latest gameweek from SiteDetail node
