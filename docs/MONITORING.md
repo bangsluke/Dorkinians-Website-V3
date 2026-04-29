@@ -22,6 +22,15 @@ Replace placeholders with your real hosts.
 
 Optional deeper check: `GET /api/site-details` (full `SiteDetail` read) if you want redundancy.
 
+## 2.5 Data staleness alert (>40h)
+
+The scheduled seeding trigger (`/.netlify/functions/trigger-seed`) performs a preflight freshness check on each cron run.
+
+- It reads `lastSeededStats` from `GET /api/site-details`.
+- If the value is missing, unparseable, or older than **40 hours**, it sends an email to the existing default recipient.
+- The email subject includes `LIVE DATA STALE`.
+- This preflight is best-effort: if `GET /api/site-details` fails at trigger-time, the run treats the data as stale and will alert (fail-open for the seeding itself).
+
 **Privacy:** Heroku `/health` JSON may include in-memory job IDs. If you want to avoid exposing that to a monitor’s logs, use a keyword rule on `"status":"healthy"` only and avoid storing full response bodies in the tool if it offers that option.
 
 ## 3. Monitor settings (typical)
