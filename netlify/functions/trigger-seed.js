@@ -465,6 +465,103 @@ Environment: ${process.env.NODE_ENV || 'production'}
 Generated: ${new Date().toLocaleString()}
 		`;
 	}
+
+	async sendStaleDataAlertEmail({ environment, jobId, emailAddress, lastSeededStats, hoursOld, staleThresholdHours }) {
+		// Dedicated alert for data freshness problems.
+		if (!this.transporter || !this.config) {
+			console.log("🚨 STALE-ALERT: Email service not configured - cannot send stale-data notification");
+			return false;
+		}
+
+		try {
+			const safeEnvironment = String(environment || "production");
+			const safeJobId = String(jobId || "unknown");
+			const safeEmailAddress = emailAddress || "bangsluke@gmail.com";
+			const safeLastSeededStats = lastSeededStats ? String(lastSeededStats) : "null";
+			const safeHoursOld =
+				typeof hoursOld === "number" && Number.isFinite(hoursOld)
+					? hoursOld.toFixed(2) + "h"
+					: "unknown";
+
+			const subject = `🚨 Database Data Stale - LIVE DATA STALE (${safeHoursOld}) - ${safeEnvironment}`;
+			const htmlBody = `
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>Database Data Stale - LIVE DATA STALE</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px;">
+	<div style="background: #dc3545; color: white; padding: 20px; border-radius: 5px; margin-bottom: 20px;">
+		<h1 style="margin: 0; font-size: 24px;">🚨 Database Data Stale - LIVE DATA STALE</h1>
+		<p style="margin: 10px 0 0 0; font-size: 16px;">Environment: ${this.escapeHtml(safeEnvironment)}</p>
+	</div>
+
+	<div style="background: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 20px;">
+		<h2 style="margin-top: 0;">Staleness Details</h2>
+		<table style="width: 100%; border-collapse: collapse;">
+			<tr>
+				<td style="padding: 8px; border: 1px solid #ddd; background: #e9ecef; font-weight: bold; width: 220px;">Threshold:</td>
+				<td style="padding: 8px; border: 1px solid #ddd;"><strong>${this.escapeHtml(String(staleThresholdHours))}h</strong></td>
+			</tr>
+			<tr>
+				<td style="padding: 8px; border: 1px solid #ddd; background: #e9ecef; font-weight: bold;">Last seeded stats:</td>
+				<td style="padding: 8px; border: 1px solid #ddd;">${this.escapeHtml(safeLastSeededStats)}</td>
+			</tr>
+			<tr>
+				<td style="padding: 8px; border: 1px solid #ddd; background: #e9ecef; font-weight: bold;">Hours since last update:</td>
+				<td style="padding: 8px; border: 1px solid #ddd;"><strong>${this.escapeHtml(safeHoursOld)}</strong></td>
+			</tr>
+			<tr>
+				<td style="padding: 8px; border: 1px solid #ddd; background: #e9ecef; font-weight: bold;">Trigger Job ID:</td>
+				<td style="padding: 8px; border: 1px solid #ddd;">${this.escapeHtml(safeJobId)}</td>
+			</tr>
+		</table>
+
+		<p style="margin: 14px 0 0 0;">
+			The scheduled seeding job started, but the database appeared stale at trigger time.
+			Please review the seed run logs and confirm whether live data was updated.
+		</p>
+	</div>
+
+	<div style="background: #f8f9fa; padding: 15px; border-radius: 5px; font-size: 14px; color: #6c757d;">
+		<p style="margin: 0;"><strong>Service:</strong> Dorkinians Database Seeder</p>
+		<p style="margin: 5px 0 0 0;"><strong>Generated:</strong> ${this.escapeHtml(new Date().toLocaleString())}</p>
+	</div>
+</body>
+</html>
+			`.trim();
+
+			const textBody = `
+🚨 Database Data Stale - LIVE DATA STALE
+Environment: ${safeEnvironment}
+Threshold: ${staleThresholdHours}h
+Last seeded stats: ${safeLastSeededStats}
+Hours since last update: ${safeHoursOld}
+Trigger Job ID: ${safeJobId}
+
+The scheduled seeding job started, but the database appeared stale at trigger time.
+Please review seed run logs and confirm whether live data was updated.
+Generated: ${new Date().toLocaleString()}
+			`.trim();
+
+			const mailOptions = {
+				from: this.config.from,
+				to: safeEmailAddress,
+				subject,
+				html: htmlBody,
+				text: textBody,
+				priority: "high"
+			};
+
+			const info = await this.transporter.sendMail(mailOptions);
+			console.log("🚨 STALE-ALERT: Email sent successfully:", info.messageId);
+			return true;
+		} catch (error) {
+			console.error("🚨 STALE-ALERT: Failed to send stale-data email:", error.message);
+			return false;
+		}
+	}
 }
 
 // Initialize services
@@ -609,6 +706,90 @@ exports.handler = async (event, context) => {
 			emailService.configure();
 		} catch (error) {
 			console.warn("⚠️ Failed to configure email service:", error.message);
+		}
+
+		// Preflight: if the database appears stale for too long, alert ops.
+		// This runs only for the scheduled (cron) trigger to avoid spamming manual/admin runs.
+		if (isCronJob) {
+			const staleThresholdHours = 40;
+			const websiteBaseUrl = (
+				process.env.WEBSITE_BASE_URL ||
+				process.env.SITE_BASE_URL ||
+				process.env.ALLOWED_ORIGIN ||
+				"https://dorkinians-website-v3.netlify.app"
+			).replace(/\/+$/, "");
+
+			const siteDetailsUrl = `${websiteBaseUrl}/api/site-details`;
+			const emailAddress = emailConfig.emailAddress || "bangsluke@gmail.com";
+
+			let lastSeededStats = null;
+			let hoursOld = null;
+
+			try {
+				console.log(`🕒 STALE-ALERT: Checking freshness via ${siteDetailsUrl}`);
+				const controller = new AbortController();
+				const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+				const response = await fetch(siteDetailsUrl, {
+					method: "GET",
+					headers: { "Content-Type": "application/json" },
+					signal: controller.signal
+				});
+
+				clearTimeout(timeoutId);
+
+				if (!response.ok) {
+					throw new Error(`site-details returned HTTP ${response.status}`);
+				}
+
+				const data = await response.json();
+				lastSeededStats = data?.lastSeededStats ?? null;
+
+				if (lastSeededStats) {
+					const lastSeededMs = Date.parse(lastSeededStats);
+					if (Number.isFinite(lastSeededMs)) {
+						hoursOld = (Date.now() - lastSeededMs) / (60 * 60 * 1000);
+					}
+				}
+			} catch (staleCheckError) {
+				// Fail-open for seeding itself, but treat as stale because we cannot confirm freshness.
+				console.warn("⚠️ STALE-ALERT: Freshness check failed:", staleCheckError.message);
+				lastSeededStats = lastSeededStats ?? null;
+				hoursOld = hoursOld ?? null;
+			}
+
+			const shouldAlert =
+				!lastSeededStats ||
+				!Number.isFinite(Date.parse(lastSeededStats)) ||
+				(hoursOld !== null && Number.isFinite(hoursOld) && hoursOld > staleThresholdHours);
+
+			if (shouldAlert) {
+				const dedupeKey = `stale-${staleThresholdHours}h:${String(lastSeededStats || "missing")}`;
+				if (globalThis.__dorkiniansStaleAlertDedupeKey !== dedupeKey) {
+					console.log(
+						`🚨 STALE-ALERT: Triggering stale-data email. lastSeededStats=${String(
+							lastSeededStats
+						)} hoursOld=${hoursOld}`
+					);
+					await emailService.sendStaleDataAlertEmail({
+						environment,
+						jobId,
+						emailAddress,
+						lastSeededStats,
+						hoursOld,
+						staleThresholdHours
+					});
+					globalThis.__dorkiniansStaleAlertDedupeKey = dedupeKey;
+				} else {
+					console.log("ℹ️ STALE-ALERT: Skipping duplicate within the same warm invocation.");
+				}
+			} else {
+				console.log(
+					`✅ STALE-ALERT: Data freshness OK (${hoursOld.toFixed(2)}h old) - no alert`
+				);
+			}
+		} else {
+			console.log("🕑 STALE-ALERT: Skipping freshness preflight for non-cron trigger.");
 		}
 		
 		// Let Heroku handle all email notifications based on emailConfig flags
