@@ -22,11 +22,27 @@ interface MilestoneEntry {
 	mostRecentMatchDate?: string;
 }
 
+type ClubAchievementType = "league" | "cup";
+
 interface ClubAchievement {
 	team: string;
 	division: string;
 	season: string;
+	type?: ClubAchievementType;
+	competition?: string;
 	trophyNumber?: number;
+}
+
+function normalizeClubAchievement(raw: Record<string, unknown>): ClubAchievement {
+	const type: ClubAchievementType = raw.type === "cup" ? "cup" : "league";
+	return {
+		team: String(raw.team ?? ""),
+		division: String(raw.division ?? ""),
+		season: String(raw.season ?? ""),
+		type,
+		competition: type === "cup" ? String(raw.competition ?? "") : undefined,
+		trophyNumber: typeof raw.trophyNumber === "number" ? raw.trophyNumber : undefined,
+	};
 }
 
 
@@ -49,7 +65,11 @@ function AchievementBox({ achievement }: { achievement: ClubAchievement }) {
 	const [isModalOpen, setIsModalOpen] = useState(false);
 
 	const teamName = formatTeamName(achievement.team);
-	const restOfText = `${achievement.division} Champions ${achievement.season}`;
+	const achievementType = achievement.type ?? "league";
+	const restOfText =
+		achievementType === "cup"
+			? `${achievement.competition ?? ""} Winners ${achievement.season}`
+			: `${achievement.division} Champions ${achievement.season}`;
 	const trophyPath = `/stat-icons/trophies/Trophy${achievement.trophyNumber || 1}.svg`;
 
 	const handleClick = () => {
@@ -94,6 +114,8 @@ function AchievementBox({ achievement }: { achievement: ClubAchievement }) {
 				teamDisplayName={teamName}
 				season={achievement.season}
 				division={achievement.division}
+				achievementType={achievementType}
+				competition={achievement.competition}
 			/>
 		</>
 	);
@@ -124,10 +146,12 @@ export default function ClubInformation() {
 						// Use cached data immediately
 						const trophyNumbers = [1, 2, 3, 4, 5];
 						const shuffled = [...trophyNumbers].sort(() => Math.random() - 0.5);
-						const achievementsWithTrophies = data.map((achievement: ClubAchievement, index: number) => ({
-							...achievement,
-							trophyNumber: shuffled[index % 5],
-						}));
+						const achievementsWithTrophies = (data as Record<string, unknown>[]).map(
+							(row: Record<string, unknown>, index: number) => ({
+								...normalizeClubAchievement(row),
+								trophyNumber: shuffled[index % 5],
+							}),
+						);
 						setAchievements(achievementsWithTrophies);
 						setAchievementsLoading(false);
 					}
@@ -160,10 +184,12 @@ export default function ClubInformation() {
 					const trophyNumbers = [1, 2, 3, 4, 5];
 					const shuffled = [...trophyNumbers].sort(() => Math.random() - 0.5);
 					
-					const achievementsWithTrophies = achievementsData.map((achievement: ClubAchievement, index: number) => ({
-						...achievement,
-						trophyNumber: shuffled[index % 5],
-					}));
+					const achievementsWithTrophies = (achievementsData as Record<string, unknown>[]).map(
+						(row: Record<string, unknown>, index: number) => ({
+							...normalizeClubAchievement(row),
+							trophyNumber: shuffled[index % 5],
+						}),
+					);
 					
 					setAchievements(achievementsWithTrophies);
 				} else {
@@ -338,11 +364,14 @@ export default function ClubInformation() {
 				) : achievements.length > 0 ? (
 					<div className='flex overflow-x-auto gap-1 pb-2' style={{ WebkitOverflowScrolling: 'touch' }}>
 						{achievements.map((achievement, index) => (
-							<AchievementBox key={`${achievement.team}-${achievement.season}-${index}`} achievement={achievement} />
+							<AchievementBox
+								key={`${achievement.team}-${achievement.season}-${achievement.type ?? "league"}-${achievement.competition ?? ""}-${index}`}
+								achievement={achievement}
+							/>
 						))}
 					</div>
 				) : (
-					<p className='text-sm text-gray-400 text-center py-4'>No league championships to display</p>
+					<p className='text-sm text-gray-400 text-center py-4'>No league or cup trophies to display</p>
 				)}
 					</div>
 
