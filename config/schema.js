@@ -407,8 +407,8 @@ const schema = {
       extractedPicker: { type: 'string', required: false },
       inferredFormation: { type: 'string', required: false }
     },
-    idPattern: 'fixture_{homeTeam}_{awayTeam}_{date}',
-    constraints: ['CREATE CONSTRAINT fixture_id IF NOT EXISTS FOR (f:Fixture) REQUIRE f.id IS UNIQUE'],
+    idPattern: 'fixture_{id}',
+    constraints: ['CREATE CONSTRAINT fixture_id_graphlabel IF NOT EXISTS FOR (f:Fixture) REQUIRE (f.id, f.graphLabel) IS UNIQUE'],
     filters: {
       status: (value) => !['Void', 'Postponed', 'Abandoned'].includes(value)
     }
@@ -486,8 +486,8 @@ const schema = {
       ewmaReactive: { type: 'number', required: false },
       ewmaBaseline: { type: 'number', required: false }
     },
-    idPattern: 'match_{playerName}_{matchDate}',
-    constraints: ['CREATE CONSTRAINT matchdetail_id IF NOT EXISTS FOR (md:MatchDetail) REQUIRE md.id IS UNIQUE']
+    idPattern: 'match_{id}',
+    constraints: ['CREATE CONSTRAINT matchdetail_id_graphlabel IF NOT EXISTS FOR (md:MatchDetail) REQUIRE (md.id, md.graphLabel) IS UNIQUE']
   },
 
   // ============================================================================
@@ -698,6 +698,30 @@ const schema = {
     constraints: ['CREATE CONSTRAINT captainaward_id IF NOT EXISTS FOR (ca:CaptainsAndAwards) REQUIRE ca.id IS UNIQUE'],
     // Custom node creation logic - one node per Item with season properties
     customNodeCreation: true
+  },
+
+  // ============================================================================
+  // TBL_CupsWon - Manual list of cup wins (Team, Competition, Season)
+  // ============================================================================
+  TBL_CupsWon: {
+    csvColumns: {
+      'Team': 'teamKey',
+      'Competition': 'competition',
+      'Season': 'season',
+    },
+    requiredColumns: ['Team', 'Competition', 'Season'],
+    nodeType: 'CupWin',
+    properties: {
+      id: { type: 'string', required: true },
+      teamKey: { type: 'string', required: true },
+      season: { type: 'string', required: true },
+      competition: { type: 'string', required: true },
+    },
+    idPattern: 'cupwin_{teamKey}_{season}_{competitionDigest}',
+    constraints: [
+      'CREATE CONSTRAINT cupwin_id_graphlabel IF NOT EXISTS FOR (cw:CupWin) REQUIRE (cw.id, cw.graphLabel) IS UNIQUE',
+    ],
+    customNodeCreation: true,
   },
 
   // ============================================================================
@@ -1103,7 +1127,9 @@ const relationships = {
     to: 'MatchDetail',
     type: 'HAS_MATCH_DETAILS',
     properties: {},
-    conditions: 'f.date = md.date AND md.id CONTAINS f.id'
+    // Fixture node id is idPattern fixture_{id} (e.g. fixture_fixture-2016/17-...); MatchDetail id embeds the raw CSV fixture token (fixture-2016/17-...) after matchdetail__ - so match on suffix after first "fixture_" prefix.
+    conditions:
+      "f.date = md.date AND md.id CONTAINS substring(f.id, size('fixture_'))"
   },
   // New relationships for improved chatbot capabilities
   PLAYED_WITH: {

@@ -98,10 +98,19 @@ export async function GET(request: NextRequest) {
 		const { searchParams } = new URL(request.url);
 		const team = searchParams.get('team');
 		const season = searchParams.get('season');
+		const achievementType = searchParams.get('type') ?? 'league';
+		const competition = searchParams.get('competition');
 
 		if (!team || !season) {
 			return NextResponse.json(
 				{ error: 'Team and season parameters are required' },
+				{ status: 400, headers: corsHeaders },
+			);
+		}
+
+		if (achievementType === 'cup' && (!competition || competition.trim() === '')) {
+			return NextResponse.json(
+				{ error: 'Competition parameter is required when type=cup' },
 				{ status: 400, headers: corsHeaders },
 			);
 		}
@@ -123,10 +132,20 @@ export async function GET(request: NextRequest) {
 		// Map team key (e.g., "1s", "2s") to database format (e.g., "1st XI", "2nd XI")
 		const mappedTeam = TeamMappingUtils.mapTeamName(team);
 
-		// Query to get all players who made appearances for the specified team in the specified season
-		// Only count League games (not cup games)
-		// Count appearances per player and order by appearance count descending
-		const query = `
+		const isCup = achievementType === 'cup';
+
+		const query = isCup
+			? `
+			MATCH (p:Player {graphLabel: $graphLabel})
+			WHERE p.allowOnSite = true
+			MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+			WHERE md.team = $team AND f.season = $season AND f.compType = 'Cup' AND f.competition = $competition
+			WITH p.playerName as playerName, count(md) as appearances
+			RETURN playerName, appearances
+			ORDER BY appearances DESC, playerName ASC
+		`
+			: `
 			MATCH (p:Player {graphLabel: $graphLabel})
 			WHERE p.allowOnSite = true
 			MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
@@ -137,11 +156,19 @@ export async function GET(request: NextRequest) {
 			ORDER BY appearances DESC, playerName ASC
 		`;
 
-		const params = {
+		const params: {
+			graphLabel: string;
+			team: string;
+			season: string;
+			competition?: string;
+		} = {
 			graphLabel,
 			team: mappedTeam,
 			season: normalizedSeason,
 		};
+		if (isCup) {
+			params.competition = competition!.trim();
+		}
 
 		const result = await neo4jService.runQuery(query, params);
 
