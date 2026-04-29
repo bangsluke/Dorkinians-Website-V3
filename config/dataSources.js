@@ -53,6 +53,11 @@ const dataSources = [
 		type: "StatsData",
 	},
 	{
+		name: "TBL_CupsWon",
+		url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=615645151&single=true&output=csv",
+		type: "StatsData",
+	},
+	{
 		name: "TBL_OppositionDetails",
 		url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=1977394709&single=true&output=csv",
 		type: "StatsData",

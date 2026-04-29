@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
 	getAvailableSeasons,
 	getSeasonDataFromJSON,
+	normalizeSeasonFormat,
 } from '@/lib/services/leagueTableService';
 import { apiCache, getCacheTTL } from '@/lib/utils/apiCache';
+import { neo4jService } from '@/lib/neo4j';
 
 const corsHeaders = {
 	'Access-Control-Allow-Origin': '*',
@@ -11,20 +13,51 @@ const corsHeaders = {
 	'Access-Control-Allow-Headers': 'Content-Type',
 };
 
+export type ClubAchievementType = 'league' | 'cup';
+
 export interface ClubAchievement {
 	team: string;
 	division: string;
 	season: string;
+	type: ClubAchievementType;
+	competition?: string;
 }
 
 export async function OPTIONS() {
 	return NextResponse.json({}, { headers: corsHeaders });
 }
 
-export async function GET(request: NextRequest) {
+function getTeamPriority(team: string): number {
+	const teamMap: { [key: string]: number } = {
+		'1s': 1,
+		'2s': 2,
+		'3s': 3,
+		'4s': 4,
+		'5s': 5,
+		'6s': 6,
+		'7s': 7,
+		'8s': 8,
+	};
+	return teamMap[team] || 999;
+}
+
+function achievementSortKey(a: ClubAchievement, b: ClubAchievement): number {
+	const priorityDiff = getTeamPriority(a.team) - getTeamPriority(b.team);
+	if (priorityDiff !== 0) return priorityDiff;
+	const seasonA = parseInt(a.season.replace('/', ''), 10);
+	const seasonB = parseInt(b.season.replace('/', ''), 10);
+	if (seasonA !== seasonB) return seasonB - seasonA;
+	const typeOrder = (t: ClubAchievementType): number => (t === 'league' ? 0 : 1);
+	const typeDiff = typeOrder(a.type) - typeOrder(b.type);
+	if (typeDiff !== 0) return typeDiff;
+	const tieA = a.type === 'cup' ? (a.competition ?? '') : a.division;
+	const tieB = b.type === 'cup' ? (b.competition ?? '') : b.division;
+	return tieA.localeCompare(tieB);
+}
+
+export async function GET(_request: NextRequest) {
 	try {
-		// Check cache first
-		const cacheKey = apiCache.generateKey("/api/club-achievements");
+		const cacheKey = apiCache.generateKey('/api/club-achievements');
 		const cached = apiCache.get<{ achievements: ClubAchievement[] }>(cacheKey);
 		if (cached) {
 			return NextResponse.json(cached, { headers: corsHeaders });
@@ -32,68 +65,62 @@ export async function GET(request: NextRequest) {
 
 		const achievements: ClubAchievement[] = [];
 
-		// Get all seasons from JSON files
 		const seasons = await getAvailableSeasons();
-
-		// Parallelize file reads for all seasons
-		const seasonDataPromises = seasons.map(season => getSeasonDataFromJSON(season));
+		const seasonDataPromises = seasons.map((season) => getSeasonDataFromJSON(season));
 		const seasonDataResults = await Promise.all(seasonDataPromises);
 
-		// Process all season data in parallel
 		for (const seasonData of seasonDataResults) {
 			if (!seasonData) continue;
 
-			// Iterate through all teams in this season
 			for (const [teamKey, teamData] of Object.entries(seasonData.teams)) {
 				if (!teamData || !teamData.table || teamData.table.length === 0) continue;
 
-				// Find Dorkinians entry in this team's table
 				const dorkiniansEntry = teamData.table.find((entry) =>
 					entry.team.toLowerCase().includes('dorkinians'),
 				);
 
-				// Check if Dorkinians finished in 1st place
 				if (dorkiniansEntry && dorkiniansEntry.position === 1) {
 					achievements.push({
 						team: teamKey,
 						division: teamData.division || '',
-						season: seasonData.season, // Already in slash format from getSeasonDataFromJSON
+						season: seasonData.season,
+						type: 'league',
 					});
 				}
 			}
 		}
 
-		// Helper function to get team priority (1st XI = 1, 2nd XI = 2, etc.)
-		const getTeamPriority = (team: string): number => {
-			const teamMap: { [key: string]: number } = {
-				"1s": 1,
-				"2s": 2,
-				"3s": 3,
-				"4s": 4,
-				"5s": 5,
-				"6s": 6,
-				"7s": 7,
-				"8s": 8,
-			};
-			return teamMap[team] || 999;
-		};
+		const connected = await neo4jService.connect();
+		if (connected) {
+			const graphLabel = neo4jService.getGraphLabel();
+			const cupQuery = `
+				MATCH (cw:CupWin {graphLabel: $graphLabel})
+				RETURN cw.teamKey AS team, cw.season AS season, cw.competition AS competition
+			`;
+			const cupResult = await neo4jService.runQuery(cupQuery, { graphLabel });
+			for (const record of cupResult.records) {
+				const team = record.get('team');
+				const season = record.get('season');
+				const competition = record.get('competition');
+				if (!team || !season || !competition) continue;
+				const seasonStr = normalizeSeasonFormat(String(season), 'slash');
+				achievements.push({
+					team: String(team),
+					division: '',
+					season: seasonStr,
+					type: 'cup',
+					competition: String(competition),
+				});
+			}
+		}
 
-		// Sort by team priority first (1st XI highest), then by season descending
-		achievements.sort((a, b) => {
-			const priorityDiff = getTeamPriority(a.team) - getTeamPriority(b.team);
-			if (priorityDiff !== 0) return priorityDiff;
-			// Then sort by season descending (most recent first)
-			const seasonA = parseInt(a.season.replace('/', ''));
-			const seasonB = parseInt(b.season.replace('/', ''));
-			return seasonB - seasonA;
-		});
+		achievements.sort(achievementSortKey);
 
 		const response = { achievements };
-		
-		// Cache the response
-		const ttl = getCacheTTL("/api/club-achievements");
+
+		const ttl = getCacheTTL('/api/club-achievements');
 		apiCache.set(cacheKey, response, ttl);
-		
+
 		return NextResponse.json(response, { headers: corsHeaders });
 	} catch (error) {
 		console.error('Error fetching club achievements:', error);
@@ -103,4 +130,3 @@ export async function GET(request: NextRequest) {
 		);
 	}
 }
-

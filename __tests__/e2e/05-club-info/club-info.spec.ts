@@ -96,7 +96,7 @@ test.describe("Club Info Page Tests", () => {
 	test("5.4. the club achievements section should display the club's achievements", async ({ page }) => {
 		await navigateToMainPage(page, "club-info");
 		await expect(page.getByRole("heading", { name: "Club Achievements" })).toBeVisible({ timeout: 20000 });
-		const empty = page.getByText("No league championships to display");
+		const empty = page.getByText("No league or cup trophies to display");
 		const trophies = page.locator('img[alt="Trophy"], img[alt*="Trophy"]');
 		if (await empty.isVisible({ timeout: 5000 }).catch(() => false)) {
 			await expect(empty).toBeVisible();
