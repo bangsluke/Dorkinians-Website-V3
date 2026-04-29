@@ -237,6 +237,72 @@ describe("test-all summary email helpers", () => {
 		expect(text).toContain("Failing test details unavailable in artifacts");
 	});
 
+	it("falls back to jest output log names when unit artifact has no parsed tests", () => {
+		const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "test-all-email-jest-log-fallback-"));
+		try {
+			const paths = getTestAllArtifactPaths(tmpRoot);
+			fs.mkdirSync(path.dirname(paths.jestUnit), { recursive: true });
+			fs.writeFileSync(
+				paths.jestUnit,
+				JSON.stringify(
+					{
+						testResults: [],
+					},
+					null,
+					2,
+				),
+				"utf8",
+			);
+
+			const sections = buildSectionsFromArtifacts({
+				artifactsEnabled: true,
+				repoRoot: tmpRoot,
+				suitePass: {
+					unit: false,
+					integration: true,
+					otherJest: true,
+					e2e: true,
+					chatbotReport: true,
+					questionsReport: true,
+				},
+				logs: {
+					unit: `FAIL __tests__/unit/utils/apiUtils.test.ts
+  ● Unit - apiUtils › should sanitize malformed payload
+  ● Unit - apiUtils › should return default query options`,
+				},
+			});
+
+			const unitSection = sections.find((s: any) => s.displayName === "Unit");
+			expect(unitSection).toBeDefined();
+			expect(unitSection.detailTests).toHaveLength(2);
+			expect(unitSection.detailTests[0].title).toContain("Unit - apiUtils");
+			expect(unitSection.detailTests[1].title).toContain("should return default query options");
+			expect(unitSection.counts.failed).toBeGreaterThanOrEqual(2);
+
+			const html = buildTestAllEmailInnerHtml({
+				summaryItems: [{ name: "Unit Tests", result: false }],
+				passedCount: 0,
+				totalCount: 1,
+				e2eSkippedCount: 0,
+				e2eSkipNote: "",
+				sections: [unitSection],
+			});
+			const text = buildTestAllEmailPlainText({
+				summaryItems: [{ name: "Unit Tests", result: false }],
+				passedCount: 0,
+				totalCount: 1,
+				e2eSkippedCount: 0,
+				e2eSkipNote: "",
+				sections: [unitSection],
+			});
+
+			expect(html).toContain("Unit - apiUtils");
+			expect(text).toContain("[failed] Unit - apiUtils");
+		} finally {
+			fs.rmSync(tmpRoot, { recursive: true, force: true });
+		}
+	});
+
 	it("marks skipped-only E2E folders as SKIPPED, not FAILED", () => {
 		const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "test-all-email-skips-"));
 		try {

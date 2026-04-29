@@ -170,6 +170,9 @@ const results = {
 };
 
 let hasFailures = false;
+let unitLogExcerpt = "";
+let integrationLogExcerpt = "";
+let otherJestLogExcerpt = "";
 let chatbotLogExcerpt = "";
 let questionsLogExcerpt = "";
 
@@ -193,6 +196,7 @@ async function runAllSuites() {
 
 	if (!results.unit) {
 		hasFailures = true;
+		unitLogExcerpt = runCommand.lastOutput || "";
 	}
 
 	// 2. Integration Tests
@@ -204,6 +208,7 @@ async function runAllSuites() {
 
 	if (!results.integration) {
 		hasFailures = true;
+		integrationLogExcerpt = runCommand.lastOutput || "";
 	}
 
 	// 3. Other Jest Tests (comprehensive, advanced, performance, validation, ux, security, monitoring)
@@ -220,6 +225,7 @@ async function runAllSuites() {
 
 	if (!results.otherJest) {
 		hasFailures = true;
+		otherJestLogExcerpt = runCommand.lastOutput || "";
 	}
 
 	// 4. E2E Tests - use playwright.config reporters (list + html); stream stdout so progress is visible live
@@ -304,7 +310,13 @@ async function sendSummaryEmailAndExit(summary, passedCount, totalCount, e2eSkip
 				chatbotReport: results.chatbotReport,
 				questionsReport: results.questionsReport,
 			},
-			logs: { chatbot: chatbotLogExcerpt, questions: questionsLogExcerpt },
+			logs: {
+				unit: unitLogExcerpt,
+				integration: integrationLogExcerpt,
+				otherJest: otherJestLogExcerpt,
+				chatbot: chatbotLogExcerpt,
+				questions: questionsLogExcerpt,
+			},
 		});
 
 		const innerHtml = buildTestAllEmailInnerHtml({
