@@ -71,6 +71,78 @@ describe("test-all summary email helpers", () => {
 
 		expect(html).toContain("white-space:nowrap");
 		expect(html).toContain("line-height:1");
+		expect(html).toContain("role=\"presentation\"");
+		expect(html).toContain("mso-line-height-rule:exactly");
+		expect(html).toContain("width:1%");
+	});
+
+	it("creates named failed detail from suite-level Jest failure without assertionResults", () => {
+		const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "test-all-email-jest-fallback-"));
+		try {
+			const paths = getTestAllArtifactPaths(tmpRoot);
+			fs.mkdirSync(path.dirname(paths.jestUnit), { recursive: true });
+			fs.writeFileSync(
+				paths.jestUnit,
+				JSON.stringify(
+					{
+						testResults: [
+							{
+								name: "__tests__/unit/utils/tokenUtils.test.ts",
+								status: "failed",
+								message: "ReferenceError: window is not defined",
+								assertionResults: [],
+							},
+						],
+					},
+					null,
+					2,
+				),
+				"utf8",
+			);
+
+			const sections = buildSectionsFromArtifacts({
+				artifactsEnabled: true,
+				repoRoot: tmpRoot,
+				suitePass: {
+					unit: false,
+					integration: true,
+					otherJest: true,
+					e2e: true,
+					chatbotReport: true,
+					questionsReport: true,
+				},
+				logs: {},
+			});
+			const unitSection = sections.find((s: any) => s.displayName === "Unit");
+			expect(unitSection).toBeDefined();
+			expect(unitSection.counts.failed).toBe(1);
+			expect(unitSection.detailTests).toHaveLength(1);
+			expect(unitSection.detailTests[0].title).toBe("tokenUtils.test.ts");
+			expect(unitSection.detailTests[0].status).toBe("failed");
+			expect(unitSection.detailTests[0].message).toContain("window is not defined");
+
+			const html = buildTestAllEmailInnerHtml({
+				summaryItems: [{ name: "Unit Tests", result: false }],
+				passedCount: 0,
+				totalCount: 1,
+				e2eSkippedCount: 0,
+				e2eSkipNote: "",
+				sections: [unitSection],
+			});
+			const text = buildTestAllEmailPlainText({
+				summaryItems: [{ name: "Unit Tests", result: false }],
+				passedCount: 0,
+				totalCount: 1,
+				e2eSkippedCount: 0,
+				e2eSkipNote: "",
+				sections: [unitSection],
+			});
+
+			expect(html).toContain("tokenUtils.test.ts");
+			expect(text).toContain("[failed] tokenUtils.test.ts");
+		} finally {
+			fs.rmSync(tmpRoot, { recursive: true, force: true });
+		}
 	});
 
 	it("includes database pipeline note in plain text output", () => {
