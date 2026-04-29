@@ -20,7 +20,7 @@
   publish = ".next"
 
 [build.environment]
-  NODE_VERSION = "20.11.0"
+  NODE_VERSION = "24.15.0"
   NODE_ENV = "production"
   # Feature flags: see config/config.ts — production preset on main; develop branch uses [context.develop] + isDevelopBranchDeploy().
 
