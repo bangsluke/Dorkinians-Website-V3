@@ -708,8 +708,9 @@ exports.handler = async (event, context) => {
 			console.warn("⚠️ Failed to configure email service:", error.message);
 		}
 
-		// Preflight: if the database appears stale for too long, alert ops.
-		// This runs only for the scheduled (cron) trigger to avoid spamming manual/admin runs.
+		// Preflight: record freshness context for cron, but do not alert here.
+		// Stale alerting is handled post-attempt by the seeding service so we avoid
+		// false positives when the run is about to refresh data.
 		if (isCronJob) {
 			const staleThresholdHours = 40;
 			const websiteBaseUrl = (
@@ -720,7 +721,6 @@ exports.handler = async (event, context) => {
 			).replace(/\/+$/, "");
 
 			const siteDetailsUrl = `${websiteBaseUrl}/api/site-details`;
-			const emailAddress = emailConfig.emailAddress || "bangsluke@gmail.com";
 
 			let lastSeededStats = null;
 			let hoursOld = null;
@@ -732,7 +732,11 @@ exports.handler = async (event, context) => {
 
 				const response = await fetch(siteDetailsUrl, {
 					method: "GET",
-					headers: { "Content-Type": "application/json" },
+					headers: {
+						"Content-Type": "application/json",
+						"Cache-Control": "no-store",
+						Pragma: "no-cache",
+					},
 					signal: controller.signal
 				});
 
@@ -764,32 +768,18 @@ exports.handler = async (event, context) => {
 				(hoursOld !== null && Number.isFinite(hoursOld) && hoursOld > staleThresholdHours);
 
 			if (shouldAlert) {
-				const dedupeKey = `stale-${staleThresholdHours}h:${String(lastSeededStats || "missing")}`;
-				if (globalThis.__dorkiniansStaleAlertDedupeKey !== dedupeKey) {
-					console.log(
-						`🚨 STALE-ALERT: Triggering stale-data email. lastSeededStats=${String(
-							lastSeededStats
-						)} hoursOld=${hoursOld}`
-					);
-					await emailService.sendStaleDataAlertEmail({
-						environment,
-						jobId,
-						emailAddress,
-						lastSeededStats,
-						hoursOld,
-						staleThresholdHours
-					});
-					globalThis.__dorkiniansStaleAlertDedupeKey = dedupeKey;
-				} else {
-					console.log("ℹ️ STALE-ALERT: Skipping duplicate within the same warm invocation.");
-				}
+				console.warn(
+					`⚠️ STALE-PREFLIGHT: Data appears stale at trigger-time (no alert sent pre-run). lastSeededStats=${String(
+						lastSeededStats
+					)} hoursOld=${hoursOld} threshold=${staleThresholdHours}h`
+				);
 			} else {
 				console.log(
-					`✅ STALE-ALERT: Data freshness OK (${hoursOld.toFixed(2)}h old) - no alert`
+					`✅ STALE-PREFLIGHT: Data freshness OK (${hoursOld.toFixed(2)}h old)`
 				);
 			}
 		} else {
-			console.log("🕑 STALE-ALERT: Skipping freshness preflight for non-cron trigger.");
+			console.log("🕑 STALE-PREFLIGHT: Skipping freshness preflight for non-cron trigger.");
 		}
 		
 		// Let Heroku handle all email notifications based on emailConfig flags

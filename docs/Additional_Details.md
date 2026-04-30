@@ -964,6 +964,8 @@ The system supports automated daily database updates using external cron service
 2. Create new cronjob:
    - **Title**: `Dorkinians Daily Database Update`
    - **URL**: `https://your-site.netlify.app/.netlify/functions/trigger-seed?environment=production`
+   - **Method**: `POST`
+   - **Body**: `{"environment":"production"}`
    - **Schedule**: Daily at 5:00 AM (`0 5 * * *`)
    - **Timeout**: 1200 seconds (20 minutes)
    - **Retry**: 3 attempts on failure
@@ -972,7 +974,9 @@ The system supports automated daily database updates using external cron service
 
 ```bash
 # Test the function directly
-curl "https://your-site.netlify.app/.netlify/functions/trigger-seed?environment=production"
+curl -X POST "https://your-site.netlify.app/.netlify/functions/trigger-seed?environment=production" \
+  -H "Content-Type: application/json" \
+  -d "{\"environment\":\"production\"}"
 ```
 
 #### Expected Response
