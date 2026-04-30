@@ -1,25 +1,19 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useNavigationStore } from "@/lib/stores/navigation";
 import { getCurrentSeasonFromStorage } from "@/lib/services/currentSeasonService";
 import { Listbox } from "@headlessui/react";
-import { ChevronUpDownIcon, CheckIcon } from "@heroicons/react/20/solid";
+import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
 import { ChevronDownIcon, ChevronUpIcon, PencilIcon } from "@heroicons/react/24/outline";
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
-import { PlayersTableSkeleton, PlayerStatsExpansionSkeleton, RankingTableSkeleton } from "@/components/skeletons";
+import { PlayerStatsExpansionSkeleton, RankingTableSkeleton } from "@/components/skeletons";
 import { appConfig } from "@/config/config";
 import { log } from "@/lib/utils/logger";
 import { cachedFetch, generatePageCacheKey } from "@/lib/utils/pageCache";
 import { UmamiEvents } from "@/lib/analytics/events";
 import { trackEvent } from "@/lib/utils/trackEvent";
-
-interface Player {
-	rank: number;
-	playerName: string;
-	ftpScore: number;
-}
 
 interface PlayerStats {
 	appearances: number;
@@ -69,16 +63,55 @@ interface FTPBreakdown {
 	show: boolean;
 }
 
+function getRankingTableRows(
+	rankings: Array<{rank: number; playerName: string; score: number}>,
+	selectedPlayerName: string,
+): Array<{rank: number | null; playerName: string; score: number | null; isDots?: boolean; isSelected?: boolean}> {
+	const selectedIndex = rankings.findIndex((p) => p.playerName === selectedPlayerName);
+	if (selectedIndex === -1) return [];
+
+	const rows: Array<{rank: number | null; playerName: string; score: number | null; isDots?: boolean; isSelected?: boolean}> = [];
+
+	// Always render top 5 first, highlighting the selected player when present.
+	const topFiveRows = rankings.slice(0, 5).map((row) => ({
+		...row,
+		isSelected: row.playerName === selectedPlayerName,
+	}));
+	rows.push(...topFiveRows);
+
+	// If selected player is already in top 5, avoid appending duplicate rows.
+	if (selectedIndex < 5) {
+		return rows;
+	}
+
+	rows.push({ playerName: "...", score: null, rank: null, isDots: true });
+
+	// Add immediate neighbors and selected row for out-of-top-5 selections.
+	if (selectedIndex > 0) {
+		const abovePlayer = rankings[selectedIndex - 1];
+		if (abovePlayer.rank > 5) {
+			rows.push(abovePlayer);
+		}
+	}
+
+	rows.push({ ...rankings[selectedIndex], isSelected: true });
+
+	if (selectedIndex < rankings.length - 1) {
+		const belowPlayer = rankings[selectedIndex + 1];
+		if (belowPlayer.rank > 5) {
+			rows.push(belowPlayer);
+		}
+	}
+
+	return rows;
+}
+
 export default function PlayersOfMonth() {
 	const {
 		cachePOMSeasons,
 		cachePOMMonths,
-		cachePOMMonthData,
-		cachePOMPlayerStats,
 		getCachedPOMSeasons,
 		getCachedPOMMonths,
-		getCachedPOMMonthData,
-		getCachedPOMPlayerStats,
 		selectedPlayer,
 		enterEditMode,
 		setMainPage,
@@ -90,14 +123,15 @@ export default function PlayersOfMonth() {
 	const [selectedSeason, setSelectedSeason] = useState<string>("");
 	const [months, setMonths] = useState<string[]>([]);
 	const [selectedMonth, setSelectedMonth] = useState<string>("");
-	const [players, setPlayers] = useState<Player[]>([]);
-	const [loading, setLoading] = useState(true);
-	const [loadingStats, setLoadingStats] = useState(true);
 	const [expandedPlayers, setExpandedPlayers] = useState<Set<string>>(new Set());
+	const [expandedSeasonPlayers, setExpandedSeasonPlayers] = useState<Set<string>>(new Set());
 	const [playerStats, setPlayerStats] = useState<Record<string, PlayerStats>>({});
+	const [seasonPlayerStats, setSeasonPlayerStats] = useState<Record<string, PlayerStats>>({});
 	const [loadingIndividualStats, setLoadingIndividualStats] = useState<Set<string>>(new Set());
-	const [isFetchingMonthData, setIsFetchingMonthData] = useState(false);
+	const [loadingSeasonIndividualStats, setLoadingSeasonIndividualStats] = useState<Set<string>>(new Set());
 	const [isMonthValidating, setIsMonthValidating] = useState(false);
+	const [showSelectedPlayerContext, setShowSelectedPlayerContext] = useState(true);
+	const [showSeasonSelectedPlayerContext, setShowSeasonSelectedPlayerContext] = useState(true);
 	const previousSeasonRef = useRef<string>("");
 	const isMonthValidatingRef = useRef<boolean>(false);
 	const validatedMonthRef = useRef<string | null>(null);
@@ -105,6 +139,56 @@ export default function PlayersOfMonth() {
 	const [seasonRankings, setSeasonRankings] = useState<Array<{rank: number; playerName: string; score: number}>>([]);
 	const [loadingMonthRankings, setLoadingMonthRankings] = useState(false);
 	const [loadingSeasonRankings, setLoadingSeasonRankings] = useState(false);
+
+	const monthRows = useMemo(() => {
+		if (monthRankings.length === 0) return [];
+		if (!showSelectedPlayerContext) {
+			return monthRankings.slice(0, 5).map((row) => ({
+				...row,
+				isSelected: row.playerName === selectedPlayer,
+			}));
+		}
+		if (!selectedPlayer) return monthRankings.slice(0, 5);
+
+		const selectedIndex = monthRankings.findIndex((p) => p.playerName === selectedPlayer);
+		if (selectedIndex === -1) return monthRankings.slice(0, 5);
+
+		const topFiveRows = monthRankings.slice(0, 5).map((row) => ({
+			...row,
+			isSelected: row.playerName === selectedPlayer,
+		}));
+
+		// Top 4 selection: top 5 only
+		if (selectedIndex < 4) {
+			return topFiveRows;
+		}
+
+		// 5th place selection: top 5 plus one below (if available)
+		if (selectedIndex === 4) {
+			const belowPlayer = monthRankings[selectedIndex + 1];
+			if (belowPlayer && belowPlayer.rank > 5) {
+				return [...topFiveRows, belowPlayer];
+			}
+			return topFiveRows;
+		}
+
+		const rows: Array<{rank: number | null; playerName: string; score: number | null; isDots?: boolean; isSelected?: boolean}> = [...topFiveRows];
+		rows.push({ playerName: "...", score: null, rank: null, isDots: true });
+
+		const abovePlayer = monthRankings[selectedIndex - 1];
+		if (abovePlayer && abovePlayer.rank > 5) {
+			rows.push(abovePlayer);
+		}
+
+		rows.push({ ...monthRankings[selectedIndex], isSelected: true });
+
+		const belowPlayer = monthRankings[selectedIndex + 1];
+		if (belowPlayer && belowPlayer.rank > 5) {
+			rows.push(belowPlayer);
+		}
+
+		return rows;
+	}, [monthRankings, selectedPlayer, showSelectedPlayerContext]);
 
 	// Fetch seasons on mount - check cache first
 	useEffect(() => {
@@ -254,181 +338,98 @@ export default function PlayersOfMonth() {
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [selectedSeason]);
 
-	// Fetch month data when season and month are selected - check cache first
+	// Validate selected month for the current season (no month-data fetch — rankings drive the UI)
 	useEffect(() => {
-		log("info", `[PlayersOfMonth] Month data fetch effect triggered. Season: "${selectedSeason}", Month: "${selectedMonth}", isMonthValidating: ${isMonthValidating}, isMonthValidatingRef: ${isMonthValidatingRef.current}`);
-		
+		log("info", `[PlayersOfMonth] Month selection effect. Season: "${selectedSeason}", Month: "${selectedMonth}", isMonthValidating: ${isMonthValidating}, isMonthValidatingRef: ${isMonthValidatingRef.current}`);
+
 		if (!selectedSeason) {
-			// Ensure loading state is maintained when clearing data
-			setPlayers([]);
 			setPlayerStats({});
-			setLoading(true);
-			setLoadingStats(true);
-			log("info", `[PlayersOfMonth] Skipping data fetch - no season selected`);
+			setExpandedPlayers(new Set());
+			setMonthRankings([]);
+			log("info", `[PlayersOfMonth] Skipping month validation - no season selected`);
 			return;
 		}
 
-		// Wait for month validation to complete before proceeding (check both state and ref)
 		if (isMonthValidating || isMonthValidatingRef.current) {
-			log("info", `[PlayersOfMonth] Month validation in progress (state: ${isMonthValidating}, ref: ${isMonthValidatingRef.current}). Waiting...`);
-			// Maintain loading state while validating
-			setPlayers([]);
-			setPlayerStats({});
-			setLoading(true);
-			setLoadingStats(true);
+			log("info", `[PlayersOfMonth] Month validation in progress — waiting`);
 			return;
 		}
 
-
-		// Get available months for validation - ALWAYS use cached months for the current season
-		// Don't use the months state as it may contain stale data from previous season
-		const cachedMonths = getCachedPOMMonths(selectedSeason);
-		const availableMonths = cachedMonths;
-		
+		const availableMonths = getCachedPOMMonths(selectedSeason);
 		log("info", `[PlayersOfMonth] Available months for season ${selectedSeason}: ${availableMonths ? availableMonths.length : 0}, cached months: [${availableMonths ? availableMonths.join(", ") : "none"}]`);
-		
-		// If months aren't loaded yet, wait
+
 		if (!availableMonths || availableMonths.length === 0) {
 			log("info", `[PlayersOfMonth] Months not yet loaded for season ${selectedSeason}. Waiting...`);
-			// Maintain loading state while waiting for months
-			setPlayers([]);
-			setPlayerStats({});
-			setLoading(true);
-			setLoadingStats(true);
 			return;
 		}
 
-		// Determine the correct month to use
-		// If selectedMonth is invalid for this season, use the most recent month instead
 		let monthToUse = selectedMonth;
-		const isMonthValid = selectedMonth && availableMonths.includes(selectedMonth);
+		const isMonthValid = Boolean(selectedMonth && availableMonths.includes(selectedMonth));
 		log("info", `[PlayersOfMonth] Checking month validity. selectedMonth: "${selectedMonth}", isMonthValid: ${isMonthValid}, availableMonths: [${availableMonths.join(", ")}]`);
-		
+
 		if (!isMonthValid) {
 			monthToUse = availableMonths[availableMonths.length - 1];
 			log("info", `[PlayersOfMonth] Month "${selectedMonth || "none"}" not valid for season ${selectedSeason}. Using most recent: ${monthToUse}`);
-			// Update the state to the correct month
 			if (selectedMonth !== monthToUse) {
-				log("info", `[PlayersOfMonth] Updating selectedMonth from "${selectedMonth}" to "${monthToUse}" and returning early`);
-				// Maintain loading state during month correction
-				setLoading(true);
-				setLoadingStats(true);
+				log("info", `[PlayersOfMonth] Updating selectedMonth from "${selectedMonth}" to "${monthToUse}"`);
 				setSelectedMonth(monthToUse);
-				// Return early - this effect will run again with the updated month
 				return;
 			}
 		}
 
-		if (!monthToUse) {
-			// No valid month - clear data but maintain loading state
-			setPlayers([]);
-			setPlayerStats({});
-			setLoading(true);
-			setLoadingStats(true);
-			log("info", `[PlayersOfMonth] Skipping data fetch - no valid month for season ${selectedSeason}`);
+		if (!monthToUse || !availableMonths.includes(monthToUse)) {
+			log("info", `[PlayersOfMonth] No valid month for season ${selectedSeason}`);
 			return;
 		}
 
-		// Double-check that the month is still valid (in case validation just completed)
-		if (!availableMonths.includes(monthToUse)) {
-			log("info", `[PlayersOfMonth] Month "${monthToUse}" is not in available months. This should not happen. Waiting for correction...`);
-			// Maintain loading state while waiting for correction
-			setPlayers([]);
-			setPlayerStats({});
-			setLoading(true);
-			setLoadingStats(true);
-			return;
-		}
-
-		log("info", `[PlayersOfMonth] Displaying data for season: ${selectedSeason}, month: ${monthToUse}`);
-
-		// Set loading state immediately when fetching new data
-		// This must happen BEFORE clearing players to prevent flashing
-		setLoading(true);
-		setLoadingStats(true);
-
-		// Clear player stats and players when month/season changes to force refresh
-		// Clear players first to prevent stats fetch from using stale data
-		// React will batch these updates, but loading=true ensures spinner shows
-		setPlayers([]);
-		setPlayerStats({});
-		setExpandedPlayers(new Set()); // Also collapse any expanded players
-
-		const cachedMonthData = getCachedPOMMonthData(selectedSeason, monthToUse);
-		if (cachedMonthData) {
-			log("info", `[PlayersOfMonth] Using cached data for ${monthToUse} ${selectedSeason}`);
-			// Set players after clearing to ensure stats fetch uses correct data
-			setPlayers(cachedMonthData.players);
-			// Ensure fetching flag is cleared so stats can load
-			setIsFetchingMonthData(false);
-			// Clear loading immediately - stats will load in background
-			setLoading(false);
-			setLoadingStats(false);
-			return;
-		}
-
-		// Loading state already set above, just set fetching flag
-		setIsFetchingMonthData(true);
-
-		const fetchMonthData = async () => {
-			const apiUrl = `/api/players-of-month/month-data?season=${encodeURIComponent(selectedSeason)}&month=${encodeURIComponent(monthToUse)}`;
-			log("info", `[PlayersOfMonth] Fetching data from API: ${apiUrl}`);
-			try {
-				const cacheKey = generatePageCacheKey("totw", "players-of-month", "month-data", { season: selectedSeason, month: monthToUse });
-				const data = await cachedFetch(apiUrl, {
-					method: "GET",
-					cacheKey,
-					getCachedPageData,
-					setCachedPageData,
-				});
-				
-				if (data.players) {
-					log("info", `[PlayersOfMonth] Received ${data.players.length} players for ${monthToUse} ${selectedSeason}: [${data.players.map((p: Player) => p.playerName).join(", ")}]`);
-					// Clear old stats before setting new players
-					setPlayerStats({});
-					setPlayers(data.players);
-					cachePOMMonthData(selectedSeason, monthToUse, data.players);
-					// Clear loading immediately - stats will load in background
-					setLoading(false);
-					setLoadingStats(false);
-				} else {
-					log("info", `[PlayersOfMonth] No players found for ${monthToUse} ${selectedSeason}`);
-					setPlayers([]);
-					setPlayerStats({});
-					setLoading(false);
-					setLoadingStats(false);
-				}
-				setIsFetchingMonthData(false);
-			} catch (error) {
-				console.error(`[PlayersOfMonth] Error fetching month data for ${monthToUse} ${selectedSeason}:`, error);
-				setPlayers([]);
-				setPlayerStats({});
-				setIsFetchingMonthData(false);
-				setLoading(false);
-				setLoadingStats(false);
-			}
-		};
-		fetchMonthData();
+		log("info", `[PlayersOfMonth] Month selection ready for season: ${selectedSeason}, month: ${monthToUse}`);
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [selectedSeason, selectedMonth, months, isMonthValidating]);
 
-	// Priority 1: Above fold on mobile - Top 5 Players section (loaded via month data fetch above)
-
-	// Priority 2: Above fold on desktop - This Month FTP Ranking section
-	// Fetch month rankings when season and month change (de-prioritized - async)
+	// Reset local PoM UI when season or calendar month changes
 	useEffect(() => {
-		if (!selectedSeason || !selectedMonth || !selectedPlayer) {
+		setPlayerStats({});
+		setSeasonPlayerStats({});
+		setExpandedPlayers(new Set());
+		setExpandedSeasonPlayers(new Set());
+		setShowSelectedPlayerContext(true);
+		setShowSeasonSelectedPlayerContext(true);
+	}, [selectedSeason, selectedMonth]);
+
+	const displayedSeasonRows = useMemo(() => {
+		if (seasonRankings.length === 0) return [];
+		if (!selectedPlayer) return seasonRankings.slice(0, 5).map((row) => ({ ...row, isSelected: false }));
+		if (!showSeasonSelectedPlayerContext) {
+			return seasonRankings.slice(0, 5).map((row) => ({
+				...row,
+				isSelected: row.playerName === selectedPlayer,
+			}));
+		}
+		return getRankingTableRows(seasonRankings, selectedPlayer);
+	}, [seasonRankings, selectedPlayer, showSeasonSelectedPlayerContext]);
+
+	// Fetch month rankings when season and month are ready (does not depend on selected player)
+	useEffect(() => {
+		if (!selectedSeason || !selectedMonth) {
 			setMonthRankings([]);
+			return;
+		}
+
+		if (isMonthValidating || isMonthValidatingRef.current) {
+			return;
+		}
+
+		const availableMonths = getCachedPOMMonths(selectedSeason);
+		if (!availableMonths || availableMonths.length === 0 || !availableMonths.includes(selectedMonth)) {
 			return;
 		}
 
 		const fetchMonthRankings = async () => {
 			setLoadingMonthRankings(true);
 			try {
-				const cacheKey = generatePageCacheKey("totw", "players-of-month", "month-rankings", { 
-					season: selectedSeason, 
+				const cacheKey = generatePageCacheKey("totw", "players-of-month", "month-rankings", {
+					season: selectedSeason,
 					month: selectedMonth,
-					playerName: selectedPlayer,
 				});
 				const data = await cachedFetch(`/api/players-of-month/month-rankings?season=${encodeURIComponent(selectedSeason)}&month=${encodeURIComponent(selectedMonth)}`, {
 					method: "GET",
@@ -445,13 +446,12 @@ export default function PlayersOfMonth() {
 			}
 		};
 
-		// Defer rankings fetch to not block initial render
 		const timeoutId = setTimeout(() => {
 			fetchMonthRankings();
 		}, 100);
 
 		return () => clearTimeout(timeoutId);
-	}, [selectedSeason, selectedMonth, selectedPlayer]);
+	}, [selectedSeason, selectedMonth, months, isMonthValidating]);
 
 	// Priority 3: Below fold - This Season FTP Ranking section
 	// Fetch season rankings when season changes (de-prioritized - async)
@@ -491,149 +491,141 @@ export default function PlayersOfMonth() {
 		return () => clearTimeout(timeoutId);
 	}, [selectedSeason, selectedPlayer]);
 
-	// Priority 3: Below fold - Player stats for expanded rows
-	// Fetch stats for all players when players list changes - check cache first
+	// Prefetch player stats for visible month-ranking rows (compact summary under FTP points)
 	useEffect(() => {
-		const playerNames = players.map(p => p.playerName).join(", ");
-		log("info", `[PlayersOfMonth] Stats fetch effect triggered. Season: "${selectedSeason}", Month: "${selectedMonth}", players: ${players.length} [${playerNames}], isFetchingMonthData: ${isFetchingMonthData}`);
-		
-		// If we're still fetching month data, wait
-		if (isFetchingMonthData) {
-			return;
-		}
-		
-		if (!selectedSeason || !selectedMonth) {
-			return;
-		}
-		
-		if (players.length === 0) {
+		if (!selectedSeason || !selectedMonth || monthRankings.length === 0) {
 			return;
 		}
 
-		// Verify players match current season/month to prevent using stale data
-		const cachedMonthData = getCachedPOMMonthData(selectedSeason, selectedMonth);
-		if (cachedMonthData && cachedMonthData.players.length > 0) {
-			const cachedPlayerNames = cachedMonthData.players.map((p: Player) => p.playerName).sort().join(", ");
-			const currentPlayerNames = players.map(p => p.playerName).sort().join(", ");
-			if (cachedPlayerNames !== currentPlayerNames) {
-				log("info", `[PlayersOfMonth] Player mismatch detected! Cached: [${cachedPlayerNames}], Current: [${currentPlayerNames}]. Waiting for correct players...`);
-				return;
-			}
+		const names = monthRows
+			.filter((row) => !("isDots" in row && row.isDots) && row.playerName)
+			.map((row) => row.playerName);
+		if (names.length === 0) {
+			return;
 		}
+
+		let cancelled = false;
 
 		const fetchAllPlayerStats = async () => {
-			log("info", `[PlayersOfMonth] Fetching stats for ${players.length} players: [${playerNames}]`);
-			// Don't set loading state - this is background loading
-			
-			// Collect all stats in a single object to batch state update
+			log("info", `[PlayersOfMonth] Prefetching stats for ${names.length} players: [${names.join(", ")}]`);
+
 			const newStats: Record<string, PlayerStats> = {};
-			
-			const statsPromises = players.map(async (player) => {
-				const apiUrl = `/api/players-of-month/player-stats?season=${encodeURIComponent(selectedSeason)}&month=${encodeURIComponent(selectedMonth)}&playerName=${encodeURIComponent(player.playerName)}`;
-				log("info", `[PlayersOfMonth] Fetching stats from API for ${player.playerName}: ${apiUrl}`);
-				
-				try {
-					const cacheKey = generatePageCacheKey("totw", "players-of-month", "player-stats", { 
-						season: selectedSeason, 
-						month: selectedMonth,
-						playerName: player.playerName,
-					});
-					const data = await cachedFetch(apiUrl, {
-						method: "GET",
-						cacheKey,
-						getCachedPageData,
-						setCachedPageData,
-					});
-					log("info", `[PlayersOfMonth] Received stats for ${player.playerName}: goals=${data.goals}, assists=${data.assists}, appearances=${data.appearances}`);
-					if (data.matchDetails) {
-						const stats: PlayerStats = {
-							appearances: data.appearances || 0,
-							goals: data.goals || 0,
-							assists: data.assists || 0,
-							cleanSheets: data.cleanSheets || 0,
-							mom: data.mom || 0,
-							yellowCards: data.yellowCards || 0,
-							redCards: data.redCards || 0,
-							saves: data.saves || 0,
-							ownGoals: data.ownGoals || 0,
-							conceded: data.conceded || 0,
-							penaltiesScored: data.penaltiesScored || 0,
-							penaltiesMissed: data.penaltiesMissed || 0,
-							penaltiesSaved: data.penaltiesSaved || 0,
-							matchDetails: data.matchDetails || [],
-						};
 
-						newStats[player.playerName] = stats;
+			await Promise.all(
+				names.map(async (playerName) => {
+					const apiUrl = `/api/players-of-month/player-stats?season=${encodeURIComponent(selectedSeason)}&month=${encodeURIComponent(selectedMonth)}&playerName=${encodeURIComponent(playerName)}`;
+					try {
+						const cacheKey = generatePageCacheKey("totw", "players-of-month", "player-stats", {
+							season: selectedSeason,
+							month: selectedMonth,
+							playerName,
+						});
+						const data = await cachedFetch(apiUrl, {
+							method: "GET",
+							cacheKey,
+							getCachedPageData,
+							setCachedPageData,
+						});
+						if (data.matchDetails) {
+							newStats[playerName] = {
+								appearances: data.appearances || 0,
+								goals: data.goals || 0,
+								assists: data.assists || 0,
+								cleanSheets: data.cleanSheets || 0,
+								mom: data.mom || 0,
+								yellowCards: data.yellowCards || 0,
+								redCards: data.redCards || 0,
+								saves: data.saves || 0,
+								ownGoals: data.ownGoals || 0,
+								conceded: data.conceded || 0,
+								penaltiesScored: data.penaltiesScored || 0,
+								penaltiesMissed: data.penaltiesMissed || 0,
+								penaltiesSaved: data.penaltiesSaved || 0,
+								matchDetails: data.matchDetails || [],
+							};
+						}
+					} catch (error) {
+						log("error", `[PlayersOfMonth] Error prefetching stats for ${playerName}:`, error);
 					}
-				} catch (error) {
-					log("error", `[PlayersOfMonth] Error fetching stats for ${player.playerName}:`, error);
-				}
-			});
+				}),
+			);
 
-			await Promise.all(statsPromises);
-			
-			// Batch update all stats at once
-			log("info", `[PlayersOfMonth] Stats fetch complete. Loaded stats for ${Object.keys(newStats).length} players`);
-			setPlayerStats(newStats);
+			if (cancelled) return;
+			log("info", `[PlayersOfMonth] Prefetch stats complete for ${Object.keys(newStats).length} players`);
+			setPlayerStats((prev) => ({ ...prev, ...newStats }));
 		};
 
-		fetchAllPlayerStats();
+		void fetchAllPlayerStats();
+		return () => {
+			cancelled = true;
+		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [players, selectedSeason, selectedMonth, isFetchingMonthData]);
+	}, [monthRows, selectedSeason, selectedMonth]);
 
-	// Check if all stats are loaded - this is the ONLY place that clears loading state
+	// Prefetch player stats for visible season-ranking rows
 	useEffect(() => {
-		// Only check if we have a season and month selected (meaning we've attempted a fetch)
-		if (!selectedSeason || !selectedMonth) {
-			// No selection - keep loading
-			setLoading(true);
-			setLoadingStats(true);
+		if (!selectedSeason || !selectedPlayer || seasonRankings.length === 0) {
 			return;
 		}
 
-		// If we're still fetching month data, keep loading state true
-		if (isFetchingMonthData) {
-			setLoading(true);
-			setLoadingStats(true);
+		const names = displayedSeasonRows
+			.filter((row) => !("isDots" in row && row.isDots) && row.playerName)
+			.map((row) => row.playerName);
+		if (names.length === 0) {
 			return;
 		}
 
-		// If we're still validating month, keep loading state true
-		if (isMonthValidating || isMonthValidatingRef.current) {
-			setLoading(true);
-			setLoadingStats(true);
-			return;
-		}
+		let cancelled = false;
 
-		// Check if months are loaded for this season
-		const cachedMonths = getCachedPOMMonths(selectedSeason);
-		if (!cachedMonths || cachedMonths.length === 0) {
-			// Months not loaded yet - keep loading
-			setLoading(true);
-			setLoadingStats(true);
-			return;
-		}
+		const fetchAllSeasonPlayerStats = async () => {
+			const newStats: Record<string, PlayerStats> = {};
+			await Promise.all(
+				names.map(async (playerName) => {
+					const apiUrl = `/api/players-of-month/player-stats?season=${encodeURIComponent(selectedSeason)}&playerName=${encodeURIComponent(playerName)}`;
+					try {
+						const cacheKey = generatePageCacheKey("totw", "players-of-month", "player-stats-season", {
+							season: selectedSeason,
+							playerName,
+						});
+						const data = await cachedFetch(apiUrl, {
+							method: "GET",
+							cacheKey,
+							getCachedPageData,
+							setCachedPageData,
+						});
+						if (data.matchDetails) {
+							newStats[playerName] = {
+								appearances: data.appearances || 0,
+								goals: data.goals || 0,
+								assists: data.assists || 0,
+								cleanSheets: data.cleanSheets || 0,
+								mom: data.mom || 0,
+								yellowCards: data.yellowCards || 0,
+								redCards: data.redCards || 0,
+								saves: data.saves || 0,
+								ownGoals: data.ownGoals || 0,
+								conceded: data.conceded || 0,
+								penaltiesScored: data.penaltiesScored || 0,
+								penaltiesMissed: data.penaltiesMissed || 0,
+								penaltiesSaved: data.penaltiesSaved || 0,
+								matchDetails: data.matchDetails || [],
+							};
+						}
+					} catch (error) {
+						log("error", `[PlayersOfMonth] Error prefetching season stats for ${playerName}:`, error);
+					}
+				}),
+			);
 
-		// Verify month is valid
-		if (!selectedMonth || !cachedMonths.includes(selectedMonth)) {
-			// Invalid month - keep loading until corrected
-			setLoading(true);
-			setLoadingStats(true);
-			return;
-		}
+			if (cancelled) return;
+			setSeasonPlayerStats((prev) => ({ ...prev, ...newStats }));
+		};
 
-		if (players.length === 0) {
-			// No players found - only clear loading if month data fetch is complete
-			// This means we've tried to fetch and got no results
-			setLoadingStats(false);
-			setLoading(false);
-			return;
-		}
-
-		// Month data is loaded, clear loading state (stats load in background)
-		setLoadingStats(false);
-		setLoading(false);
-	}, [playerStats, players, selectedSeason, selectedMonth, isFetchingMonthData, isMonthValidating]);
+		void fetchAllSeasonPlayerStats();
+		return () => {
+			cancelled = true;
+		};
+	}, [displayedSeasonRows, selectedSeason, selectedPlayer, getCachedPageData, setCachedPageData]);
 
 	// Fetch player stats when row is expanded - check cache first
 	const handleRowExpand = async (playerName: string) => {
@@ -709,6 +701,63 @@ export default function PlayersOfMonth() {
 			console.error(`[PlayersOfMonth] Error fetching player stats for ${playerName}:`, error);
 		} finally {
 			setLoadingIndividualStats((prev) => {
+				const newSet = new Set(prev);
+				newSet.delete(playerName);
+				return newSet;
+			});
+		}
+	};
+
+	const handleSeasonRowExpand = async (playerName: string) => {
+		if (expandedSeasonPlayers.has(playerName)) {
+			setExpandedSeasonPlayers((prev) => {
+				const newSet = new Set(prev);
+				newSet.delete(playerName);
+				return newSet;
+			});
+			return;
+		}
+
+		setExpandedSeasonPlayers((prev) => new Set(prev).add(playerName));
+
+		if (seasonPlayerStats[playerName] || !selectedSeason) {
+			return;
+		}
+
+		const apiUrl = `/api/players-of-month/player-stats?season=${encodeURIComponent(selectedSeason)}&playerName=${encodeURIComponent(playerName)}`;
+		setLoadingSeasonIndividualStats((prev) => new Set(prev).add(playerName));
+
+		try {
+			const response = await fetch(apiUrl);
+			if (!response.ok) {
+				throw new Error(`API error: ${response.status} ${response.statusText}`);
+			}
+			const data = await response.json();
+			if (data.matchDetails) {
+				setSeasonPlayerStats((prev) => ({
+					...prev,
+					[playerName]: {
+						appearances: data.appearances || 0,
+						goals: data.goals || 0,
+						assists: data.assists || 0,
+						cleanSheets: data.cleanSheets || 0,
+						mom: data.mom || 0,
+						yellowCards: data.yellowCards || 0,
+						redCards: data.redCards || 0,
+						saves: data.saves || 0,
+						ownGoals: data.ownGoals || 0,
+						conceded: data.conceded || 0,
+						penaltiesScored: data.penaltiesScored || 0,
+						penaltiesMissed: data.penaltiesMissed || 0,
+						penaltiesSaved: data.penaltiesSaved || 0,
+						matchDetails: data.matchDetails || [],
+					},
+				}));
+			}
+		} catch (error) {
+			console.error(`[PlayersOfMonth] Error fetching season player stats for ${playerName}:`, error);
+		} finally {
+			setLoadingSeasonIndividualStats((prev) => {
 				const newSet = new Set(prev);
 				newSet.delete(playerName);
 				return newSet;
@@ -917,49 +966,118 @@ export default function PlayersOfMonth() {
 		return dateStr;
 	};
 
-	// Helper function to get ranking table rows
-	const getRankingTableRows = useCallback((
-		rankings: Array<{rank: number; playerName: string; score: number}>,
-		selectedPlayerName: string
-	): Array<{rank: number | null; playerName: string; score: number | null; isDots?: boolean; isSelected?: boolean}> => {
-		const selectedIndex = rankings.findIndex(p => p.playerName === selectedPlayerName);
-		if (selectedIndex === -1) return [];
-		
-		const rows: Array<{rank: number | null; playerName: string; score: number | null; isDots?: boolean; isSelected?: boolean}> = [];
-
-		// Always render top 5 first, highlighting the selected player when present.
-		const topFiveRows = rankings.slice(0, 5).map((row) => ({
-			...row,
-			isSelected: row.playerName === selectedPlayerName,
-		}));
-		rows.push(...topFiveRows);
-
-		// If selected player is already in top 5, avoid appending duplicate rows.
-		if (selectedIndex < 5) {
-			return rows;
+	const renderExpandedStatsSection = (
+		stats: PlayerStats | undefined,
+		isLoadingStats: boolean,
+		totalLabel: string = "Monthly Total",
+	) => {
+		if (isLoadingStats) {
+			return (
+				<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+					<PlayerStatsExpansionSkeleton />
+				</SkeletonTheme>
+			);
 		}
-
-		rows.push({ playerName: "...", score: null, rank: null, isDots: true });
-
-		// Add immediate neighbors and selected row for out-of-top-5 selections.
-		if (selectedIndex > 0) {
-			const abovePlayer = rankings[selectedIndex - 1];
-			if (abovePlayer.rank > 5) {
-				rows.push(abovePlayer);
-			}
+		if (!stats) {
+			return <div className='text-center py-4 text-gray-400'>No stats available</div>;
 		}
+		return (
+			<div className='space-y-4'>
+				<div className='grid grid-cols-2 md:grid-cols-4 gap-4 mb-4'>
+					<div className='text-center'>
+						<p className='text-gray-400 text-xs md:text-sm'>Appearances</p>
+						<p className='text-white text-lg md:text-xl font-bold'>{stats.appearances}</p>
+					</div>
+					<div className='text-center'>
+						<p className='text-gray-400 text-xs md:text-sm'>Goals</p>
+						<p className='text-white text-lg md:text-xl font-bold'>{stats.goals}</p>
+					</div>
+					<div className='text-center'>
+						<p className='text-gray-400 text-xs md:text-sm'>Assists</p>
+						<p className='text-white text-lg md:text-xl font-bold'>{stats.assists}</p>
+					</div>
+					<div className='text-center'>
+						<p className='text-gray-400 text-xs md:text-sm'>Clean Sheets</p>
+						<p className='text-white text-lg md:text-xl font-bold'>{stats.cleanSheets}</p>
+					</div>
+				</div>
 
-		rows.push({ ...rankings[selectedIndex], isSelected: true });
+				<div className='overflow-x-auto'>
+					<table className='w-full text-white'>
+						<thead>
+							<tr className='border-b-2 border-dorkinians-yellow'>
+								<th className='text-left py-2 px-2 text-xs md:text-sm'>Statistics</th>
+								<th className='text-center py-2 px-2 text-xs md:text-sm'>Value</th>
+								<th className='text-center py-2 px-2 text-xs md:text-sm'>Points</th>
+							</tr>
+						</thead>
+						<tbody>
+							{stats.matchDetails.map((match, matchIndex) => {
+								const breakdown = calculateFTPBreakdown(match);
+								const visibleStats = breakdown.filter((stat) => stat.show);
+								const matchTotal = breakdown.reduce((sum, stat) => sum + stat.points, 0);
 
-		if (selectedIndex < rankings.length - 1) {
-			const belowPlayer = rankings[selectedIndex + 1];
-			if (belowPlayer.rank > 5) {
-				rows.push(belowPlayer);
-			}
-		}
-		
-		return rows;
-	}, []);
+								const team = match.team || "";
+								const opposition = match.opposition || "";
+								const result = match.result || "";
+								let score = match.matchSummary || "";
+
+								if (result && score && score.trim().toUpperCase().startsWith(result.trim().toUpperCase())) {
+									score = score.trim().substring(result.trim().length).trim();
+								}
+
+								return (
+									<React.Fragment key={`match-${matchIndex}`}>
+										{matchIndex > 0 && (
+											<tr>
+												<td colSpan={3} className='py-2 border-t border-gray-600'></td>
+											</tr>
+										)}
+										<tr>
+											<td colSpan={3} className='py-2 px-2'>
+												<div className='text-center mb-2'>
+													{match.date && (
+														<p className='text-gray-400 text-xs md:text-sm mb-1'>{formatDate(match.date)}</p>
+													)}
+													{team && opposition ? (
+														<p className='text-white text-xs md:text-sm font-normal'>{team} vs {opposition}</p>
+													) : (
+														<p className='text-white text-xs md:text-sm font-normal'>Fixture details TBC</p>
+													)}
+													{result && score && (
+														<p className='text-white text-sm md:text-base font-semibold mt-1'>{result} {score}</p>
+													)}
+												</div>
+											</td>
+										</tr>
+										{visibleStats.map((stat, statIndex) => (
+											<tr key={`${matchIndex}-${statIndex}`} className='border-b border-green-500'>
+												<td className='py-2 px-2 text-xs md:text-sm'>{stat.stat}</td>
+												<td className='text-center py-2 px-2 text-xs md:text-sm'>{stat.value}</td>
+												<td className='text-center py-2 px-2 text-xs md:text-sm'>{stat.points}</td>
+											</tr>
+										))}
+										{stats.matchDetails.length > 1 && (
+											<tr className='border-t-2 border-dorkinians-yellow font-bold'>
+												<td className='py-2 px-2 text-xs md:text-sm'>Match Total</td>
+												<td className='text-center py-2 px-2'></td>
+												<td className='text-center py-2 px-2'>{matchTotal}</td>
+											</tr>
+										)}
+									</React.Fragment>
+								);
+							})}
+							<tr className='border-t-2 border-white font-bold text-lg'>
+								<td className='py-2 px-2 text-xs md:text-sm'>{totalLabel}</td>
+								<td className='text-center py-2 px-2'></td>
+								<td className='text-center py-2 px-2'>{calculateTotalFTP(stats.matchDetails)}</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+			</div>
+		);
+	};
 
 	const handleEditClick = () => {
 		enterEditMode();
@@ -967,20 +1085,25 @@ export default function PlayersOfMonth() {
 	};
 
 	const isInitialLoading = seasons.length === 0;
-	const allVisiblePlayerStatsLoaded = players.length > 0 && players.every((player) => playerStats[player.playerName] !== undefined);
-	const leftPanelIsReady = !loading
-		&& !loadingStats
-		&& !isFetchingMonthData
-		&& !isMonthValidating
-		&& !isMonthValidatingRef.current
-		&& (players.length === 0 || allVisiblePlayerStatsLoaded);
-	const shouldShowLeftPanelSkeleton = appConfig.forceSkeletonView || !leftPanelIsReady;
-	const rightPanelIsReady = !loading
-		&& !loadingStats
-		&& !isFetchingMonthData
-		&& !isMonthValidating
-		&& !isMonthValidatingRef.current;
-	const shouldShowRightPanelSkeleton = appConfig.forceSkeletonView || !rightPanelIsReady;
+	const cachedMonthsForPom = selectedSeason ? getCachedPOMMonths(selectedSeason) : null;
+	const monthSelectionReady = Boolean(
+		selectedSeason &&
+			selectedMonth &&
+			cachedMonthsForPom &&
+			cachedMonthsForPom.includes(selectedMonth) &&
+			!isMonthValidating &&
+			!isMonthValidatingRef.current,
+	);
+	const shouldShowRankingsSkeleton =
+		appConfig.forceSkeletonView || !monthSelectionReady || loadingMonthRankings;
+
+	const monthFtpHeading =
+		selectedMonth && selectedSeason ? `${selectedMonth} ${selectedSeason} FTP Ranking` : "FTP Ranking";
+	const seasonFtpHeading = selectedSeason ? `${selectedSeason} FTP Ranking` : "FTP Ranking";
+
+	const selectedInMonthRankings = Boolean(
+		selectedPlayer && monthRankings.some((p) => p.playerName === selectedPlayer),
+	);
 
 	return (
 		<div className='flex flex-col p-2 md:p-4 relative md:max-w-2xl md:mx-auto lg:max-w-6xl lg:mx-auto w-full'>
@@ -1000,20 +1123,18 @@ export default function PlayersOfMonth() {
 							<Skeleton height={36} width="100%" className="rounded-md" />
 						</div>
 					</div>
-					<div className='lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start'>
-						<div className='min-w-0'>
-							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+					<div data-testid="loading-skeleton" className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+						<div className='lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start space-y-10 lg:space-y-0'>
+							<div className='min-w-0'>
 								<div className='mb-4'>
-									<h2 className='text-lg md:text-xl font-bold text-dorkinians-yellow mb-1'>
-										<Skeleton height={24} width="60%" />
-									</h2>
+									<Skeleton height={24} width="60%" />
 								</div>
-								<PlayersTableSkeleton />
-							</div>
-						</div>
-						<div className='min-w-0 mt-8 lg:mt-0'>
-							<div className='bg-white/10 rounded-lg p-4 md:p-6 space-y-14'>
 								<RankingTableSkeleton />
+							</div>
+							<div className='min-w-0'>
+								<div className='mb-4'>
+									<Skeleton height={24} width="55%" />
+								</div>
 								<RankingTableSkeleton />
 							</div>
 						</div>
@@ -1027,9 +1148,6 @@ export default function PlayersOfMonth() {
 					<div className='w-full max-w-[14rem]'>
 						<Listbox value={selectedSeason} onChange={(newSeason) => {
 							log("info", `[PlayersOfMonth] User selected season: "${newSeason}"`);
-							// Set loading state immediately when season changes
-							setLoading(true);
-							setLoadingStats(true);
 							setSelectedSeason(newSeason);
 						}}>
 							<div className='relative'>
@@ -1063,9 +1181,6 @@ export default function PlayersOfMonth() {
 					<div className='w-full max-w-[14rem]'>
 						<Listbox value={selectedMonth} onChange={(newMonth) => {
 							log("info", `[PlayersOfMonth] User selected month: "${newMonth}"`);
-							// Set loading state immediately when month changes
-							setLoading(true);
-							setLoadingStats(true);
 							// Clear validation state when user manually changes month
 							validatedMonthRef.current = null;
 							isMonthValidatingRef.current = false;
@@ -1111,406 +1226,368 @@ export default function PlayersOfMonth() {
 				</div>
 			)}
 
-			{/* Main content: two columns on lg (top players | FTP) */}
+			{/* FTP rankings (month + season) */}
 			{!isInitialLoading && (
-				<div className='lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start'>
-					<div className='min-w-0'>
-						{/* Loading Skeleton - Show when loading month data */}
-						{shouldShowLeftPanelSkeleton && (
-							<div data-testid="loading-skeleton" className='mt-0'>
-								<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+				shouldShowRankingsSkeleton ? (
+					<div data-testid="loading-skeleton" className='mt-0'>
+						<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+								<div className='lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start space-y-10 lg:space-y-0'>
+									<div className='min-w-0'>
 										<div className='mb-4'>
-											<h2 className='text-lg md:text-xl font-bold text-dorkinians-yellow mb-1'>
-												<Skeleton height={24} width='60%' />
-											</h2>
+											<Skeleton height={24} width="70%" />
 										</div>
-										<PlayersTableSkeleton />
-									</div>
-								</SkeletonTheme>
-							</div>
-						)}
-
-						{/* Players Table */}
-						{leftPanelIsReady && players.length > 0 && (
-				<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-					<div className='mb-4'>
-						<h2 className='text-lg md:text-xl font-bold text-dorkinians-yellow mb-1'>
-							This Months Top Players
-						</h2>
-					</div>
-					<div className='overflow-x-auto'>
-						<table className='w-full text-white'>
-						<thead>
-							<tr className='border-b-2 border-dorkinians-yellow'>
-								<th className='w-[8.33%] text-left py-2 px-2 text-xs md:text-sm'></th>
-								<th className='text-left py-2 px-2 text-xs md:text-sm'>Player Name</th>
-								<th className='w-[8.33%] text-right py-2 px-2 text-xs md:text-sm whitespace-nowrap'>FTP Points</th>
-							</tr>
-						</thead>
-						<tbody>
-							{players.map((player, index) => {
-								const isExpanded = expandedPlayers.has(player.playerName);
-								const stats = playerStats[player.playerName];
-								const isLoadingStats = loadingIndividualStats.has(player.playerName);
-								const isLastPlayer = index === players.length - 1;
-
-								return (
-									<React.Fragment key={player.playerName}>
-										<tr
-											className={`cursor-pointer hover:bg-gray-800 transition-colors ${isLastPlayer ? '' : 'border-b border-green-500'}`}
-											style={{
-												background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05))',
-											}}
-											onClick={() => handleRowExpand(player.playerName)}
-										>
-											<td colSpan={3} className='p-0 relative'>
-												<div className='flex flex-col'>
-													<div className='flex items-center py-2 px-2'>
-														<div className='w-1/12 text-base md:text-lg'>{player.rank}</div>
-														<div className='flex-1 text-base md:text-lg'>{player.playerName}</div>
-														<div className='w-1/12 text-center text-base md:text-lg font-bold'>{Math.round(player.ftpScore)}</div>
-													</div>
-													{stats && (
-														<div className='py-1 px-2 pl-6 md:pl-8 pb-4'>
-															<div className='flex flex-nowrap gap-x-2 md:gap-x-3 gap-y-1 text-[0.6rem] md:text-[0.7rem] text-gray-300 justify-end pl-3 md:pl-4'>
-																{stats.appearances > 0 && <span>Apps: <span className='text-white font-semibold'>{stats.appearances}</span></span>}
-																{stats.mom > 0 && <span>MoM: <span className='text-white font-semibold'>{stats.mom}</span></span>}
-																{stats.goals > 0 && <span>Goals: <span className='text-white font-semibold'>{stats.goals}</span></span>}
-																{stats.assists > 0 && <span>Assists: <span className='text-white font-semibold'>{stats.assists}</span></span>}
-																{stats.cleanSheets > 0 && <span>Clean Sheets: <span className='text-white font-semibold'>{stats.cleanSheets}</span></span>}
-															</div>
-														</div>
-													)}
-													{!isExpanded && (
-														<div className='absolute bottom-1 left-2'>
-															<ChevronDownIcon className='h-4 w-4 text-yellow-300' />
-														</div>
-													)}
-												</div>
-											</td>
-										</tr>
-										{isExpanded && (
-											<tr>
-												<td colSpan={3} className='py-4 px-2 relative' style={{ backgroundColor: '#0f0f0f' }}>
-													<div className='absolute top-2 left-2'>
-														<ChevronUpIcon className='h-4 w-4 text-yellow-300' />
-													</div>
-													{isLoadingStats ? (
-														<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-															<PlayerStatsExpansionSkeleton />
-														</SkeletonTheme>
-													) : stats ? (
-														<div className='space-y-4'>
-															{/* Monthly Stats Summary */}
-															<div className='grid grid-cols-2 md:grid-cols-4 gap-4 mb-4'>
-																<div className='text-center'>
-																	<p className='text-gray-400 text-xs md:text-sm'>Appearances</p>
-																	<p className='text-white text-lg md:text-xl font-bold'>{stats.appearances}</p>
-																</div>
-																<div className='text-center'>
-																	<p className='text-gray-400 text-xs md:text-sm'>Goals</p>
-																	<p className='text-white text-lg md:text-xl font-bold'>{stats.goals}</p>
-																</div>
-																<div className='text-center'>
-																	<p className='text-gray-400 text-xs md:text-sm'>Assists</p>
-																	<p className='text-white text-lg md:text-xl font-bold'>{stats.assists}</p>
-																</div>
-																<div className='text-center'>
-																	<p className='text-gray-400 text-xs md:text-sm'>Clean Sheets</p>
-																	<p className='text-white text-lg md:text-xl font-bold'>{stats.cleanSheets}</p>
-																</div>
-															</div>
-
-															{/* FTP Breakdown Table */}
-															<div className='overflow-x-auto'>
-																<table className='w-full text-white'>
-																	<thead>
-																		<tr className='border-b-2 border-dorkinians-yellow'>
-																			<th className='text-left py-2 px-2 text-xs md:text-sm'>Statistics</th>
-																			<th className='text-center py-2 px-2 text-xs md:text-sm'>Value</th>
-																			<th className='text-center py-2 px-2 text-xs md:text-sm'>Points</th>
-																		</tr>
-																	</thead>
-																	<tbody>
-																		{stats.matchDetails.map((match, matchIndex) => {
-																			const breakdown = calculateFTPBreakdown(match);
-																			const visibleStats = breakdown.filter((stat) => stat.show);
-																			const matchTotal = breakdown.reduce((sum, stat) => sum + stat.points, 0);
-
-																			// Get match summary
-																			const team = match.team || "";
-																			const opposition = match.opposition || "";
-																			const result = match.result || "";
-																			let score = match.matchSummary || "";
-																			
-																			// Remove duplicate result prefix from score if present
-																			if (result && score && score.trim().toUpperCase().startsWith(result.trim().toUpperCase())) {
-																				score = score.trim().substring(result.trim().length).trim();
-																			}
-
-																			return (
-																				<React.Fragment key={`match-${matchIndex}`}>
-																					{matchIndex > 0 && (
-																						<tr>
-																							<td colSpan={3} className='py-2 border-t border-gray-600'></td>
-																						</tr>
-																					)}
-																					{/* Match Details Header */}
-																					<tr>
-																						<td colSpan={3} className='py-2 px-2'>
-																							<div className='text-center mb-2'>
-																								{match.date && (
-																									<p className='text-gray-400 text-xs md:text-sm mb-1'>{formatDate(match.date)}</p>
-																								)}
-																								{team && opposition ? (
-																									<p className='text-white text-xs md:text-sm font-normal'>{team} vs {opposition}</p>
-																								) : (
-																									<p className='text-white text-xs md:text-sm font-normal'>Fixture details TBC</p>
-																								)}
-																								{result && score && (
-																									<p className='text-white text-sm md:text-base font-semibold mt-1'>{result} {score}</p>
-																								)}
-																							</div>
-																						</td>
-																					</tr>
-																					{visibleStats.map((stat, statIndex) => (
-																						<tr key={`${matchIndex}-${statIndex}`} className='border-b border-green-500'>
-																							<td className='py-2 px-2 text-xs md:text-sm'>{stat.stat}</td>
-																							<td className='text-center py-2 px-2 text-xs md:text-sm'>{stat.value}</td>
-																							<td className='text-center py-2 px-2 text-xs md:text-sm'>{stat.points}</td>
-																						</tr>
-																					))}
-																					{stats.matchDetails.length > 1 && (
-																						<tr className='border-t-2 border-dorkinians-yellow font-bold'>
-																							<td className='py-2 px-2 text-xs md:text-sm'>Match Total</td>
-																							<td className='text-center py-2 px-2'></td>
-																							<td className='text-center py-2 px-2'>{matchTotal}</td>
-																						</tr>
-																					)}
-																				</React.Fragment>
-																			);
-																		})}
-																		<tr className='border-t-2 border-white font-bold text-lg'>
-																			<td className='py-2 px-2 text-xs md:text-sm'>Monthly Total</td>
-																			<td className='text-center py-2 px-2'></td>
-																			<td className='text-center py-2 px-2'>{calculateTotalFTP(stats.matchDetails)}</td>
-																		</tr>
-																	</tbody>
-																</table>
-															</div>
-														</div>
-													) : (
-														<div className='text-center py-4 text-gray-400'>No stats available</div>
-													)}
-												</td>
-											</tr>
-										)}
-									</React.Fragment>
-								);
-							})}
-						</tbody>
-					</table>
-					</div>
-				</div>
-						)}
-
-						{/* Empty State - Only show when loading is complete and no players found */}
-						{leftPanelIsReady && players.length === 0 && selectedSeason && selectedMonth && (
-				<div className='text-center py-2 text-gray-400'>
-					<p>No players found for {selectedMonth} {selectedSeason}</p>
-				</div>
-						)}
-					</div>
-
-					<div className='min-w-0 mt-8 lg:mt-0'>
-						{shouldShowRightPanelSkeleton && (
-							<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-								<div className='bg-white/10 rounded-lg p-4 md:p-6 space-y-14'>
-									<RankingTableSkeleton />
-									<RankingTableSkeleton />
-								</div>
-							</SkeletonTheme>
-						)}
-
-						{/* FTP Ranking Section */}
-						{rightPanelIsReady && (
-				<div>
-					{selectedPlayer ? (
-						<div className='bg-white/10 rounded-lg p-4 md:p-6 space-y-14'>
-							{/* Current Month Ranking Table */}
-							<div>
-								<h2 className='text-lg md:text-xl font-bold text-dorkinians-yellow mb-1'>
-									This Month FTP Ranking
-								</h2>
-								<p className='text-white text-sm md:text-base mb-4 text-center'>{selectedMonth} {selectedSeason}</p>
-								{loadingMonthRankings ? (
-									<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
 										<RankingTableSkeleton />
-									</SkeletonTheme>
-								) : monthRankings.length > 0 ? (
-									(() => {
-										const monthRows = getRankingTableRows(monthRankings, selectedPlayer);
-										const selectedInMonth = monthRankings.findIndex(p => p.playerName === selectedPlayer) !== -1;
-										
-										if (!selectedInMonth) {
-											return (
-												<div className='text-center py-8 text-gray-400'>
-													<p>{selectedPlayer} has no fantasy points for {selectedMonth} {selectedSeason}</p>
-												</div>
-											);
-										}
-										
-										return (
-											<div className='overflow-x-auto'>
-												<table className='w-full text-white'>
-													<thead>
-														<tr className='border-b-2 border-dorkinians-yellow'>
-															<th className='w-[8.33%] text-left py-2 px-2 text-xs md:text-sm'>Rank</th>
-															<th className='text-left py-2 px-2 text-xs md:text-sm'>Player Name</th>
-															<th className='w-[8.33%] text-right py-2 px-2 text-xs md:text-sm whitespace-nowrap'>FTP Points</th>
-														</tr>
-													</thead>
-													<tbody>
-														{monthRows.map((row, index) => {
-															if (row.isDots) {
-																return (
-																	<tr
-																		key={`dots-${index}`}
-																		className='border-b border-green-500'
-																		style={{
-																			background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05))',
-																		}}
-																	>
-																		<td className='py-1 px-2 text-xs md:text-sm'></td>
-																		<td className='py-1 px-2 text-xs md:text-sm text-center text-gray-400'>...</td>
-																		<td className='text-right py-1 px-2 text-xs md:text-sm'></td>
-																	</tr>
-																);
-															}
-															
-															return (
-																<tr
-																	key={`${row.playerName}-${row.rank}`}
-																	className={`border-b border-green-500 ${row.isSelected ? 'bg-yellow-400/20' : ''}`}
-																	style={row.isSelected ? {} : {
-																		background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05))',
-																	}}
-																>
-																	<td className='py-2 px-2 text-xs md:text-sm'>{row.rank}</td>
-																	<td className='py-2 px-2 text-xs md:text-sm font-semibold'>{row.playerName}</td>
-																	<td className='text-right py-2 px-2 text-xs md:text-sm font-bold'>{row.score !== null ? Math.round(row.score) : '-'}</td>
-																</tr>
-															);
-														})}
-													</tbody>
-												</table>
-											</div>
-										);
-									})()
-								) : (
-									<div className='text-center py-8 text-gray-400'>
+									</div>
+									<div className='min-w-0'>
+										<div className='mb-4'>
+											<Skeleton height={24} width="55%" />
+										</div>
+										<RankingTableSkeleton />
+									</div>
+								</div>
+							</div>
+						</SkeletonTheme>
+					</div>
+				) : (
+					<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+						<div className='lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start space-y-10 lg:space-y-0'>
+							{/* Month FTP — first on mobile, left on desktop */}
+							<div className='min-w-0' data-testid='players-of-month-month-column'>
+								<div className='mb-4'>
+									<h2
+										data-testid='players-of-month-month-heading'
+										className='text-lg md:text-xl font-bold text-dorkinians-yellow mb-1 text-center lg:text-left'>
+										{monthFtpHeading}
+									</h2>
+								</div>
+								{selectedPlayer && monthRankings.length > 0 && !selectedInMonthRankings && (
+									<p className='text-center text-gray-400 text-sm mb-3'>
+										{selectedPlayer} has no fantasy points for {selectedMonth} {selectedSeason}
+									</p>
+								)}
+								{monthRankings.length === 0 ? (
+									<div className='text-center py-6 text-gray-400'>
 										<p>No rankings available for {selectedMonth} {selectedSeason}</p>
 									</div>
+								) : (
+									<>
+										<div className='overflow-x-auto'>
+											<table className='w-full text-white'>
+												<thead>
+													<tr className='border-b-2 border-dorkinians-yellow'>
+														<th className='w-[8.33%] text-left py-2 px-2 text-xs md:text-sm'></th>
+														<th className='text-left py-2 px-2 text-xs md:text-sm'>Player Name</th>
+														<th className='w-[8.33%] text-right py-2 px-2 text-xs md:text-sm whitespace-nowrap'>FTP Points</th>
+													</tr>
+												</thead>
+												<tbody>
+													{monthRows.map((row, index) => {
+														if ("isDots" in row && row.isDots) {
+															return (
+																<tr
+																	key={`month-dots-${index}`}
+																	className='border-b border-green-500'
+																	style={{
+																		background: "linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05))",
+																	}}>
+																	<td className='py-1 px-2 text-xs md:text-sm'></td>
+																	<td className='py-1 px-2 text-xs md:text-sm text-center text-gray-400'>...</td>
+																	<td className='text-right py-1 px-2 text-xs md:text-sm'></td>
+																</tr>
+															);
+														}
+
+														const isExpanded = expandedPlayers.has(row.playerName);
+														const stats = playerStats[row.playerName];
+														const isLoadingStats = loadingIndividualStats.has(row.playerName);
+														const isLastRow = index === monthRows.length - 1;
+														const isSelected = Boolean(selectedPlayer && row.playerName === selectedPlayer);
+														return (
+															<React.Fragment key={row.playerName}>
+																<tr
+																	className={`cursor-pointer hover:bg-gray-800 transition-colors ${isLastRow ? "" : "border-b border-green-500"} ${isSelected ? "bg-yellow-400/20" : ""}`}
+																	style={
+																		isSelected
+																			? {}
+																			: {
+																					background:
+																						"linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05))",
+																				}
+																	}
+																	onClick={() => handleRowExpand(row.playerName)}
+																	role='button'
+																	tabIndex={0}
+																	onKeyDown={(e) => {
+																		if (e.key === "Enter" || e.key === " ") {
+																			e.preventDefault();
+																			handleRowExpand(row.playerName);
+																		}
+																	}}
+																>
+																	<td colSpan={3} className='p-0 relative'>
+																		<div className='flex flex-col'>
+																			<div className='flex items-center py-2 px-2'>
+																				<div className='w-1/12 text-base md:text-lg'>{row.rank}</div>
+																				<div className='flex-1 text-base md:text-lg'>{row.playerName}</div>
+																				<div className='w-1/12 text-center text-base md:text-lg font-bold'>
+																					{row.score !== null ? Math.round(row.score) : "-"}
+																				</div>
+																			</div>
+																			{stats && (
+																				<div className='py-1 px-2 pl-6 md:pl-8 pb-4'>
+																					<div className='flex flex-nowrap gap-x-2 md:gap-x-3 gap-y-1 text-[0.6rem] md:text-[0.7rem] text-gray-300 justify-end pl-3 md:pl-4'>
+																						{stats.appearances > 0 && (
+																							<span>
+																								Apps:{" "}
+																								<span className='text-white font-semibold'>{stats.appearances}</span>
+																							</span>
+																						)}
+																						{stats.mom > 0 && (
+																							<span>
+																								MoM: <span className='text-white font-semibold'>{stats.mom}</span>
+																							</span>
+																						)}
+																						{stats.goals > 0 && (
+																							<span>
+																								Goals:{" "}
+																								<span className='text-white font-semibold'>{stats.goals}</span>
+																							</span>
+																						)}
+																						{stats.assists > 0 && (
+																							<span>
+																								Assists:{" "}
+																								<span className='text-white font-semibold'>{stats.assists}</span>
+																							</span>
+																						)}
+																						{stats.cleanSheets > 0 && (
+																							<span>
+																								Clean Sheets:{" "}
+																								<span className='text-white font-semibold'>{stats.cleanSheets}</span>
+																							</span>
+																						)}
+																					</div>
+																				</div>
+																			)}
+																			{!isExpanded && (
+																				<div className='absolute bottom-1 left-2'>
+																					<ChevronDownIcon className='h-4 w-4 text-yellow-300' />
+																				</div>
+																			)}
+																		</div>
+																	</td>
+																</tr>
+																{isExpanded && (
+																	<tr>
+																		<td colSpan={3} className='py-4 px-2 relative' style={{ backgroundColor: "#0f0f0f" }}>
+																			<div className='absolute top-2 left-2'>
+																				<ChevronUpIcon className='h-4 w-4 text-yellow-300' />
+																			</div>
+																			{renderExpandedStatsSection(stats, isLoadingStats)}
+																		</td>
+																	</tr>
+																)}
+															</React.Fragment>
+														);
+													})}
+												</tbody>
+											</table>
+										</div>
+										{selectedPlayer && monthRankings.length > 5 && (
+											<button
+												type='button'
+												data-testid='players-of-month-toggle-extra'
+												className='mt-4 w-full text-center text-sm text-white underline underline-offset-2'
+												onClick={() => setShowSelectedPlayerContext((prev) => !prev)}>
+												{showSelectedPlayerContext ? "Hide extra players" : "Show selected player"}
+											</button>
+										)}
+									</>
 								)}
 							</div>
 
-							{/* Current Season Ranking Table */}
-							<div>
-								<h2 className='text-lg md:text-xl font-bold text-dorkinians-yellow mb-1'>
-									This Season FTP Ranking
-								</h2>
-								<p className='text-white text-sm md:text-base mb-4 text-center'>{selectedSeason}</p>
-								{loadingSeasonRankings ? (
-									<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-										<RankingTableSkeleton />
-									</SkeletonTheme>
-								) : seasonRankings.length > 0 ? (
-									(() => {
-										const seasonRows = getRankingTableRows(seasonRankings, selectedPlayer);
-										const selectedInSeason = seasonRankings.findIndex(p => p.playerName === selectedPlayer) !== -1;
-										
-										if (!selectedInSeason) {
-											return (
-												<div className='text-center py-8 text-gray-400'>
-													<p>{selectedPlayer} has no fantasy points for {selectedSeason}</p>
-												</div>
-											);
-										}
-										
-										return (
-											<div className='overflow-x-auto'>
-												<table className='w-full text-white'>
-													<thead>
-														<tr className='border-b-2 border-dorkinians-yellow'>
-															<th className='w-[8.33%] text-left py-2 px-2 text-xs md:text-sm'>Rank</th>
-															<th className='text-left py-2 px-2 text-xs md:text-sm'>Player Name</th>
-															<th className='w-[8.33%] text-right py-2 px-2 text-xs md:text-sm whitespace-nowrap'>FTP Points</th>
-														</tr>
-													</thead>
-													<tbody>
-														{seasonRows.map((row, index) => {
-															if (row.isDots) {
-																return (
-																	<tr
-																		key={`dots-${index}`}
-																		className='border-b border-green-500'
-																		style={{
-																			background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05))',
-																		}}
-																	>
-																		<td className='py-1 px-2 text-xs md:text-sm'></td>
-																		<td className='py-1 px-2 text-xs md:text-sm text-center text-gray-400'>...</td>
-																		<td className='text-right py-1 px-2 text-xs md:text-sm'></td>
-																	</tr>
-																);
-															}
-															
-															return (
-																<tr
-																	key={`${row.playerName}-${row.rank}`}
-																	className={`border-b border-green-500 ${row.isSelected ? 'bg-yellow-400/20' : ''}`}
-																	style={row.isSelected ? {} : {
-																		background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05))',
-																	}}
-																>
-																	<td className='py-2 px-2 text-xs md:text-sm'>{row.rank}</td>
-																	<td className='py-2 px-2 text-xs md:text-sm font-semibold'>{row.playerName}</td>
-																	<td className='text-right py-2 px-2 text-xs md:text-sm font-bold'>{row.score !== null ? Math.round(row.score) : '-'}</td>
+							{/* Season FTP — below on mobile, right on desktop */}
+							<div className='min-w-0 mt-8 lg:mt-0' data-testid='players-of-month-season-column'>
+								<div className='mb-4'>
+									<h2
+										data-testid='players-of-month-season-heading'
+										className='text-lg md:text-xl font-bold text-dorkinians-yellow mb-1 text-center lg:text-left'>
+										{seasonFtpHeading}
+									</h2>
+								</div>
+								{selectedPlayer ? (
+									<>
+										{loadingSeasonRankings ? (
+											<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+												<RankingTableSkeleton />
+											</SkeletonTheme>
+										) : seasonRankings.length > 0 ? (
+											(() => {
+												const selectedInSeason = seasonRankings.findIndex((p) => p.playerName === selectedPlayer) !== -1;
+
+												if (!selectedInSeason) {
+													return (
+														<div className='text-center py-8 text-gray-400'>
+															<p>{selectedPlayer} has no fantasy points for {selectedSeason}</p>
+														</div>
+													);
+												}
+
+												return (
+													<>
+														<div className='overflow-x-auto'>
+															<table className='w-full text-white'>
+															<thead>
+																<tr className='border-b-2 border-dorkinians-yellow'>
+																	<th className='w-[8.33%] text-left py-2 px-2 text-xs md:text-sm'></th>
+																	<th className='text-left py-2 px-2 text-xs md:text-sm'>Player Name</th>
+																	<th className='w-[8.33%] text-right py-2 px-2 text-xs md:text-sm whitespace-nowrap'>FTP Points</th>
 																</tr>
-															);
-														})}
-													</tbody>
-												</table>
+															</thead>
+															<tbody>
+																{displayedSeasonRows.map((row, index) => {
+																	if (row.isDots) {
+																		return (
+																			<tr
+																				key={`dots-${index}`}
+																				className='border-b border-green-500'
+																				style={{
+																					background:
+																						"linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05))",
+																				}}>
+																				<td className='py-1 px-2 text-xs md:text-sm'></td>
+																				<td className='py-1 px-2 text-xs md:text-sm text-center text-gray-400'>...</td>
+																				<td className='text-right py-1 px-2 text-xs md:text-sm'></td>
+																			</tr>
+																		);
+																	}
+
+																	const isExpanded = expandedSeasonPlayers.has(row.playerName);
+																	const stats = seasonPlayerStats[row.playerName];
+																	const isLoadingStats = loadingSeasonIndividualStats.has(row.playerName);
+																	const isLastRow = index === displayedSeasonRows.length - 1;
+
+																	return (
+																		<React.Fragment key={`${row.playerName}-${row.rank}`}>
+																			<tr
+																				className={`cursor-pointer hover:bg-gray-800 transition-colors ${isLastRow ? "" : "border-b border-green-500"} ${row.isSelected ? "bg-yellow-400/20" : ""}`}
+																				style={
+																					row.isSelected
+																						? {}
+																						: {
+																								background:
+																									"linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05))",
+																							}
+																				}
+																				onClick={() => handleSeasonRowExpand(row.playerName)}
+																				role='button'
+																				tabIndex={0}
+																				onKeyDown={(e) => {
+																					if (e.key === "Enter" || e.key === " ") {
+																						e.preventDefault();
+																						handleSeasonRowExpand(row.playerName);
+																					}
+																				}}>
+																				<td colSpan={3} className='p-0 relative'>
+																					<div className='flex flex-col'>
+																						<div className='flex items-center py-2 px-2'>
+																							<div className='w-1/12 text-base md:text-lg'>{row.rank}</div>
+																							<div className='flex-1 text-base md:text-lg'>{row.playerName}</div>
+																							<div className='w-1/12 text-center text-base md:text-lg font-bold'>
+																								{row.score !== null ? Math.round(row.score) : "-"}
+																							</div>
+																						</div>
+																						{stats && (
+																							<div className='py-1 px-2 pl-6 md:pl-8 pb-4'>
+																								<div className='flex flex-nowrap gap-x-2 md:gap-x-3 gap-y-1 text-[0.6rem] md:text-[0.7rem] text-gray-300 justify-end pl-3 md:pl-4'>
+																									{stats.appearances > 0 && (
+																										<span>
+																											Apps: <span className='text-white font-semibold'>{stats.appearances}</span>
+																										</span>
+																									)}
+																									{stats.mom > 0 && (
+																										<span>
+																											MoM: <span className='text-white font-semibold'>{stats.mom}</span>
+																										</span>
+																									)}
+																									{stats.goals > 0 && (
+																										<span>
+																											Goals: <span className='text-white font-semibold'>{stats.goals}</span>
+																										</span>
+																									)}
+																									{stats.assists > 0 && (
+																										<span>
+																											Assists: <span className='text-white font-semibold'>{stats.assists}</span>
+																										</span>
+																									)}
+																									{stats.cleanSheets > 0 && (
+																										<span>
+																											Clean Sheets: <span className='text-white font-semibold'>{stats.cleanSheets}</span>
+																										</span>
+																									)}
+																								</div>
+																							</div>
+																						)}
+																						{!isExpanded && (
+																							<div className='absolute bottom-1 left-2'>
+																								<ChevronDownIcon className='h-4 w-4 text-yellow-300' />
+																							</div>
+																						)}
+																					</div>
+																				</td>
+																			</tr>
+																			{isExpanded && (
+																				<tr>
+																					<td colSpan={3} className='py-4 px-2 relative' style={{ backgroundColor: "#0f0f0f" }}>
+																						<div className='absolute top-2 left-2'>
+																							<ChevronUpIcon className='h-4 w-4 text-yellow-300' />
+																						</div>
+																						{renderExpandedStatsSection(stats, isLoadingStats, "Season Total")}
+																					</td>
+																				</tr>
+																			)}
+																		</React.Fragment>
+																	);
+																})}
+															</tbody>
+															</table>
+														</div>
+														{selectedPlayer && seasonRankings.length > 5 && (
+															<button
+																type='button'
+																data-testid='players-of-month-toggle-extra-season'
+																className='mt-4 w-full text-center text-sm text-white underline underline-offset-2'
+																onClick={() => setShowSeasonSelectedPlayerContext((prev) => !prev)}>
+																{showSeasonSelectedPlayerContext ? "Hide extra players" : "Show selected player"}
+															</button>
+														)}
+													</>
+												);
+											})()
+										) : (
+											<div className='text-center py-8 text-gray-400'>
+												<p>No rankings available for {selectedSeason}</p>
 											</div>
-										);
-									})()
+										)}
+									</>
 								) : (
-									<div className='text-center py-8 text-gray-400'>
-										<p>No rankings available for {selectedSeason}</p>
+									<div className='text-center py-6'>
+										<p className='text-white text-sm md:text-base mb-4'>
+											Select a player to see their current FTP ranking
+										</p>
+										<button
+											type='button'
+											onClick={handleEditClick}
+											className='flex items-center justify-center mx-auto w-8 h-8 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors'
+											title='Select a player'>
+											<PencilIcon className='h-4 w-4 md:h-5 md:w-5' />
+										</button>
 									</div>
 								)}
 							</div>
 						</div>
-					) : (
-						<div className='bg-white/10 rounded-lg p-4 md:p-6'>
-							<div className='text-center py-2'>
-								<p className='text-white text-sm md:text-base mb-4'>
-									Select a player to see their current FTP ranking
-								</p>
-								<button
-									onClick={handleEditClick}
-									className='flex items-center justify-center mx-auto w-8 h-8 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors'
-									title='Select a player'>
-									<PencilIcon className='h-4 w-4 md:h-5 md:w-5' />
-								</button>
-							</div>
-						</div>
-					)}
-				</div>
-						)}
 					</div>
-				</div>
+				)
 			)}
 		</div>
 	);

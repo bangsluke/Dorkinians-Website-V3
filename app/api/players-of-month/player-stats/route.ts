@@ -25,9 +25,9 @@ export async function GET(request: NextRequest) {
 		const month = searchParams.get("month");
 		const playerName = searchParams.get("playerName");
 
-		if (!season || !month || !playerName) {
+		if (!season || !playerName) {
 			return NextResponse.json(
-				{ error: "Season, month, and playerName parameters are required" },
+				{ error: "Season and playerName parameters are required" },
 				{ status: 400, headers: corsHeaders },
 			);
 		}
@@ -40,15 +40,19 @@ export async function GET(request: NextRequest) {
 
 		const graphLabel = neo4jService.getGraphLabel();
 
-		// Find month index
-		const monthIndex = monthNames.findIndex((m) => m.toLowerCase() === month.toLowerCase());
-		if (monthIndex === -1) {
-			return NextResponse.json({ error: "Invalid month name" }, { status: 400, headers: corsHeaders });
+		// Optional month filtering: when month is omitted, return season-level stats.
+		const hasMonthFilter = typeof month === "string" && month.length > 0;
+		let monthIndex = -1;
+		if (hasMonthFilter) {
+			monthIndex = monthNames.findIndex((m) => m.toLowerCase() === month!.toLowerCase());
+			if (monthIndex === -1) {
+				return NextResponse.json({ error: "Invalid month name" }, { status: 400, headers: corsHeaders });
+			}
 		}
 
 		// Fetch all matches for the player in the season, then filter by month
 		// Use seasonMonth property as primary filter (format: "2023/24-January")
-		const seasonMonthPattern = `${season}-${month}`;
+		const seasonMonthPattern = hasMonthFilter ? `${season}-${month}` : "";
 		const query = `
 			MATCH (md:MatchDetail {graphLabel: $graphLabel, playerName: $playerName, season: $season})
 			WHERE md.date IS NOT NULL
@@ -99,6 +103,10 @@ export async function GET(request: NextRequest) {
 
 		// Filter by month - use seasonMonth if available, otherwise parse date as fallback
 		const matchDetails = allMatchDetails.filter((md: any) => {
+			if (!hasMonthFilter) {
+				return true;
+			}
+
 			// Primary: use seasonMonth property if available and it matches
 			if (md.seasonMonth && md.seasonMonth === seasonMonthPattern) {
 				return true;
