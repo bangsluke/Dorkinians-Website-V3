@@ -260,9 +260,9 @@ test.describe("TOTW Page Tests", () => {
 		await navigateToMainPage(page, "totw");
 		await goToTOTWSubPage(page, "players-of-month");
 		await waitForTotwSkeletonsGone(page, mobile ? 35000 : 60000);
-		const emptyMsg = page.getByText(/No players found for/i);
-		const topHeading = page.getByRole("heading", { name: "This Months Top Players" });
-		await topHeading.waitFor({ state: "visible", timeout: 30000 }).catch(() => {});
+		const emptyMsg = page.getByText(/No rankings available for/i);
+		const monthHeading = page.getByTestId("players-of-month-month-heading");
+		await monthHeading.waitFor({ state: "visible", timeout: 30000 }).catch(() => {});
 		if (await emptyMsg.isVisible({ timeout: 5000 }).catch(() => false)) {
 			await expect(emptyMsg).toBeVisible();
 			return;
@@ -312,14 +312,14 @@ test.describe("TOTW Page Tests", () => {
 			test.skip(true, "Selected player has no fantasy points this month - skipping FTP highlight test.");
 			return;
 		}
-		const monthSection = page.locator("div").filter({ has: page.getByRole("heading", { name: "This Month FTP Ranking" }) });
-		const seasonSection = page.locator("div").filter({ has: page.getByRole("heading", { name: "This Season FTP Ranking" }) });
-		if (!(await monthSection.first().isVisible({ timeout: 8000 }).catch(() => false))) {
-			test.skip(true, "This Month FTP Ranking section not visible - skipping.");
+		const monthSection = page.getByTestId("players-of-month-month-column");
+		const seasonSection = page.getByTestId("players-of-month-season-column");
+		if (!(await monthSection.isVisible({ timeout: 8000 }).catch(() => false))) {
+			test.skip(true, "Month FTP column not visible - skipping.");
 			return;
 		}
-		if (!(await seasonSection.first().isVisible({ timeout: 8000 }).catch(() => false))) {
-			test.skip(true, "This Season FTP Ranking section not visible - skipping.");
+		if (!(await seasonSection.isVisible({ timeout: 8000 }).catch(() => false))) {
+			test.skip(true, "Season FTP column not visible - skipping.");
 			return;
 		}
 		const monthRow = monthSection.locator("tr", { hasText: DEFAULT_PLAYER }).first();
@@ -336,34 +336,34 @@ test.describe("TOTW Page Tests", () => {
 		await expect(seasonSelectedRows).toHaveCount(1);
 	});
 
-	test("4.12b. players-of-month left panel should transition from skeleton to populated or empty state without a blank gap", async ({ page }) => {
+	test("4.12b. players-of-month rankings should transition from skeleton to populated or empty state without a blank gap", async ({ page }) => {
 		await navigateToMainPage(page, "totw");
 		await goToTOTWSubPage(page, "players-of-month");
 
-		const leftSkeleton = page.getByTestId("loading-skeleton").first();
-		if (!(await leftSkeleton.isVisible({ timeout: 10000 }).catch(() => false))) {
-			test.skip(true, "PoM left loading skeleton not visible during initial load - skipping transition assertion.");
+		const rankingsSkeleton = page.getByTestId("loading-skeleton").first();
+		if (!(await rankingsSkeleton.isVisible({ timeout: 10000 }).catch(() => false))) {
+			test.skip(true, "PoM rankings loading skeleton not visible during initial load - skipping transition assertion.");
 			return;
 		}
 
 		await waitForTotwSkeletonsGone(page, 60000);
 
-		const topPlayersHeading = page.getByRole("heading", { name: "This Months Top Players" });
-		const emptyState = page.getByText(/No players found for/i);
-		const topPlayersVisible = await topPlayersHeading.isVisible({ timeout: 10000 }).catch(() => false);
+		const monthHeading = page.getByTestId("players-of-month-month-heading");
+		const emptyState = page.getByText(/No rankings available for/i);
+		const monthHeadingVisible = await monthHeading.isVisible({ timeout: 10000 }).catch(() => false);
 		const emptyStateVisible = await emptyState.isVisible({ timeout: 10000 }).catch(() => false);
 
-		expect(topPlayersVisible || emptyStateVisible).toBeTruthy();
+		expect(monthHeadingVisible || emptyStateVisible).toBeTruthy();
 	});
 
 	test("4.13. rank 1 in This Month FTP Ranking should also appear in This Season FTP Ranking when both tables have data", async ({ page }) => {
 		await navigateToMainPage(page, "totw");
 		await goToTOTWSubPage(page, "players-of-month");
 		await waitForTotwSkeletonsGone(page, 60000);
-		const monthSection = page.locator("div").filter({ has: page.getByRole("heading", { name: "This Month FTP Ranking" }) }).first();
+		const monthSection = page.getByTestId("players-of-month-month-column");
 		const monthTable = monthSection.locator("table").first();
 		if (!(await monthTable.isVisible({ timeout: 12000 }).catch(() => false))) {
-			test.skip(true, "This Month FTP Ranking table not visible - skipping rank-1 cross-check.");
+			test.skip(true, "Month FTP ranking table not visible - skipping rank-1 cross-check.");
 			return;
 		}
 		const rank1Row = monthTable.locator("tbody tr").filter({ hasNotText: "..." }).filter({ hasNotText: /^$/ }).first();
@@ -376,7 +376,7 @@ test.describe("TOTW Page Tests", () => {
 			test.skip(true, "Could not read player name from month FTP rank-1 row - skipping.");
 			return;
 		}
-		const seasonSection = page.locator("div").filter({ has: page.getByRole("heading", { name: "This Season FTP Ranking" }) }).first();
+		const seasonSection = page.getByTestId("players-of-month-season-column");
 		await expect(seasonSection.getByRole("cell", { name: topName })).toBeVisible({ timeout: 15000 });
 	});
 

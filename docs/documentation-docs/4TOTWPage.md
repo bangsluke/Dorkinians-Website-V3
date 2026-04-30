@@ -133,7 +133,7 @@ The Team of the Week is selected based on a fantasy points system. Points are aw
 
 ## Players of the Month
 
-The Players of the Month section displays monthly award winners who have achieved outstanding performance over a calendar month.
+The Players of the Month section shows monthly FTP rankings for the club, with expandable rows for per-match fantasy breakdowns.
 
 <div className="sideBySide">
   <img
@@ -146,21 +146,23 @@ The Players of the Month section displays monthly award winners who have achieve
   />
 </div>
 
-### This Months Top Players
+### Monthly and season FTP rankings
 
-The top scoring fantasy players of the month are listed in this section, along with their total fantasy points for the month.
+The **{Month} {Season} FTP Ranking** table lists players by total fantasy points for that month. A summary line (appearances, MoM, goals, etc.) appears under each row when stats have loaded. Use **Hide Extra Players** / **Show Extra Players** below the table to limit the list to the top five or show the full ranking.
+
+The **{Season} FTP Ranking** table shows the selected player’s position in the season leaderboard (with context rows around them when they are outside the top five).
 
 Past seasons and months can be viewed by selecting the dropdowns at the top of the page.
 
 :::tip
-Click on a player's row to see a full breakdown of their statistics for the month with their scores per game.
+Click on a player’s row in the monthly table to expand a full breakdown of their statistics for the month with their scores per game.
 :::
 
 > [Back to Table of Contents](#table-of-contents)
 
-### This Month FTP Ranking and This Season FTP Ranking
+### Layout
 
-This section shows the current selected player's FTP ranking for the month and season, along with the top 3 players in the club.
+On small screens the monthly ranking appears above the season ranking; on larger screens they appear side by side in one panel.
 
 <div className="sideBySide">
   <img
