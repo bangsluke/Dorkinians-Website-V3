@@ -157,9 +157,12 @@ export async function GET(request: NextRequest) {
 			return date.getMonth() === monthIndex;
 		});
 
-		// Calculate aggregated stats
+		// Calculate aggregated stats (Goals = open-play goals + penalties scored, PSC)
 		const appearances = matchDetails.length;
-		const goals = matchDetails.reduce((sum: number, md: MatchDetail) => sum + md.goals, 0);
+		const goals = matchDetails.reduce(
+			(sum: number, md: MatchDetail) => sum + md.goals + md.penaltiesScored,
+			0,
+		);
 		const assists = matchDetails.reduce((sum: number, md: MatchDetail) => sum + md.assists, 0);
 		const cleanSheets = matchDetails.reduce((sum: number, md: MatchDetail) => sum + md.cleanSheets, 0);
 		const mom = matchDetails.reduce((sum: number, md: MatchDetail) => sum + (md.mom ? 1 : 0), 0);
