@@ -22,11 +22,15 @@ class Neo4jService {
 			const uri = process.env.PROD_NEO4J_URI;
 			const username = process.env.PROD_NEO4J_USER;
 			const password = process.env.PROD_NEO4J_PASSWORD;
+			// Local / corporate SSL-intercepted networks may fail leaf verification against Aura.
+			// Opt-in only: rewrite neo4j+s → neo4j+ssc (system CA / self-signed trust path).
+			const trustAllCertificates = process.env.NEO4J_TRUST_ALL_CERTIFICATES === "true";
 
 		logDebug(`🔧 Connection attempt - Environment: ${process.env.NODE_ENV}`);
 		logDebug(`🔧 URI configured: ${uri ? "Yes" : "No"}`);
 		logDebug(`🔧 Username configured: ${username ? "Yes" : "No"}`);
 		logDebug(`🔧 Password configured: ${password ? "Yes" : "No"}`);
+		logDebug(`🔧 Trust all certificates: ${trustAllCertificates ? "Yes" : "No"}`);
 
 			if (!uri || !username || !password) {
 				const missingVars = [];
@@ -41,9 +45,22 @@ class Neo4jService {
 				throw new Error(`Invalid Neo4j Aura URI format. Must use neo4j+s:// or neo4j+ssc:// scheme. Current: ${uri.substring(0, 20)}...`);
 			}
 
+			// Hard policy: only Production Neo4j Aura (never a local/dev bolt endpoint).
+			const auraHost = uri.replace(/^neo4j\+ss?c?:\/\//i, "").split("/")[0]?.split(":")[0] ?? "";
+			if (!auraHost.endsWith(".databases.neo4j.io") && !auraHost.endsWith(".neo4j.io")) {
+				throw new Error(
+					`Refusing non-Production Aura host "${auraHost}". Only PROD_NEO4J_URI pointing at *.databases.neo4j.io / *.neo4j.io is allowed.`,
+				);
+			}
+
+			const effectiveUri =
+				trustAllCertificates && uri.startsWith("neo4j+s://")
+					? uri.replace("neo4j+s://", "neo4j+ssc://")
+					: uri;
+
 			// Configure driver with encryption and connection pool settings for Aura
 			this.driver = neo4j.driver(
-				uri,
+				effectiveUri,
 				neo4j.auth.basic(username, password),
 				{
 					maxConnectionPoolSize: 50,
@@ -52,7 +69,7 @@ class Neo4jService {
 					connectionTimeout: 30000, // 30 seconds
 					maxTransactionRetryTime: 30000, // 30 seconds
 					disableLosslessIntegers: true,
-					// Encryption is automatically handled by neo4j+s:// URI scheme
+					// Encryption is automatically handled by neo4j+s:// / neo4j+ssc:// URI scheme
 				}
 			);
 
@@ -79,7 +96,7 @@ class Neo4jService {
 			this.isConnected = true;
 
 			logDebug("✅ Neo4j Aura connection established");
-			logDebug(`📍 Connected to: ${uri}`);
+			logDebug(`📍 Connected to: ${effectiveUri}`);
 			logDebug(`🏷️ Graph Label: ${this.GRAPH_LABEL}`);
 			return true;
 		} catch (error) {
