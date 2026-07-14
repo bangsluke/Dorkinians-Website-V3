@@ -274,10 +274,10 @@ describe("test-all summary email helpers", () => {
 
 			const unitSection = sections.find((s: any) => s.displayName === "Unit");
 			expect(unitSection).toBeDefined();
-			expect(unitSection.detailTests).toHaveLength(2);
-			expect(unitSection.detailTests[0].title).toContain("Unit - apiUtils");
-			expect(unitSection.detailTests[1].title).toContain("should return default query options");
-			expect(unitSection.counts.failed).toBeGreaterThanOrEqual(2);
+			// Prefer FAIL <path> over ● titles so emails show the suite file, not only assertion names.
+			expect(unitSection.detailTests).toHaveLength(1);
+			expect(unitSection.detailTests[0].title).toMatch(/apiUtils/i);
+			expect(unitSection.counts.failed).toBeGreaterThanOrEqual(1);
 
 			const html = buildTestAllEmailInnerHtml({
 				summaryItems: [{ name: "Unit Tests", result: false }],
@@ -296,8 +296,41 @@ describe("test-all summary email helpers", () => {
 				sections: [unitSection],
 			});
 
-			expect(html).toContain("Unit - apiUtils");
-			expect(text).toContain("[failed] Unit - apiUtils");
+			expect(html).toMatch(/apiUtils/i);
+			expect(text).toMatch(/apiUtils/i);
+		} finally {
+			fs.rmSync(tmpRoot, { recursive: true, force: true });
+		}
+	});
+
+	it("ignores generic Test suite failed to run ● when FAIL path is present", () => {
+		const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "test-all-email-fail-path-"));
+		try {
+			const paths = getTestAllArtifactPaths(tmpRoot);
+			fs.mkdirSync(path.dirname(paths.jestUnit), { recursive: true });
+			fs.writeFileSync(paths.jestUnit, JSON.stringify({ testResults: [] }), "utf8");
+
+			const sections = buildSectionsFromArtifacts({
+				artifactsEnabled: true,
+				repoRoot: tmpRoot,
+				suitePass: {
+					unit: false,
+					integration: true,
+					otherJest: true,
+					e2e: true,
+					chatbotReport: true,
+					questionsReport: true,
+				},
+				logs: {
+					unit: `FAIL __tests__/unit/badges/catalogParity.test.ts
+  ● Test suite failed to run`,
+				},
+			});
+
+			const unitSection = sections.find((s: any) => s.displayName === "Unit");
+			expect(unitSection.detailTests).toHaveLength(1);
+			expect(unitSection.detailTests[0].title).toMatch(/catalogParity/i);
+			expect(unitSection.detailTests[0].title).not.toMatch(/Test suite failed to run/i);
 		} finally {
 			fs.rmSync(tmpRoot, { recursive: true, force: true });
 		}
