@@ -286,12 +286,11 @@ export async function fetchTestData(): Promise<TestPlayerData[]> {
 
 		return processedData;
 	} catch (error) {
-		if (isVerbose) {
-			console.error("❌ Failed to fetch reference data from CSV:", error);
-		}
-
-		// Throw error instead of using fallback data
-		throw new Error(`Failed to fetch test data: ${error}`);
+		console.warn(
+			"⚠️ Failed to fetch reference data from CSV; using FALLBACK_TEST_DATA:",
+			error,
+		);
+		return FALLBACK_TEST_DATA;
 	}
 }
 

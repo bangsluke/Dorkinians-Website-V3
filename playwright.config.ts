@@ -17,8 +17,9 @@ export default defineConfig({
 	forbidOnly: !!process.env.CI,
 	/* Retry on CI only */
 	retries: process.env.CI ? 2 : 0,
-	/* Keep CI deterministic; speed up local runs with modest parallelism. */
-	workers: process.env.CI ? 1 : Number(process.env.PLAYWRIGHT_WORKERS || 2),
+	/* Default to 1 worker locally: parallel projects (chromium + Mobile Chrome) cause
+	 * cascade failures (Target closed / timeouts) against a single Next prod server + Aura. */
+	workers: process.env.CI ? 1 : Number(process.env.PLAYWRIGHT_WORKERS || 1),
 	/* Reporter to use. See https://playwright.dev/docs/test-reporters */
 	reporter: process.env.CI
 		? [
@@ -38,6 +39,8 @@ export default defineConfig({
 	use: {
 		/* Base URL to use in actions like `await page.goto('/')`. */
 		baseURL: process.env.WEBSITE_URL || process.env.BASE_URL || 'http://localhost:3000',
+		/* Allow API request fixture against production when local Node cannot verify the cert chain. */
+		ignoreHTTPSErrors: true,
 		/* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
 		trace: 'on-first-retry',
 		/* Screenshot on failure */

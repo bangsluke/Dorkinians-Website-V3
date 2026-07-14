@@ -26,6 +26,7 @@
 		"test:coverage": "jest --coverage",
 		"test:integration": "jest --testPathPatterns=integration",
 		"test:e2e": "playwright test",
+		"test:e2e:stable": "playwright test --workers=1",
 		"test:e2e:ui": "playwright test --ui",
 		"test:e2e:headless": "playwright test --headed=false",
 		"test:e2e:show-last-report": "playwright show-report __tests__/e2e/playwright-report",
