@@ -74,6 +74,16 @@ jobs:
    - name: Checkout code
      uses: actions/checkout@v4
 
+   # Optional: enables catalogParity / matchDerivedFields unit tests against the DB package.
+   # Without this secret those suites soft-skip; website-only CI still goes green.
+   - name: Checkout Database-Dorkinians sibling
+     if: ${{ secrets.CROSS_REPO_CHECKOUT_TOKEN != '' }}
+     uses: actions/checkout@v4
+     with:
+      repository: bangsluke/Database-Dorkinians
+      token: ${{ secrets.CROSS_REPO_CHECKOUT_TOKEN }}
+      path: database-dorkinians
+
    - name: Setup Node.js
      uses: actions/setup-node@v4
      with:
@@ -136,3 +146,12 @@ jobs:
       name: test-screenshots
       path: __tests__/e2e/test-results/screenshots/
       retention-days: 30
+
+   - name: Upload test-all email artifacts
+     if: always()
+     uses: actions/upload-artifact@v4
+     with:
+      name: test-all-artifacts
+      path: __tests__/artifacts/test-all/
+      retention-days: 30
+      if-no-files-found: ignore

@@ -141,11 +141,9 @@ async function runCommand(command, description, suppressOutput = false, envOverr
 			const stderr = error && error.stderr ? error.stderr.toString() : "";
 			runCommand.lastOutput = `${stdout}${stderr ? `\n${stderr}` : ""}`;
 			printError(`${description} failed`);
-			if (isDebugMode && error.stdout) {
-				console.log(error.stdout.toString());
-			}
-			if (isDebugMode && error.stderr) {
-				console.error(error.stderr.toString());
+			// Always dump captured output on failure so CI logs / email parsers see FAIL paths.
+			if (runCommand.lastOutput.trim()) {
+				console.log(runCommand.lastOutput);
 			}
 			return false;
 		}

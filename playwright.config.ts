@@ -26,7 +26,7 @@ export default defineConfig({
 				...(process.env.GITHUB_ACTIONS ? [['github' as const] as const] : []),
 				['html', { outputFolder: '__tests__/e2e/playwright-report' }],
 				['list'],
-				['junit', { outputFile: '__tests__/e2e/test-results/junit.xml' }],
+				['junit', { outputFile: '__tests__/artifacts/test-all/junit.xml' }],
 		  ]
 		: [
 				['html', { outputFolder: '__tests__/e2e/playwright-report' }],
