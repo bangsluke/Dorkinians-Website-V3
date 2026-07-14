@@ -1,0 +1,683 @@
+{
+  "totals": {
+    "pass": 156,
+    "fail": 14,
+    "skip": 70
+  },
+  "failed": [
+    {
+      "file": "03-stats/stats.spec.ts",
+      "title": "3.7. should navigate to Team Stats sub-page",
+      "project": "Mobile Chrome",
+      "outcome": "fail",
+      "status": "timedOut",
+      "error": "\u001b[31mTest timeout of 60000ms exceeded.\u001b[39m"
+    },
+    {
+      "file": "03-stats/stats.spec.ts",
+      "title": "3.9. should navigate to Comparison sub-page",
+      "project": "Mobile Chrome",
+      "outcome": "fail",
+      "status": "timedOut",
+      "error": "\u001b[31mTest timeout of 60000ms exceeded.\u001b[39m"
+    },
+    {
+      "file": "03-stats/stats.spec.ts",
+      "title": "3.21. Player form section renders chart or fallback",
+      "project": "Mobile Chrome",
+      "outcome": "fail",
+      "status": "timedOut",
+      "error": "\u001b[31mTest timeout of 60000ms exceeded.\u001b[39m"
+    },
+    {
+      "file": "03-stats/stats.spec.ts",
+      "title": "3.22. Player form: no form-only season dropdown; recent boxes tooltip",
+      "project": "Mobile Chrome",
+      "outcome": "fail",
+      "status": "timedOut",
+      "error": "\u001b[31mTest timeout of 60000ms exceeded.\u001b[39m"
+    },
+    {
+      "file": "03-stats/stats.spec.ts",
+      "title": "3.26. Milestone badges link opens Player Profile with required section order",
+      "project": "Mobile Chrome",
+      "outcome": "fail",
+      "status": "timedOut",
+      "error": "\u001b[31mTest timeout of 60000ms exceeded.\u001b[39m"
+    },
+    {
+      "file": "03-stats/stats.spec.ts",
+      "title": "3.27. Team formations subtitle and recommendation",
+      "project": "Mobile Chrome",
+      "outcome": "fail",
+      "status": "timedOut",
+      "error": "\u001b[31mTest timeout of 60000ms exceeded.\u001b[39m"
+    },
+    {
+      "file": "04-totw/totw.spec.ts",
+      "title": "4.9. should let the user change the season and month on the Players of the Month page",
+      "project": "Mobile Chrome",
+      "outcome": "fail",
+      "status": "timedOut",
+      "error": "\u001b[31mTest timeout of 90000ms exceeded.\u001b[39m"
+    },
+    {
+      "file": "04-totw/totw.spec.ts",
+      "title": "4.10. should display the Players of the Month for the selected season and month",
+      "project": "Mobile Chrome",
+      "outcome": "fail",
+      "status": "timedOut",
+      "error": "\u001b[31mTest timeout of 120000ms exceeded.\u001b[39m"
+    },
+    {
+      "file": "04-totw/totw.spec.ts",
+      "title": "4.11. clicking a player row on the Players of the Month page should expand detailed stats",
+      "project": "Mobile Chrome",
+      "outcome": "fail",
+      "status": "timedOut",
+      "error": "\u001b[31mTest timeout of 90000ms exceeded.\u001b[39m"
+    },
+    {
+      "file": "04-totw/totw.spec.ts",
+      "title": "4.12. with a globally selected player, that player should be highlighted in both This Month and This Season FTP ranking tables when present",
+      "project": "Mobile Chrome",
+      "outcome": "fail",
+      "status": "timedOut",
+      "error": "\u001b[31mTest timeout of 90000ms exceeded.\u001b[39m"
+    },
+    {
+      "file": "04-totw/totw.spec.ts",
+      "title": "4.12b. players-of-month rankings should transition from skeleton to populated or empty state without a blank gap",
+      "project": "Mobile Chrome",
+      "outcome": "fail",
+      "status": "timedOut",
+      "error": "\u001b[31mTest timeout of 90000ms exceeded.\u001b[39m"
+    },
+    {
+      "file": "04-totw/totw.spec.ts",
+      "title": "4.13. rank 1 in This Month FTP Ranking should also appear in This Season FTP Ranking when both tables have data",
+      "project": "Mobile Chrome",
+      "outcome": "fail",
+      "status": "timedOut",
+      "error": "\u001b[31mTest timeout of 90000ms exceeded.\u001b[39m"
+    },
+    {
+      "file": "10-wrapped/wrapped.spec.ts",
+      "title": "10.1 loads wrapped page with slides, navigation, share control, and timer",
+      "project": "chromium",
+      "outcome": "fail",
+      "status": "failed",
+      "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed"
+    },
+    {
+      "file": "10-wrapped/wrapped.spec.ts",
+      "title": "10.1 loads wrapped page with slides, navigation, share control, and timer",
+      "project": "Mobile Chrome",
+      "outcome": "fail",
+      "status": "failed",
+      "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed"
+    }
+  ],
+  "skipped": [
+    {
+      "file": "02-home/home.spec.ts",
+      "title": "2.11. develop deploy shows Dev badge on home header",
+      "project": "chromium",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "02-home/home.spec.ts",
+      "title": "2.11. develop deploy shows Dev badge on home header",
+      "project": "Mobile Chrome",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "03-stats/stats.spec.ts",
+      "title": "3.6. should display charts",
+      "project": "chromium",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "03-stats/stats.spec.ts",
+      "title": "3.8. should navigate to Club Stats sub-page",
+      "project": "chromium",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "03-stats/stats.spec.ts",
+      "title": "3.10. should display all Player Stats sections",
+      "project": "chromium",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "03-stats/stats.spec.ts",
+      "title": "3.12. should display all Club Stats sections",
+      "project": "chromium",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "03-stats/stats.spec.ts",
+      "title": "3.14. should toggle data table on Player Stats",
+      "project": "chromium",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "03-stats/stats.spec.ts",
+      "title": "3.20. Player Stats per-90 table mode and messaging",
+      "project": "chromium",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "03-stats/stats.spec.ts",
+      "title": "3.21. Player form section renders chart or fallback",
+      "project": "chromium",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "03-stats/stats.spec.ts",
+      "title": "3.22. Player form: no form-only season dropdown; recent boxes tooltip",
+      "project": "chromium",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "03-stats/stats.spec.ts",
+      "title": "3.23. Starting impact uses 2-column grid (2×2 layout)",
+      "project": "chromium",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "03-stats/stats.spec.ts",
+      "title": "3.24. Player streaks section renders",
+      "project": "chromium",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "03-stats/stats.spec.ts",
+      "title": "3.25. Player partnerships and impact sections render",
+      "project": "chromium",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "03-stats/stats.spec.ts",
+      "title": "3.26. Milestone badges link opens Player Profile with required section order",
+      "project": "chromium",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "03-stats/stats.spec.ts",
+      "title": "3.27. Team formations subtitle and recommendation",
+      "project": "chromium",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "03-stats/stats.spec.ts",
+      "title": "3.2. should navigate between Stats sub-pages",
+      "project": "Mobile Chrome",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "03-stats/stats.spec.ts",
+      "title": "3.4. should display data tables",
+      "project": "Mobile Chrome",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "03-stats/stats.spec.ts",
+      "title": "3.5. should display tooltips on the data table",
+      "project": "Mobile Chrome",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "03-stats/stats.spec.ts",
+      "title": "3.6. should display charts",
+      "project": "Mobile Chrome",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "03-stats/stats.spec.ts",
+      "title": "3.8. should navigate to Club Stats sub-page",
+      "project": "Mobile Chrome",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "03-stats/stats.spec.ts",
+      "title": "3.10. should display all Player Stats sections",
+      "project": "Mobile Chrome",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "03-stats/stats.spec.ts",
+      "title": "3.11. should display all Team Stats sections",
+      "project": "Mobile Chrome",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "03-stats/stats.spec.ts",
+      "title": "3.12. should display all Club Stats sections",
+      "project": "Mobile Chrome",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "03-stats/stats.spec.ts",
+      "title": "3.14. should toggle data table on Player Stats",
+      "project": "Mobile Chrome",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "03-stats/stats.spec.ts",
+      "title": "3.15. should toggle data table on Team Stats",
+      "project": "Mobile Chrome",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "03-stats/stats.spec.ts",
+      "title": "3.18. all stats navigation links should correctly navigate to the correct page and section",
+      "project": "Mobile Chrome",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "03-stats/stats.spec.ts",
+      "title": "3.20. Player Stats per-90 table mode and messaging",
+      "project": "Mobile Chrome",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "03-stats/stats.spec.ts",
+      "title": "3.23. Starting impact uses 2-column grid (2×2 layout)",
+      "project": "Mobile Chrome",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "03-stats/stats.spec.ts",
+      "title": "3.24. Player streaks section renders",
+      "project": "Mobile Chrome",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "03-stats/stats.spec.ts",
+      "title": "3.25. Player partnerships and impact sections render",
+      "project": "Mobile Chrome",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "04-totw/totw.spec.ts",
+      "title": "4.9. should let the user change the season and month on the Players of the Month page",
+      "project": "chromium",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "04-totw/totw.spec.ts",
+      "title": "4.11. clicking a player row on the Players of the Month page should expand detailed stats",
+      "project": "chromium",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "04-totw/totw.spec.ts",
+      "title": "4.12. with a globally selected player, that player should be highlighted in both This Month and This Season FTP ranking tables when present",
+      "project": "chromium",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "04-totw/totw.spec.ts",
+      "title": "4.12b. players-of-month rankings should transition from skeleton to populated or empty state without a blank gap",
+      "project": "chromium",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "04-totw/totw.spec.ts",
+      "title": "4.13. rank 1 in This Month FTP Ranking should also appear in This Season FTP Ranking when both tables have data",
+      "project": "chromium",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "04-totw/totw.spec.ts",
+      "title": "4.2. should display TOTW page by default",
+      "project": "Mobile Chrome",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "04-totw/totw.spec.ts",
+      "title": "4.3. should let user change the season and week on the TOTW page",
+      "project": "Mobile Chrome",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "04-totw/totw.spec.ts",
+      "title": "4.4. should display the TOTW for the selected season and week",
+      "project": "Mobile Chrome",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "04-totw/totw.spec.ts",
+      "title": "4.5. should display 11 players on the pitch and 1 star man with their name and points",
+      "project": "Mobile Chrome",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "04-totw/totw.spec.ts",
+      "title": "4.6. clicking a player should open a modal with their detailed stats",
+      "project": "Mobile Chrome",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "04-totw/totw.spec.ts",
+      "title": "4.7. clicking 'Close' or 'X' should close the player detail modal",
+      "project": "Mobile Chrome",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "04-totw/totw.spec.ts",
+      "title": "4.14. previous 10 week strip renders and box click changes TOTW week",
+      "project": "Mobile Chrome",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "04-totw/totw.spec.ts",
+      "title": "4.15. TOTW share button is visible and can be triggered safely",
+      "project": "Mobile Chrome",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "05-club-info/club-info.spec.ts",
+      "title": "5.14a. latest result panel renders formation, optional Veo link, and full player details toggle",
+      "project": "chromium",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "05-club-info/club-info.spec.ts",
+      "title": "5.17. all club captains should be displayed on the Club Captains page for all teams including the Club Captain",
+      "project": "chromium",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "05-club-info/club-info.spec.ts",
+      "title": "5.18. clicking a captain's name should display a modal with the captain's history",
+      "project": "chromium",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "05-club-info/club-info.spec.ts",
+      "title": "5.19. clicking 'Close' or 'X' should close the captain's history modal",
+      "project": "chromium",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "05-club-info/club-info.spec.ts",
+      "title": "5.20. changing the season filter should update the displayed club captains",
+      "project": "chromium",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "05-club-info/club-info.spec.ts",
+      "title": "5.23. clicking a player's name on the Club Awards page should display a modal with the award's history",
+      "project": "chromium",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "05-club-info/club-info.spec.ts",
+      "title": "5.24. clicking 'Close' or 'X' should close the award's history modal",
+      "project": "chromium",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "05-club-info/club-info.spec.ts",
+      "title": "5.25. changing the season filter should update the displayed club awards",
+      "project": "chromium",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "05-club-info/club-info.spec.ts",
+      "title": "5.29. Records and Milestones are shown on Club Information (desktop: Records in right column)",
+      "project": "chromium",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "05-club-info/club-info.spec.ts",
+      "title": "5.30. record holder name navigates to Player Stats when ClubRecord data exists",
+      "project": "chromium",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "05-club-info/club-info.spec.ts",
+      "title": "5.31. Badge leaderboard is below Records on Club Information and absent on Club Captains and Awards",
+      "project": "chromium",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "05-club-info/club-info.spec.ts",
+      "title": "5.14a. latest result panel renders formation, optional Veo link, and full player details toggle",
+      "project": "Mobile Chrome",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "05-club-info/club-info.spec.ts",
+      "title": "5.17. all club captains should be displayed on the Club Captains page for all teams including the Club Captain",
+      "project": "Mobile Chrome",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "05-club-info/club-info.spec.ts",
+      "title": "5.18. clicking a captain's name should display a modal with the captain's history",
+      "project": "Mobile Chrome",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "05-club-info/club-info.spec.ts",
+      "title": "5.19. clicking 'Close' or 'X' should close the captain's history modal",
+      "project": "Mobile Chrome",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "05-club-info/club-info.spec.ts",
+      "title": "5.20. changing the season filter should update the displayed club captains",
+      "project": "Mobile Chrome",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "05-club-info/club-info.spec.ts",
+      "title": "5.23. clicking a player's name on the Club Awards page should display a modal with the award's history",
+      "project": "Mobile Chrome",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "05-club-info/club-info.spec.ts",
+      "title": "5.24. clicking 'Close' or 'X' should close the award's history modal",
+      "project": "Mobile Chrome",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "05-club-info/club-info.spec.ts",
+      "title": "5.25. changing the season filter should update the displayed club awards",
+      "project": "Mobile Chrome",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "05-club-info/club-info.spec.ts",
+      "title": "5.29. Records and Milestones are shown on Club Information (desktop: Records in right column)",
+      "project": "Mobile Chrome",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "05-club-info/club-info.spec.ts",
+      "title": "5.30. record holder name navigates to Player Stats when ClubRecord data exists",
+      "project": "Mobile Chrome",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "05-club-info/club-info.spec.ts",
+      "title": "5.31. Badge leaderboard is below Records on Club Information and absent on Club Captains and Awards",
+      "project": "Mobile Chrome",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "06-settings/settings.spec.ts",
+      "title": "6.5. clicking a site navigation link should navigate to the correct screen",
+      "project": "chromium",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "06-settings/settings.spec.ts",
+      "title": "6.5. clicking a site navigation link should navigate to the correct screen",
+      "project": "Mobile Chrome",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "06-settings/settings.spec.ts",
+      "title": "6.6. expanding the 'Version Release Details' card should display the version release details",
+      "project": "Mobile Chrome",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "06-settings/settings.spec.ts",
+      "title": "6.7. expanding the 'Updates To Come' card should display the updates to come",
+      "project": "Mobile Chrome",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "06-settings/settings.spec.ts",
+      "title": "6.8. expanding the 'Stat Limitations' card should display the stat limitations",
+      "project": "Mobile Chrome",
+      "outcome": "skip",
+      "status": "skipped",
+      "error": ""
+    }
+  ]
+}

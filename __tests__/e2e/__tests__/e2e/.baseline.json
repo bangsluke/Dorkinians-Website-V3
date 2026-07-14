@@ -1,0 +1,92 @@
+{
+  "config": {
+    "configFile": "C:\\Users\\bangs\\Documents\\Coding Projects\\Dorkinians\\V3-Dorkinians-Website\\__tests__\\e2e\\playwright.baseline.config.ts",
+    "rootDir": "C:/Users/bangs/Documents/Coding Projects/Dorkinians/V3-Dorkinians-Website/__tests__/e2e/__tests__/e2e",
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": "C:\\Users\\bangs\\Documents\\Coding Projects\\Dorkinians\\V3-Dorkinians-Website\\__tests__\\e2e\\utils\\globalSetup.ts",
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {},
+    "preserveOutput": "always",
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "__tests__/e2e/.baseline.json"
+        }
+      ],
+      [
+        "html",
+        {
+          "outputFolder": "__tests__/e2e/playwright-report",
+          "open": "never"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "quiet": false,
+    "projects": [
+      {
+        "outputDir": "C:/Users/bangs/Documents/Coding Projects/Dorkinians/V3-Dorkinians-Website/__tests__/e2e/__tests__/e2e/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "C:/Users/bangs/Documents/Coding Projects/Dorkinians/V3-Dorkinians-Website/__tests__/e2e/__tests__/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 60000
+      },
+      {
+        "outputDir": "C:/Users/bangs/Documents/Coding Projects/Dorkinians/V3-Dorkinians-Website/__tests__/e2e/__tests__/e2e/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "Mobile Chrome",
+        "name": "Mobile Chrome",
+        "testDir": "C:/Users/bangs/Documents/Coding Projects/Dorkinians/V3-Dorkinians-Website/__tests__/e2e/__tests__/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 60000
+      }
+    ],
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.57.0",
+    "workers": 2,
+    "webServer": null
+  },
+  "suites": [],
+  "errors": [
+    {
+      "message": "Error: No tests found",
+      "stack": "Error: No tests found"
+    }
+  ],
+  "stats": {
+    "startTime": "2026-07-14T09:21:44.507Z",
+    "duration": 31.641000000000076,
+    "expected": 0,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

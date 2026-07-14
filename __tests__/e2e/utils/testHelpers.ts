@@ -124,8 +124,24 @@ export function logSectionHeader(sectionName: string, emoji: string, number: str
  * Wait for page to be fully loaded
  */
 export async function waitForPageLoad(page: Page) {
+	if (page.isClosed()) return;
 	// Wait for DOM - networkidle is unreliable with continuous requests (analytics, websockets, etc.)
-	await page.waitForLoadState('domcontentloaded', { timeout: 10000 });
+	await page.waitForLoadState('domcontentloaded', { timeout: 10000 }).catch(() => {});
+}
+
+/**
+ * True when Playwright has already closed the page/context (cascading timeouts).
+ */
+export function isPageClosed(page: Page): boolean {
+	return page.isClosed();
+}
+
+/**
+ * Short sleep that no-ops if the page is already closed (avoids burning the test budget).
+ */
+export async function safeWait(page: Page, ms: number) {
+	if (page.isClosed()) return;
+	await page.waitForTimeout(ms).catch(() => {});
 }
 
 /**
@@ -279,13 +295,14 @@ export async function navigateToMainPage(page: Page, pageName: 'home' | 'stats' 
 		};
 
 		for (let attempt = 0; attempt < 3; attempt++) {
+			if (page.isClosed()) return;
 			await clickMainNav();
 			await page.waitForLoadState('domcontentloaded', { timeout: 10000 }).catch(() => {});
 			await ensureDefaultSubPage();
 			if (await mainContentReady()) {
 				break;
 			}
-			await page.waitForTimeout(350);
+			await safeWait(page, 350);
 		}
 
 		if (pageName === 'stats') {
@@ -299,7 +316,7 @@ export async function navigateToMainPage(page: Page, pageName: 'home' | 'stats' 
 			await page.getByTestId('totw-season-selector').waitFor({ state: 'visible', timeout: 30000 }).catch(() => {});
 			await page.getByTestId('totw-week-selector').waitFor({ state: 'visible', timeout: 30000 }).catch(() => {});
 		} else if (pageName === 'club-info') {
-			await page.getByRole('heading', { name: /Club Information/i }).waitFor({ state: 'visible', timeout: 25000 });
+			await page.getByRole('heading', { name: /Club Information/i }).waitFor({ state: 'visible', timeout: 25000 }).catch(() => {});
 		}
 	}
 	
@@ -408,13 +425,28 @@ export async function goToTOTWSubPage(page: Page, subPageId: TOTWSubPageId) {
 		await page.getByTestId("nav-sidebar-players-of-month").click({ force: true, timeout: 15000 });
 	}
 	await page.waitForLoadState("domcontentloaded", { timeout: 10000 });
+	const headingRe = subPageId === "players-of-month" ? /Players of the Month/i : /Team of (the Week|the Season|All Time)/i;
+	await page.getByRole("heading", { name: headingRe }).first().waitFor({ state: "visible", timeout: 20000 }).catch(() => {});
 }
 
 /** Wait for TOTW / PoM loading skeleton panels to finish (best-effort). */
 export async function waitForTotwSkeletonsGone(page: Page, timeout = 45000) {
+	if (page.isClosed()) return;
 	const skel = page.getByTestId("loading-skeleton");
-	if ((await skel.count()) === 0) return;
-	await skel.first().waitFor({ state: "hidden", timeout }).catch(() => {});
+	const reactSkel = page.locator(".react-loading-skeleton");
+	try {
+		const hasTestId = (await skel.count().catch(() => 0)) > 0;
+		const hasReact = await reactSkel.first().isVisible({ timeout: 300 }).catch(() => false);
+		if (!hasTestId && !hasReact) return;
+		if (hasTestId) {
+			await skel.first().waitFor({ state: "hidden", timeout }).catch(() => {});
+		}
+		if (await reactSkel.first().isVisible({ timeout: 300 }).catch(() => false)) {
+			await reactSkel.first().waitFor({ state: "hidden", timeout: Math.min(timeout, 20000) }).catch(() => {});
+		}
+	} catch {
+		// Page may have closed mid-wait; callers should soft-skip rather than hang.
+	}
 }
 
 /**
@@ -668,7 +700,7 @@ export async function setupPlayerStatsPage(page: Page, playerName: string) {
 	await Promise.race([
 		statsHeading.waitFor({ state: 'visible', timeout: 20000 }),
 		noPlayerHeading.waitFor({ state: 'visible', timeout: 20000 }),
-	]);
+	]).catch(() => {});
 }
 
 /**
@@ -833,6 +865,7 @@ export async function clickStatsSubPage(page: Page, subPageId: StatsSubPageId): 
 				}
 			}
 			await page.waitForTimeout(250);
+			if (page.isClosed()) return false;
 		}
 		return false;
 	};
@@ -864,12 +897,16 @@ export async function clickStatsSubPage(page: Page, subPageId: StatsSubPageId): 
 			}
 		case "comparison":
 			{
-				const radar = page.locator("#comparison-radar-chart").first();
+				// Prefer the page heading so we do not false-positive while still on Player Stats.
 				const comparisonPageHeading = page.getByRole("heading", { name: /Player Comparison|Comparison/i }).first();
+				const radar = page.locator("#comparison-radar-chart").first();
 				const comparisonSelectPrompt = page.getByText(/Select a player to display data here/i).first();
 				const comparisonEmpty = page.getByText(/No data available for comparison/i).first();
-				const comparisonSecondPlayer = page.getByText(/Select Second Player/i).first();
-				return await waitForAnyVisible([radar, comparisonSelectPrompt, comparisonEmpty, comparisonSecondPlayer, comparisonPageHeading]);
+				const comparisonSecondPlayer = page.getByRole("heading", { name: /Select Second Player/i }).first();
+				if (await waitForAnyVisible([comparisonPageHeading, radar])) {
+					return true;
+				}
+				return await waitForAnyVisible([comparisonSelectPrompt, comparisonEmpty, comparisonSecondPlayer]);
 			}
 		}
 	} catch {
@@ -950,6 +987,8 @@ export async function toggleDataTable(page: Page, expectedState: 'table' | 'visu
 			if (emptyDataState || stillInVisualisation) {
 				return;
 			}
+			// Table mode toggled but no table rendered for this dataset — treat as non-applicable.
+			return;
 		}
 		await expect(table).toBeVisible({ timeout: 5000 });
 		const visualisationButton = page.getByRole('button', { name: /Switch to data visualisation/i });

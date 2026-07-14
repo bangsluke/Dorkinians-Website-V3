@@ -390,7 +390,9 @@ export default function ClubInformation() {
 					) : (
 						<Listbox value={selectedFilter} onChange={setSelectedFilter}>
 							<div className='relative w-[60%] md:w-full md:max-w-xs mx-auto'>
-								<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-4 pr-10 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-sm md:text-base'>
+								<Listbox.Button
+									data-testid="milestones-filter"
+									className='relative w-full cursor-default dark-dropdown py-2 pl-4 pr-10 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-sm md:text-base'>
 									<span className='block truncate text-white'>
 										{selectedFilter}
 									</span>
