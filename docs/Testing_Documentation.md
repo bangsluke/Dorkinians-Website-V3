@@ -1184,9 +1184,9 @@ Navigate to your GitHub repository → Settings → Secrets and variables → Ac
 - `SMTP_FROM_EMAIL`: Sender email address
 - `SMTP_TO_EMAIL`: Recipient email address
 - `SMTP_EMAIL_SECURE`: Use TLS/SSL (`true` or `false`, defaults to `false`)
+- `CROSS_REPO_CHECKOUT_TOKEN` (optional): Classic or fine-grained PAT with `contents:read` on [`bangsluke/Database-Dorkinians`](https://github.com/bangsluke/Database-Dorkinians). When set, CI checks out that repo into `./database-dorkinians` so badge catalog parity and `matchDerivedFields` unit tests run. Without it, those suites soft-skip and Unit still exits green.
 
-
-#### Step 3: Verify Workflow
+Jest / summary-email JSON and Playwright JUnit for the email live under `__tests__/artifacts/test-all/` (uploaded as the `test-all-artifacts` Actions artifact). They stay outside Playwright’s `outputDir` so E2E cannot wipe Jest results mid-run.
 
 1. Push the workflow file to your repository
 2. Go to the **Actions** tab in GitHub
