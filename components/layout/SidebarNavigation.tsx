@@ -16,12 +16,26 @@ import { useNavigationStore, type MainPage, type StatsSubPage, type TOTWSubPage,
 import Image from "next/image";
 import { log } from "@/lib/utils/logger";
 import Button from "@/components/ui/Button";
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import { getPlayerProfileHref } from "@/lib/profile/slug";
 import { featureFlags } from "@/config/config";
 import { isDevelopBranchDeploy } from "@/lib/utils/isDevelopBranchDeploy";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { scheduleProfileIntroBursts, shouldRunProfileIntro } from "@/lib/utils/profileNavIntro";
+
+const emptySubscribe = () => () => {};
+
+const MENU_INTRO_KEY = "stats-nav-menu-animated";
+
+function getMenuIntroSnapshot(): boolean {
+	if (typeof window === "undefined") return false;
+	return localStorage.getItem(MENU_INTRO_KEY) === "true";
+}
+
+function getSidebarAnimatedSnapshot(): boolean {
+	if (typeof window === "undefined") return true;
+	return sessionStorage.getItem("sidebar-animated") === "true";
+}
 
 interface SidebarNavigationProps {
 	onSettingsClick: () => void;
@@ -90,13 +104,26 @@ export default function SidebarNavigation({
 		isPlayerSelected,
 	} = useNavigationStore();
 	const pathname = usePathname();
+	const router = useRouter();
 	const [showTooltip, setShowTooltip] = useState(false);
 	const [showFilterTooltip, setShowFilterTooltip] = useState(false);
 	const [showProfileTooltip, setShowProfileTooltip] = useState(false);
-	const [menuIntroPulseDone, setMenuIntroPulseDone] = useState(false);
+	const [menuIntroPulseSessionDone, setMenuIntroPulseSessionDone] = useState(false);
+	const menuIntroPulsePersisted = useSyncExternalStore(
+		emptySubscribe,
+		getMenuIntroSnapshot,
+		() => false
+	);
+	const menuIntroPulseDone = menuIntroPulsePersisted || menuIntroPulseSessionDone;
 	const [profileIntroPulse, setProfileIntroPulse] = useState(false);
 	const [isDesktopViewport, setIsDesktopViewport] = useState(false);
-	const [isMounted, setIsMounted] = useState(false);
+	const isMounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
+	const hasSidebarAnimated = useSyncExternalStore(
+		emptySubscribe,
+		getSidebarAnimatedSnapshot,
+		() => true
+	);
+	const shouldAnimate = isMounted && !hasSidebarAnimated;
 	const menuIntroPersistedRef = useRef(false);
 	const profileTooltipTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const profileIntroCleanupRef = useRef<(() => void) | null>(null);
@@ -227,30 +254,16 @@ export default function SidebarNavigation({
 		return count;
 	}, [playerFilters, filterData]);
 
-	// Track client-side mount to prevent hydration mismatch
+	// Mark sidebar as animated once we decide to play the intro (external store write only)
 	useEffect(() => {
-		setIsMounted(true);
-	}, []);
-
-	// Check if sidebar has been animated before in this session
-	// Always start as false during SSR to prevent hydration mismatch
-	const [shouldAnimate, setShouldAnimate] = useState<boolean>(false);
-
-	// Check sessionStorage after mount to determine if we should animate
-	useEffect(() => {
-		if (typeof window !== "undefined") {
-			const hasAnimated = sessionStorage.getItem("sidebar-animated");
-			if (!hasAnimated) {
-				setShouldAnimate(true);
+		if (shouldAnimate) {
+			try {
 				sessionStorage.setItem("sidebar-animated", "true");
+			} catch {
+				/* ignore */
 			}
 		}
-	}, []);
-
-	useEffect(() => {
-		if (!showMenuIcon || typeof window === "undefined") return;
-		setMenuIntroPulseDone(localStorage.getItem("stats-nav-menu-animated") === "true");
-	}, [showMenuIcon]);
+	}, [shouldAnimate]);
 
 	useEffect(() => {
 		if (typeof window === "undefined") return;
@@ -308,7 +321,7 @@ export default function SidebarNavigation({
 		const hasSeenFilter = localStorage.getItem("stats-nav-filter-tooltip-seen");
 
 		if (!hasSeenMenu) {
-			setShowTooltip(true);
+			timers.push(setTimeout(() => setShowTooltip(true), 0));
 			timers.push(
 				setTimeout(() => {
 					setShowTooltip(false);
@@ -335,13 +348,16 @@ export default function SidebarNavigation({
 		}
 
 		if (showFilterIcon && !hasSeenFilter) {
-			setShowFilterTooltip(true);
+			const showTimer = setTimeout(() => setShowFilterTooltip(true), 0);
 			const filterTimer = setTimeout(() => {
 				setShowFilterTooltip(false);
 				localStorage.setItem("stats-nav-filter-tooltip-seen", "true");
 				if (!localStorage.getItem("stats-nav-profile-tooltip-seen") && showProfileIcon) chainProfileTooltipDesktop();
 			}, 5000);
-			return () => clearTimeout(filterTimer);
+			return () => {
+				clearTimeout(showTimer);
+				clearTimeout(filterTimer);
+			};
 		}
 
 		if (!localStorage.getItem("stats-nav-profile-tooltip-seen") && showProfileIcon) {
@@ -373,16 +389,18 @@ export default function SidebarNavigation({
 	const persistMenuIntroPulseDone = () => {
 		if (menuIntroPersistedRef.current) return;
 		menuIntroPersistedRef.current = true;
-		if (typeof window !== "undefined") {
-			localStorage.setItem("stats-nav-menu-animated", "true");
+		try {
+			localStorage.setItem(MENU_INTRO_KEY, "true");
+		} catch {
+			/* ignore */
 		}
-		setMenuIntroPulseDone(true);
+		setMenuIntroPulseSessionDone(true);
 	};
 
 	const handleLogoClick = () => {
 		setMainPage("home");
-		if (typeof window !== "undefined" && window.location.pathname !== "/") {
-			window.location.href = "/";
+		if (pathname !== "/") {
+			router.push("/");
 		}
 	};
 
@@ -395,8 +413,8 @@ export default function SidebarNavigation({
 		} else if (mainPageId === "club-info") {
 			setClubInfoSubPage(subPageId as ClubInfoSubPage);
 		}
-		if (typeof window !== "undefined" && window.location.pathname !== "/") {
-			window.location.href = "/";
+		if (pathname !== "/") {
+			router.push("/");
 		}
 	};
 
@@ -413,9 +431,7 @@ export default function SidebarNavigation({
 
 	const handleProfileClick = () => {
 		if (!selectedPlayer) return;
-		if (typeof window !== "undefined") {
-			window.location.href = getPlayerProfileHref(selectedPlayer);
-		}
+		router.push(getPlayerProfileHref(selectedPlayer));
 	};
 
 	const profileRingAttention = profileIntroPulse || showProfileTooltip;
@@ -624,8 +640,8 @@ export default function SidebarNavigation({
 											} else if (item.id === "club-info") {
 												setClubInfoSubPage("club-information");
 											}
-										if (typeof window !== "undefined" && window.location.pathname !== "/") {
-											window.location.href = "/";
+										if (pathname !== "/") {
+											router.push("/");
 										}
 										}}
 										className={`group w-full flex items-center space-x-3 px-3 py-2.5 justify-start rounded-2xl border-none outline-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-dorkinians-yellow focus-visible:ring-offset-1 focus-visible:ring-offset-transparent ${

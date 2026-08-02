@@ -577,9 +577,9 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 		return (
 			<div className='relative min-h-screen min-h-[100dvh] w-full max-w-[100dvw] overflow-x-hidden overscroll-x-none flex flex-col items-center justify-center gap-4 px-6 bg-[#12180e] text-white'>
 				<p className='text-center text-white/85'>{error || "Something went wrong"}</p>
-				<a href='/' className='text-[#E8C547] underline'>
+				<Link href='/' className='text-[#E8C547] underline'>
 					Back to home
-				</a>
+				</Link>
 			</div>
 		);
 	}

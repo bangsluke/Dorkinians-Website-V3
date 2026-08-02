@@ -29,11 +29,6 @@ export default function FilterPills({ playerFilters, filterData, currentStatsSub
 		removePositionFilter,
 	} = useNavigationStore();
 
-	// Early return if playerFilters is null/undefined
-	if (!playerFilters) {
-		return null;
-	}
-
 	// Get available filters for current page
 	const availableFilters = useMemo(() => {
 		const config = statsPageConfig[currentStatsSubPage];
@@ -42,6 +37,8 @@ export default function FilterPills({ playerFilters, filterData, currentStatsSub
 
 	// Get active filters and expand multi-value filters into individual pills
 	const filterPills = useMemo(() => {
+		if (!playerFilters) return [];
+
 		// Map filter keys to available filter names
 		const keyMap: Record<string, string> = {
 			timeRange: "timeRange",
@@ -188,7 +185,7 @@ export default function FilterPills({ playerFilters, filterData, currentStatsSub
 		return grouped;
 	}, [filterPills]);
 
-	if (Object.keys(groupedPills).length === 0) {
+	if (!playerFilters || Object.keys(groupedPills).length === 0) {
 		return null;
 	}
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, InputHTMLAttributes, TextareaHTMLAttributes } from "react";
+import { forwardRef, useId, InputHTMLAttributes, TextareaHTMLAttributes } from "react";
 import { cn } from "@/lib/utils/cn";
 
 export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "size"> {
@@ -36,7 +36,8 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
 		},
 		ref
 	) => {
-		const inputId = id || `input-${Math.random().toString(36).substr(2, 9)}`;
+		const generatedId = useId();
+		const inputId = id || generatedId;
 		const errorId = error ? `${inputId}-error` : undefined;
 
 		const sizeClasses = {
@@ -122,7 +123,8 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
 		},
 		ref
 	) => {
-		const textareaId = id || `textarea-${Math.random().toString(36).substr(2, 9)}`;
+		const generatedId = useId();
+		const textareaId = id || generatedId;
 		const errorId = error ? `${textareaId}-error` : undefined;
 
 		const sizeClasses = {

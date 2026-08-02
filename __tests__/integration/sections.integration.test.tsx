@@ -18,9 +18,24 @@ jest.mock("@/lib/stores/navigation", () => ({
 	),
 }));
 
-jest.mock("@/components/totw/TeamOfTheWeek", () => () => <div data-testid="totw-team-page">TeamOfTheWeek</div>);
-jest.mock("@/components/totw/PlayersOfMonth", () => () => <div data-testid="totw-pom-page">PlayersOfMonth</div>);
-jest.mock("@/components/admin/PWAInstallButton", () => () => <div data-testid="pwa-install">PWA</div>);
+jest.mock("@/components/totw/TeamOfTheWeek", () => {
+	function MockTeamOfTheWeek() {
+		return <div data-testid="totw-team-page">TeamOfTheWeek</div>;
+	}
+	return MockTeamOfTheWeek;
+});
+jest.mock("@/components/totw/PlayersOfMonth", () => {
+	function MockPlayersOfMonth() {
+		return <div data-testid="totw-pom-page">PlayersOfMonth</div>;
+	}
+	return MockPlayersOfMonth;
+});
+jest.mock("@/components/admin/PWAInstallButton", () => {
+	function MockPWAInstallButton() {
+		return <div data-testid="pwa-install">PWA</div>;
+	}
+	return MockPWAInstallButton;
+});
 jest.mock("@/lib/services/seedingStatusService", () => ({
 	seedingStatusService: {
 		getSeedingStatus: jest.fn(() => ({
