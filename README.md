@@ -28,6 +28,9 @@
   <img src="https://img.shields.io/badge/license-Proprietary-red" alt="License" />
 </p>
 
+> Also see the projects used to populate this data;
+> - database-dorkinians repo <https://github.com/bangsluke/database-dorkinians>
+
 <p align="center">
   <img src="./public/screenshots/TeamStats.png" alt="Dorkinians Website Screenshot" height="550"/>
 </p>
