@@ -2,7 +2,7 @@
 
 **Purpose:** Single source of truth for what shipped, what remains, how major areas work, and setup outside the codebase. Use this file (not legacy split docs) when briefing an AI or resuming implementation.
 
-**Last updated:** 2026-04-04 (consolidated from former `NEW-FEATURES.md`, `IMPLEMENTATION-STATUS.md`, `FEATURE-IMPLEMENTATION-REPORT.md`).
+**Last updated:** 2026-08-02 (retired GDS / Squad Backbone; Feature 7a/7b partnerships + impact remain).
 
 **Repos:**
 
@@ -15,7 +15,7 @@
 
 ## 1. Executive feature summary
 
-The site includes a **foundation** layer (starters, `playerOrder`, `matchRating`, `inferredFormation` on fixtures, aggregates on `Player`), **per-90** stats (360-minute threshold), **Form** (EWMA on `MatchDetail` + summary on `Player`, chart + chatbot `FORM_CURRENT`), **Streaks** (DB-backed fields + **live filter-scoped** `POST /api/player-streaks`, Team XI streak cards, Team/Club longest-active streak leaders with date ranges), **Club records** (`ClubRecord`, `/api/club-records`, Records on Club Information), **graph insights** (partnerships ≥5 games, impact delta; optional GDS PageRank/Louvain for Squad Backbone), **Season Wrapped** (`/wrapped/[playerSlug]`, APIs, OG, share modal / autoplay per Phase 9), **achievement badges** (DB + APIs + catalogue + profile grid + club leaderboard), **Player Profile** (shell parity, Season Wrapped → Headline Stats → Achievement Badges), merged **Club Captains and Awards**, **Veo** on fixtures and latest-result UI, **TOTW** previous-week strip + share, **dev branding + CI** (develop E2E on push, main PR pass-rate gate ≥90%). **Most Connected** was **retired** (2026-03-31); use Partnerships for co-appearance context.
+The site includes a **foundation** layer (starters, `playerOrder`, `matchRating`, `inferredFormation` on fixtures, aggregates on `Player`), **per-90** stats (360-minute threshold), **Form** (EWMA on `MatchDetail` + summary on `Player`, chart + chatbot `FORM_CURRENT`), **Streaks** (DB-backed fields + **live filter-scoped** `POST /api/player-streaks`, Team XI streak cards, Team/Club longest-active streak leaders with date ranges), **Club records** (`ClubRecord`, `/api/club-records`, Records on Club Information), **graph insights** (partnerships ≥5 games, impact delta), **Season Wrapped** (`/wrapped/[playerSlug]`, APIs, OG, share modal / autoplay per Phase 9), **achievement badges** (DB + APIs + catalogue + profile grid + club leaderboard), **Player Profile** (shell parity, Season Wrapped → Headline Stats → Achievement Badges), merged **Club Captains and Awards**, **Veo** on fixtures and latest-result UI, **TOTW** previous-week strip + share, **dev branding + CI** (develop E2E on push, main PR pass-rate gate ≥90%). **Most Connected** was **retired** (2026-03-31); use Partnerships for co-appearance context. **Squad Backbone / Neo4j GDS (Feature 7c/7d)** was **retired** (2026-08-02); Aura Free forever — no Professional / Graph Analytics path.
 
 **Naming guardrail (persistent):** Do not name new implementation artifacts using rollout labels like `Phase 1` / `phase2`. Use stable feature names (`foundation`, `per90`, `form`, `streaks`, `records`, `wrapped`, `badges`, etc.) in filenames, functions, tests, and logs. Original “Phase N” wording in historical notes below is documentation-only.
 
@@ -33,7 +33,8 @@ Status values: **Shipped** | **Partial** | **Deferred** | **Retired** | **Verify
 | **3** | EWMA form curves | **Shipped** | DB: `ewmaReactive` / `ewmaBaseline` on `MatchDetail`, form summary on `Player`. Site: `app/api/player-form/route.ts`, Form section, Team `bestCurrentForm`. Chatbot: `FORM_CURRENT` + rankings. |
 | **5** | Streak detection | **Shipped** | DB: `streakDetection.js`, Player streak fields. Site: `POST /api/player-streaks`; Team/Club via `team-data-filtered` (`teamStreaks`, `streakLeaders` with ranges), Player Stats `#streaks-section`, Team Stats `#team-streaks-section` + `#team-streak-leaders`, Club Stats `#club-streak-leaders`. Tests: `test:streak-detection`, Playwright `3.24`. |
 | **6** | Records wall | **Shipped** | DB: `ClubRecord`, `clubRecordsComputation.js`, orchestrator after aggregates. Site: `GET /api/club-records`, `RecordsSection` on **Club Information** (above Milestones; Feature 12). Playwright `5.29`–`5.30`. |
-| **7** | Graph insights | **Partial** | **7a/7b Shipped** (partnerships, impact; filter-scoped APIs + copy). **7c/7d Deferred** until Aura **GDS** enabled: PageRank / Louvain / Squad Backbone population. Code skips GDS when `gds.version()` fails. Guide: `docs/Neo4j_Aura_GDS_Setup_Guide.md`. |
+| **7** | Graph insights (partnerships + impact) | **Shipped** | **7a/7b:** partnerships ≥5 games, impact delta; filter-scoped APIs + Player Stats sections. DB: `graphInsightsComputation.js`. |
+| **7c/7d** | Squad Backbone / Neo4j GDS | **Retired** | PageRank / Louvain / Squad Backbone removed (2026-08-02). No Aura Professional upgrade; UI/API/schema GDS fields deleted. |
 | **8** | Season Wrapped | **Shipped** | `app/wrapped/[playerSlug]/page.tsx`, `GET /api/wrapped/[playerSlug]`, OG routes, `lib/wrapped/*`. Homepage banner uses `featureFlags.seasonWrapped` from `config/config.ts` (branch presets). **Phase 9** (2026-04-01): autoplay, share modal, swipe, data/copy updates, tests. |
 | **9** | Achievement badges | **Shipped** | DB: `badgeDefinitions.js`, `badgeComputation.js`, `playerBadgesComputation.js`, `applyPlayerBadges()`. Site: `GET /api/player-badges`, `GET /api/club-badge-leaderboard`, `lib/badges/catalog.ts` (**keep in sync with DB**), Player Stats badge bar, profile milestone grid. **2026-04-01 polish:** “Achievement Badges” naming, categories, Keeping Achievements, mobile 3-across, tier ordering, `config/config.ts` card-fine constants. |
 | **10** | Player Profile + captaincies link | **Shipped** | `app/profile/[playerSlug]/page.tsx`, `PlayerProfileView.tsx`, `lib/profile/slug.ts`, link from Player Stats (`data-testid="milestone-badges-profile-link"`). Order: Season Wrapped → Headline Stats → Achievement Badges. |
@@ -53,7 +54,7 @@ Status values: **Shipped** | **Partial** | **Deferred** | **Retired** | **Verify
 | Round | Status | Summary |
 | ----- | ------ | ------- |
 | **Phase 6 UX polish** | **Shipped** | Wrapped homepage removal, profile shell, Settings→Home, profile section order, Form Y-axis, table toggle right-align, profile icon follow-ups rolled to Phase 7. |
-| **Phase 7 (A–J)** | **Shipped** | Nav parity, profile/tooltips, section reorder, filter-scoped graph copy/APIs, formations/Sankey/squad backbone titles, club/league/captains/TOTW polish. |
+| **Phase 7 (A–J)** | **Shipped** | Nav parity, profile/tooltips, section reorder, filter-scoped graph copy/APIs, formations/Sankey titles, club/league/captains/TOTW polish. (Squad Backbone later retired.) |
 | **Phase 8** | **Shipped** | Profile ring, sidebar chrome, achievements tooltips, Form/Streaks/Impact copy, recordings count, TOTW skeleton, etc. |
 | **Phase 9** | **Shipped** | Wrapped autoplay/timer, share modal, swipe, expanded wrapped data/player types, profile milestone tooltip behaviour, test updates. |
 
@@ -65,7 +66,6 @@ Status values: **Shipped** | **Partial** | **Deferred** | **Retired** | **Verify
 | ---- | ------ |
 | **Neo4j Aura** | App and seeding target the configured Aura instance (URI, auth via env—do not commit secrets). |
 | **Full re-seed** | After **any** DB schema or derived-field logic change (e.g. `matchDerivedFields.js`, aggregates, records, badges, graph insights), run a **full seed** on the target graph before expecting UI/APIs to match. |
-| **GDS / Graph Analytics** | Optional for **7c/7d**: enable on Aura **Professional** (not Free). Then re-seed so `squadInfluence`, `squadInfluenceRank`, `communityId` and Club Stats **Squad Backbone** populate. Procedure: `docs/Neo4j_Aura_GDS_Setup_Guide.md`. |
 | **Google Sheets** | Source data for `database-dorkinians`; **VEO LINK** column on fixtures for Feature 18. |
 | **Netlify / deploy** | Website deploy when only Next.js changes; seed when graph data must change. |
 | **CI** | `develop`: E2E on push. PRs to `main`: `test:all` + pass-rate gate script. GitHub Actions secrets for email workflows per `README.md`. |
@@ -83,7 +83,6 @@ Order may shift slightly with nav menu; use live `StatsNavigationMenu` + tests a
 | Streaks | `#streaks-section` | Live: `POST /api/player-streaks`; fallback seeded `p.*` streak fields. Appearance streak uses primary-team fixture cadence. |
 | Partnerships | `#partnerships-section` | ≥5 shared games; signed % delta vs baseline win rate; filter-scoped with `player-data-filtered`. |
 | Impact | `#impact-section` | Win rate with vs without player on most-played XI; Phase 8 copy style. |
-| Squad Backbone | Club Stats (not Player Stats) | PageRank-style list only when GDS available; empty state explains missing GDS. |
 
 ---
 
@@ -103,7 +102,7 @@ Order may shift slightly with nav menu; use live `StatsNavigationMenu` + tests a
 | Streaks (DB) | `database-dorkinians/services/streakDetection.js` |
 | Streaks (live site) | `app/api/player-streaks/route.ts`, `lib/stats/playerStreaksComputation.ts` |
 | Streaks (team/club cards + leaders) | `app/api/team-data-filtered/route.ts`, `lib/stats/teamStreaksComputation.ts`, `components/stats/TeamStats.tsx`, `components/stats/ClubStats.tsx` |
-| Graph insights (DB) | `database-dorkinians/services/graphInsightsComputation.js` |
+| Graph insights — partnerships + impact (DB) | `database-dorkinians/services/graphInsightsComputation.js` |
 | Badges (DB) | `badgeDefinitions.js`, `badgeComputation.js`, `playerBadgesComputation.js` |
 | Badges (site catalogue) | `lib/badges/catalog.ts` (**sync with DB**) |
 | Player Stats UI | `components/stats/PlayerStats.tsx` |
@@ -171,6 +170,7 @@ Within each step, implement in listed order; run the test suite after material c
 - **Conflicts resolved:** Where `NEW-FEATURES.md` said “Phase 7 in progress” but `IMPLEMENTATION-STATUS.md` marked A–J shipped, **status file wins** → all Phase 7 rows treated as **Shipped**.
 - **Feature 13:** Legacy spec listed “icon on all pages” as incomplete; implementation status rolled that into **Phase 7 A** (✅)—keep **Verify** until product confirms.
 - **Feature 8 homepage:** Follow-up about removing homepage banner is **done** (Phase 6 item 1); entry via profile + `/wrapped/...`.
+- **Feature 7c/7d:** Neo4j GDS / Squad Backbone **retired** 2026-08-02 (Aura Free; no Professional upgrade). Partnerships + impact (7a/7b) remain.
 - **Deep spec detail:** The old plan file contained full code snippets, schema blocks, and exhaustive test lists for each feature. For that level of detail, use **git history** of removed files or reconstruct from `database-dorkinians` + website source; this master file is optimized for **status + handoff + ops**.
 
 ---

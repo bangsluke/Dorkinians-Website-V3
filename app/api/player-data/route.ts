@@ -146,10 +146,7 @@ export const PLAYER_GRAPH_INSIGHT_PROPERTY_RETURN = `
 			p.impactWinRateWith as impactWinRateWith,
 			p.impactWinRateWithout as impactWinRateWithout,
 			p.impactSampleWith as impactSampleWith,
-			p.impactSampleWithout as impactSampleWithout,
-			p.squadInfluence as squadInfluence,
-			p.squadInfluenceRank as squadInfluenceRank,
-			p.communityId as communityId`;
+			p.impactSampleWithout as impactSampleWithout`;
 
 export function mapPlayerStreakFieldsFromRecord(record: { get: (key: string) => unknown }, toNumber: (value: any) => number) {
 	return {
@@ -202,8 +199,6 @@ export function mapPlayerGraphInsightFieldsFromRecord(record: { get: (key: strin
 	const swo = nullableNum("impactSampleWithout");
 	const irWith = nullableNum("impactWinRateWith");
 	const irWithout = nullableNum("impactWinRateWithout");
-	const rank = nullableNum("squadInfluenceRank");
-	const comm = nullableNum("communityId");
 	const impactRatesDisplay =
 		irWith != null && irWithout != null && sw != null && swo != null
 			? `${Math.round(irWith * 10) / 10}% with (${Math.round(sw)} games) · ${Math.round(irWithout * 10) / 10}% without (${Math.round(swo)} games)`
@@ -220,9 +215,6 @@ export function mapPlayerGraphInsightFieldsFromRecord(record: { get: (key: strin
 		impactRatesDisplay,
 		impactSampleWith: sw != null ? Math.round(sw) : null,
 		impactSampleWithout: swo != null ? Math.round(swo) : null,
-		squadInfluence: nullableNum("squadInfluence"),
-		squadInfluenceRank: rank != null ? Math.round(rank) : null,
-		communityId: comm != null ? Math.round(comm) : null,
 	};
 }
 
@@ -285,32 +277,6 @@ export function buildFilteredImpactWithoutQuery(playerName: string, filters: any
 	}
 	query += `
 		RETURN count(f) AS games, sum(CASE WHEN f.result = 'W' THEN 1 ELSE 0 END) AS wins`;
-	return { query, params };
-}
-
-/** Top players by co-appearance edge count in filtered fixtures (proxy for squad “backbone” when filters apply). */
-export function buildFilteredClubSquadBackboneQuery(filters: any): { query: string; params: Record<string, unknown> } {
-	const graphLabel = neo4jService.getGraphLabel();
-	const params: Record<string, unknown> = { graphLabel };
-	const conditions = buildFilterConditions(filters, params);
-	let query = `
-		MATCH (p:Player {graphLabel: $graphLabel})
-		WHERE coalesce(p.allowOnSite, true) = true
-		MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
-		MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)`;
-	if (conditions.length > 0) {
-		query += ` WHERE ${conditions.join(" AND ")}`;
-	}
-	query += `
-		WITH p, f, md.team AS xiTeam
-		MATCH (f)-[:HAS_MATCH_DETAILS]->(mdO:MatchDetail {graphLabel: $graphLabel})
-		WHERE mdO.team = xiTeam
-		MATCH (pOther:Player {graphLabel: $graphLabel})-[:PLAYED_IN]->(mdO)
-		WHERE pOther <> p AND coalesce(pOther.allowOnSite, true) = true
-		WITH p.playerName AS playerName, count(*) AS edgeWeight
-		RETURN playerName, edgeWeight
-		ORDER BY edgeWeight DESC
-		LIMIT 12`;
 	return { query, params };
 }
 
