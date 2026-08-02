@@ -229,7 +229,7 @@ The project implements a **manual synchronization system** where each configurat
 
 **Frontend: Next.js 14 + App Router**
 
-- **PWA Support**: Built-in PWA capabilities with `next-pwa`
+- **PWA Support**: Built-in PWA capabilities with `@serwist/next`
 - **Mobile Performance**: Automatic code splitting, image optimization, static generation
 - **Developer Experience**: Familiar React patterns, excellent TypeScript support
 - **Deployment**: Optimized for Netlify with edge functions
