@@ -124,3 +124,7 @@ __tests__/e2e/.lock-*
 
 # Optional CI / local nested clone of the private DB package (sibling layout preferred)
 /database-dorkinians/
+
+# Serwist (generated service worker artifacts)
+public/sw*
+public/swe-worker*

@@ -161,7 +161,7 @@ class PWAUpdateService {
 					// Only trigger a new update check if there's no waiting or installing worker
 					// This prevents automatic activation when user just wants to check for existing updates
 					// Note: registration.update() will check for new service worker versions but won't
-					// activate them automatically (skipWaiting: false in next.config.js)
+					// activate them automatically (skipWaiting: false in app/sw.ts)
 					
 					// Set up updatefound listener BEFORE calling registration.update()
 					// This ensures we catch the event when a new service worker is found

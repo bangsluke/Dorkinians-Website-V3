@@ -1,14 +1,19 @@
-/** @type {import('next').NextConfig} */
-const fs = require("fs");
-const path = require("path");
-const webpack = require("webpack");
+import fs from "fs";
+import path from "path";
+import { createRequire } from "module";
+import { fileURLToPath } from "url";
+import withSerwistInit from "@serwist/next";
+import dotenv from "dotenv";
+
+const require = createRequire(import.meta.url);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Merge .env* from this directory with override so repo values win over a stale SEED_API_KEY
 // (or other vars) already present in process.env from Windows user env / parent shell / CI.
 // Next's default merge keeps existing process.env entries, which caused builds to ignore .env fixes.
 (function loadEnvFromPackageDir() {
 	try {
-		const dotenv = require("dotenv");
 		const root = __dirname;
 		const load = (filename) => {
 			const full = path.join(root, filename);
@@ -40,8 +45,7 @@ if (process.env.ANALYZE === "true") {
 		withBundleAnalyzer = require("@next/bundle-analyzer")({
 			enabled: true,
 		});
-	} catch (error) {
-		// Bundle analyzer not available, skip it
+	} catch {
 		console.warn("Bundle analyzer not available, skipping analysis");
 	}
 }
@@ -51,48 +55,14 @@ const packageJsonPath = path.join(__dirname, "package.json");
 const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
 const appVersion = packageJson.version;
 
-const withPWA = require("next-pwa")({
-	dest: "public",
+const withSerwist = withSerwistInit({
+	swSrc: "app/sw.ts",
+	swDest: "public/sw.js",
 	register: true,
-	skipWaiting: false,
 	disable: process.env.NODE_ENV === "development",
-	runtimeCaching: [
-		{
-			urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/i,
-			handler: "CacheFirst",
-			options: {
-				cacheName: "google-fonts",
-				expiration: {
-					maxEntries: 4,
-					maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year
-				},
-			},
-		},
-		{
-			urlPattern: /\.(?:eot|otf|ttc|ttf|woff|woff2|font.css)$/i,
-			handler: "StaleWhileRevalidate",
-			options: {
-				cacheName: "static-font-assets",
-				expiration: {
-					maxEntries: 4,
-					maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year
-				},
-			},
-		},
-		{
-			urlPattern: /\.(?:jpg|jpeg|gif|png|svg|ico|webp)$/i,
-			handler: "CacheFirst",
-			options: {
-				cacheName: "static-image-assets",
-				expiration: {
-					maxEntries: 64,
-					maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
-				},
-			},
-		},
-	],
 });
 
+/** @type {import('next').NextConfig} */
 const nextConfig = {
 	// output: 'export', // Disabled to enable API routes
 	typescript: {
@@ -102,51 +72,50 @@ const nextConfig = {
 	images: {
 		remotePatterns: [
 			{
-				protocol: 'https',
-				hostname: 'docs.google.com',
+				protocol: "https",
+				hostname: "docs.google.com",
 			},
 		],
-		formats: ['image/avif', 'image/webp'],
+		formats: ["image/avif", "image/webp"],
 		// Disable image optimization on Netlify to avoid 400 errors with static assets
 		// Netlify sets NETLIFY=true automatically, or we can use NEXT_PUBLIC_UNOPTIMIZED env var
-		unoptimized: !!process.env.NETLIFY || process.env.NEXT_PUBLIC_UNOPTIMIZED === 'true',
+		unoptimized: !!process.env.NETLIFY || process.env.NEXT_PUBLIC_UNOPTIMIZED === "true",
 	},
-	// TypeScript configuration will be handled via tsconfig files
-	// Enable API routes for development and production
-	// experimental: {
-	// 	appDir: true
-	// }
 	env: {
 		NEXT_PUBLIC_APP_VERSION: appVersion,
-		NEXT_PUBLIC_CONSOLE_LOG_LEVEL: process.env.CONSOLE_LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'error' : 'info'),
+		NEXT_PUBLIC_CONSOLE_LOG_LEVEL:
+			process.env.CONSOLE_LOG_LEVEL || (process.env.NODE_ENV === "production" ? "error" : "info"),
 	},
 	// Remove console logs in production (except console.error which we sanitize at runtime)
 	compiler: {
-		removeConsole: process.env.NODE_ENV === 'production' ? {
-			exclude: ['error'],
-		} : false,
+		removeConsole:
+			process.env.NODE_ENV === "production"
+				? {
+						exclude: ["error"],
+					}
+				: false,
 	},
 	// Pin project root: otherwise Next infers the nearest parent lockfile (e.g. C:\Users\bangs\package-lock.json)
 	// and can load the wrong .env / fail env validation while building from this repo.
 	turbopack: {
 		root: path.resolve(__dirname),
 	},
-	webpack: (config, { isServer }) => {
+	webpack: (config, { webpack }) => {
 		// Ignore optional dependencies that don't work in Next.js
 		config.plugins.push(
 			new webpack.IgnorePlugin({
 				resourceRegExp: /^webworker-threads$/,
 			})
 		);
-		
+
 		// Ensure path aliases are resolved correctly
 		config.resolve.alias = {
 			...config.resolve.alias,
 			"@": path.resolve(__dirname),
 		};
-		
+
 		return config;
 	},
 };
 
-module.exports = withBundleAnalyzer(withPWA(nextConfig));
+export default withBundleAnalyzer(withSerwist(nextConfig));

@@ -13,7 +13,7 @@ const isDevelopment = process.env.NODE_ENV === 'development';
 // Get console log level from environment variable
 // Defaults: development -> 'info', production -> 'error'
 // Backward compatibility: DISABLE_CONSOLE_LOGS=true -> 'error'
-// On client side, check NEXT_PUBLIC_CONSOLE_LOG_LEVEL first (set by next.config.js)
+// On client side, check NEXT_PUBLIC_CONSOLE_LOG_LEVEL first (set by next.config.mjs)
 const getConsoleLogLevel = (): 'error' | 'info' | 'debug' => {
 	// Check for disable flag (client-side first, then server-side)
 	if (typeof window !== 'undefined') {

@@ -1,0 +1,19 @@
+# Snyk (https://snyk.io) policy file — see https://snyk.io/docs/using-snyk-ignore/
+version: v1.25.0
+ignore:
+  SNYK-JS-NANOID-18506897:
+    - '*':
+        reason: >-
+          Transitive via postcss only. PostCSS requires nanoid/non-secure with a
+          fixed nanoid(6) size (not attacker-controlled). nanoid@3.3.16 already
+          backports the negative-size fix; nanoid@5+ is ESM-only and breaks
+          PostCSS CJS (ERR_REQUIRE_ESM). Revisit when PostCSS ships a compatible pin.
+        expires: '2026-11-01T00:00:00.000Z'
+  SNYK-JS-NANOID-18506894:
+    - '*':
+        reason: >-
+          Transitive via postcss only. PostCSS uses nanoid/non-secure with fixed
+          size 6; nanoid@3.3.16 includes the negative-size backport for non-secure.
+          Forcing nanoid@5.1.16 breaks PostCSS. Revisit when PostCSS ships a
+          compatible pin.
+        expires: '2026-11-01T00:00:00.000Z'
