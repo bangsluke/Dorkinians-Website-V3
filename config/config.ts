@@ -483,14 +483,40 @@ export const visualizationTypes: Record<VisualizationType, { displayName: string
 	},
 };
 
+/** Compare FA dataSource seasons like "2025-26" (newest first by start year). */
+const compareFaSeasonLabels = (a: string, b: string): number => {
+	const yearA = parseInt(a.split("-")[0], 10) || 0;
+	const yearB = parseInt(b.split("-")[0], 10) || 0;
+	return yearB - yearA;
+};
+
 // Function to generate league links from dataSources
 export const generateLeagueLinks = (): UsefulLink[] => {
 	// Import dataSources dynamically to avoid circular dependencies
 	const { dataSources } = require("../lib/config/dataSources.js");
 
-	// Get current season (2024-25) and previous season (2023-24)
-	const currentSeason = "2024-25";
-	const previousSeason = "2023-24";
+	// Derive current + previous seasons from FA league table entries (no hardcoded season)
+	const leagueSeasons = Array.from(
+		new Set<string>(
+			dataSources
+				.filter(
+					(source: any) =>
+						source.type === "FASiteData" &&
+						source.category === "league" &&
+						source.url !== "TBC" &&
+						typeof source.season === "string",
+				)
+				.map((source: any) => source.season as string),
+		),
+	).sort(compareFaSeasonLabels);
+
+	const currentSeason = leagueSeasons[0];
+	const previousSeason = leagueSeasons[1];
+	if (!currentSeason) {
+		return [];
+	}
+
+	const allowedSeasons = new Set([currentSeason, previousSeason].filter(Boolean));
 
 	// Filter FA site data sources for league tables
 	const leagueSources = dataSources.filter(
@@ -498,10 +524,10 @@ export const generateLeagueLinks = (): UsefulLink[] => {
 			source.type === "FASiteData" &&
 			source.category === "league" &&
 			source.url !== "TBC" &&
-			(source.season === currentSeason || source.season === previousSeason),
+			allowedSeasons.has(source.season),
 	);
 
-	// Group by team and get the most recent season for each team
+	// Group by team and prefer the most recent season for each team
 	const teamLeagues = leagueSources.reduce((acc: any, source: any) => {
 		const team = source.team;
 		const season = source.season;
