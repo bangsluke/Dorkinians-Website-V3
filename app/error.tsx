@@ -12,16 +12,12 @@ interface ErrorPageProps {
 }
 
 export default function ErrorPage({ error, reset }: ErrorPageProps) {
-	const [pwaDebugInfo, setPwaDebugInfo] = useState<ReturnType<typeof getPWADebugInfo> | null>(null);
+	const pwaDebugInfo = getPWADebugInfo();
 	const [showDetails, setShowDetails] = useState(false);
 
 	useEffect(() => {
-		// Collect PWA debug info when error occurs
-		const debugInfo = getPWADebugInfo();
-		setPwaDebugInfo(debugInfo);
-		
-		// Log error details using sanitized logger
 		logError("Next.js Error Page - Error", error);
+		const debugInfo = getPWADebugInfo();
 		if (debugInfo) {
 			logError("Next.js Error Page - PWA Debug Info", new Error(JSON.stringify(debugInfo)));
 		}
@@ -63,7 +59,10 @@ Date/Time: ${dateTime}`;
 		const body = encodeURIComponent(emailBody);
 		const mailtoLink = `mailto:${appConfig.contact}?subject=${subject}&body=${body}`;
 
-		window.location.href = mailtoLink;
+		const mailAnchor = document.createElement("a");
+		mailAnchor.href = mailtoLink;
+		mailAnchor.rel = "noopener";
+		mailAnchor.click();
 	};
 
 	return (
