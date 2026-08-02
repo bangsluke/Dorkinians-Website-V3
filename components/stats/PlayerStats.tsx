@@ -3494,7 +3494,7 @@ export default function PlayerStats() {
 								(including multiple matches in one week), and only break when your most-played team for that season plays in that week and you do not
 								appear for any team. For all other streak types (scoring, assists, clean sheets, etc.), weeks you do not play are skipped (they do not
 								break the streak); if you play, the streak increments only when you satisfy that streak condition for that match. Streaks carry across
-								seasons, use your most-recent team as the tie-break for "most-played team," and are recalculated if fixture statuses change.
+								seasons, use your most-recent team as the tie-break for &quot;most-played team,&quot; and are recalculated if fixture statuses change.
 							</div>
 						</div>
 					</div>

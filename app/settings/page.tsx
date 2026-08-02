@@ -21,6 +21,7 @@ import FeedbackModal from "@/components/modals/FeedbackModal";
 import DataPrivacyModal from "@/components/modals/DataPrivacyModal";
 import { UmamiEvents } from "@/lib/analytics/events";
 import { trackEvent } from "@/lib/utils/trackEvent";
+import { useRouter } from "next/navigation";
 
 // Dynamically import PWA components to avoid SSR issues
 // [COMMENTED OUT: Check for Updates Section] - UpdateToast import disabled as it's only used for manual check on Settings page
@@ -75,6 +76,7 @@ interface SiteDetails {
 }
 
 export default function SettingsPage() {
+	const router = useRouter();
 	const { setMainPage, setStatsSubPage, setTOTWSubPage, setClubInfoSubPage } = useNavigationStore();
 	// [COMMENTED OUT: Check for Updates Section] - State variables for manual update check functionality
 	// const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
@@ -94,7 +96,7 @@ export default function SettingsPage() {
 	const handleNavigationClick = (e: React.MouseEvent, pageId: string) => {
 		e.stopPropagation();
 		setMainPage(pageId as any);
-		window.location.href = "/";
+		router.push("/");
 	};
 
 	const handleSubPageClick = (e: React.MouseEvent, mainPageId: string, subPageId: string) => {
@@ -113,11 +115,11 @@ export default function SettingsPage() {
 				setClubInfoSubPage(subPageId as any);
 				break;
 		}
-		window.location.href = "/";
+		router.push("/");
 	};
 
 	const handleBackClick = () => {
-		window.location.href = "/";
+		router.push("/");
 	};
 
 	const handleSettingsClick = () => {
@@ -134,7 +136,7 @@ export default function SettingsPage() {
 				localStorage.setItem("dorkinians-current-main-page", "home");
 			}
 		}
-		window.location.href = "/";
+		router.push("/");
 	};
 
 	// [COMMENTED OUT: Check for Updates Section] - Manual update check handler function

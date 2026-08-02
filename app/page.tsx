@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useSyncExternalStore } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigationStore } from "@/lib/stores/navigation";
 import Header from "@/components/layout/Header";
@@ -59,6 +59,56 @@ import { initializeCurrentSeason, getCurrentSeasonFromStorage } from "@/lib/serv
 import { preloadCaptainsData } from "@/lib/services/captainsPreloadService";
 import { log } from "@/lib/utils/logger";
 
+const RECENT_PLAYERS_KEY = "dorkinians-recent-players";
+const recentPlayersListeners = new Set<() => void>();
+
+function subscribeRecentPlayers(onStoreChange: () => void) {
+	recentPlayersListeners.add(onStoreChange);
+	return () => {
+		recentPlayersListeners.delete(onStoreChange);
+	};
+}
+
+function readRecentPlayers(): string[] {
+	if (typeof window === "undefined") return [];
+	try {
+		const saved = localStorage.getItem(RECENT_PLAYERS_KEY);
+		if (!saved) return [];
+		const players = JSON.parse(saved);
+		return Array.isArray(players) ? players : [];
+	} catch {
+		return [];
+	}
+}
+
+let recentPlayersSnapshot: string[] = [];
+
+function getRecentPlayersSnapshot(): string[] {
+	const next = readRecentPlayers();
+	if (
+		next.length === recentPlayersSnapshot.length &&
+		next.every((player, index) => player === recentPlayersSnapshot[index])
+	) {
+		return recentPlayersSnapshot;
+	}
+	recentPlayersSnapshot = next;
+	return recentPlayersSnapshot;
+}
+
+function getRecentPlayersServerSnapshot(): string[] {
+	return [];
+}
+
+function writeRecentPlayers(players: string[]) {
+	try {
+		localStorage.setItem(RECENT_PLAYERS_KEY, JSON.stringify(players));
+		recentPlayersSnapshot = players;
+		recentPlayersListeners.forEach((listener) => listener());
+	} catch (e) {
+		console.warn("Failed to update recent players:", e);
+	}
+}
+
 export default function HomePage() {
 	const {
 		currentMainPage,
@@ -78,31 +128,28 @@ export default function HomePage() {
 		loadFilterData,
 	} = useNavigationStore();
 
-	const [showChatbot, setShowChatbot] = useState(false);
+	const [chatbotRevealReady, setChatbotRevealReady] = useState(true);
 	const [showUpdateToast, setShowUpdateToast] = useState(true);
-	const [recentPlayers, setRecentPlayers] = useState<string[]>([]);
+	const recentPlayers = useSyncExternalStore(
+		subscribeRecentPlayers,
+		getRecentPlayersSnapshot,
+		getRecentPlayersServerSnapshot
+	);
 	const [showStatsMenu, setShowStatsMenu] = useState(false);
 	const { toasts, dismissToast, showSuccess } = useToast();
+
+	const showChatbot =
+		currentMainPage === "home" &&
+		isPlayerSelected &&
+		!!selectedPlayer &&
+		!isEditMode &&
+		chatbotRevealReady;
 
 	// Initialize from localStorage and load filter data after mount
 	useEffect(() => {
 		initializeFromStorage();
 		loadFilterData(); // Load filter data asynchronously
-		
-		// Load recent players from localStorage
-		if (typeof window !== "undefined") {
-			try {
-				const recentPlayersKey = "dorkinians-recent-players";
-				const saved = localStorage.getItem(recentPlayersKey);
-				if (saved) {
-					const players = JSON.parse(saved);
-					setRecentPlayers(Array.isArray(players) ? players : []);
-				}
-			} catch (e) {
-				console.warn("Failed to load recent players:", e);
-			}
-		}
-		
+
 		// Initialize currentSeason and preload captains data
 		const initAndPreload = async () => {
 			await initializeCurrentSeason();
@@ -117,32 +164,18 @@ export default function HomePage() {
 		initAndPreload();
 	}, [initializeFromStorage, loadFilterData]);
 
-	// Update recent players when player is selected
+	// Persist recent players when selection changes (external store — no component setState)
 	useEffect(() => {
-		if (typeof window !== "undefined" && isPlayerSelected && selectedPlayer) {
-			try {
-				const recentPlayersKey = "dorkinians-recent-players";
-				const saved = localStorage.getItem(recentPlayersKey);
-				let players: string[] = saved ? JSON.parse(saved) : [];
-				players = players.filter((p) => p !== selectedPlayer);
-				players.unshift(selectedPlayer);
-				players = players.slice(0, 5);
-				setRecentPlayers(players);
-			} catch (e) {
-				console.warn("Failed to update recent players:", e);
-			}
+		if (!isPlayerSelected || !selectedPlayer) return;
+		const current = getRecentPlayersSnapshot();
+		const players = [selectedPlayer, ...current.filter((p) => p !== selectedPlayer)].slice(0, 5);
+		if (
+			players.length !== current.length ||
+			players.some((player, index) => player !== current[index])
+		) {
+			writeRecentPlayers(players);
 		}
 	}, [isPlayerSelected, selectedPlayer]);
-
-	// Show chatbot when player is loaded from localStorage and not in edit mode
-	useEffect(() => {
-
-		if (currentMainPage === "home" && isPlayerSelected && selectedPlayer && !isEditMode) {
-			setShowChatbot(true);
-		} else {
-			setShowChatbot(false);
-		}
-	}, [currentMainPage, isPlayerSelected, selectedPlayer, isEditMode]);
 
 	// Validate and refresh player data on app load and when player changes
 	useEffect(() => {
@@ -153,13 +186,13 @@ export default function HomePage() {
 
 	const handlePlayerSelect = (playerName: string, source: "picker" | "recent" = "picker") => {
 		selectPlayer(playerName, source);
-		// Trigger chatbot reveal after a brief delay
-		setTimeout(() => setShowChatbot(true), 500);
+		// Brief delay before chatbot reveal for smoother transition
+		setChatbotRevealReady(false);
+		setTimeout(() => setChatbotRevealReady(true), 500);
 	};
 
 	const handleEditClick = () => {
 		enterEditMode();
-		setShowChatbot(false);
 	};
 
 	const handleClearPlayer = () => {

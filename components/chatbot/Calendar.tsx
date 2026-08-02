@@ -387,6 +387,43 @@ export default function Calendar({ visualization }: CalendarProps) {
 	const [showFullCalendar, setShowFullCalendar] = useState(false);
 	const containerRef = useRef<HTMLDivElement>(null);
 	const [weeksPerRow, setWeeksPerRow] = useState(10);
+
+	// Calculate weeksPerRow based on container width
+	useEffect(() => {
+		if (!visualization) return;
+
+		const calculateWeeksPerRow = () => {
+			if (!containerRef.current) return;
+			
+			// Get container width, accounting for padding (p-4 = 16px on each side = 32px total)
+			const containerWidth = containerRef.current.offsetWidth;
+			const padding = 32; // 16px padding on each side
+			const availableWidth = containerWidth - padding;
+			
+			// Each week box is 24px (w-6) + 2px gap (gap-0.5) = 26px total
+			const boxWidth = 24;
+			const gap = 2;
+			const boxWithGap = boxWidth + gap;
+			
+			// Calculate how many boxes fit
+			const calculatedWeeksPerRow = Math.floor(availableWidth / boxWithGap);
+			
+			// Ensure minimum of 5 and maximum of 15 weeks per row
+			const clampedWeeksPerRow = Math.max(5, Math.min(15, calculatedWeeksPerRow));
+			
+			setWeeksPerRow(clampedWeeksPerRow);
+		};
+
+		calculateWeeksPerRow();
+
+		// Recalculate on window resize
+		const handleResize = () => {
+			calculateWeeksPerRow();
+		};
+
+		window.addEventListener('resize', handleResize);
+		return () => window.removeEventListener('resize', handleResize);
+	}, [visualization]);
 	
 	if (!visualization) return null;
 
@@ -837,41 +874,6 @@ export default function Calendar({ visualization }: CalendarProps) {
 		monthLabels.sort((a, b) => a.startWeekIndex - b.startWeekIndex);
 		yearMonthLabels.set(year, monthLabels);
 	}
-
-	// Calculate weeksPerRow based on container width
-	useEffect(() => {
-		const calculateWeeksPerRow = () => {
-			if (!containerRef.current) return;
-			
-			// Get container width, accounting for padding (p-4 = 16px on each side = 32px total)
-			const containerWidth = containerRef.current.offsetWidth;
-			const padding = 32; // 16px padding on each side
-			const availableWidth = containerWidth - padding;
-			
-			// Each week box is 24px (w-6) + 2px gap (gap-0.5) = 26px total
-			const boxWidth = 24;
-			const gap = 2;
-			const boxWithGap = boxWidth + gap;
-			
-			// Calculate how many boxes fit
-			const calculatedWeeksPerRow = Math.floor(availableWidth / boxWithGap);
-			
-			// Ensure minimum of 5 and maximum of 15 weeks per row
-			const clampedWeeksPerRow = Math.max(5, Math.min(15, calculatedWeeksPerRow));
-			
-			setWeeksPerRow(clampedWeeksPerRow);
-		};
-
-		calculateWeeksPerRow();
-
-		// Recalculate on window resize
-		const handleResize = () => {
-			calculateWeeksPerRow();
-		};
-
-		window.addEventListener('resize', handleResize);
-		return () => window.removeEventListener('resize', handleResize);
-	}, []);
 
 	return (
 		<div ref={containerRef} className='mt-4 space-y-6'>

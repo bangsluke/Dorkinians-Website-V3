@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigationStore } from "@/lib/stores/navigation";
 import PWAInstallButton from "@/components/admin/PWAInstallButton";
 import { seedingStatusService } from "@/lib/services/seedingStatusService";
@@ -18,6 +18,7 @@ import {
 	XMarkIcon,
 } from "@heroicons/react/24/outline";
 import { ChevronDownIcon, ChevronUpIcon } from "@heroicons/react/24/outline";
+import { usePathname, useRouter } from "next/navigation";
 
 const navigationItems = [
 	{
@@ -60,18 +61,15 @@ const navigationItems = [
 ];
 
 export default function Settings() {
+	const router = useRouter();
+	const pathname = usePathname();
 	const { setMainPage, setStatsSubPage, setTOTWSubPage, setClubInfoSubPage } = useNavigationStore();
-	const [seedingStatus, setSeedingStatus] = useState(seedingStatusService.getSeedingStatus());
+	const [seedingStatus] = useState(() => seedingStatusService.getSeedingStatus());
 	const [isAvailableScreensExpanded, setIsAvailableScreensExpanded] = useState(true);
 
-	// Update seeding status on component mount
-	useEffect(() => {
-		setSeedingStatus(seedingStatusService.getSeedingStatus());
-	}, []);
-
 	const navigateToRootIfNeeded = () => {
-		if (typeof window !== "undefined" && window.location.pathname !== "/") {
-			window.location.href = "/";
+		if (pathname !== "/") {
+			router.push("/");
 		}
 	};
 

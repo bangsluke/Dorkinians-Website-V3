@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import React from "react";
 import { Cog6ToothIcon, XMarkIcon, FunnelIcon, Bars3Icon, UserCircleIcon } from "@heroicons/react/24/outline";
 import { useNavigationStore } from "@/lib/stores/navigation";
@@ -12,6 +12,32 @@ import { featureFlags } from "@/config/config";
 import { isDevelopBranchDeploy } from "@/lib/utils/isDevelopBranchDeploy";
 import { usePathname } from "next/navigation";
 import { scheduleProfileIntroBursts, shouldRunProfileIntro } from "@/lib/utils/profileNavIntro";
+
+const MENU_INTRO_KEY = "stats-nav-menu-animated";
+let menuIntroSnapshot = false;
+
+function subscribeMenuIntro(_onStoreChange: () => void) {
+	return () => {};
+}
+
+function getMenuIntroSnapshot(): boolean {
+	if (typeof window === "undefined") return false;
+	menuIntroSnapshot = localStorage.getItem(MENU_INTRO_KEY) === "true";
+	return menuIntroSnapshot;
+}
+
+function getMenuIntroServerSnapshot(): boolean {
+	return false;
+}
+
+function persistMenuIntroDone() {
+	try {
+		localStorage.setItem(MENU_INTRO_KEY, "true");
+		menuIntroSnapshot = true;
+	} catch {
+		/* ignore */
+	}
+}
 
 interface HeaderProps {
 	onSettingsClick: () => void;
@@ -35,8 +61,14 @@ export default function Header({
 	const [showMenuTooltip, setShowMenuTooltip] = useState(false);
 	const [showFilterTooltip, setShowFilterTooltip] = useState(false);
 	const [showProfileTooltip, setShowProfileTooltip] = useState(false);
-	/** Intro pulse finished or skipped (persisted) - avoids repeating pulse every Stats visit. */
-	const [menuIntroPulseDone, setMenuIntroPulseDone] = useState(false);
+	/** Intro pulse finished this session (persisted flag comes from external store). */
+	const [menuIntroPulseSessionDone, setMenuIntroPulseSessionDone] = useState(false);
+	const menuIntroPulsePersisted = useSyncExternalStore(
+		subscribeMenuIntro,
+		getMenuIntroSnapshot,
+		getMenuIntroServerSnapshot
+	);
+	const menuIntroPulseDone = menuIntroPulsePersisted || menuIntroPulseSessionDone;
 	const [profileIntroPulse, setProfileIntroPulse] = useState(false);
 	const [isMobile, setIsMobile] = useState(false);
 	const menuTooltipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -78,12 +110,6 @@ export default function Header({
 	};
 
 	const activeFilterCount = useMemo(() => getActiveFilterCount(playerFilters, filterData), [playerFilters, filterData]);
-
-	// Persisted menu intro pulse: read after mount to avoid wrong initial pulse on repeat visits
-	useEffect(() => {
-		if (!showMenuIcon || typeof window === "undefined") return;
-		setMenuIntroPulseDone(localStorage.getItem("stats-nav-menu-animated") === "true");
-	}, [showMenuIcon]);
 
 	// One-time obvious yellow ring bursts on mobile when a player is set (not on profile route)
 	useEffect(() => {
@@ -135,7 +161,8 @@ export default function Header({
 		const hasSeenProfile = localStorage.getItem("stats-nav-profile-tooltip-seen");
 
 		if (!hasSeenMenu) {
-			setShowMenuTooltip(true);
+			// Defer setState out of the synchronous effect body (React Compiler rule)
+			const showTimer = setTimeout(() => setShowMenuTooltip(true), 0);
 			menuTooltipTimeoutRef.current = setTimeout(() => {
 				dismissMenuTooltip();
 				if (showFilterIcon && !localStorage.getItem("stats-nav-filter-tooltip-seen")) {
@@ -151,6 +178,7 @@ export default function Header({
 				}
 			}, 5000);
 			return () => {
+				clearTimeout(showTimer);
 				if (menuTooltipTimeoutRef.current) clearTimeout(menuTooltipTimeoutRef.current);
 				if (filterTooltipTimeoutRef.current) clearTimeout(filterTooltipTimeoutRef.current);
 				if (profileTooltipTimeoutRef.current) clearTimeout(profileTooltipTimeoutRef.current);
@@ -158,12 +186,13 @@ export default function Header({
 		}
 
 		if (showFilterIcon && !hasSeenFilter) {
-			setShowFilterTooltip(true);
+			const showTimer = setTimeout(() => setShowFilterTooltip(true), 0);
 			filterTooltipTimeoutRef.current = setTimeout(() => {
 				dismissFilterTooltip();
 				if (!hasSeenProfile) chainProfileTooltipMobile();
 			}, 5000);
 			return () => {
+				clearTimeout(showTimer);
 				if (filterTooltipTimeoutRef.current) clearTimeout(filterTooltipTimeoutRef.current);
 				if (profileTooltipTimeoutRef.current) clearTimeout(profileTooltipTimeoutRef.current);
 			};
@@ -199,10 +228,8 @@ export default function Header({
 	const persistMenuIntroPulseDone = () => {
 		if (menuIntroPersistedRef.current) return;
 		menuIntroPersistedRef.current = true;
-		if (typeof window !== "undefined") {
-			localStorage.setItem("stats-nav-menu-animated", "true");
-		}
-		setMenuIntroPulseDone(true);
+		persistMenuIntroDone();
+		setMenuIntroPulseSessionDone(true);
 	};
 
 	const handleLogoClick = () => {

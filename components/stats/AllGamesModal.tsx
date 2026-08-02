@@ -138,9 +138,11 @@ export default function AllGamesModal({
 }: AllGamesModalProps) {
 	const { playerFilters, filterData, openFilterSidebar } = useNavigationStore();
 
-	const [seasons, setSeasons] = useState<SeasonSummary[]>([]);
-	const [seasonsLoading, setSeasonsLoading] = useState(false);
-	const [seasonsError, setSeasonsError] = useState<string | null>(null);
+	const [seasonsState, setSeasonsState] = useState<{
+		key: string;
+		seasons: SeasonSummary[];
+		error: string | null;
+	}>({ key: "", seasons: [], error: null });
 
 	const [expandedSeasons, setExpandedSeasons] = useState<Set<string>>(new Set());
 	const [gamesBySeason, setGamesBySeason] = useState<Record<string, GameSummary[]>>({});
@@ -155,17 +157,6 @@ export default function AllGamesModal({
 		[playerFilters, filterData]
 	);
 
-	/** Seasons to display: filter by time range when a specific season set is selected */
-	const displayedSeasons = useMemo(() => {
-		if (!seasons.length) return seasons;
-		const tr = playerFilters?.timeRange;
-		if (tr?.type === "season" && tr.seasons?.length) {
-			const set = new Set(tr.seasons);
-			return seasons.filter((s) => set.has(s.season));
-		}
-		return seasons;
-	}, [seasons, playerFilters?.timeRange?.type, playerFilters?.timeRange?.seasons]);
-
 	// Invalidate cached games when filters change so next expand refetches with new filters
 	const filtersKey = useMemo(() => {
 		if (!playerFilters) return "";
@@ -176,11 +167,38 @@ export default function AllGamesModal({
 		}
 	}, [playerFilters]);
 
+	const requestKey = isOpen && playerName ? `${playerName}:${filtersKey}` : "";
+	const seasonsLoading = Boolean(requestKey) && seasonsState.key !== requestKey;
+	const seasons = seasonsState.key === requestKey ? seasonsState.seasons : [];
+	const seasonsError = seasonsState.key === requestKey ? seasonsState.error : null;
+
+	/** Seasons to display: filter by time range when a specific season set is selected */
+	const displayedSeasons = useMemo(() => {
+		if (!seasons.length) return seasons;
+		const tr = playerFilters?.timeRange;
+		if (tr?.type === "season" && tr.seasons?.length) {
+			const set = new Set(tr.seasons);
+			return seasons.filter((s) => set.has(s.season));
+		}
+		return seasons;
+	}, [seasons, playerFilters?.timeRange]);
+
+	// Reset games cache when filters change (adjust state during render — React-allowed pattern)
+	const [gamesCacheKey, setGamesCacheKey] = useState(filtersKey);
+	if (isOpen && gamesCacheKey !== filtersKey) {
+		setGamesCacheKey(filtersKey);
+		setGamesBySeason({});
+		setExpandedSeasons(new Set());
+		setGamesLoadingBySeason({});
+		setExpandedFixtureIds(new Set());
+		setLineupByFixtureId({});
+		setLineupLoadingByFixtureId({});
+	}
+
 	// Fetch seasons when modal opens or filters change (so app counts reflect current filters)
 	useEffect(() => {
-		if (!isOpen || !playerName) return;
-		setSeasonsLoading(true);
-		setSeasonsError(null);
+		if (!requestKey || !isOpen || !playerName) return;
+		let cancelled = false;
 		const filtersQuery =
 			playerFilters != null && filtersKey !== ""
 				? `&filters=${encodeURIComponent(filtersKey)}`
@@ -193,19 +211,27 @@ export default function AllGamesModal({
 				return res.json();
 			})
 			.then((data) => {
-				setSeasons(data.seasons || []);
+				if (!cancelled) {
+					setSeasonsState({
+						key: requestKey,
+						seasons: data.seasons || [],
+						error: null,
+					});
+				}
 			})
 			.catch((err) => {
-				setSeasonsError(typeof err === "string" ? err : "Error loading seasons");
-			})
-			.finally(() => setSeasonsLoading(false));
-	}, [isOpen, playerName, filtersKey]);
-
-	useEffect(() => {
-		if (!isOpen) return;
-		setGamesBySeason({});
-		setExpandedSeasons(new Set());
-	}, [isOpen, filtersKey]);
+				if (!cancelled) {
+					setSeasonsState({
+						key: requestKey,
+						seasons: [],
+						error: typeof err === "string" ? err : "Error loading seasons",
+					});
+				}
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [requestKey, isOpen, playerName, filtersKey, playerFilters]);
 
 	// When a season is expanded, fetch its games
 	const toggleSeason = useCallback(

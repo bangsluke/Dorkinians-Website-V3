@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { ChatbotResponse } from "@/lib/services/chatbotService";
 
 interface TableProps {
@@ -10,17 +10,15 @@ interface TableProps {
 export default function Table({ visualization }: TableProps) {
 	const [hoveredRow, setHoveredRow] = useState<number | null>(null);
 	const [isExpanded, setIsExpanded] = useState(false);
-	const previousDataRef = useRef<unknown>(null);
+	const [dataEpoch, setDataEpoch] = useState(visualization?.data);
+
+	// Reset expanded state when visualization data changes (adjust during render)
+	if (visualization && visualization.data !== dataEpoch) {
+		setDataEpoch(visualization.data);
+		setIsExpanded(false);
+	}
 
 	if (!visualization) return null;
-
-	// Reset expanded state when visualization data changes (new question asked)
-	useEffect(() => {
-		if (visualization.data !== previousDataRef.current) {
-			setIsExpanded(false);
-			previousDataRef.current = visualization.data;
-		}
-	}, [visualization.data]);
 
 	// Extract columns and data
 	const columns = visualization.config && "columns" in visualization.config

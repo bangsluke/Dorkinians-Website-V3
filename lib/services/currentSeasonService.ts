@@ -34,17 +34,16 @@ export function getCurrentSeasonFromStorage(): string | null {
 }
 
 /**
- * Initialize currentSeason - check localStorage first, then fetch if needed
+ * Initialize currentSeason — always refresh from SiteDetails so season rollovers
+ * overwrite a stale localStorage value. Fall back to cache only if the fetch fails.
  */
 export async function initializeCurrentSeason(): Promise<string | null> {
-	// Check localStorage first
-	const cachedSeason = getCurrentSeasonFromStorage();
-	if (cachedSeason) {
-		return cachedSeason;
+	const fetchedSeason = await fetchAndCacheCurrentSeason();
+	if (fetchedSeason) {
+		return fetchedSeason;
 	}
 
-	// If not in localStorage, fetch from API
-	return await fetchAndCacheCurrentSeason();
+	return getCurrentSeasonFromStorage();
 }
 
 /**
@@ -55,4 +54,3 @@ export function setCurrentSeasonInStorage(season: string): void {
 		localStorage.setItem(CURRENT_SEASON_KEY, season);
 	}
 }
-
