@@ -5,15 +5,22 @@ let packageEnvLoaded = false;
 
 const PACKAGE_NAME = "dorkinians-website-v3";
 
+function hasNextConfig(dir: string): boolean {
+	return (
+		fs.existsSync(path.join(dir, "next.config.mjs")) ||
+		fs.existsSync(path.join(dir, "next.config.js")) ||
+		fs.existsSync(path.join(dir, "next.config.ts"))
+	);
+}
+
 /**
  * Resolves the app root for `.env` loading. Build workers may not inherit
  * `DORKINIANS_WEBSITE_ROOT`; `process.cwd()` may be a parent folder (e.g. monorepo or IDE).
- * Walk upward from cwd until we find this app's `next.config.js` + `package.json`.
+ * Walk upward from cwd until we find this app's Next config + `package.json`.
  */
 function tryResolveRootAt(dir: string): string | null {
-	const nextCfg = path.join(dir, "next.config.js");
 	const pkgPath = path.join(dir, "package.json");
-	if (!fs.existsSync(nextCfg) || !fs.existsSync(pkgPath)) {
+	if (!hasNextConfig(dir) || !fs.existsSync(pkgPath)) {
 		return null;
 	}
 	try {
@@ -28,7 +35,7 @@ function resolveAppRoot(): string {
 	const fromEnv = process.env.DORKINIANS_WEBSITE_ROOT;
 	if (fromEnv) {
 		const abs = path.resolve(fromEnv);
-		if (fs.existsSync(path.join(abs, "next.config.js"))) {
+		if (hasNextConfig(abs)) {
 			return abs;
 		}
 	}
@@ -70,9 +77,9 @@ function resolveAppRoot(): string {
 }
 
 /**
- * Applies `.env*` from the app directory with override. `next.config.js` only runs in the
+ * Applies `.env*` from the app directory with override. Next config only runs in the
  * main Next process; `next build` workers can still see a stale `SEED_API_KEY` from the OS
- * shell unless we reload from the files next to `next.config.js`.
+ * shell unless we reload from the files next to the Next config.
  */
 export function ensurePackageEnvLoaded(): void {
 	if (packageEnvLoaded || typeof window !== "undefined") {
