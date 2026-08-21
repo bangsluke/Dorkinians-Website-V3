@@ -308,7 +308,7 @@ const schema = {
       allTimeBestCleanSheetStreak: { type: 'integer', required: false },
       allTimeBestWinStreak: { type: 'integer', required: false },
       allTimeBestUnbeatenStreak: { type: 'integer', required: false },
-      // Feature 7 - graph insights (computed after seeding; optional GDS fields)
+      // Feature 7 - graph insights (partnerships + impact; computed after seeding)
       bestPartnerName: { type: 'string', required: false },
       bestPartnerWinRate: { type: 'number', required: false },
       bestPartnerMatches: { type: 'integer', required: false },
@@ -318,9 +318,6 @@ const schema = {
       impactWinRateWithout: { type: 'number', required: false },
       impactSampleWith: { type: 'integer', required: false },
       impactSampleWithout: { type: 'integer', required: false },
-      squadInfluence: { type: 'number', required: false },
-      squadInfluenceRank: { type: 'integer', required: false },
-      communityId: { type: 'integer', required: false },
       // Feature 9 - achievement badges (aggregates written during badge pass)
       maxAppsInSeason: { type: 'integer', required: false },
       maxGoalsInSeason: { type: 'integer', required: false },

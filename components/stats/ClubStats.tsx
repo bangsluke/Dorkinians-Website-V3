@@ -485,17 +485,6 @@ export default function ClubStats() {
 	const [topPlayers, setTopPlayers] = useState<TopPlayer[]>([]);
 	const [isLoadingTopPlayers, setIsLoadingTopPlayers] = useState(false);
 
-	const [squadBackbone, setSquadBackbone] = useState<
-		Array<{
-			playerName: string;
-			squadInfluence: number | null;
-			squadInfluenceRank: number | null;
-			communityId: number | null;
-		}>
-	>([]);
-	const [isLoadingSquadBackbone, setIsLoadingSquadBackbone] = useState(false);
-	const [squadBackboneNote, setSquadBackboneNote] = useState("");
-
 	// State for view mode toggle - initialize from localStorage
 	const [isDataTableMode, setIsDataTableMode] = useState<boolean>(() => {
 		if (typeof window !== "undefined") {
@@ -743,59 +732,6 @@ export default function ClubStats() {
 
 		fetchTopPlayers();
 	}, [filtersKey, selectedStatType, playerFilters, hasUnsavedFilters, isFilterSidebarOpen]);
-
-	// Squad backbone: filter-scoped co-appearance strength via POST; falls back to global PageRank (GET) if filters unavailable
-	useEffect(() => {
-		if (!playerFilters) return;
-		if (!featureFlags.clubStatsSquadBackbone) {
-			setSquadBackbone([]);
-			setSquadBackboneNote("");
-			setIsLoadingSquadBackbone(false);
-			return;
-		}
-		if (hasUnsavedFilters || isFilterSidebarOpen) return;
-
-		let cancelled = false;
-		const run = async () => {
-			setIsLoadingSquadBackbone(true);
-			try {
-				const { getCsrfHeaders } = await import("@/lib/middleware/csrf");
-				const cacheKey = generatePageCacheKey("stats", "club-stats", "club-squad-backbone", { filters: playerFilters });
-				const data = await cachedFetch<{
-					players: Array<{
-						playerName: string;
-						squadInfluence: number | null;
-						squadInfluenceRank: number | null;
-						communityId: number | null;
-					}>;
-					scope?: "global" | "filtered";
-					sampleNote?: string;
-				}>("/api/club-squad-backbone", {
-					method: "POST",
-					body: { filters: playerFilters },
-					headers: getCsrfHeaders(),
-					cacheKey,
-					getCachedPageData,
-					setCachedPageData,
-				});
-				if (!cancelled) {
-					setSquadBackbone(Array.isArray(data.players) ? data.players : []);
-					setSquadBackboneNote(typeof data.sampleNote === "string" ? data.sampleNote : "");
-				}
-			} catch {
-				if (!cancelled) {
-					setSquadBackbone([]);
-					setSquadBackboneNote("");
-				}
-			} finally {
-				if (!cancelled) setIsLoadingSquadBackbone(false);
-			}
-		};
-		run();
-		return () => {
-			cancelled = true;
-		};
-	}, [filtersKey, playerFilters, hasUnsavedFilters, isFilterSidebarOpen, getCachedPageData, setCachedPageData]);
 
 	// Priority 2: Above fold on desktop - Stats Distribution section
 	// Fetch position stats data
@@ -2205,55 +2141,6 @@ export default function ClubStats() {
 										)}
 									</div>
 								</div>
-								)}
-
-								{!isDataTableMode && featureFlags.clubStatsSquadBackbone && (
-									<div id='club-squad-backbone' className='flex-shrink-0 md:break-inside-avoid md:mb-4'>
-										<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-											<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Squad Backbone</h3>
-											<p className='text-white/55 text-[11px] md:text-xs mb-3'>
-												Ranking uses teammate co-appearances in fixtures that match your current Stats filters (normalized). Narrow filters can shrink
-												the sample; widen them if this list looks empty.
-											</p>
-											{squadBackboneNote ? (
-												<p className='text-dorkinians-yellow/90 text-[11px] mb-2' role='status'>
-													{squadBackboneNote}
-												</p>
-											) : null}
-											{isLoadingSquadBackbone ? (
-												<SkeletonTheme baseColor='var(--skeleton-base)' highlightColor='var(--skeleton-highlight)'>
-													<Skeleton height={16} count={4} className='my-1' />
-												</SkeletonTheme>
-											) : squadBackbone.length === 0 ? (
-												<p className='text-white/60 text-xs'>
-													No backbone ranking for this filter set yet - try including more seasons or teams, or check back after fixtures are loaded.
-												</p>
-											) : (
-												<ol className='list-decimal list-inside space-y-2 text-white text-xs md:text-sm'>
-													{squadBackbone.map((row) => (
-														<li key={row.playerName} className='marker:text-dorkinians-yellow'>
-															<button
-																type='button'
-																onClick={() => {
-																	selectPlayer(row.playerName, "picker");
-																	setMainPage("stats");
-																	setStatsSubPage("player-stats");
-																}}
-																className='text-[#E8C547] font-medium hover:underline text-left align-middle'>
-																{row.playerName}
-															</button>
-															<span className='text-white/50 text-[11px] ml-2'>
-																rank {row.squadInfluenceRank ?? "-"}
-																{row.squadInfluence != null
-																	? ` · ${row.squadInfluence < 0.0001 ? row.squadInfluence.toExponential(2) : row.squadInfluence.toFixed(4)}`
-																	: ""}
-															</span>
-														</li>
-													))}
-												</ol>
-											)}
-										</div>
-									</div>
 								)}
 
 								{/* Seasonal Performance Section */}

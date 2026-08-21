@@ -34,7 +34,6 @@ export type FeatureFlags = {
 	teamStatsStreakAndForm: boolean;
 	teamStatsXiStreakCards: boolean;
 	clubStatsLongestActiveStreaks: boolean;
-	clubStatsSquadBackbone: boolean;
 	clubStatsClubRecordings: boolean;
 	clubInfoRecords: boolean;
 	leagueInfoLatestResult: boolean;
@@ -61,7 +60,6 @@ const featureFlagsAllEnabled: FeatureFlags = {
 	teamStatsStreakAndForm: true,
 	teamStatsXiStreakCards: true,
 	clubStatsLongestActiveStreaks: true,
-	clubStatsSquadBackbone: true,
 	clubStatsClubRecordings: true,
 	clubInfoRecords: true,
 	leagueInfoLatestResult: true,
@@ -88,7 +86,6 @@ const featureFlagsProductionDefault: FeatureFlags = {
 	teamStatsStreakAndForm: false,
 	teamStatsXiStreakCards: false,
 	clubStatsLongestActiveStreaks: false,
-	clubStatsSquadBackbone: false,
 	clubStatsClubRecordings: false,
 	clubInfoRecords: false,
 	leagueInfoLatestResult: false,
@@ -1203,18 +1200,6 @@ export const statObject = {
 		statCategory: "Graph insight",
 		iconName: "PercentageGamesWon-Icon",
 	},
-	PlayerGraphSquadRank: {
-		statName: "squadInfluenceRank",
-		displayText: "Squad influence rank",
-		shortText: "Inf rank",
-		wordedText: "squad influence rank from PageRank",
-		statFormat: "Integer",
-		description: "Rank by PageRank on PLAYED_WITH (requires Neo4j GDS on Aura). Lower is more connected.",
-		statHigherBetterBoolean: false,
-		numberDecimalPlaces: 0,
-		statCategory: "Graph insight",
-		iconName: "TeamAppearance-Icon",
-	},
 	PlayerGoalsPer90: {
 		statName: "goalsPer90",
 		displayText: "Goals per 90",
@@ -1794,7 +1779,6 @@ export const statsPageConfig = {
 			"PlayerGraphBestPartner",
 			"PlayerGraphImpactDelta",
 			"PlayerGraphImpactRates",
-			"PlayerGraphSquadRank",
 		],
 		availableFilters: ["timeRange", "team", "location", "opposition", "competition", "result", "position"],
 	},

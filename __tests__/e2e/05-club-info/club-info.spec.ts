@@ -737,7 +737,7 @@ test.describe("Club Info Page Tests", () => {
 		await expect(page.getByTestId("stats-page-heading")).toContainText(name, { timeout: 25000 });
 	});
 
-	test("5.31. Badge leaderboard is below Records on Club Information and absent on Club Captains and Awards", async ({ page }) => {
+	test("5.31. Achievement Leaderboard is above Records on Club Information and absent on Club Captains and Awards", async ({ page }) => {
 		await navigateToMainPage(page, "club-info");
 		await goToClubInfoSubPage(page, "club-information");
 		const recordsSection = page.getByTestId("records-section");
@@ -752,13 +752,14 @@ test.describe("Club Info Page Tests", () => {
 		}
 		await recordsSection.scrollIntoViewIfNeeded();
 		await badgeSection.scrollIntoViewIfNeeded();
-		if (!(await badgeSection.getByRole("heading", { name: /^Badge leaderboard$/i }).isVisible({ timeout: 15000 }).catch(() => false))) {
-			test.skip(true, "Badge leaderboard heading not visible in section.");
+		if (!(await badgeSection.getByRole("heading", { name: /Achievement Leaderboard/i }).isVisible({ timeout: 15000 }).catch(() => false))) {
+			test.skip(true, "Achievement Leaderboard heading not visible in section.");
 			return;
 		}
+		await expect(badgeSection.getByRole("heading", { name: /Most Gold Badges/i })).toHaveCount(0);
 		const recordsTop = await recordsSection.first().evaluate((el) => el.getBoundingClientRect().top);
 		const badgeTop = await badgeSection.first().evaluate((el) => el.getBoundingClientRect().top);
-		expect(recordsTop).toBeLessThan(badgeTop);
+		expect(badgeTop).toBeLessThan(recordsTop);
 
 		await goToClubInfoSubPage(page, "club-awards");
 		await expect(page.getByRole("heading", { name: /Club Captains and Awards/i })).toBeVisible({ timeout: 20000 });

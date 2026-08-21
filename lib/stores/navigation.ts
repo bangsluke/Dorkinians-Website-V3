@@ -169,9 +169,6 @@ export interface PlayerData {
 	impactRatesDisplay?: string | null;
 	impactSampleWith?: number | null;
 	impactSampleWithout?: number | null;
-	squadInfluence?: number | null;
-	squadInfluenceRank?: number | null;
-	communityId?: number | null;
 }
 
 // Cached player data with date validation

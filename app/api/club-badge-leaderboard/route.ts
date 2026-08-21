@@ -60,10 +60,9 @@ export async function GET(request: NextRequest) {
 			RETURN playerName, cnt
 		`;
 
-		const [mostRes, diamondRes, goldRes] = await Promise.all([
+		const [mostRes, diamondRes] = await Promise.all([
 			neo4jService.runQuery(qMost, { graphLabel }),
 			neo4jService.runQuery(qTier("diamond"), { graphLabel, tier: "diamond" }),
-			neo4jService.runQuery(qTier("gold"), { graphLabel, tier: "gold" }),
 		]);
 
 		const mostBadges = mostRes.records.map((rec: NeoRecord) => ({
@@ -82,14 +81,13 @@ export async function GET(request: NextRequest) {
 			{
 				mostBadges,
 				mostDiamond: mapTierRows(diamondRes.records),
-				mostGold: mapTierRows(goldRes.records),
 			},
 			{ headers: corsHeaders },
 		);
 	} catch (error) {
 		logError("club-badge-leaderboard GET", error);
 		return NextResponse.json(
-			{ error: "Failed to load badge leaderboard", mostBadges: [], mostDiamond: [], mostGold: [] },
+			{ error: "Failed to load badge leaderboard", mostBadges: [], mostDiamond: [] },
 			{ status: 500, headers: corsHeaders },
 		);
 	}

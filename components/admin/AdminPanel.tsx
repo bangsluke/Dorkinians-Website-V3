@@ -99,9 +99,6 @@ export default function AdminPanel() {
 	/** Full rebuild only: seed to staging graphLabel then swap (minimises downtime). Default on. */
 	const [blueGreenCutover, setBlueGreenCutover] = useState<boolean>(true);
 	const [seasonOverrideError, setSeasonOverrideError] = useState<string>("");
-	
-	// Debug logs state
-	const [debugLogs, setDebugLogs] = useState<boolean>(false);
 	const [postRunRecycle, setPostRunRecycle] = useState<boolean>(true);
 
 	// Helper function to build Heroku API URLs with proper path handling
@@ -390,7 +387,7 @@ export default function AdminPanel() {
 							fullRebuild: fullRebuild,
 							blueGreenCutover: fullRebuild ? blueGreenCutover : false,
 						},
-						debug: debugLogs,
+						debug: false,
 						postRunRecycle,
 					};
 
@@ -1142,7 +1139,7 @@ export default function AdminPanel() {
 					>
 						<p className='text-sm font-semibold text-blue-900 mb-2'>Admin Panel Capabilities</p>
 						<ul className='text-xs sm:text-sm text-gray-700 space-y-2'>
-							<li>• Trigger production seeding with run-specific options for notifications, debug logging, season scope, and post-run recycle behavior.</li>
+							<li>• Trigger production seeding with run-specific options for notifications, season scope, and post-run recycle behavior. Debug logging is forced off for production seeds.</li>
 							<li>• Configure selective mode, full rebuild mode, blue/green cutover, and optional season override for targeted reruns.</li>
 							<li>• Track jobs in real time with status checks, elapsed time, progress details, online job logs, warnings logs, and full jobs listing.</li>
 							<li>• Use the Live Logs command to tail backend Heroku logs during active runs for deep diagnostics.</li>
@@ -1234,17 +1231,17 @@ export default function AdminPanel() {
 						<input
 							type='checkbox'
 							id='debugLogs'
-							checked={debugLogs}
-							onChange={(e) => setDebugLogs(e.target.checked)}
-							className='mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded'
+							checked={false}
+							disabled
+							aria-describedby='debugLogsHelp'
+							className='mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:opacity-50'
 						/>
-						<label htmlFor='debugLogs' className='text-sm text-gray-700'>
-							Enable debug logs (verbose logging for troubleshooting)
+						<label htmlFor='debugLogs' className='text-sm text-gray-500'>
+							Enable debug logs (disabled for production seeds)
 						</label>
 					</div>
-					<p className='text-xs text-gray-600 ml-6'>
-						When enabled, all debug information, query details, and object properties will be logged. 
-						When disabled, only essential progress and completion logs are shown.
+					<p id='debugLogsHelp' className='text-xs text-gray-600 ml-6'>
+						Production seeds always run with debug off to keep memory down. The seeder ignores debug=true unless SEED_ALLOW_PRODUCTION_DEBUG=true is set on the database app.
 					</p>
 					<div className='flex items-center'>
 						<input
