@@ -2,7 +2,7 @@
 
 **Purpose:** Single source of truth for what shipped, what remains, how major areas work, and setup outside the codebase. Use this file (not legacy split docs) when briefing an AI or resuming implementation.
 
-**Last updated:** 2026-08-02 (retired GDS / Squad Backbone; Feature 7a/7b partnerships + impact remain).
+**Last updated:** 2026-08-21 (Wave 5 planned: enable production-off flags, then remove flag plumbing).
 
 **Repos:**
 
@@ -23,7 +23,7 @@ The site includes a **foundation** layer (starters, `playerOrder`, `matchRating`
 
 ## 2. Implementation matrix (feature-level)
 
-Status values: **Shipped** | **Partial** | **Deferred** | **Retired** | **Verify**
+Status values: **Shipped** | **Partial** | **Deferred** | **Retired** | **Verify** | **Planned**
 
 | ID | Feature | Status | Notes / primary locations |
 | -- | ------- | ------ | ------------------------- |
@@ -48,6 +48,7 @@ Status values: **Shipped** | **Partial** | **Deferred** | **Retired** | **Verify
 | **18** | VEO LINK on fixtures | **Shipped** | DB: schema `Fixture.veoLink`, `test:fixture-veo-link-integration`. Site: `league-fixtures`, `team-recent-fixtures`, types. |
 | **19** | League Latest Result + modal parity | **Shipped** | `GET /api/league-latest-result`, `FixtureExpandedDetails.tsx`, `LeagueInformation.tsx`, `LeagueResultsModal.tsx`. Integration + Playwright `5.14a`. |
 | **20** | Navigation + Player Stats polish | **Shipped** | Items 1–7 addressed via Phase 6/7 rows (Settings→Home, Form axis, table toggle alignment, profile/wrapped items). |
+| **21** | Production flag rollout + remove leftover flags | **Planned** | Today `featureFlagsProductionDefault` hides Stats/Club/League extras on main (see §3). **Wave 5** in `TODO.md`: verify on develop → set production preset all-`true` → smoke main → delete `featureFlags` plumbing and keep always-on paths. Keep `isDevelopBranchDeploy()` for branding. |
 
 ### UX rounds (historical checklists – all rows shipped per last status)
 
@@ -69,7 +70,7 @@ Status values: **Shipped** | **Partial** | **Deferred** | **Retired** | **Verify
 | **Google Sheets** | Source data for `database-dorkinians`; **VEO LINK** column on fixtures for Feature 18. |
 | **Netlify / deploy** | Website deploy when only Next.js changes; seed when graph data must change. |
 | **CI** | `develop`: E2E on push. PRs to `main`: `test:all` + pass-rate gate script. GitHub Actions secrets for email workflows per `README.md`. |
-| **Feature flags** | `config/config.ts`: `featureFlagPresets.develop` vs `featureFlagPresets.production`; resolver uses `NODE_ENV` (test → all on, development → develop preset) and `isDevelopBranchDeploy()` (`BRANCH` / `NEXT_PUBLIC_SITE_VARIANT` from Netlify). No per-feature env vars. **E2E / Playwright:** if the production preset turns features off on the primary domain, point `WEBSITE_URL` (GitHub secret) at the **develop** branch Netlify URL (e.g. `https://develop--<site>.netlify.app`) so remote suites exercise the full UI. |
+| **Feature flags** | `config/config.ts`: `featureFlagPresets.develop` vs `featureFlagPresets.production`; resolver uses `NODE_ENV` (test → all on, development → develop preset) and `isDevelopBranchDeploy()` (`BRANCH` / `NEXT_PUBLIC_SITE_VARIANT` from Netlify). No per-feature env vars. **Currently off on production main:** Player Stats (key performance, form, streaks, starting impact, partnerships, impact, recordings, per-90 table); Team Stats (formations, recordings, streak+form, XI streak cards); Club Stats (longest active streaks, recordings); Club Information records; League latest result. **On on main:** player profile, achievement badges, season wrapped, `profileServerHeadline`, `wrappedStagedLoad`, `wrappedPriorityLogos`. **E2E / Playwright:** until Wave 5, point `WEBSITE_URL` at the **develop** branch Netlify URL so remote suites exercise the full UI. After Wave 5, flags are removed and production should match develop. |
 
 ---
 
@@ -135,11 +136,12 @@ Within each step, implement in listed order; run the test suite after material c
 
 ## 8. AI handoff – next focus (from last integration milestone)
 
-**Current theme:** Post–Phase 9 polish verification.
+**Current theme:** Post–Phase 9 polish verification, then production flag rollout.
 
 1. Verify Wrapped **pause/play/restart** and **share** text behaviour end-to-end.
 2. Validate **achievement** section renames, categories, order on profile (desktop + mobile).
 3. Confirm **Club Information** headings and **record display rounding** (e.g. highest single-match FTP, scoreline) on mobile and desktop.
+4. After Waves 0–3: **Feature 21 / Wave 5** — enable remaining production-off flags, smoke main, then delete leftover `featureFlags` code (`TODO.md` Wave 5).
 
 **Suggested prompt pattern:**
 

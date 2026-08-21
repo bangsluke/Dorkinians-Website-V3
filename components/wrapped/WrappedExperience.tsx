@@ -21,10 +21,15 @@ import { featureFlags } from "@/config/config";
 import { getPublicSiteRoot } from "@/lib/utils/publicSiteUrl";
 import { formatRecordingDateMobile, formatRecordingScore } from "@/lib/utils/recordingsDisplay";
 import type { WrappedData, WrappedDeferredData, WrappedInitialData, WrappedLeagueTableRow } from "@/lib/wrapped/types";
+import {
+	remainingAfterElapsed,
+	tickSlideAutoplay,
+	WRAPPED_AUTOPLAY_MS,
+	WRAPPED_AUTOPLAY_TICK_MS,
+} from "@/lib/wrapped/slideAutoplay";
 
 const SWIPE_PX = 56;
 const VEO_WRAP_PREVIEW_COUNT = 3;
-const AUTOPLAY_MS = 15_000;
 const DEFAULT_SLIDE_IDS: number[] = [1, 2, 3, 4, 12, 5, 6, 11, 10, 7, 8, 9];
 
 function formatOrdinal(n: number): string {
@@ -256,6 +261,8 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 	const [shareOpen, setShareOpen] = useState(false);
 	const [isCapturingShare, setIsCapturingShare] = useState(false);
 	const slideRef = useRef<HTMLDivElement | null>(null);
+	const remainingMsRef = useRef(WRAPPED_AUTOPLAY_MS);
+	const lastIndexRef = useRef(0);
 
 	const pointerSwipe = useRef<{ x: number; y: number; pointerId: number } | null>(null);
 	const touchStart = useRef<{ x: number; y: number } | null>(null);
@@ -415,22 +422,32 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 	}, [total]);
 
 	useEffect(() => {
+		if (lastIndexRef.current !== index) {
+			remainingMsRef.current = WRAPPED_AUTOPLAY_MS;
+			lastIndexRef.current = index;
+			setTimerPct(100);
+		}
 		if (!data || total <= 0) return;
 		if (index >= total - 1) {
 			setTimerPct(100);
 			return;
 		}
 		if (isPaused) return;
-		setTimerPct(100);
-		const start = Date.now();
+		const duration = remainingMsRef.current;
+		const startedAt = Date.now();
 		const iv = setInterval(() => {
-			const elapsed = Date.now() - start;
-			setTimerPct(Math.max(0, 100 - (elapsed / AUTOPLAY_MS) * 100));
-			if (elapsed >= AUTOPLAY_MS) {
+			const elapsed = Date.now() - startedAt;
+			const tick = tickSlideAutoplay(duration, elapsed);
+			remainingMsRef.current = tick.remainingMs;
+			setTimerPct(tick.timerPct);
+			if (tick.shouldAdvance) {
 				setIndex((i) => Math.min(total - 1, i + 1));
 			}
-		}, 120);
-		return () => clearInterval(iv);
+		}, WRAPPED_AUTOPLAY_TICK_MS);
+		return () => {
+			clearInterval(iv);
+			remainingMsRef.current = remainingAfterElapsed(duration, Date.now() - startedAt);
+		};
 	}, [index, data, total, isPaused]);
 
 	const applySwipe = useCallback(
@@ -973,8 +990,10 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 				<button
 					type='button'
 					onClick={() => {
-						setIndex(0);
+						remainingMsRef.current = WRAPPED_AUTOPLAY_MS;
+						lastIndexRef.current = 0;
 						setTimerPct(100);
+						setIndex(0);
 						setIsPaused(false);
 					}}
 					className='text-xs sm:text-sm font-medium px-3 py-1.5 rounded-lg bg-[#5DCAA5] text-black hover:opacity-90'>
