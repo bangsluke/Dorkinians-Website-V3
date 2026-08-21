@@ -69,7 +69,6 @@ const statsNavigationItems = [
 			{ id: "club-streak-leaders", label: "Club Streaks" },
 			{ id: "club-team-comparison", label: "Team Comparison" },
 			{ id: "club-top-players", label: "Top Players" },
-			{ id: "club-squad-backbone", label: "Squad Backbone" },
 			{ id: "club-seasonal-performance", label: "Seasonal Performance" },
 			{ id: "club-player-distribution", label: "Player Distribution" },
 			{ id: "club-player-tenure", label: "Player Tenure" },
@@ -128,7 +127,6 @@ export default function StatsNavigationMenu({ isOpen, onClose }: StatsNavigation
 				return {
 					...page,
 					sections: page.sections.filter((s) => {
-						if (s.id === "club-squad-backbone" && !f.clubStatsSquadBackbone) return false;
 						if (s.id === "club-recordings" && !f.clubStatsClubRecordings) return false;
 						if (s.id === "club-streak-leaders" && !f.clubStatsLongestActiveStreaks) return false;
 						return true;

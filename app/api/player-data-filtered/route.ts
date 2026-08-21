@@ -5,7 +5,6 @@ import {
 	buildFilteredImpactWithoutQuery,
 	buildFilteredPartnershipsQuery,
 	buildPlayerStatsQuery,
-	mapPlayerGraphInsightFieldsFromRecord,
 	mapPlayerStreakFieldsFromRecord,
 	packFilteredPlayerGraphInsights,
 	type FilteredPartnershipRow,
@@ -291,14 +290,10 @@ ${PLAYER_STREAK_PROPERTY_RETURN}
 				...mapPlayerStreakFieldsFromRecord(playerRecord, toNumber),
 			};
 
-			const globalGraphEmpty = mapPlayerGraphInsightFieldsFromRecord(playerRecord, toNumber);
 			const filteredGraphEmpty = await loadFilteredPlayerGraphInsights(playerName, filters as Record<string, unknown>, "", toNumber);
 			const playerDataOut = {
 				...defaultPlayerData,
 				...filteredGraphEmpty,
-				squadInfluence: globalGraphEmpty.squadInfluence,
-				squadInfluenceRank: globalGraphEmpty.squadInfluenceRank,
-				communityId: globalGraphEmpty.communityId,
 			} as PlayerData;
 
 			return NextResponse.json({
@@ -465,7 +460,6 @@ ${PLAYER_STREAK_PROPERTY_RETURN}
 			...mapPlayerStreakFieldsFromRecord(record, toNumber),
 		} as PlayerData;
 
-		const globalGraphMerged = mapPlayerGraphInsightFieldsFromRecord(record, toNumber);
 		const teamForImpact = String(record.get("mostPlayedForTeam") ?? "");
 		const filteredGraphMerged = await loadFilteredPlayerGraphInsights(
 			playerName,
@@ -476,9 +470,6 @@ ${PLAYER_STREAK_PROPERTY_RETURN}
 		playerData = {
 			...playerData,
 			...filteredGraphMerged,
-			squadInfluence: globalGraphMerged.squadInfluence,
-			squadInfluenceRank: globalGraphMerged.squadInfluenceRank,
-			communityId: globalGraphMerged.communityId,
 		};
 
 		// Include copyable query in response for debugging

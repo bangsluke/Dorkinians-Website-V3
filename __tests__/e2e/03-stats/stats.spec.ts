@@ -54,7 +54,6 @@ const CLUB_SECTION_IDS = [
 	"club-key-performance-stats",
 	"club-team-comparison",
 	"club-top-players",
-	"club-squad-backbone",
 	"club-seasonal-performance",
 	"club-player-distribution",
 	"club-player-tenure",

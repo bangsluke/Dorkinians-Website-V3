@@ -455,7 +455,7 @@ export default function SidebarNavigation({
 						aria-label='Return to homepage'
 						className='flex flex-col items-center space-y-2.5 mb-3 p-0 bg-transparent border-none h-auto w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'>
 						<div className='w-16 h-16 flex items-center justify-center'>
-							<Image src='/icons/icon-96x96.png' alt='Dorkinians FC Logo' width={64} height={64} className='rounded-full' />
+							<Image src='/icons/icon-96x96.png' alt='Dorkinians FC Logo' width={64} height={64} loading='eager' className='rounded-full' />
 						</div>
 						<span className='font-bold text-xl text-[var(--color-text-primary)] text-center whitespace-nowrap'>Dorkinians FC</span>
 						{showDevBadge ? (

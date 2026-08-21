@@ -2058,7 +2058,7 @@
                   "annotations": [
                     {
                       "type": "skip",
-                      "description": "Club Stats section #club-squad-backbone not visible after scroll - skipping remainder.",
+                      "description": "Club Stats section not visible after scroll - skipping remainder.",
                       "location": {
                         "file": "C:\\Users\\bangs\\Documents\\Coding Projects\\Dorkinians\\V3-Dorkinians-Website\\__tests__\\e2e\\03-stats\\stats.spec.ts",
                         "line": 381,
@@ -2083,7 +2083,7 @@
                       "annotations": [
                         {
                           "type": "skip",
-                          "description": "Club Stats section #club-squad-backbone not visible after scroll - skipping remainder.",
+                          "description": "Club Stats section not visible after scroll - skipping remainder.",
                           "location": {
                             "file": "C:\\Users\\bangs\\Documents\\Coding Projects\\Dorkinians\\V3-Dorkinians-Website\\__tests__\\e2e\\03-stats\\stats.spec.ts",
                             "line": 381,
