@@ -61,6 +61,8 @@ import { log } from "@/lib/utils/logger";
 
 const RECENT_PLAYERS_KEY = "dorkinians-recent-players";
 const recentPlayersListeners = new Set<() => void>();
+/** Stable empty snapshot — useSyncExternalStore requires getServerSnapshot to return a cached reference. */
+const EMPTY_RECENT_PLAYERS: string[] = [];
 
 function subscribeRecentPlayers(onStoreChange: () => void) {
 	recentPlayersListeners.add(onStoreChange);
@@ -70,18 +72,18 @@ function subscribeRecentPlayers(onStoreChange: () => void) {
 }
 
 function readRecentPlayers(): string[] {
-	if (typeof window === "undefined") return [];
+	if (typeof window === "undefined") return EMPTY_RECENT_PLAYERS;
 	try {
 		const saved = localStorage.getItem(RECENT_PLAYERS_KEY);
-		if (!saved) return [];
+		if (!saved) return EMPTY_RECENT_PLAYERS;
 		const players = JSON.parse(saved);
-		return Array.isArray(players) ? players : [];
+		return Array.isArray(players) ? players : EMPTY_RECENT_PLAYERS;
 	} catch {
-		return [];
+		return EMPTY_RECENT_PLAYERS;
 	}
 }
 
-let recentPlayersSnapshot: string[] = [];
+let recentPlayersSnapshot: string[] = EMPTY_RECENT_PLAYERS;
 
 function getRecentPlayersSnapshot(): string[] {
 	const next = readRecentPlayers();
@@ -96,7 +98,7 @@ function getRecentPlayersSnapshot(): string[] {
 }
 
 function getRecentPlayersServerSnapshot(): string[] {
-	return [];
+	return EMPTY_RECENT_PLAYERS;
 }
 
 function writeRecentPlayers(players: string[]) {
