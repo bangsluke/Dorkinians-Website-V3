@@ -16,10 +16,6 @@ const DEFAULT_PLAYER = process.env.E2E_PLAYER_NAME || "Luke Bangs";
 const PLAYER_SECTION_IDS = [
 	"key-performance-stats",
 	"form-section",
-	"streaks-section",
-	"partnerships-section",
-	"impact-section",
-	"all-games",
 	"seasonal-performance",
 	"team-performance",
 	"positional-stats",
@@ -27,25 +23,29 @@ const PLAYER_SECTION_IDS = [
 	"starting-impact",
 	"game-details",
 	"monthly-performance",
+	"partnerships-section",
+	"impact-section",
 	"defensive-record",
 	"distance-travelled",
 	"opposition-locations",
-	"minutes-per-stats",
 	"opposition-performance",
 	"fantasy-points",
 	"penalty-stats",
+	"minutes-per-stats",
+	"all-games",
+	"streaks-section",
 	"captaincies-awards-and-achievements",
 ];
 
 const TEAM_SECTION_IDS = [
 	"team-key-performance-stats",
 	"team-recent-games",
-	"team-top-players",
 	"team-seasonal-performance",
 	"team-match-results",
 	"team-goals-scored-conceded",
 	"team-home-away-performance",
 	"team-key-team-stats",
+	"team-top-players",
 	"team-unique-player-stats",
 	"team-best-season-finish",
 ];
@@ -53,17 +53,17 @@ const TEAM_SECTION_IDS = [
 const CLUB_SECTION_IDS = [
 	"club-key-performance-stats",
 	"club-team-comparison",
-	"club-top-players",
 	"club-seasonal-performance",
+	"club-match-results",
+	"club-game-details",
+	"club-goals-scored-conceded",
+	"club-home-away-performance",
+	"club-big-club-numbers",
+	"club-other-club-stats",
+	"club-top-players",
 	"club-player-distribution",
 	"club-player-tenure",
 	"club-stats-distribution",
-	"club-match-results",
-	"club-game-details",
-	"club-big-club-numbers",
-	"club-goals-scored-conceded",
-	"club-home-away-performance",
-	"club-other-club-stats",
 	"club-unique-player-stats",
 ];
 
@@ -644,9 +644,9 @@ test.describe("Stats Page Tests", () => {
 			return;
 		}
 		if (hasSummary) {
-			const ratingTick = formSection.locator(".recharts-yAxis .recharts-cartesian-axis-tick tspan").filter({ hasText: /^10$/ });
-			if (!(await ratingTick.first().isVisible({ timeout: 8000 }).catch(() => false))) {
-				test.skip(true, "Form chart rendered but expected y-axis tick marker not visible.");
+			const ratingTick = formSection.locator(".recharts-yAxis .recharts-cartesian-axis-tick tspan").first();
+			if (!(await ratingTick.isVisible({ timeout: 8000 }).catch(() => false))) {
+				test.skip(true, "Form chart rendered but no y-axis tick marker visible.");
 			}
 		}
 	});

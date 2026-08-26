@@ -4,6 +4,12 @@ import { UmamiEvents } from "@/lib/analytics/events";
 import { trackEvent } from "@/lib/utils/trackEvent";
 import { log } from "../utils/logger";
 import { CachedPageData, CACHE_TTL, isCacheValid, generatePageCacheKey } from "../utils/pageCache";
+import { retryFetch } from "../utils/retryFetch";
+import {
+	notifyNeo4jColdStart,
+	notifyNeo4jColdStartRecovered,
+	notifyNeo4jColdStartStillFailing,
+} from "../services/coldStartNotifier";
 
 export type MainPage = "home" | "stats" | "totw" | "club-info" | "settings";
 export type StatsSubPage = "player-stats" | "team-stats" | "club-stats" | "comparison";
@@ -945,7 +951,18 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 		set({ isLoadingPlayerData: true });
 
 		try {
-			const response = await fetch(`/api/player-data?playerName=${encodeURIComponent(playerName)}`);
+			const response = await retryFetch(
+				`/api/player-data?playerName=${encodeURIComponent(playerName)}`,
+				undefined,
+				{
+					onRetryableFailure: () => {
+						notifyNeo4jColdStart();
+					},
+					onRecovered: () => {
+						notifyNeo4jColdStartRecovered();
+					},
+				},
+			);
 			if (response.ok) {
 				const { playerData } = await response.json();
 				const currentDate = new Date().toISOString().split("T")[0]; // YYYY-MM-DD format
@@ -962,10 +979,12 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 
 				set({ cachedPlayerData: cachedData });
 			} else {
-					log("error", "Failed to fetch player data:", response.statusText);
+				log("error", "Failed to fetch player data:", response.statusText);
+				notifyNeo4jColdStartStillFailing();
 			}
 		} catch (error) {
 			log("error", "Error fetching player data:", error);
+			notifyNeo4jColdStartStillFailing();
 		} finally {
 			set({ isLoadingPlayerData: false });
 		}
@@ -1158,17 +1177,28 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 			const { getCsrfHeaders } = await import("@/lib/middleware/csrf");
 			const csrfHeaders = getCsrfHeaders();
 
-			const response = await fetch("/api/player-data-filtered", {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					...csrfHeaders,
+			const response = await retryFetch(
+				"/api/player-data-filtered",
+				{
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						...csrfHeaders,
+					},
+					body: JSON.stringify({
+						playerName: selectedPlayer,
+						filters: playerFilters,
+					}),
 				},
-				body: JSON.stringify({
-					playerName: selectedPlayer,
-					filters: playerFilters,
-				}),
-			});
+				{
+					onRetryableFailure: () => {
+						notifyNeo4jColdStart();
+					},
+					onRecovered: () => {
+						notifyNeo4jColdStartRecovered();
+					},
+				},
+			);
 
 			if (response.ok) {
 				const data = await response.json();
@@ -1206,13 +1236,15 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 					});
 				}
 			} else {
-				console.error("❌ Failed to fetch filtered player data");
+				log("error", "Failed to fetch filtered player data:", response.statusText);
 				const errorText = await response.text();
-				console.error("❌ Error response:", errorText);
+				log("error", "Filtered player data error response:", errorText);
+				notifyNeo4jColdStartStillFailing();
 				set({ isLoadingPlayerData: false });
 			}
 		} catch (error) {
-			console.error("❌ Error fetching filtered player data:", error);
+			log("error", "Error fetching filtered player data:", error);
+			notifyNeo4jColdStartStillFailing();
 			set({ isLoadingPlayerData: false });
 		}
 	},
@@ -1481,14 +1513,38 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 		if (get().isFilterDataLoaded) return; // Already loaded
 
 		try {
-			// Load all filter data in parallel
-			const [seasonsResponse, teamsResponse, oppositionResponse, oppositionClubsResponse, competitionsResponse] = await Promise.all([
-				fetch("/api/seasons"),
-				fetch("/api/teams"),
-				fetch("/api/opposition"),
-				fetch("/api/opposition-clubs"),
-				fetch("/api/competitions"),
-			]);
+			const retryOptions = {
+				onRetryableFailure: () => {
+					notifyNeo4jColdStart();
+				},
+				onRecovered: () => {
+					notifyNeo4jColdStartRecovered();
+				},
+			};
+
+			// Load all filter data in parallel (with cold-start / HTML-404 retries)
+			const [seasonsResponse, teamsResponse, oppositionResponse, oppositionClubsResponse, competitionsResponse] =
+				await Promise.all([
+					retryFetch("/api/seasons", undefined, retryOptions),
+					retryFetch("/api/teams", undefined, retryOptions),
+					retryFetch("/api/opposition", undefined, retryOptions),
+					retryFetch("/api/opposition-clubs", undefined, retryOptions),
+					retryFetch("/api/competitions", undefined, retryOptions),
+				]);
+
+			const failed = [
+				seasonsResponse,
+				teamsResponse,
+				oppositionResponse,
+				oppositionClubsResponse,
+				competitionsResponse,
+			].find((response) => !response.ok);
+
+			if (failed) {
+				log("error", "Failed to load filter data:", failed.status, failed.statusText);
+				notifyNeo4jColdStartStillFailing();
+				return;
+			}
 
 			const [seasons, teams, opposition, oppositionClubs, competitions] = await Promise.all([
 				seasonsResponse.json(),
@@ -1509,7 +1565,8 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 				isFilterDataLoaded: true,
 			});
 		} catch (error) {
-			console.error("Failed to load filter data:", error);
+			log("error", "Failed to load filter data:", error);
+			notifyNeo4jColdStartStillFailing();
 		}
 	},
 

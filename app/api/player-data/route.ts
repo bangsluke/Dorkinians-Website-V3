@@ -244,6 +244,30 @@ export function buildFilteredPartnershipsQuery(playerName: string, filters: any)
 	return { query, params };
 }
 
+/** Player fixtures (filtered) with same-XI teammate names — used to compute per-partner lift. */
+export function buildFilteredPlayerFixtureMatesQuery(
+	playerName: string,
+	filters: any
+): { query: string; params: Record<string, unknown> } {
+	const graphLabel = neo4jService.getGraphLabel();
+	const params: Record<string, unknown> = { graphLabel, playerName };
+	const conditions = buildFilterConditions(filters, params);
+	let query = `
+		MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
+		MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+		MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+		WHERE f.result IS NOT NULL`;
+	if (conditions.length > 0) {
+		query += ` AND ${conditions.join(" AND ")}`;
+	}
+	query += `
+		OPTIONAL MATCH (f)-[:HAS_MATCH_DETAILS]->(md2:MatchDetail {graphLabel: $graphLabel})<-[:PLAYED_IN]-(teammate:Player {graphLabel: $graphLabel})
+		WHERE md2.team = md.team AND teammate <> p AND coalesce(teammate.allowOnSite, true) = true
+		WITH id(f) AS fid, f.result AS res, collect(DISTINCT teammate.playerName) AS mates
+		RETURN fid, res, mates`;
+	return { query, params };
+}
+
 export function buildFilteredImpactWithQuery(playerName: string, filters: any, team: string): { query: string; params: Record<string, unknown> } | null {
 	if (!team || String(team).trim() === "") return null;
 	const graphLabel = neo4jService.getGraphLabel();
@@ -280,7 +304,41 @@ export function buildFilteredImpactWithoutQuery(playerName: string, filters: any
 	return { query, params };
 }
 
-export type FilteredPartnershipRow = { mateName: string; matches: number; winRate: number };
+export type FilteredPartnershipRow = {
+	mateName: string;
+	matches: number;
+	winRate: number;
+	winRateWithout?: number | null;
+	lift?: number | null;
+};
+
+export type PlayerFixtureMateRow = { result: string; mates: string[] };
+
+const MIN_PARTNERSHIP_WITHOUT = 5;
+
+/** Attach per-partner lift: winRate with mate minus winRate in player's games without that mate. */
+export function enrichFilteredPartnershipsWithLift(
+	rows: FilteredPartnershipRow[],
+	fixtures: PlayerFixtureMateRow[],
+	minWithout: number = MIN_PARTNERSHIP_WITHOUT
+): FilteredPartnershipRow[] {
+	return rows.map((r) => {
+		let withoutGames = 0;
+		let withoutWins = 0;
+		for (const fx of fixtures) {
+			if (!fx.mates.includes(r.mateName)) {
+				withoutGames += 1;
+				if (fx.result === "W") withoutWins += 1;
+			}
+		}
+		if (withoutGames < minWithout) {
+			return { ...r, winRateWithout: null, lift: null };
+		}
+		const winRateWithout = Math.round((withoutWins / withoutGames) * 1000) / 10;
+		const lift = Math.round((r.winRate - winRateWithout) * 10) / 10;
+		return { ...r, winRateWithout, lift };
+	});
+}
 
 /** Build graph-insight object fields to merge into filtered player payloads (overrides precomputed Player properties). */
 export function packFilteredPlayerGraphInsights(
@@ -295,7 +353,7 @@ export function packFilteredPlayerGraphInsights(
 		return Number.isNaN(n) ? 0 : n;
 	};
 
-	/** Union top partners by co-appearance volume and by win rate so UI "best win %" is not limited to the busiest teammates only. */
+	/** Union top partners by co-appearance volume, win rate, and lift so UI toggles are not truncated. */
 	const valid = rows.filter((r) => r.mateName.length > 0 && r.matches >= 5);
 	const byName = new Map<string, FilteredPartnershipRow>();
 	for (const r of valid) {
@@ -304,9 +362,19 @@ export function packFilteredPlayerGraphInsights(
 	const all = [...byName.values()];
 	const byMatches = [...all].sort((a, b) => b.matches - a.matches || b.winRate - a.winRate || a.mateName.localeCompare(b.mateName));
 	const byWinRate = [...all].sort((a, b) => b.winRate - a.winRate || b.matches - a.matches || a.mateName.localeCompare(b.mateName));
+	const byLift = [...all]
+		.filter((r) => r.lift != null && typeof r.lift === "number" && !Number.isNaN(r.lift))
+		.sort(
+			(a, b) =>
+				(b.lift as number) - (a.lift as number) ||
+				b.winRate - a.winRate ||
+				b.matches - a.matches ||
+				a.mateName.localeCompare(b.mateName)
+		);
 	const picked = new Map<string, FilteredPartnershipRow>();
 	for (const r of byMatches.slice(0, 45)) picked.set(r.mateName, r);
 	for (const r of byWinRate.slice(0, 45)) picked.set(r.mateName, r);
+	for (const r of byLift.slice(0, 45)) picked.set(r.mateName, r);
 	const merged = [...picked.values()];
 
 	const partnershipsTopJson =
@@ -316,6 +384,8 @@ export function packFilteredPlayerGraphInsights(
 						name: r.mateName,
 						matches: Math.round(r.matches),
 						winRate: Math.round(r.winRate * 10) / 10,
+						winRateWithout: r.winRateWithout ?? null,
+						lift: r.lift ?? null,
 					}))
 				)
 			: null;

@@ -10,12 +10,27 @@ const logDebug = (message: string) => {
 	}
 };
 
-class Neo4jService {
+export class Neo4jService {
 	private driver: Driver | null = null;
 	private isConnected: boolean = false;
+	private connectPromise: Promise<boolean> | null = null;
 	private readonly GRAPH_LABEL = "dorkiniansWebsite";
 
-	async connect() {
+	async connect(): Promise<boolean> {
+		if (this.driver && this.isConnected) {
+			return true;
+		}
+		if (this.connectPromise) {
+			return this.connectPromise;
+		}
+
+		this.connectPromise = this.establishConnection().finally(() => {
+			this.connectPromise = null;
+		});
+		return this.connectPromise;
+	}
+
+	private async establishConnection(): Promise<boolean> {
 		try {
 			// Use Neo4j Aura for both production and development
 			// This ensures consistent data access across environments
@@ -26,11 +41,11 @@ class Neo4jService {
 			// Opt-in only: rewrite neo4j+s → neo4j+ssc (system CA / self-signed trust path).
 			const trustAllCertificates = process.env.NEO4J_TRUST_ALL_CERTIFICATES === "true";
 
-		logDebug(`🔧 Connection attempt - Environment: ${process.env.NODE_ENV}`);
-		logDebug(`🔧 URI configured: ${uri ? "Yes" : "No"}`);
-		logDebug(`🔧 Username configured: ${username ? "Yes" : "No"}`);
-		logDebug(`🔧 Password configured: ${password ? "Yes" : "No"}`);
-		logDebug(`🔧 Trust all certificates: ${trustAllCertificates ? "Yes" : "No"}`);
+			logDebug(`🔧 Connection attempt - Environment: ${process.env.NODE_ENV}`);
+			logDebug(`🔧 URI configured: ${uri ? "Yes" : "No"}`);
+			logDebug(`🔧 Username configured: ${username ? "Yes" : "No"}`);
+			logDebug(`🔧 Password configured: ${password ? "Yes" : "No"}`);
+			logDebug(`🔧 Trust all certificates: ${trustAllCertificates ? "Yes" : "No"}`);
 
 			if (!uri || !username || !password) {
 				const missingVars = [];
@@ -102,11 +117,20 @@ class Neo4jService {
 		} catch (error) {
 			console.error("❌ Neo4j Aura connection failed:", error);
 			this.isConnected = false;
+			if (this.driver) {
+				try {
+					await this.driver.close();
+				} catch {
+					// Ignore close errors during failed connect cleanup
+				}
+				this.driver = null;
+			}
 			return false;
 		}
 	}
 
-	async disconnect() {
+	async disconnect(): Promise<void> {
+		this.connectPromise = null;
 		if (this.driver) {
 			await this.driver.close();
 			this.driver = null;

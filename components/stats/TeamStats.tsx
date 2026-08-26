@@ -1526,6 +1526,21 @@ export default function TeamStats() {
 								<StatCardSkeleton />
 							</div>
 							<div className='mb-4 md:mb-0'>
+								<RecentGamesSkeleton />
+							</div>
+							<div className='mb-4 md:mb-0'>
+								<TopPlayersTableSkeleton />
+							</div>
+							<div className='mb-4 md:mb-0'>
+								<ChartSkeleton showDropdown={true} showTrend={true} noContainer={false} />
+							</div>
+							<div className='mb-4 md:mb-0'>
+								<ChartSkeleton showDropdown={false} showTrend={false} noContainer={false} />
+							</div>
+							<div className='mb-4 md:mb-0'>
+								<ChartSkeleton showDropdown={false} showTrend={false} noContainer={false} />
+							</div>
+							<div className='mb-4 md:mb-0'>
 								<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 									<Skeleton height={20} width="35%" className="mb-3" />
 									<div className='grid grid-cols-5 gap-2 md:gap-3'>
@@ -1544,18 +1559,6 @@ export default function TeamStats() {
 									<Skeleton height={20} width="40%" className="mb-3" />
 									<TableSkeleton rows={4} />
 								</div>
-							</div>
-							<div className='mb-4 md:mb-0'>
-								<RecentGamesSkeleton />
-							</div>
-							<div className='mb-4 md:mb-0'>
-								<TopPlayersTableSkeleton />
-							</div>
-							<div className='mb-4 md:mb-0'>
-								<ChartSkeleton showDropdown={true} showTrend={true} noContainer={false} />
-							</div>
-							<div className='mb-4 md:mb-0'>
-								<ChartSkeleton showDropdown={false} showTrend={false} noContainer={false} />
 							</div>
 							<div className='mb-4 md:mb-0'>
 								<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
@@ -1583,9 +1586,6 @@ export default function TeamStats() {
 							</div>
 							<div className='mb-4 md:mb-0'>
 								<BestSeasonFinishSkeleton />
-							</div>
-							<div className='mb-4 md:mb-0'>
-								<ChartSkeleton showDropdown={false} showTrend={false} noContainer={false} />
 							</div>
 						</div>
 					</SkeletonTheme>
@@ -1704,235 +1704,6 @@ export default function TeamStats() {
 									</div>
 								)}
 
-								{!isDataTableMode &&
-									featureFlags.teamStatsXiStreakCards &&
-									teamData.teamStreaks && (
-									<div id='team-streaks-section' className='md:break-inside-avoid md:mb-4'>
-										<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-											<div className='flex items-center gap-2 mb-2'>
-												<h3 className='text-white font-semibold text-sm md:text-base'>Streaks</h3>
-												<FloatingTooltipTrigger
-													className='inline-flex items-center justify-center w-4 h-4 text-[10px] rounded-full border border-white/40 text-white/80 cursor-help outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow/80'
-													tooltip={
-														<>
-															Streaks are based on the selected XI and current filter scope.
-														</>
-													}
-												>
-													i
-												</FloatingTooltipTrigger>
-											</div>
-											{(() => {
-												const cards = [
-													{
-														key: "wins",
-														label: "Wins",
-														tip: "Consecutive games won by this XI. A draw or loss resets the run.",
-														singular: "win",
-														plural: "wins",
-													},
-													{
-														key: "unbeaten",
-														label: "Unbeaten",
-														tip: "Consecutive games without a loss for this XI (wins or draws). A loss resets the run.",
-														singular: "game",
-														plural: "games",
-													},
-													{
-														key: "goalsScored",
-														label: "Goals Scored",
-														tip: "Consecutive games where this XI scores at least one goal. A blank resets the run.",
-														singular: "game",
-														plural: "games",
-													},
-													{
-														key: "cleanSheets",
-														label: "Clean Sheets",
-														tip: "Consecutive games where this XI concedes zero goals. Conceding resets the run.",
-														singular: "clean sheet",
-														plural: "clean sheets",
-													},
-													{
-														key: "noCards",
-														label: "No Cards",
-														tip: "Consecutive games where all playing players avoid yellow/red cards. Any card resets the run.",
-														singular: "game",
-														plural: "games",
-													},
-												] as const;
-												const orderedCards = [...cards].sort((a, b) => {
-													const aVal = toNumber(teamData.teamStreaks?.[a.key]?.current);
-													const bVal = toNumber(teamData.teamStreaks?.[b.key]?.current);
-													return Number(bVal > 0) - Number(aVal > 0);
-												});
-												return (
-													<div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2'>
-														{orderedCards.map(({ key, label, tip, singular, plural }) => {
-															const metric = teamData.teamStreaks?.[key];
-															if (!metric) return null;
-															const currentVal = toNumber(metric.current);
-															const seasonBestVal = toNumber(metric.seasonBest);
-															const allTimeBestVal = toNumber(metric.allTimeBest);
-															const currentLabel = currentVal === 1 ? singular : plural;
-															const seasonBestLabel = seasonBestVal === 1 ? singular : plural;
-															const allTimeBestLabel = allTimeBestVal === 1 ? singular : plural;
-															const lit = currentVal > 0;
-															return (
-																<FloatingTooltipTrigger
-																	key={key}
-																	className={`rounded-lg p-2 flex flex-col items-center text-center cursor-help outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow/80 ${
-																		lit ? "bg-white/12" : "bg-white/5 opacity-75"
-																	}`}
-																	tooltip={
-																		<>
-																			<p className='text-white/95 leading-snug'>{tip}</p>
-																			<div className='mt-2 pt-2 border-t border-white/20 space-y-1 text-white/90'>
-																				<p>
-																					Current: {currentVal} {currentLabel}
-																					{formatStreakRange(metric.currentRange?.startDate, metric.currentRange?.endDate)}
-																				</p>
-																				<p>
-																					Season best: {seasonBestVal} {seasonBestLabel}
-																					{formatStreakRange(metric.seasonBestRange?.startDate, metric.seasonBestRange?.endDate)}
-																				</p>
-																				<p>
-																					All-time best: {allTimeBestVal} {allTimeBestLabel}
-																					{formatStreakRange(metric.allTimeBestRange?.startDate, metric.allTimeBestRange?.endDate)}
-																				</p>
-																			</div>
-																		</>
-																	}
-																>
-																	<div className={`flex h-11 w-11 items-center justify-center rounded-full text-sm font-bold ${
-																		lit ? "bg-dorkinians-yellow text-black" : "bg-white/15 text-white/80"
-																	}`}>
-																		{currentVal}
-																	</div>
-																	<p className='text-white/90 text-[11px] md:text-xs leading-tight mt-1'>{label}</p>
-																	<p className='text-white/55 text-[10px] leading-tight'>Season best: {seasonBestVal}</p>
-																	<p className='text-white/55 text-[10px] leading-tight'>All-time best: {allTimeBestVal}</p>
-																</FloatingTooltipTrigger>
-															);
-														})}
-													</div>
-												);
-											})()}
-										</div>
-									</div>
-								)}
-
-								{!isDataTableMode &&
-									featureFlags.teamStatsStreakAndForm &&
-									((teamData.streakLeaders && teamData.streakLeaders.length > 0) ||
-										(teamData.streakLeadersAllTime && teamData.streakLeadersAllTime.length > 0)) && (
-									<div id='team-streak-leaders' className='md:break-inside-avoid md:mb-4'>
-										<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-											<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Team Streaks</h3>
-											{teamData.streakLeaders && teamData.streakLeaders.length > 0 && (
-												<>
-													<div className='flex items-center gap-2 mb-2'>
-														<h4 className='text-white/85 font-medium text-xs md:text-sm'>Longest Active Streaks</h4>
-														<FloatingTooltipTrigger
-															className='inline-flex items-center justify-center w-4 h-4 text-[10px] rounded-full border border-white/40 text-white/80 cursor-help outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow/80'
-															tooltip={
-																<>
-																	Shows the player with the longest current run for each category in this XI context.
-																</>
-															}
-														>
-															i
-														</FloatingTooltipTrigger>
-													</div>
-													<div className='grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3'>
-														{teamData.streakLeaders.map((row) => {
-															const tipByCategory: Record<string, string> = {
-																wins: "Consecutive player appearances in this XI where the result is a win.",
-																unbeaten: "Consecutive player appearances in this XI without a loss (wins or draws).",
-																goalsScored: "Consecutive player appearances in this XI where that player scores at least one goal or penalty.",
-																cleanSheets: "Consecutive player appearances in this XI where the team concedes zero.",
-																noCards: "Consecutive player appearances in this XI where the player receives no yellow/red card.",
-															};
-															const tip = tipByCategory[row.category] ?? "Current active run for this streak category.";
-															return (
-																<FloatingTooltipTrigger
-																	key={`active-${row.category}`}
-																	className='bg-white/5 rounded-lg px-3 py-2 flex flex-col gap-0.5 cursor-help outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow/80'
-																	tooltip={
-																		<>
-																			<p className='text-white/95 leading-snug'>{tip}</p>
-																			<div className='mt-2 pt-2 border-t border-white/20 space-y-1 text-white/90'>
-																				<p>Player: {row.playerName}</p>
-																				<p>Active run: {row.value} in a row</p>
-																				<p>Date range: {formatStreakRange(row.startDate, row.endDate) || "-"}</p>
-																			</div>
-																		</>
-																	}
-																>
-																	<span className='text-white/70 text-xs'>{row.label}</span>
-																	<span className='text-white font-semibold text-sm md:text-base'>{row.playerName}</span>
-																	<span className='text-dorkinians-yellow text-xs md:text-sm'>
-																		{row.value} in a row{formatStreakRange(row.startDate, row.endDate)}
-																	</span>
-																</FloatingTooltipTrigger>
-															);
-														})}
-													</div>
-												</>
-											)}
-											{teamData.streakLeadersAllTime && teamData.streakLeadersAllTime.length > 0 && (
-												<>
-													<div className='flex items-center gap-2 mb-2'>
-														<h4 className='text-white/85 font-medium text-xs md:text-sm'>Longest All Time Streaks</h4>
-														<FloatingTooltipTrigger
-															className='inline-flex items-center justify-center w-4 h-4 text-[10px] rounded-full border border-white/40 text-white/80 cursor-help outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow/80'
-															tooltip={
-																<>
-																	Shows the player with the longest historical run for each category in this XI context.
-																</>
-															}
-														>
-															i
-														</FloatingTooltipTrigger>
-													</div>
-													<div className='grid grid-cols-1 sm:grid-cols-2 gap-2'>
-														{teamData.streakLeadersAllTime.map((row) => {
-															const tipByCategory: Record<string, string> = {
-																wins: "Longest historical run of consecutive player appearances in this XI where the result is a win.",
-																unbeaten: "Longest historical run of consecutive player appearances in this XI without a loss (wins or draws).",
-																goalsScored: "Longest historical run of consecutive player appearances in this XI where that player scores at least one goal or penalty.",
-																cleanSheets: "Longest historical run of consecutive player appearances in this XI where the team concedes zero.",
-																noCards: "Longest historical run of consecutive player appearances in this XI where the player receives no yellow/red card.",
-															};
-															const tip = tipByCategory[row.category] ?? "Longest all-time run for this streak category.";
-															return (
-																<FloatingTooltipTrigger
-																	key={`alltime-${row.category}`}
-																	className='bg-white/[0.07] border border-white/20 rounded-lg px-3 py-2 flex flex-col gap-0.5 cursor-help outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow/80'
-																	tooltip={
-																		<>
-																			<p className='text-white/95 leading-snug'>{tip}</p>
-																			<div className='mt-2 pt-2 border-t border-white/20 space-y-1 text-white/90'>
-																				<p>Player: {row.playerName}</p>
-																				<p>All-time run: {row.value} in a row</p>
-																				<p>Date range: {formatStreakRange(row.startDate, row.endDate) || "-"}</p>
-																			</div>
-																		</>
-																	}
-																>
-																	<span className='text-white/70 text-xs'>{row.label}</span>
-																	<span className='text-white font-semibold text-sm md:text-base'>{row.playerName}</span>
-																	<span className='text-white/90 text-xs md:text-sm'>
-																		{row.value} in a row{formatStreakRange(row.startDate, row.endDate)}
-																	</span>
-																</FloatingTooltipTrigger>
-															);
-														})}
-													</div>
-												</>
-											)}
-										</div>
-									</div>
-								)}
 
 								{/* Recent Games Form */}
 								{!isDataTableMode && selectedTeam && apiFilters && (
@@ -1940,154 +1711,6 @@ export default function TeamStats() {
 										<RecentGamesForm teamName={selectedTeam} filters={apiFilters} />
 									</div>
 								)}
-								{/* Top Players Table */}
-								<div id='team-top-players' className='relative z-30 mb-4 flex-shrink-0 md:break-inside-avoid md:mb-4'>
-									<div className='relative z-30 bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-										<h3 className='text-white font-semibold text-sm md:text-base mb-2' data-testid="team-top-players-heading">Top 5 {getStatTypeLabel(selectedStatType)}</h3>
-										<div className='relative z-40 mb-2'>
-											<Listbox value={selectedStatType} onChange={handleStatTypeSelect}>
-												<div className='relative'>
-													<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-xs md:text-sm'>
-														<span className='block truncate text-white'>
-															{getStatTypeLabel(selectedStatType)}
-														</span>
-														<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
-															<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
-														</span>
-													</Listbox.Button>
-													<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-xs md:text-sm shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
-														{([
-															"appearances",
-															"starts",
-															"minutes",
-															"mom",
-															"goals",
-															"assists",
-															"goalInvolvements",
-															"fantasyPoints",
-															"cleanSheets",
-															"saves",
-															"yellowCards",
-															"redCards",
-															"penaltiesScored",
-															"penaltiesSaved",
-															"penaltiesConceded",
-															"penaltiesMissed",
-															"conceded",
-															"ownGoals",
-															"distance",
-															"avgMatchRating",
-															"matchesRated8Plus",
-															"goalsPer90",
-															"assistsPer90",
-															"goalInvolvementsPer90",
-															"ftpPer90",
-															"cleanSheetsPer90",
-															"concededPer90",
-															"savesPer90",
-															"cardsPer90",
-															"momPer90",
-															...(featureFlags.teamStatsStreakAndForm ? (["bestCurrentForm"] as const) : []),
-														] as StatType[]).map((statType) => (
-															<Listbox.Option
-																key={statType}
-																className={({ active }) =>
-																	`relative cursor-default select-none dark-dropdown-option ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
-																}
-																value={statType}>
-																{({ selected }) => (
-																	<span className={`block truncate py-1 px-2 ${selected ? "font-medium" : "font-normal"}`}>
-																		{getStatTypeLabel(statType)}
-																	</span>
-																)}
-															</Listbox.Option>
-														))}
-													</Listbox.Options>
-												</div>
-											</Listbox>
-										</div>
-										{isLoadingTopPlayers ? (
-											<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-												<TopPlayersTableSkeleton />
-											</SkeletonTheme>
-										) : topPlayers.length > 0 ? (
-											<div className='overflow-x-auto'>
-												<table className='w-full text-white'>
-												<thead>
-													<tr className='border-b-2 border-dorkinians-yellow'>
-														<th className='text-left py-2 px-2 text-xs md:text-sm w-auto'>
-															<div className='flex items-center gap-2'>
-																<div className='w-10 md:w-12'></div>
-																<div>Player Name</div>
-															</div>
-														</th>
-														<th className='text-center py-2 px-2 text-xs md:text-sm w-20 md:w-24'>{getStatTypeLabel(selectedStatType)}</th>
-													</tr>
-												</thead>
-												<tbody>
-													{topPlayers.map((player, index) => {
-														const isLastPlayer = index === topPlayers.length - 1;
-														const statValue = getStatValue(player, selectedStatType);
-														let formattedStatValue: string | number;
-														if (selectedStatType === "minutes") {
-															formattedStatValue = statValue.toLocaleString();
-														} else if (selectedStatType === "distance") {
-															formattedStatValue = (Math.round(statValue * 10) / 10).toFixed(1);
-														} else if (selectedStatType === "avgMatchRating") {
-															formattedStatValue = player.averageMatchRating != null ? player.averageMatchRating.toFixed(1) : "-";
-														} else if (["goalsPer90", "assistsPer90", "goalInvolvementsPer90", "ftpPer90", "cleanSheetsPer90", "concededPer90", "savesPer90", "cardsPer90", "momPer90"].includes(selectedStatType)) {
-															const per90Value =
-																selectedStatType === "goalsPer90" ? player.goalsPer90 :
-																selectedStatType === "assistsPer90" ? player.assistsPer90 :
-																selectedStatType === "goalInvolvementsPer90" ? player.goalInvolvementsPer90 :
-																selectedStatType === "ftpPer90" ? player.ftpPer90 :
-																selectedStatType === "cleanSheetsPer90" ? player.cleanSheetsPer90 :
-																selectedStatType === "concededPer90" ? player.concededPer90 :
-																selectedStatType === "savesPer90" ? player.savesPer90 :
-																selectedStatType === "cardsPer90" ? player.cardsPer90 :
-																player.momPer90;
-															formattedStatValue = per90Value != null ? per90Value.toFixed(2) : "-";
-														} else if (selectedStatType === "bestCurrentForm") {
-															formattedStatValue = player.currentFormEwma != null ? player.currentFormEwma.toFixed(1) : "-";
-														} else {
-															formattedStatValue = statValue;
-														}
-														const summary = formatPlayerSummary(player, selectedStatType);
-														
-														return (
-															<tr
-																key={player.playerName}
-																className={`${isLastPlayer ? '' : 'border-b border-green-500'}`}
-																style={{
-																	background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05))',
-																}}>
-																<td className='py-2 px-2 align-top' colSpan={2}>
-																	<div className='flex flex-col'>
-																		<div className='flex items-center gap-2'>
-																			<div className='text-base md:text-lg font-semibold whitespace-nowrap w-10 md:w-12'>{formatRank(index + 1)}</div>
-																			<div className='text-base md:text-lg font-semibold flex-1'>{player.playerName}</div>
-																			<div className='text-base md:text-lg font-bold w-20 md:w-24 text-center'>{formattedStatValue}</div>
-																		</div>
-																		<div className='pt-1 pl-[3rem] md:pl-[3.5rem]'>
-																			<div className='text-[0.7rem] md:text-[0.8rem] text-gray-300 text-left'>
-																				{summary}
-																			</div>
-																		</div>
-																	</div>
-																</td>
-															</tr>
-														);
-													})}
-												</tbody>
-												</table>
-											</div>
-										) : (
-											<div className='p-4'>
-												<p className='text-white text-xs md:text-sm text-center'>No players found</p>
-											</div>
-										)}
-									</div>
-								</div>
 
 								{/* Seasonal Performance Section */}
 								{allSeasonsSelected && (
@@ -2259,8 +1882,6 @@ export default function TeamStats() {
 															Games and win rate by inferred formation from the starting XI.
 															<br />
 															Only fixtures with at least 11 starters are included.
-															<br />
-															GK is excluded from the formation split (for example: 4-4-2).
 														</>
 													}
 												>
@@ -2530,6 +2151,155 @@ export default function TeamStats() {
 									</div>
 								)}
 
+								{/* Top Players Table */}
+								<div id='team-top-players' className='relative z-30 mb-4 flex-shrink-0 md:break-inside-avoid md:mb-4'>
+									<div className='relative z-30 bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+										<h3 className='text-white font-semibold text-sm md:text-base mb-2' data-testid="team-top-players-heading">Top 5 {getStatTypeLabel(selectedStatType)}</h3>
+										<div className='relative z-40 mb-2'>
+											<Listbox value={selectedStatType} onChange={handleStatTypeSelect}>
+												<div className='relative'>
+													<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-xs md:text-sm'>
+														<span className='block truncate text-white'>
+															{getStatTypeLabel(selectedStatType)}
+														</span>
+														<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
+															<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
+														</span>
+													</Listbox.Button>
+													<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-xs md:text-sm shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
+														{([
+															"appearances",
+															"starts",
+															"minutes",
+															"mom",
+															"goals",
+															"assists",
+															"goalInvolvements",
+															"fantasyPoints",
+															"cleanSheets",
+															"saves",
+															"yellowCards",
+															"redCards",
+															"penaltiesScored",
+															"penaltiesSaved",
+															"penaltiesConceded",
+															"penaltiesMissed",
+															"conceded",
+															"ownGoals",
+															"distance",
+															"avgMatchRating",
+															"matchesRated8Plus",
+															"goalsPer90",
+															"assistsPer90",
+															"goalInvolvementsPer90",
+															"ftpPer90",
+															"cleanSheetsPer90",
+															"concededPer90",
+															"savesPer90",
+															"cardsPer90",
+															"momPer90",
+															...(featureFlags.teamStatsStreakAndForm ? (["bestCurrentForm"] as const) : []),
+														] as StatType[]).map((statType) => (
+															<Listbox.Option
+																key={statType}
+																className={({ active }) =>
+																	`relative cursor-default select-none dark-dropdown-option ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
+																}
+																value={statType}>
+																{({ selected }) => (
+																	<span className={`block truncate py-1 px-2 ${selected ? "font-medium" : "font-normal"}`}>
+																		{getStatTypeLabel(statType)}
+																	</span>
+																)}
+															</Listbox.Option>
+														))}
+													</Listbox.Options>
+												</div>
+											</Listbox>
+										</div>
+										{isLoadingTopPlayers ? (
+											<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+												<TopPlayersTableSkeleton />
+											</SkeletonTheme>
+										) : topPlayers.length > 0 ? (
+											<div className='overflow-x-auto'>
+												<table className='w-full text-white'>
+												<thead>
+													<tr className='border-b-2 border-dorkinians-yellow'>
+														<th className='text-left py-2 px-2 text-xs md:text-sm w-auto'>
+															<div className='flex items-center gap-2'>
+																<div className='w-10 md:w-12'></div>
+																<div>Player Name</div>
+															</div>
+														</th>
+														<th className='text-center py-2 px-2 text-xs md:text-sm w-20 md:w-24'>{getStatTypeLabel(selectedStatType)}</th>
+													</tr>
+												</thead>
+												<tbody>
+													{topPlayers.map((player, index) => {
+														const isLastPlayer = index === topPlayers.length - 1;
+														const statValue = getStatValue(player, selectedStatType);
+														let formattedStatValue: string | number;
+														if (selectedStatType === "minutes") {
+															formattedStatValue = statValue.toLocaleString();
+														} else if (selectedStatType === "distance") {
+															formattedStatValue = (Math.round(statValue * 10) / 10).toFixed(1);
+														} else if (selectedStatType === "avgMatchRating") {
+															formattedStatValue = player.averageMatchRating != null ? player.averageMatchRating.toFixed(1) : "-";
+														} else if (["goalsPer90", "assistsPer90", "goalInvolvementsPer90", "ftpPer90", "cleanSheetsPer90", "concededPer90", "savesPer90", "cardsPer90", "momPer90"].includes(selectedStatType)) {
+															const per90Value =
+																selectedStatType === "goalsPer90" ? player.goalsPer90 :
+																selectedStatType === "assistsPer90" ? player.assistsPer90 :
+																selectedStatType === "goalInvolvementsPer90" ? player.goalInvolvementsPer90 :
+																selectedStatType === "ftpPer90" ? player.ftpPer90 :
+																selectedStatType === "cleanSheetsPer90" ? player.cleanSheetsPer90 :
+																selectedStatType === "concededPer90" ? player.concededPer90 :
+																selectedStatType === "savesPer90" ? player.savesPer90 :
+																selectedStatType === "cardsPer90" ? player.cardsPer90 :
+																player.momPer90;
+															formattedStatValue = per90Value != null ? per90Value.toFixed(2) : "-";
+														} else if (selectedStatType === "bestCurrentForm") {
+															formattedStatValue = player.currentFormEwma != null ? player.currentFormEwma.toFixed(1) : "-";
+														} else {
+															formattedStatValue = statValue;
+														}
+														const summary = formatPlayerSummary(player, selectedStatType);
+														
+														return (
+															<tr
+																key={player.playerName}
+																className={`${isLastPlayer ? '' : 'border-b border-green-500'}`}
+																style={{
+																	background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05))',
+																}}>
+																<td className='py-2 px-2 align-top' colSpan={2}>
+																	<div className='flex flex-col'>
+																		<div className='flex items-center gap-2'>
+																			<div className='text-base md:text-lg font-semibold whitespace-nowrap w-10 md:w-12'>{formatRank(index + 1)}</div>
+																			<div className='text-base md:text-lg font-semibold flex-1'>{player.playerName}</div>
+																			<div className='text-base md:text-lg font-bold w-20 md:w-24 text-center'>{formattedStatValue}</div>
+																		</div>
+																		<div className='pt-1 pl-[3rem] md:pl-[3.5rem]'>
+																			<div className='text-[0.7rem] md:text-[0.8rem] text-gray-300 text-left'>
+																				{summary}
+																			</div>
+																		</div>
+																	</div>
+																</td>
+															</tr>
+														);
+													})}
+												</tbody>
+												</table>
+											</div>
+										) : (
+											<div className='p-4'>
+												<p className='text-white text-xs md:text-sm text-center'>No players found</p>
+											</div>
+										)}
+									</div>
+								</div>
+
 								{/* Unique Player Stats Section */}
 								{isLoadingUniqueStats ? (
 									<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
@@ -2651,6 +2421,236 @@ export default function TeamStats() {
 										fixtures={teamRecordings}
 										testIdPrefix='team-recording'
 									/>
+								)}
+
+								{!isDataTableMode &&
+									featureFlags.teamStatsXiStreakCards &&
+									teamData.teamStreaks && (
+									<div id='team-streaks-section' className='md:break-inside-avoid md:mb-4'>
+										<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+											<div className='flex items-center gap-2 mb-2'>
+												<h3 className='text-white font-semibold text-sm md:text-base'>Streaks</h3>
+												<FloatingTooltipTrigger
+													className='inline-flex items-center justify-center w-4 h-4 text-[10px] rounded-full border border-white/40 text-white/80 cursor-help outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow/80'
+													tooltip={
+														<>
+															Streaks are based on the selected XI and current filter scope.
+														</>
+													}
+												>
+													i
+												</FloatingTooltipTrigger>
+											</div>
+											{(() => {
+												const cards = [
+													{
+														key: "wins",
+														label: "Wins",
+														tip: "Consecutive games won by this XI. A draw or loss resets the run.",
+														singular: "win",
+														plural: "wins",
+													},
+													{
+														key: "unbeaten",
+														label: "Unbeaten",
+														tip: "Consecutive games without a loss for this XI (wins or draws). A loss resets the run.",
+														singular: "game",
+														plural: "games",
+													},
+													{
+														key: "goalsScored",
+														label: "Goals Scored",
+														tip: "Consecutive games where this XI scores at least one goal. A blank resets the run.",
+														singular: "game",
+														plural: "games",
+													},
+													{
+														key: "cleanSheets",
+														label: "Clean Sheets",
+														tip: "Consecutive games where this XI concedes zero goals. Conceding resets the run.",
+														singular: "clean sheet",
+														plural: "clean sheets",
+													},
+													{
+														key: "noCards",
+														label: "No Cards",
+														tip: "Consecutive games where all playing players avoid yellow/red cards. Any card resets the run.",
+														singular: "game",
+														plural: "games",
+													},
+												] as const;
+												const orderedCards = [...cards].sort((a, b) => {
+													const aVal = toNumber(teamData.teamStreaks?.[a.key]?.current);
+													const bVal = toNumber(teamData.teamStreaks?.[b.key]?.current);
+													return Number(bVal > 0) - Number(aVal > 0);
+												});
+												return (
+													<div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2'>
+														{orderedCards.map(({ key, label, tip, singular, plural }) => {
+															const metric = teamData.teamStreaks?.[key];
+															if (!metric) return null;
+															const currentVal = toNumber(metric.current);
+															const seasonBestVal = toNumber(metric.seasonBest);
+															const allTimeBestVal = toNumber(metric.allTimeBest);
+															const currentLabel = currentVal === 1 ? singular : plural;
+															const seasonBestLabel = seasonBestVal === 1 ? singular : plural;
+															const allTimeBestLabel = allTimeBestVal === 1 ? singular : plural;
+															const lit = currentVal > 0;
+															return (
+																<FloatingTooltipTrigger
+																	key={key}
+																	className={`rounded-lg p-2 flex flex-col items-center text-center cursor-help outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow/80 ${
+																		lit ? "bg-white/12" : "bg-white/5 opacity-75"
+																	}`}
+																	tooltip={
+																		<>
+																			<p className='text-white/95 leading-snug'>{tip}</p>
+																			<div className='mt-2 pt-2 border-t border-white/20 space-y-1 text-white/90'>
+																				<p>
+																					Current: {currentVal} {currentLabel}
+																					{formatStreakRange(metric.currentRange?.startDate, metric.currentRange?.endDate)}
+																				</p>
+																				<p>
+																					Season best: {seasonBestVal} {seasonBestLabel}
+																					{formatStreakRange(metric.seasonBestRange?.startDate, metric.seasonBestRange?.endDate)}
+																				</p>
+																				<p>
+																					All-time best: {allTimeBestVal} {allTimeBestLabel}
+																					{formatStreakRange(metric.allTimeBestRange?.startDate, metric.allTimeBestRange?.endDate)}
+																				</p>
+																			</div>
+																		</>
+																	}
+																>
+																	<div className={`flex h-11 w-11 items-center justify-center rounded-full text-sm font-bold ${
+																		lit ? "bg-dorkinians-yellow text-black" : "bg-white/15 text-white/80"
+																	}`}>
+																		{currentVal}
+																	</div>
+																	<p className='text-white/90 text-[11px] md:text-xs leading-tight mt-1'>{label}</p>
+																	<p className='text-white/55 text-[10px] leading-tight'>Season best: {seasonBestVal}</p>
+																	<p className='text-white/55 text-[10px] leading-tight'>All-time best: {allTimeBestVal}</p>
+																</FloatingTooltipTrigger>
+															);
+														})}
+													</div>
+												);
+											})()}
+										</div>
+									</div>
+								)}
+
+								{!isDataTableMode &&
+									featureFlags.teamStatsStreakAndForm &&
+									((teamData.streakLeaders && teamData.streakLeaders.length > 0) ||
+										(teamData.streakLeadersAllTime && teamData.streakLeadersAllTime.length > 0)) && (
+									<div id='team-streak-leaders' className='md:break-inside-avoid md:mb-4'>
+										<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+											<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Team Streaks</h3>
+											{teamData.streakLeaders && teamData.streakLeaders.length > 0 && (
+												<>
+													<div className='flex items-center gap-2 mb-2'>
+														<h4 className='text-white/85 font-medium text-xs md:text-sm'>Longest Active Streaks</h4>
+														<FloatingTooltipTrigger
+															className='inline-flex items-center justify-center w-4 h-4 text-[10px] rounded-full border border-white/40 text-white/80 cursor-help outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow/80'
+															tooltip={
+																<>
+																	Shows the player with the longest current run for each category in this XI context.
+																</>
+															}
+														>
+															i
+														</FloatingTooltipTrigger>
+													</div>
+													<div className='grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3'>
+														{teamData.streakLeaders.map((row) => {
+															const tipByCategory: Record<string, string> = {
+																wins: "Consecutive player appearances in this XI where the result is a win.",
+																unbeaten: "Consecutive player appearances in this XI without a loss (wins or draws).",
+																goalsScored: "Consecutive player appearances in this XI where that player scores at least one goal or penalty.",
+																cleanSheets: "Consecutive player appearances in this XI where the team concedes zero.",
+																noCards: "Consecutive player appearances in this XI where the player receives no yellow/red card.",
+															};
+															const tip = tipByCategory[row.category] ?? "Current active run for this streak category.";
+															return (
+																<FloatingTooltipTrigger
+																	key={`active-${row.category}`}
+																	className='bg-white/5 rounded-lg px-3 py-2 flex flex-col gap-0.5 cursor-help outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow/80'
+																	tooltip={
+																		<>
+																			<p className='text-white/95 leading-snug'>{tip}</p>
+																			<div className='mt-2 pt-2 border-t border-white/20 space-y-1 text-white/90'>
+																				<p>Player: {row.playerName}</p>
+																				<p>Active run: {row.value} in a row</p>
+																				<p>Date range: {formatStreakRange(row.startDate, row.endDate) || "-"}</p>
+																			</div>
+																		</>
+																	}
+																>
+																	<span className='text-white/70 text-xs'>{row.label}</span>
+																	<span className='text-white font-semibold text-sm md:text-base'>{row.playerName}</span>
+																	<span className='text-dorkinians-yellow text-xs md:text-sm'>
+																		{row.value} in a row{formatStreakRange(row.startDate, row.endDate)}
+																	</span>
+																</FloatingTooltipTrigger>
+															);
+														})}
+													</div>
+												</>
+											)}
+											{teamData.streakLeadersAllTime && teamData.streakLeadersAllTime.length > 0 && (
+												<>
+													<div className='flex items-center gap-2 mb-2'>
+														<h4 className='text-white/85 font-medium text-xs md:text-sm'>Longest All Time Streaks</h4>
+														<FloatingTooltipTrigger
+															className='inline-flex items-center justify-center w-4 h-4 text-[10px] rounded-full border border-white/40 text-white/80 cursor-help outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow/80'
+															tooltip={
+																<>
+																	Shows the player with the longest historical run for each category in this XI context.
+																</>
+															}
+														>
+															i
+														</FloatingTooltipTrigger>
+													</div>
+													<div className='grid grid-cols-1 sm:grid-cols-2 gap-2'>
+														{teamData.streakLeadersAllTime.map((row) => {
+															const tipByCategory: Record<string, string> = {
+																wins: "Longest historical run of consecutive player appearances in this XI where the result is a win.",
+																unbeaten: "Longest historical run of consecutive player appearances in this XI without a loss (wins or draws).",
+																goalsScored: "Longest historical run of consecutive player appearances in this XI where that player scores at least one goal or penalty.",
+																cleanSheets: "Longest historical run of consecutive player appearances in this XI where the team concedes zero.",
+																noCards: "Longest historical run of consecutive player appearances in this XI where the player receives no yellow/red card.",
+															};
+															const tip = tipByCategory[row.category] ?? "Longest all-time run for this streak category.";
+															return (
+																<FloatingTooltipTrigger
+																	key={`alltime-${row.category}`}
+																	className='bg-white/[0.07] border border-white/20 rounded-lg px-3 py-2 flex flex-col gap-0.5 cursor-help outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow/80'
+																	tooltip={
+																		<>
+																			<p className='text-white/95 leading-snug'>{tip}</p>
+																			<div className='mt-2 pt-2 border-t border-white/20 space-y-1 text-white/90'>
+																				<p>Player: {row.playerName}</p>
+																				<p>All-time run: {row.value} in a row</p>
+																				<p>Date range: {formatStreakRange(row.startDate, row.endDate) || "-"}</p>
+																			</div>
+																		</>
+																	}
+																>
+																	<span className='text-white/70 text-xs'>{row.label}</span>
+																	<span className='text-white font-semibold text-sm md:text-base'>{row.playerName}</span>
+																	<span className='text-white/90 text-xs md:text-sm'>
+																		{row.value} in a row{formatStreakRange(row.startDate, row.endDate)}
+																	</span>
+																</FloatingTooltipTrigger>
+															);
+														})}
+													</div>
+												</>
+											)}
+										</div>
+									</div>
 								)}
 
 								{/* Best Season Finish Section */}

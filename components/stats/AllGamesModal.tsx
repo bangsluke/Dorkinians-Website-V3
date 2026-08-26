@@ -21,6 +21,7 @@ interface AllGamesModalProps {
 interface SeasonSummary {
 	season: string;
 	apps: number;
+	avgRating?: number | null;
 }
 
 interface GameSummary {
@@ -380,13 +381,8 @@ export default function AllGamesModal({
 								const isSeasonExpanded = expandedSeasons.has(s.season);
 								const games = gamesBySeason[s.season] ?? [];
 								const gamesLoading = gamesLoadingBySeason[s.season];
-								const ratedInSeason = games.filter((g) => g.matchRating != null && !Number.isNaN(Number(g.matchRating)));
 								const seasonAvgRating =
-									ratedInSeason.length > 0
-										? Math.round(
-												(ratedInSeason.reduce((sum, g) => sum + Number(g.matchRating), 0) / ratedInSeason.length) * 10
-											) / 10
-										: null;
+									s.avgRating != null && !Number.isNaN(Number(s.avgRating)) ? Number(s.avgRating) : null;
 
 								return (
 									<div key={s.season} className="rounded-lg border border-white/10 bg-white/5 overflow-hidden">
@@ -395,10 +391,19 @@ export default function AllGamesModal({
 											onClick={() => toggleSeason(s.season)}
 											className="w-full flex items-center justify-between p-4 text-left text-white hover:bg-white/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)]"
 										>
-											<span className="font-medium">
-												{s.season} Season ({s.apps} App{s.apps === 1 ? "" : "s"})
-												{seasonAvgRating != null && !gamesLoading && games.length > 0 && (
-													<span className="text-dorkinians-yellow font-normal"> · Avg rating {seasonAvgRating.toFixed(1)}</span>
+											<span className="min-w-0">
+												<span className="font-medium block">
+													{s.season} Season ({s.apps} App{s.apps === 1 ? "" : "s"})
+												</span>
+												{seasonAvgRating != null && (
+													<span className="mt-1 inline-flex items-center gap-1.5 text-xs font-normal text-white/70">
+														Avg rating
+														<span
+															className={`px-1.5 py-0.5 rounded text-[0.7rem] font-semibold ${matchRatingCircleClass(seasonAvgRating)}`}
+														>
+															{seasonAvgRating.toFixed(1)}
+														</span>
+													</span>
 												)}
 											</span>
 											{isSeasonExpanded ? (
@@ -419,16 +424,6 @@ export default function AllGamesModal({
 												)}
 												{!gamesLoading && games.length === 0 && (
 													<p className="text-gray-400 text-sm">No games in this season</p>
-												)}
-												{!gamesLoading && games.length > 0 && ratedInSeason.length > 0 && (
-													<p className="text-xs text-gray-500 mb-2">
-														Match rating (1–10):{" "}
-														<span className={`inline-block px-1.5 py-0.5 rounded text-[0.65rem] font-medium ${matchRatingCircleClass(8.5)}`}>8.5-10</span>{" "}
-														<span className={`ml-1 inline-block px-1.5 py-0.5 rounded text-[0.65rem] font-medium ${matchRatingCircleClass(7.1)}`}>7.0-8.4</span>{" "}
-														<span className={`ml-1 inline-block px-1.5 py-0.5 rounded text-[0.65rem] font-medium ${matchRatingCircleClass(6.1)}`}>6.0-6.9</span>{" "}
-														<span className={`ml-1 inline-block px-1.5 py-0.5 rounded text-[0.65rem] font-medium ${matchRatingCircleClass(4.1)}`}>4.0-5.9</span>{" "}
-														<span className={`ml-1 inline-block px-1.5 py-0.5 rounded text-[0.65rem] font-medium ${matchRatingCircleClass(3.5)}`}>1.0-3.9</span>
-													</p>
 												)}
 												{!gamesLoading &&
 													games.length > 0 &&

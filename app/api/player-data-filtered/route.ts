@@ -4,10 +4,13 @@ import {
 	buildFilteredImpactWithQuery,
 	buildFilteredImpactWithoutQuery,
 	buildFilteredPartnershipsQuery,
+	buildFilteredPlayerFixtureMatesQuery,
 	buildPlayerStatsQuery,
 	mapPlayerStreakFieldsFromRecord,
+	enrichFilteredPartnershipsWithLift,
 	packFilteredPlayerGraphInsights,
 	type FilteredPartnershipRow,
+	type PlayerFixtureMateRow,
 	PLAYER_GRAPH_INSIGHT_PROPERTY_RETURN,
 	PLAYER_STREAK_PROPERTY_RETURN,
 } from "../player-data/route";
@@ -37,6 +40,20 @@ async function loadFilteredPlayerGraphInsights(
 		}))
 		.filter((r: FilteredPartnershipRow) => r.mateName.length > 0 && r.matches >= 5);
 
+	const { query: fq, params: fp } = buildFilteredPlayerFixtureMatesQuery(playerName, filters);
+	const fRes = await neo4jService.runQuery(fq, fp);
+	const fixtures: PlayerFixtureMateRow[] = fRes.records.map((rec: { get: (key: string) => unknown }) => {
+		const matesRaw = rec.get("mates");
+		const mates = Array.isArray(matesRaw)
+			? matesRaw.filter((m) => m != null).map((m) => String(m))
+			: [];
+		return {
+			result: String(rec.get("res") ?? ""),
+			mates,
+		};
+	});
+	const enrichedRows = enrichFilteredPartnershipsWithLift(rows, fixtures);
+
 	let withStats: { games: number; wins: number } | null = null;
 	let withoutStats: { games: number; wins: number } | null = null;
 
@@ -59,7 +76,7 @@ async function loadFilteredPlayerGraphInsights(
 		}
 	}
 
-	return packFilteredPlayerGraphInsights(rows, withStats, withoutStats);
+	return packFilteredPlayerGraphInsights(enrichedRows, withStats, withoutStats);
 }
 
 export async function OPTIONS() {

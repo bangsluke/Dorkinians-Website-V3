@@ -40,6 +40,7 @@ import { getPlayerProfileHref } from "@/lib/profile/slug";
 import type { LiveStreakPayload, StreakDateRange, StreakTooltipMeta } from "@/lib/stats/playerStreaksComputation";
 import { matchRatingCircleStyle } from "@/lib/utils/matchRatingDisplay";
 import { formatXiTeamLabel } from "@/lib/utils/formatXiTeamLabel";
+import { sortPartnershipRows, type PartnershipSortMode } from "@/lib/stats/partnershipSort";
 import RecordingsSection from "@/components/stats/RecordingsSection";
 import type { RecordingFixture } from "@/lib/utils/recordingsDisplay";
 
@@ -75,7 +76,6 @@ const MonthlyPerformanceChart = dynamic(() => import("./player-stats/MonthlyPerf
 
 type PlayerStatsTableMode = "totals" | "perApp" | "per90";
 type PlayerStatsKeyMode = "totals" | "per90";
-type PartnershipSortMode = "bestWinRate" | "mostImprovedWinRate" | "mostGames";
 type FormTrend = "rising" | "declining" | "stable";
 
 const PER90_STAT_NAMES = new Set([
@@ -1958,17 +1958,35 @@ export default function PlayerStats() {
 
 	const partnershipList = useMemo(() => {
 		const raw = playerData?.partnershipsTopJson;
-		if (!raw) return [] as Array<{ name: string; winRate: number; matches: number }>;
+		if (!raw) return [] as Array<{ name: string; winRate: number; matches: number; winRateWithout: number | null; lift: number | null }>;
 		try {
 			const parsed = JSON.parse(raw) as unknown;
 			if (!Array.isArray(parsed)) return [];
 			return parsed
 				.filter((x): x is Record<string, unknown> => x != null && typeof x === "object")
-				.map((x) => ({
-					name: String(x.name ?? ""),
-					winRate: typeof x.winRate === "number" ? x.winRate : Number(x.winRate),
-					matches: typeof x.matches === "number" ? x.matches : Number(x.matches),
-				}))
+				.map((x) => {
+					const liftRaw = x.lift;
+					const withoutRaw = x.winRateWithout;
+					const lift =
+						liftRaw == null || liftRaw === ""
+							? null
+							: typeof liftRaw === "number"
+								? liftRaw
+								: Number(liftRaw);
+					const winRateWithout =
+						withoutRaw == null || withoutRaw === ""
+							? null
+							: typeof withoutRaw === "number"
+								? withoutRaw
+								: Number(withoutRaw);
+					return {
+						name: String(x.name ?? ""),
+						winRate: typeof x.winRate === "number" ? x.winRate : Number(x.winRate),
+						matches: typeof x.matches === "number" ? x.matches : Number(x.matches),
+						winRateWithout: winRateWithout != null && !Number.isNaN(winRateWithout) ? winRateWithout : null,
+						lift: lift != null && !Number.isNaN(lift) ? lift : null,
+					};
+				})
 				.filter((x) => x.name.length > 0 && !Number.isNaN(x.winRate) && !Number.isNaN(x.matches) && x.matches >= 5);
 		} catch {
 			return [];
@@ -1976,27 +1994,8 @@ export default function PlayerStats() {
 	}, [playerData?.partnershipsTopJson]);
 
 	const partnershipListDisplay = useMemo(() => {
-		const list = [...partnershipList];
-		const base = playerData?.impactWinRateWith;
-
-		if (partnershipSortMode === "mostGames") {
-			list.sort((a, b) => b.matches - a.matches || a.name.localeCompare(b.name));
-		} else if (partnershipSortMode === "mostImprovedWinRate") {
-			// Rank by the same value as the green subtitle: partnership win % minus your win rate when you play (percentage points).
-			list.sort((a, b) => {
-				if (base != null && typeof base === "number" && !Number.isNaN(base)) {
-					const da = a.winRate - base;
-					const db = b.winRate - base;
-					if (db !== da) return db - da;
-				}
-				return b.winRate - a.winRate || b.matches - a.matches || a.name.localeCompare(b.name);
-			});
-		} else {
-			// bestWinRate: highest partnership win percentage (ties: more shared games first)
-			list.sort((a, b) => b.winRate - a.winRate || b.matches - a.matches || a.name.localeCompare(b.name));
-		}
-		return list.slice(0, 10);
-	}, [partnershipList, partnershipSortMode, playerData?.impactWinRateWith]);
+		return sortPartnershipRows(partnershipList, partnershipSortMode).slice(0, 10);
+	}, [partnershipList, partnershipSortMode]);
 
 	const streakDisplaySource = useMemo((): PlayerData | null => {
 		if (!playerData) return null;
@@ -3251,7 +3250,7 @@ export default function PlayerStats() {
 						i
 					</span>
 					<div className='pointer-events-none absolute left-0 top-6 z-20 hidden w-72 rounded-md bg-black/90 p-2 text-[11px] text-white shadow-lg group-hover:block'>
-						Each point is your match rating for that game (with fantasy-points fallback when needed). The yellow line is current form (5-match EWMA) and the green line is the longer baseline (15-match EWMA). Grey dots are the raw rating for each match.
+						Each point is your match rating for that game (with fantasy-points fallback when needed). The yellow line is current form (5-match Exponentially Weighted Moving Average (EWMA)) and the green line is the longer baseline (15-match EWMA). Grey dots are the raw rating for each match.
 					</div>
 				</div>
 			</div>
@@ -3463,196 +3462,6 @@ export default function PlayerStats() {
 					) : null}
 				</div>
 			)}
-
-			{/* All Games Section */}
-			<div id='all-games' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
-				<h3 className='text-white font-semibold text-sm md:text-base mb-3'>All Games</h3>
-				<div className='flex justify-center pb-4'>
-					<button
-						type='button'
-						onClick={openAllGamesModal}
-						className='text-white hover:text-dorkinians-yellow underline text-sm md:text-base transition-colors bg-transparent border-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)]'
-					>
-						Click to show all games and details
-					</button>
-				</div>
-			</div>
-
-			{/* Streaks - live computation for current filter set (foundation / chatbot rules) */}
-			{playerData && streakDisplaySource && featureFlags.playerStatsStreaks ? (
-				<div id='streaks-section' className='relative z-30 bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
-					<div className='flex items-center gap-2 mb-2'>
-						<h3 className='text-white font-semibold text-sm md:text-base'>Streaks</h3>
-						<div className='relative group'>
-							<span
-								tabIndex={0}
-								className='inline-flex items-center justify-center w-4 h-4 text-[10px] rounded-full border border-white/40 text-white/80 cursor-help outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow/80'>
-								i
-							</span>
-							<div className='pointer-events-none absolute left-0 top-6 z-20 hidden w-72 rounded-md bg-black/90 p-2 text-[11px] text-white shadow-lg group-hover:block group-focus-within:block'>
-								Streaks are tracked week-by-week using seasonWeek references. Appearance streaks increase for every match you play across any XI
-								(including multiple matches in one week), and only break when your most-played team for that season plays in that week and you do not
-								appear for any team. For all other streak types (scoring, assists, clean sheets, etc.), weeks you do not play are skipped (they do not
-								break the streak); if you play, the streak increments only when you satisfy that streak condition for that match. Streaks carry across
-								seasons, use your most-recent team as the tie-break for &quot;most-played team,&quot; and are recalculated if fixture statuses change.
-							</div>
-						</div>
-					</div>
-					{(() => {
-						type StreakCard = {
-							label: string;
-							cur: keyof PlayerData;
-							seasonBest?: keyof PlayerData;
-							allTimeBest?: keyof PlayerData;
-							tip: string;
-							singularUnit: string;
-							pluralUnit: string;
-						};
-						const src = streakDisplaySource;
-						const sn = (k: keyof PlayerData) => {
-							const v = src[k];
-							return typeof v === "number" && !Number.isNaN(v) ? v : 0;
-						};
-						const fmtOpt = (k?: keyof PlayerData) => {
-							if (!k) return "-";
-							const v = src[k];
-							return typeof v === "number" && !Number.isNaN(v) ? String(v) : "-";
-						};
-						const activeCards: StreakCard[] = [
-							{
-								label: "Appearances",
-								cur: "currentAppearanceStreak",
-								seasonBest: "seasonBestAppearanceStreak",
-								allTimeBest: "allTimeBestAppearanceStreak",
-								tip: "Consecutive matches played. Weeks with no fixture for your season anchor team are protected; if that anchor team plays and you do not appear, the run breaks.",
-								singularUnit: "appearance",
-								pluralUnit: "appearances",
-							},
-							{
-								label: "Starts",
-								cur: "currentStartStreak",
-								seasonBest: "seasonBestStartStreak",
-								allTimeBest: "allTimeBestStartStreak",
-								tip: "Consecutive matches where you started. A bench cameo in a played match resets the run.",
-								singularUnit: "start",
-								pluralUnit: "starts",
-							},
-							{
-								label: "Goal involvement",
-								cur: "currentGoalInvolvementStreak",
-								seasonBest: "seasonBestGoalInvolvementStreak",
-								allTimeBest: "allTimeBestGoalInvolvementStreak",
-								tip: "Consecutive matches with a goal or assist (or both).",
-								singularUnit: "game",
-								pluralUnit: "games",
-							},
-							{
-								label: "MoM",
-								cur: "currentMomStreak",
-								seasonBest: "seasonBestMomStreak",
-								allTimeBest: "allTimeBestMomStreak",
-								tip: "Consecutive matches where you were named Player of the Match.",
-								singularUnit: "MoM",
-								pluralUnit: "MoMs",
-							},
-							{
-								label: "Scoring",
-								cur: "currentScoringStreak",
-								seasonBest: "seasonBestScoringStreak",
-								allTimeBest: "allTimeBestScoringStreak",
-								tip: "Counts consecutive games where you scored (goals or penalties). A blank scores resets the run.",
-								singularUnit: "game",
-								pluralUnit: "games",
-							},
-							{
-								label: "Assists",
-								cur: "currentAssistStreak",
-								seasonBest: "seasonBestAssistStreak",
-								allTimeBest: "allTimeBestAssistStreak",
-								tip: "Counts consecutive games with at least one assist. A game with no assist resets the run.",
-								singularUnit: "game",
-								pluralUnit: "games",
-							},
-							{
-								label: "Clean sheet",
-								cur: "currentCleanSheetStreak",
-								seasonBest: "seasonBestCleanSheetStreak",
-								allTimeBest: "allTimeBestCleanSheetStreak",
-								tip: "As a defender or keeper: consecutive games where your side conceded zero while you played. Conceding resets the run.",
-								singularUnit: "clean sheet",
-								pluralUnit: "clean sheets",
-							},
-							{
-								label: "85+ mins",
-								cur: "currentFullMatchStreak",
-								seasonBest: "seasonBestFullMatchStreak",
-								allTimeBest: "allTimeBestFullMatchStreak",
-								tip: "Consecutive games with at least 85 minutes played. Subbing earlier resets the run.",
-								singularUnit: "match",
-								pluralUnit: "matches",
-							},
-							{
-								label: "No cards",
-								cur: "currentDisciplineStreak",
-								seasonBest: "seasonBestDisciplineStreak",
-								allTimeBest: "allTimeBestDisciplineStreak",
-								tip: "Consecutive games with no yellow or red card. Any booking resets the run.",
-								singularUnit: "match",
-								pluralUnit: "matches",
-							},
-							{
-								label: "Wins",
-								cur: "currentWinStreak",
-								seasonBest: "seasonBestWinStreak",
-								allTimeBest: "allTimeBestWinStreak",
-								tip: "Consecutive games your side won while you played. A draw or loss resets the run.",
-								singularUnit: "win",
-								pluralUnit: "wins",
-							},
-							{
-								label: "Unbeaten",
-								cur: "currentUnbeatenStreak",
-								seasonBest: "seasonBestUnbeatenStreak",
-								allTimeBest: "allTimeBestUnbeatenStreak",
-								tip: "Consecutive matches without a loss while you played (wins or draws). A loss resets the run.",
-								singularUnit: "match",
-								pluralUnit: "matches",
-							},
-						];
-						const orderedCards = [...activeCards].sort((a, b) => {
-							const aVal = sn(a.cur);
-							const bVal = sn(b.cur);
-							return Number(bVal > 0) - Number(aVal > 0);
-						});
-						return (
-							<div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2'>
-								{orderedCards.map(({ label, cur, seasonBest, allTimeBest, tip, singularUnit, pluralUnit }) => {
-									const currentValue = sn(cur);
-									const seasonBestValue = seasonBest ? sn(seasonBest) : 0;
-									const allTimeBestValue = allTimeBest ? sn(allTimeBest) : 0;
-									const meta = streakTooltipMeta?.[String(cur)];
-									const currentLine = `Current: ${formatStreakCountLabel(currentValue, singularUnit, pluralUnit)}${formatTooltipDateRange(meta?.current)}`;
-									const seasonBestLine = `Season best: ${formatStreakCountLabel(seasonBestValue, singularUnit, pluralUnit)}${formatTooltipDateRange(meta?.seasonBest)}`;
-									const allTimeBestLine = `All-time best: ${formatStreakCountLabel(allTimeBestValue, singularUnit, pluralUnit)}${formatTooltipDateRange(meta?.allTimeBest)}`;
-									return (
-										<StreakStatTile
-											key={String(cur)}
-											label={label}
-											current={currentValue}
-											seasonBest={fmtOpt(seasonBest)}
-											allTimeBest={fmtOpt(allTimeBest)}
-											tip={tip}
-											currentLine={currentLine}
-											seasonBestLine={seasonBestLine}
-											allTimeBestLine={allTimeBestLine}
-										/>
-									);
-								})}
-							</div>
-						);
-					})()}
-				</div>
-			) : null}
 
 			{/* Seasonal Performance Section */}
 			<div id='seasonal-performance' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
@@ -4076,8 +3885,8 @@ export default function PlayerStats() {
 										i
 									</span>
 									<div className='pointer-events-none absolute left-0 top-6 z-20 hidden w-[min(100vw-2rem,22rem)] rounded-md bg-black/90 p-2 text-[11px] text-white shadow-lg group-hover:block group-focus-within:block'>
-										Win rate in games where you and each teammate both played (minimum five shared games) compared to your baseline win rate when
-										you play.
+										Win rate in games where you and each teammate both played (minimum five shared games). &quot;Most improved&quot; ranks by how much
+										higher your win rate is with that teammate versus your games without them.
 									</div>
 								</div>
 							</div>
@@ -4108,18 +3917,19 @@ export default function PlayerStats() {
 							<p className='text-white/60 text-xs'>
 								No partnership data yet. Run a full seed so graph insights (Feature 7) can populate this section.
 							</p>
+						) : partnershipListDisplay.length === 0 && partnershipSortMode === "mostImprovedWinRate" ? (
+							<p className='text-white/60 text-xs'>
+								Most improved needs per-partner lift data. Apply filters (live recalculation) or re-run graph insights (Feature 7) after
+								seeding.
+							</p>
 						) : (
 							<ul className='space-y-2'>
 								{partnershipListDisplay.map((p) => {
-									const base = playerData.impactWinRateWith;
-									const deltaPct =
-										base != null && typeof p.winRate === "number" && !Number.isNaN(p.winRate)
-											? Math.round((p.winRate - base) * 10) / 10
-											: null;
+									const deltaPct = p.lift != null && !Number.isNaN(p.lift) ? Math.round(p.lift * 10) / 10 : null;
 									const deltaClass =
 										deltaPct != null ? (deltaPct < 0 ? "text-red-400" : deltaPct > 0 ? "text-dorkinians-green-text" : "text-white/50") : "";
 									const deltaLabel =
-										deltaPct != null ? `${deltaPct > 0 ? "+" : ""}${deltaPct.toFixed(1)}% vs your win rate` : null;
+										deltaPct != null ? `${deltaPct > 0 ? "+" : ""}${deltaPct.toFixed(1)}% vs without them` : null;
 									return (
 										<li key={p.name} className='flex flex-wrap items-baseline justify-between gap-2 bg-white/5 rounded-md px-3 py-2'>
 											<div className='min-w-0'>
@@ -4146,49 +3956,39 @@ export default function PlayerStats() {
 				</div>
 			) : null}
 
-			{playerData && featureFlags.playerStatsImpact ? (
+			{playerData &&
+			featureFlags.playerStatsImpact &&
+			playerData.impactDelta != null &&
+			playerData.impactDelta > 0 &&
+			playerData.impactWinRateWith != null &&
+			playerData.mostPlayedForTeam &&
+			String(playerData.mostPlayedForTeam).trim() !== "" ? (
 				<div
 					id='impact-section'
 					className='relative z-30 bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 					<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Impact</h3>
-					{playerData.impactDelta == null ||
-					playerData.impactWinRateWith == null ||
-					!playerData.mostPlayedForTeam ||
-					String(playerData.mostPlayedForTeam).trim() === "" ? (
-						<p className='text-white/60 text-xs'>
-							Impact compares your most-played XI&apos;s results when you play vs when you don&apos;t (needs enough games without you).
-							Filtered fixtures are used so the comparison matches your current filter set. Run a full seed after Feature 7, or check you
-							have a primary team set.
+					<>
+						<p className='text-white text-sm md:text-base font-medium mb-2'>
+							{(() => {
+								const teamLine = formatXiTeamLabel(playerData.mostPlayedForTeam);
+								const delta = Math.abs(Math.round(playerData.impactDelta * 10) / 10);
+								return (
+									<>
+										The <span className='text-dorkinians-yellow'>{teamLine}</span> wins{" "}
+										<span className='text-dorkinians-yellow font-bold'>{delta}%</span> more often when you play.
+									</>
+								);
+							})()}
 						</p>
-					) : (
-						<>
-							<p className='text-white text-sm md:text-base font-medium mb-2'>
-								{(() => {
-									const teamLine = formatXiTeamLabel(playerData.mostPlayedForTeam);
-									const delta = Math.abs(Math.round(playerData.impactDelta * 10) / 10);
-									return playerData.impactDelta >= 0 ? (
-										<>
-											The <span className='text-dorkinians-yellow'>{teamLine}</span> wins{" "}
-											<span className='text-dorkinians-yellow font-bold'>{delta}%</span> more often when you play.
-										</>
-									) : (
-										<>
-											The <span className='text-dorkinians-yellow'>{teamLine}</span> wins{" "}
-											<span className='text-dorkinians-yellow font-bold'>{delta}%</span> less often when you play.
-										</>
-									);
-								})()}
+						{playerData.impactRatesDisplay ? (
+							<p className='text-white/70 text-xs md:text-sm mb-2'>{playerData.impactRatesDisplay}</p>
+						) : null}
+						{playerData.impactSampleWithout != null && playerData.impactSampleWithout < 10 ? (
+							<p className='text-white/50 text-[11px] md:text-xs border-l-2 border-[rgba(232,197,71,0.35)] pl-2'>
+								Sample without you is small ({playerData.impactSampleWithout} games) - interpret with care.
 							</p>
-							{playerData.impactRatesDisplay ? (
-								<p className='text-white/70 text-xs md:text-sm mb-2'>{playerData.impactRatesDisplay}</p>
-							) : null}
-							{playerData.impactSampleWithout != null && playerData.impactSampleWithout < 10 ? (
-								<p className='text-white/50 text-[11px] md:text-xs border-l-2 border-[rgba(232,197,71,0.35)] pl-2'>
-									Sample without you is small ({playerData.impactSampleWithout} games) - interpret with care.
-								</p>
-							) : null}
-						</>
-					)}
+						) : null}
+					</>
 				</div>
 			) : null}
 
@@ -4423,6 +4223,196 @@ export default function PlayerStats() {
 					testIdPrefix='player-recording'
 				/>
 			)}
+
+			{/* All Games Section */}
+			<div id='all-games' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
+				<h3 className='text-white font-semibold text-sm md:text-base mb-3'>All Games</h3>
+				<div className='flex justify-center pb-4'>
+					<button
+						type='button'
+						onClick={openAllGamesModal}
+						className='text-white hover:text-dorkinians-yellow underline text-sm md:text-base transition-colors bg-transparent border-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)]'
+					>
+						Click to show all games and details
+					</button>
+				</div>
+			</div>
+
+			{/* Streaks - live computation for current filter set (foundation / chatbot rules) */}
+			{playerData && streakDisplaySource && featureFlags.playerStatsStreaks ? (
+				<div id='streaks-section' className='relative z-30 bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
+					<div className='flex items-center gap-2 mb-2'>
+						<h3 className='text-white font-semibold text-sm md:text-base'>Streaks</h3>
+						<div className='relative group'>
+							<span
+								tabIndex={0}
+								className='inline-flex items-center justify-center w-4 h-4 text-[10px] rounded-full border border-white/40 text-white/80 cursor-help outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow/80'>
+								i
+							</span>
+							<div className='pointer-events-none absolute left-0 top-6 z-20 hidden w-72 rounded-md bg-black/90 p-2 text-[11px] text-white shadow-lg group-hover:block group-focus-within:block'>
+								Streaks are tracked week-by-week using seasonWeek references. Appearance streaks increase for every match you play across any XI
+								(including multiple matches in one week), and only break when your most-played team for that season plays in that week and you do not
+								appear for any team. For all other streak types (scoring, assists, clean sheets, etc.), weeks you do not play are skipped (they do not
+								break the streak); if you play, the streak increments only when you satisfy that streak condition for that match. Streaks carry across
+								seasons, use your most-recent team as the tie-break for &quot;most-played team,&quot; and are recalculated if fixture statuses change.
+							</div>
+						</div>
+					</div>
+					{(() => {
+						type StreakCard = {
+							label: string;
+							cur: keyof PlayerData;
+							seasonBest?: keyof PlayerData;
+							allTimeBest?: keyof PlayerData;
+							tip: string;
+							singularUnit: string;
+							pluralUnit: string;
+						};
+						const src = streakDisplaySource;
+						const sn = (k: keyof PlayerData) => {
+							const v = src[k];
+							return typeof v === "number" && !Number.isNaN(v) ? v : 0;
+						};
+						const fmtOpt = (k?: keyof PlayerData) => {
+							if (!k) return "-";
+							const v = src[k];
+							return typeof v === "number" && !Number.isNaN(v) ? String(v) : "-";
+						};
+						const activeCards: StreakCard[] = [
+							{
+								label: "Appearances",
+								cur: "currentAppearanceStreak",
+								seasonBest: "seasonBestAppearanceStreak",
+								allTimeBest: "allTimeBestAppearanceStreak",
+								tip: "Consecutive matches played. Weeks with no fixture for your season anchor team are protected; if that anchor team plays and you do not appear, the run breaks.",
+								singularUnit: "appearance",
+								pluralUnit: "appearances",
+							},
+							{
+								label: "Starts",
+								cur: "currentStartStreak",
+								seasonBest: "seasonBestStartStreak",
+								allTimeBest: "allTimeBestStartStreak",
+								tip: "Consecutive matches where you started. A bench cameo in a played match resets the run.",
+								singularUnit: "start",
+								pluralUnit: "starts",
+							},
+							{
+								label: "Goal involvement",
+								cur: "currentGoalInvolvementStreak",
+								seasonBest: "seasonBestGoalInvolvementStreak",
+								allTimeBest: "allTimeBestGoalInvolvementStreak",
+								tip: "Consecutive matches with a goal or assist (or both).",
+								singularUnit: "game",
+								pluralUnit: "games",
+							},
+							{
+								label: "MoM",
+								cur: "currentMomStreak",
+								seasonBest: "seasonBestMomStreak",
+								allTimeBest: "allTimeBestMomStreak",
+								tip: "Consecutive matches where you were named Player of the Match.",
+								singularUnit: "MoM",
+								pluralUnit: "MoMs",
+							},
+							{
+								label: "Scoring",
+								cur: "currentScoringStreak",
+								seasonBest: "seasonBestScoringStreak",
+								allTimeBest: "allTimeBestScoringStreak",
+								tip: "Counts consecutive games where you scored (goals or penalties). A blank scores resets the run.",
+								singularUnit: "game",
+								pluralUnit: "games",
+							},
+							{
+								label: "Assists",
+								cur: "currentAssistStreak",
+								seasonBest: "seasonBestAssistStreak",
+								allTimeBest: "allTimeBestAssistStreak",
+								tip: "Counts consecutive games with at least one assist. A game with no assist resets the run.",
+								singularUnit: "game",
+								pluralUnit: "games",
+							},
+							{
+								label: "Clean sheet",
+								cur: "currentCleanSheetStreak",
+								seasonBest: "seasonBestCleanSheetStreak",
+								allTimeBest: "allTimeBestCleanSheetStreak",
+								tip: "As a defender or keeper: consecutive games where your side conceded zero while you played. Conceding resets the run.",
+								singularUnit: "clean sheet",
+								pluralUnit: "clean sheets",
+							},
+							{
+								label: "85+ mins",
+								cur: "currentFullMatchStreak",
+								seasonBest: "seasonBestFullMatchStreak",
+								allTimeBest: "allTimeBestFullMatchStreak",
+								tip: "Consecutive games with at least 85 minutes played. Subbing earlier resets the run.",
+								singularUnit: "match",
+								pluralUnit: "matches",
+							},
+							{
+								label: "No cards",
+								cur: "currentDisciplineStreak",
+								seasonBest: "seasonBestDisciplineStreak",
+								allTimeBest: "allTimeBestDisciplineStreak",
+								tip: "Consecutive games with no yellow or red card. Any booking resets the run.",
+								singularUnit: "match",
+								pluralUnit: "matches",
+							},
+							{
+								label: "Wins",
+								cur: "currentWinStreak",
+								seasonBest: "seasonBestWinStreak",
+								allTimeBest: "allTimeBestWinStreak",
+								tip: "Consecutive games your side won while you played. A draw or loss resets the run.",
+								singularUnit: "win",
+								pluralUnit: "wins",
+							},
+							{
+								label: "Unbeaten",
+								cur: "currentUnbeatenStreak",
+								seasonBest: "seasonBestUnbeatenStreak",
+								allTimeBest: "allTimeBestUnbeatenStreak",
+								tip: "Consecutive matches without a loss while you played (wins or draws). A loss resets the run.",
+								singularUnit: "match",
+								pluralUnit: "matches",
+							},
+						];
+						const orderedCards = [...activeCards].sort((a, b) => {
+							const aVal = sn(a.cur);
+							const bVal = sn(b.cur);
+							return Number(bVal > 0) - Number(aVal > 0);
+						});
+						return (
+							<div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2'>
+								{orderedCards.map(({ label, cur, seasonBest, allTimeBest, tip, singularUnit, pluralUnit }) => {
+									const currentValue = sn(cur);
+									const seasonBestValue = seasonBest ? sn(seasonBest) : 0;
+									const allTimeBestValue = allTimeBest ? sn(allTimeBest) : 0;
+									const meta = streakTooltipMeta?.[String(cur)];
+									const currentLine = `Current: ${formatStreakCountLabel(currentValue, singularUnit, pluralUnit)}${formatTooltipDateRange(meta?.current)}`;
+									const seasonBestLine = `Season best: ${formatStreakCountLabel(seasonBestValue, singularUnit, pluralUnit)}${formatTooltipDateRange(meta?.seasonBest)}`;
+									const allTimeBestLine = `All-time best: ${formatStreakCountLabel(allTimeBestValue, singularUnit, pluralUnit)}${formatTooltipDateRange(meta?.allTimeBest)}`;
+									return (
+										<StreakStatTile
+											key={String(cur)}
+											label={label}
+											current={currentValue}
+											seasonBest={fmtOpt(seasonBest)}
+											allTimeBest={fmtOpt(allTimeBest)}
+											tip={tip}
+											currentLine={currentLine}
+											seasonBestLine={seasonBestLine}
+											allTimeBestLine={allTimeBestLine}
+										/>
+									);
+								})}
+							</div>
+						);
+					})()}
+				</div>
+			) : null}
 
 			{/* Captaincies, Awards and Achievements Section */}
 			<div id='captaincies-awards-and-achievements' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
