@@ -644,9 +644,9 @@ test.describe("Stats Page Tests", () => {
 			return;
 		}
 		if (hasSummary) {
-			const ratingTick = formSection.locator(".recharts-yAxis .recharts-cartesian-axis-tick tspan").filter({ hasText: /^10$/ });
-			if (!(await ratingTick.first().isVisible({ timeout: 8000 }).catch(() => false))) {
-				test.skip(true, "Form chart rendered but expected y-axis tick marker not visible.");
+			const ratingTick = formSection.locator(".recharts-yAxis .recharts-cartesian-axis-tick tspan").first();
+			if (!(await ratingTick.isVisible({ timeout: 8000 }).catch(() => false))) {
+				test.skip(true, "Form chart rendered but no y-axis tick marker visible.");
 			}
 		}
 	});
