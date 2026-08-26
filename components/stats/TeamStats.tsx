@@ -1704,161 +1704,13 @@ export default function TeamStats() {
 									</div>
 								)}
 
+
 								{/* Recent Games Form */}
 								{!isDataTableMode && selectedTeam && apiFilters && (
 									<div id='team-recent-games' className='md:break-inside-avoid md:mb-4'>
 										<RecentGamesForm teamName={selectedTeam} filters={apiFilters} />
 									</div>
 								)}
-
-								{/* Top Players Table */}
-								<div id='team-top-players' className='relative z-30 mb-4 flex-shrink-0 md:break-inside-avoid md:mb-4'>
-									<div className='relative z-30 bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-										<h3 className='text-white font-semibold text-sm md:text-base mb-2' data-testid="team-top-players-heading">Top 5 {getStatTypeLabel(selectedStatType)}</h3>
-										<div className='relative z-40 mb-2'>
-											<Listbox value={selectedStatType} onChange={handleStatTypeSelect}>
-												<div className='relative'>
-													<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-xs md:text-sm'>
-														<span className='block truncate text-white'>
-															{getStatTypeLabel(selectedStatType)}
-														</span>
-														<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
-															<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
-														</span>
-													</Listbox.Button>
-													<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-xs md:text-sm shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
-														{([
-															"appearances",
-															"starts",
-															"minutes",
-															"mom",
-															"goals",
-															"assists",
-															"goalInvolvements",
-															"fantasyPoints",
-															"cleanSheets",
-															"saves",
-															"yellowCards",
-															"redCards",
-															"penaltiesScored",
-															"penaltiesSaved",
-															"penaltiesConceded",
-															"penaltiesMissed",
-															"conceded",
-															"ownGoals",
-															"distance",
-															"avgMatchRating",
-															"matchesRated8Plus",
-															"goalsPer90",
-															"assistsPer90",
-															"goalInvolvementsPer90",
-															"ftpPer90",
-															"cleanSheetsPer90",
-															"concededPer90",
-															"savesPer90",
-															"cardsPer90",
-															"momPer90",
-															...(featureFlags.teamStatsStreakAndForm ? (["bestCurrentForm"] as const) : []),
-														] as StatType[]).map((statType) => (
-															<Listbox.Option
-																key={statType}
-																className={({ active }) =>
-																	`relative cursor-default select-none dark-dropdown-option ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
-																}
-																value={statType}>
-																{({ selected }) => (
-																	<span className={`block truncate py-1 px-2 ${selected ? "font-medium" : "font-normal"}`}>
-																		{getStatTypeLabel(statType)}
-																	</span>
-																)}
-															</Listbox.Option>
-														))}
-													</Listbox.Options>
-												</div>
-											</Listbox>
-										</div>
-										{isLoadingTopPlayers ? (
-											<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-												<TopPlayersTableSkeleton />
-											</SkeletonTheme>
-										) : topPlayers.length > 0 ? (
-											<div className='overflow-x-auto'>
-												<table className='w-full text-white'>
-												<thead>
-													<tr className='border-b-2 border-dorkinians-yellow'>
-														<th className='text-left py-2 px-2 text-xs md:text-sm w-auto'>
-															<div className='flex items-center gap-2'>
-																<div className='w-10 md:w-12'></div>
-																<div>Player Name</div>
-															</div>
-														</th>
-														<th className='text-center py-2 px-2 text-xs md:text-sm w-20 md:w-24'>{getStatTypeLabel(selectedStatType)}</th>
-													</tr>
-												</thead>
-												<tbody>
-													{topPlayers.map((player, index) => {
-														const isLastPlayer = index === topPlayers.length - 1;
-														const statValue = getStatValue(player, selectedStatType);
-														let formattedStatValue: string | number;
-														if (selectedStatType === "minutes") {
-															formattedStatValue = statValue.toLocaleString();
-														} else if (selectedStatType === "distance") {
-															formattedStatValue = (Math.round(statValue * 10) / 10).toFixed(1);
-														} else if (selectedStatType === "avgMatchRating") {
-															formattedStatValue = player.averageMatchRating != null ? player.averageMatchRating.toFixed(1) : "-";
-														} else if (["goalsPer90", "assistsPer90", "goalInvolvementsPer90", "ftpPer90", "cleanSheetsPer90", "concededPer90", "savesPer90", "cardsPer90", "momPer90"].includes(selectedStatType)) {
-															const per90Value =
-																selectedStatType === "goalsPer90" ? player.goalsPer90 :
-																selectedStatType === "assistsPer90" ? player.assistsPer90 :
-																selectedStatType === "goalInvolvementsPer90" ? player.goalInvolvementsPer90 :
-																selectedStatType === "ftpPer90" ? player.ftpPer90 :
-																selectedStatType === "cleanSheetsPer90" ? player.cleanSheetsPer90 :
-																selectedStatType === "concededPer90" ? player.concededPer90 :
-																selectedStatType === "savesPer90" ? player.savesPer90 :
-																selectedStatType === "cardsPer90" ? player.cardsPer90 :
-																player.momPer90;
-															formattedStatValue = per90Value != null ? per90Value.toFixed(2) : "-";
-														} else if (selectedStatType === "bestCurrentForm") {
-															formattedStatValue = player.currentFormEwma != null ? player.currentFormEwma.toFixed(1) : "-";
-														} else {
-															formattedStatValue = statValue;
-														}
-														const summary = formatPlayerSummary(player, selectedStatType);
-														
-														return (
-															<tr
-																key={player.playerName}
-																className={`${isLastPlayer ? '' : 'border-b border-green-500'}`}
-																style={{
-																	background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05))',
-																}}>
-																<td className='py-2 px-2 align-top' colSpan={2}>
-																	<div className='flex flex-col'>
-																		<div className='flex items-center gap-2'>
-																			<div className='text-base md:text-lg font-semibold whitespace-nowrap w-10 md:w-12'>{formatRank(index + 1)}</div>
-																			<div className='text-base md:text-lg font-semibold flex-1'>{player.playerName}</div>
-																			<div className='text-base md:text-lg font-bold w-20 md:w-24 text-center'>{formattedStatValue}</div>
-																		</div>
-																		<div className='pt-1 pl-[3rem] md:pl-[3.5rem]'>
-																			<div className='text-[0.7rem] md:text-[0.8rem] text-gray-300 text-left'>
-																				{summary}
-																			</div>
-																		</div>
-																	</div>
-																</td>
-															</tr>
-														);
-													})}
-												</tbody>
-												</table>
-											</div>
-										) : (
-											<div className='p-4'>
-												<p className='text-white text-xs md:text-sm text-center'>No players found</p>
-											</div>
-										)}
-									</div>
-								</div>
 
 								{/* Seasonal Performance Section */}
 								{allSeasonsSelected && (
@@ -2092,6 +1944,485 @@ export default function TeamStats() {
 									</div>
 								)}
 
+								{/* Goals Scored vs Conceded Waterfall Chart */}
+								{(toNumber(teamData.goalsScored) > 0 || toNumber(teamData.goalsConceded) > 0) && (
+									<div id='team-goals-scored-conceded' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
+										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Goals Scored vs Conceded</h3>
+										<div className='chart-container' style={{ touchAction: 'pan-y' }}>
+											<ResponsiveContainer width='100%' height={300}>
+												<ComposedChart data={goalsData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+													<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
+													<XAxis dataKey='name' stroke='#fff' fontSize={12} />
+													<YAxis stroke='#fff' fontSize={12} />
+													<Tooltip content={customTooltip} />
+													<Bar dataKey='value' radius={[4, 4, 0, 0]} opacity={0.8} activeBar={{ opacity: 0.5 }}>
+														{goalsData.map((entry, index) => (
+															<Cell key={`cell-${index}`} fill={entry.fill} />
+														))}
+													<LabelList 
+														dataKey="value"
+														position="inside"
+														content={(props: any) => {
+															const { x, y, width, height, name, index, value } = props;
+															if (value === undefined || value === null || height <= 0) return null;
+															// Access perGame from the data entry using index or name
+															const dataEntry = typeof index === 'number' && index >= 0 ? goalsData[index] : goalsData.find((e: any) => e.name === name);
+															const perGame = dataEntry?.perGame || "0.00";
+															// Calculate center position accounting for two-line layout
+															const lineHeight = 14;
+															const centerY = y + height / 2;
+															const startY = centerY - lineHeight / 2;
+															return (
+																<g>
+																	<text
+																		x={x + width / 2}
+																		y={startY}
+																		fill="#ffffff"
+																		fontSize={12}
+																		fontWeight="bold"
+																		textAnchor="middle"
+																		dominantBaseline="middle"
+																		style={{ pointerEvents: 'none', userSelect: 'none' }}
+																	>
+																		{value}
+																	</text>
+																	<text
+																		x={x + width / 2}
+																		y={startY + lineHeight}
+																		fill="#ffffff"
+																		fontSize={11}
+																		fontWeight="normal"
+																		textAnchor="middle"
+																		dominantBaseline="middle"
+																		style={{ pointerEvents: 'none', userSelect: 'none' }}
+																	>
+																		{perGame} per game
+																	</text>
+																</g>
+															);
+														}}
+													/>
+													</Bar>
+												</ComposedChart>
+											</ResponsiveContainer>
+										</div>
+									</div>
+								)}
+
+								{/* Home vs Away Performance Dual Gauge */}
+								{(toNumber(teamData.homeGames) > 0 || toNumber(teamData.awayGames) > 0) && (
+									<div id='team-home-away-performance' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
+										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Home vs Away Performance</h3>
+										<HomeAwayGauge 
+											homeWinPercentage={toNumber(teamData.homeWinPercentage)} 
+											awayWinPercentage={toNumber(teamData.awayWinPercentage)} 
+										/>
+									</div>
+								)}
+
+								{/* Key Team Stats KPI Cards */}
+								{toNumber(teamData.gamesPlayed) > 0 && (
+									<div id='team-key-team-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
+										<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Key Team Stats</h3>
+										<div className='grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4'>
+											<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
+												<div className='flex-shrink-0'>
+													<Image
+														src='/stat-icons/TeamAppearance-Icon.svg'
+														alt='Games'
+														width={40}
+														height={40}
+														className='w-8 h-8 md:w-10 md:h-10 object-contain'
+													/>
+												</div>
+												<div className='flex-1 min-w-0'>
+													<div className='text-white/70 text-sm md:text-base mb-1'>Games</div>
+													<div className='text-white font-bold text-xl md:text-2xl'>{toNumber(teamData.gamesPlayed).toLocaleString()}</div>
+												</div>
+											</div>
+											<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
+												<div className='flex-shrink-0'>
+													<Image
+														src='/stat-icons/CleanSheet-Icon.svg'
+														alt='Clean Sheets'
+														width={40}
+														height={40}
+														className='w-8 h-8 md:w-10 md:h-10 object-contain'
+													/>
+												</div>
+												<div className='flex-1 min-w-0'>
+													<div className='text-white/70 text-sm md:text-base mb-1'>Clean Sheets</div>
+													<div className='text-white font-bold text-xl md:text-2xl'>{toNumber(teamData.cleanSheets).toLocaleString()}</div>
+												</div>
+											</div>
+											<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
+												<div className='flex-shrink-0'>
+													<Image
+														src='/stat-icons/PointsPerGame-Icon.svg'
+														alt='Points/Game'
+														width={40}
+														height={40}
+														className='w-8 h-8 md:w-10 md:h-10 object-contain'
+													/>
+												</div>
+												<div className='flex-1 min-w-0'>
+													<div className='text-white/70 text-sm md:text-base mb-1'>Points/Game</div>
+													<div className='text-white font-bold text-xl md:text-2xl'>{toNumber(teamData.pointsPerGame).toFixed(2)}</div>
+												</div>
+											</div>
+											<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
+												<div className='flex-shrink-0'>
+													<Image
+														src='/stat-icons/GoalsPerAppearance-Icon.svg'
+														alt='Goals / Game'
+														width={40}
+														height={40}
+														className='w-8 h-8 md:w-10 md:h-10 object-contain'
+													/>
+												</div>
+												<div className='flex-1 min-w-0'>
+													<div className='text-white/70 text-sm md:text-base mb-1'>Goals / Game</div>
+													<div className='text-white font-bold text-xl md:text-2xl'>{toNumber(teamData.goalsPerGame).toFixed(2)}</div>
+												</div>
+											</div>
+											<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
+												<div className='flex-shrink-0'>
+													<Image
+														src='/stat-icons/ConcededPerAppearance-Icon.svg'
+														alt='Conceded / Game'
+														width={40}
+														height={40}
+														className='w-8 h-8 md:w-10 md:h-10 object-contain'
+													/>
+												</div>
+												<div className='flex-1 min-w-0'>
+													<div className='text-white/70 text-sm md:text-base mb-1'>Conceded / Game</div>
+													<div className='text-white font-bold text-xl md:text-2xl'>{toNumber(teamData.goalsConcededPerGame).toFixed(2)}</div>
+												</div>
+											</div>
+											<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
+												<div className='flex-shrink-0'>
+													<Image
+														src='/stat-icons/PercentageGamesWon-Icon.svg'
+														alt='Win %'
+														width={40}
+														height={40}
+														className='w-8 h-8 md:w-10 md:h-10 object-contain'
+													/>
+												</div>
+												<div className='flex-1 min-w-0'>
+													<div className='text-white/70 text-sm md:text-base mb-1'>Win %</div>
+													<div className='text-white font-bold text-xl md:text-2xl'>{Math.round(toNumber(teamData.winPercentage))}%</div>
+												</div>
+											</div>
+											<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
+												<div className='flex-shrink-0'>
+													<Image
+														src='/stat-icons/GoalDifference-Icon.svg'
+														alt='Goal Difference'
+														width={40}
+														height={40}
+														className='w-8 h-8 md:w-10 md:h-10 object-contain'
+													/>
+												</div>
+												<div className='flex-1 min-w-0'>
+													<div className='text-white/70 text-sm md:text-base mb-1'>Goal Diff</div>
+													<div className='text-white font-bold text-xl md:text-2xl'>{toNumber(teamData.goalDifference).toLocaleString()}</div>
+												</div>
+											</div>
+											{teamData.totalFantasyPoints && toNumber(teamData.totalFantasyPoints) > 0 && (
+												<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
+													<div className='flex-shrink-0'>
+														<Image
+															src='/stat-icons/FantasyPoints-Icon.svg'
+															alt='Fantasy Points'
+															width={40}
+															height={40}
+															className='w-8 h-8 md:w-10 md:h-10 object-contain'
+														/>
+													</div>
+													<div className='flex-1 min-w-0'>
+														<div className='text-white/70 text-sm md:text-base mb-1'>Fantasy Points</div>
+														<div className='text-white font-bold text-xl md:text-2xl'>{Math.round(toNumber(teamData.totalFantasyPoints)).toLocaleString()}</div>
+													</div>
+												</div>
+											)}
+										</div>
+									</div>
+								)}
+
+								{/* Top Players Table */}
+								<div id='team-top-players' className='relative z-30 mb-4 flex-shrink-0 md:break-inside-avoid md:mb-4'>
+									<div className='relative z-30 bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+										<h3 className='text-white font-semibold text-sm md:text-base mb-2' data-testid="team-top-players-heading">Top 5 {getStatTypeLabel(selectedStatType)}</h3>
+										<div className='relative z-40 mb-2'>
+											<Listbox value={selectedStatType} onChange={handleStatTypeSelect}>
+												<div className='relative'>
+													<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-xs md:text-sm'>
+														<span className='block truncate text-white'>
+															{getStatTypeLabel(selectedStatType)}
+														</span>
+														<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
+															<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
+														</span>
+													</Listbox.Button>
+													<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-xs md:text-sm shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
+														{([
+															"appearances",
+															"starts",
+															"minutes",
+															"mom",
+															"goals",
+															"assists",
+															"goalInvolvements",
+															"fantasyPoints",
+															"cleanSheets",
+															"saves",
+															"yellowCards",
+															"redCards",
+															"penaltiesScored",
+															"penaltiesSaved",
+															"penaltiesConceded",
+															"penaltiesMissed",
+															"conceded",
+															"ownGoals",
+															"distance",
+															"avgMatchRating",
+															"matchesRated8Plus",
+															"goalsPer90",
+															"assistsPer90",
+															"goalInvolvementsPer90",
+															"ftpPer90",
+															"cleanSheetsPer90",
+															"concededPer90",
+															"savesPer90",
+															"cardsPer90",
+															"momPer90",
+															...(featureFlags.teamStatsStreakAndForm ? (["bestCurrentForm"] as const) : []),
+														] as StatType[]).map((statType) => (
+															<Listbox.Option
+																key={statType}
+																className={({ active }) =>
+																	`relative cursor-default select-none dark-dropdown-option ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
+																}
+																value={statType}>
+																{({ selected }) => (
+																	<span className={`block truncate py-1 px-2 ${selected ? "font-medium" : "font-normal"}`}>
+																		{getStatTypeLabel(statType)}
+																	</span>
+																)}
+															</Listbox.Option>
+														))}
+													</Listbox.Options>
+												</div>
+											</Listbox>
+										</div>
+										{isLoadingTopPlayers ? (
+											<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+												<TopPlayersTableSkeleton />
+											</SkeletonTheme>
+										) : topPlayers.length > 0 ? (
+											<div className='overflow-x-auto'>
+												<table className='w-full text-white'>
+												<thead>
+													<tr className='border-b-2 border-dorkinians-yellow'>
+														<th className='text-left py-2 px-2 text-xs md:text-sm w-auto'>
+															<div className='flex items-center gap-2'>
+																<div className='w-10 md:w-12'></div>
+																<div>Player Name</div>
+															</div>
+														</th>
+														<th className='text-center py-2 px-2 text-xs md:text-sm w-20 md:w-24'>{getStatTypeLabel(selectedStatType)}</th>
+													</tr>
+												</thead>
+												<tbody>
+													{topPlayers.map((player, index) => {
+														const isLastPlayer = index === topPlayers.length - 1;
+														const statValue = getStatValue(player, selectedStatType);
+														let formattedStatValue: string | number;
+														if (selectedStatType === "minutes") {
+															formattedStatValue = statValue.toLocaleString();
+														} else if (selectedStatType === "distance") {
+															formattedStatValue = (Math.round(statValue * 10) / 10).toFixed(1);
+														} else if (selectedStatType === "avgMatchRating") {
+															formattedStatValue = player.averageMatchRating != null ? player.averageMatchRating.toFixed(1) : "-";
+														} else if (["goalsPer90", "assistsPer90", "goalInvolvementsPer90", "ftpPer90", "cleanSheetsPer90", "concededPer90", "savesPer90", "cardsPer90", "momPer90"].includes(selectedStatType)) {
+															const per90Value =
+																selectedStatType === "goalsPer90" ? player.goalsPer90 :
+																selectedStatType === "assistsPer90" ? player.assistsPer90 :
+																selectedStatType === "goalInvolvementsPer90" ? player.goalInvolvementsPer90 :
+																selectedStatType === "ftpPer90" ? player.ftpPer90 :
+																selectedStatType === "cleanSheetsPer90" ? player.cleanSheetsPer90 :
+																selectedStatType === "concededPer90" ? player.concededPer90 :
+																selectedStatType === "savesPer90" ? player.savesPer90 :
+																selectedStatType === "cardsPer90" ? player.cardsPer90 :
+																player.momPer90;
+															formattedStatValue = per90Value != null ? per90Value.toFixed(2) : "-";
+														} else if (selectedStatType === "bestCurrentForm") {
+															formattedStatValue = player.currentFormEwma != null ? player.currentFormEwma.toFixed(1) : "-";
+														} else {
+															formattedStatValue = statValue;
+														}
+														const summary = formatPlayerSummary(player, selectedStatType);
+														
+														return (
+															<tr
+																key={player.playerName}
+																className={`${isLastPlayer ? '' : 'border-b border-green-500'}`}
+																style={{
+																	background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05))',
+																}}>
+																<td className='py-2 px-2 align-top' colSpan={2}>
+																	<div className='flex flex-col'>
+																		<div className='flex items-center gap-2'>
+																			<div className='text-base md:text-lg font-semibold whitespace-nowrap w-10 md:w-12'>{formatRank(index + 1)}</div>
+																			<div className='text-base md:text-lg font-semibold flex-1'>{player.playerName}</div>
+																			<div className='text-base md:text-lg font-bold w-20 md:w-24 text-center'>{formattedStatValue}</div>
+																		</div>
+																		<div className='pt-1 pl-[3rem] md:pl-[3.5rem]'>
+																			<div className='text-[0.7rem] md:text-[0.8rem] text-gray-300 text-left'>
+																				{summary}
+																			</div>
+																		</div>
+																	</div>
+																</td>
+															</tr>
+														);
+													})}
+												</tbody>
+												</table>
+											</div>
+										) : (
+											<div className='p-4'>
+												<p className='text-white text-xs md:text-sm text-center'>No players found</p>
+											</div>
+										)}
+									</div>
+								</div>
+
+								{/* Unique Player Stats Section */}
+								{isLoadingUniqueStats ? (
+									<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+										<div id='team-unique-player-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
+											<Skeleton height={20} width="40%" className="mb-2" />
+											<Skeleton height={16} width="60%" className="mb-3" />
+											<div className='overflow-x-auto'>
+												<table className='w-full text-white text-sm'>
+													<thead>
+														<tr className='border-b border-white/20'>
+															<th className='text-left py-2 px-2'><Skeleton height={16} width={80} /></th>
+															<th className='text-right py-2 px-2'><Skeleton height={16} width={100} className="ml-auto" /></th>
+														</tr>
+													</thead>
+													<tbody>
+														{[...Array(5)].map((_, i) => (
+															<tr key={i} className='border-b border-white/10'>
+																<td className='py-2 px-2'><Skeleton height={14} width="70%" /></td>
+																<td className='text-right py-2 px-2'><Skeleton height={14} width={30} className="ml-auto" /></td>
+															</tr>
+														))}
+													</tbody>
+												</table>
+											</div>
+										</div>
+									</SkeletonTheme>
+								) : uniquePlayerStats && (
+									<div id='team-unique-player-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
+										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Unique Player Stats</h3>
+										<p className='text-white text-sm md:text-base mb-3'>
+											Unique players for the {selectedTeam || "2s"}: <span className='font-bold'>{toNumber(teamData.numberOfPlayers).toLocaleString()}</span>
+										</p>
+										<div className='overflow-x-auto'>
+											<table className='w-full text-white text-sm'>
+												<thead>
+													<tr className='border-b border-white/20'>
+														<th className='text-left py-2 px-2'>Stat</th>
+														<th className='text-right py-2 px-2'>Unique Players</th>
+													</tr>
+												</thead>
+												<tbody>
+													{uniquePlayerStats.playersWhoScored > 0 && (
+														<tr className='border-b border-white/10'>
+															<td className='py-2 px-2'>Players Who Scored</td>
+															<td className='text-right py-2 px-2 font-mono font-bold'>{uniquePlayerStats.playersWhoScored}</td>
+														</tr>
+													)}
+													{uniquePlayerStats.playersWhoAssisted > 0 && (
+														<tr className='border-b border-white/10'>
+															<td className='py-2 px-2'>Players Who Assisted</td>
+															<td className='text-right py-2 px-2 font-mono font-bold'>{uniquePlayerStats.playersWhoAssisted}</td>
+														</tr>
+													)}
+													{uniquePlayerStats.playersWithOwnGoals > 0 && (
+														<tr className='border-b border-white/10'>
+															<td className='py-2 px-2'>Players With Own Goals</td>
+															<td className='text-right py-2 px-2 font-mono font-bold'>{uniquePlayerStats.playersWithOwnGoals}</td>
+														</tr>
+													)}
+													{uniquePlayerStats.playersWithCleanSheets > 0 && (
+														<tr className='border-b border-white/10'>
+															<td className='py-2 px-2'>Players With Clean Sheets</td>
+															<td className='text-right py-2 px-2 font-mono font-bold'>{uniquePlayerStats.playersWithCleanSheets}</td>
+														</tr>
+													)}
+													{uniquePlayerStats.playersWithMoM > 0 && (
+														<tr className='border-b border-white/10'>
+															<td className='py-2 px-2'>Players With MoM</td>
+															<td className='text-right py-2 px-2 font-mono font-bold'>{uniquePlayerStats.playersWithMoM}</td>
+														</tr>
+													)}
+													{uniquePlayerStats.playersWithSaves > 0 && (
+														<tr className='border-b border-white/10'>
+															<td className='py-2 px-2'>Players With Saves</td>
+															<td className='text-right py-2 px-2 font-mono font-bold'>{uniquePlayerStats.playersWithSaves}</td>
+														</tr>
+													)}
+													{uniquePlayerStats.playersWithYellowCards > 0 && (
+														<tr className='border-b border-white/10'>
+															<td className='py-2 px-2'>Players With Yellow Cards</td>
+															<td className='text-right py-2 px-2 font-mono font-bold'>{uniquePlayerStats.playersWithYellowCards}</td>
+														</tr>
+													)}
+													{uniquePlayerStats.playersWithRedCards > 0 && (
+														<tr className='border-b border-white/10'>
+															<td className='py-2 px-2'>Players With Red Cards</td>
+															<td className='text-right py-2 px-2 font-mono font-bold'>{uniquePlayerStats.playersWithRedCards}</td>
+														</tr>
+													)}
+													{uniquePlayerStats.playersWhoScoredPenalties > 0 && (
+														<tr className='border-b border-white/10'>
+															<td className='py-2 px-2'>Players Who Scored Penalties</td>
+															<td className='text-right py-2 px-2 font-mono font-bold'>{uniquePlayerStats.playersWhoScoredPenalties}</td>
+														</tr>
+													)}
+													{uniquePlayerStats.playersWhoSavedPenalties > 0 && (
+														<tr className='border-b border-white/10'>
+															<td className='py-2 px-2'>Players Who Saved Penalties</td>
+															<td className='text-right py-2 px-2 font-mono font-bold'>{uniquePlayerStats.playersWhoSavedPenalties}</td>
+														</tr>
+													)}
+													{uniquePlayerStats.playersWhoConcededPenalties > 0 && (
+														<tr>
+															<td className='py-2 px-2'>Players Who Conceded Penalties</td>
+															<td className='text-right py-2 px-2 font-mono font-bold'>{uniquePlayerStats.playersWhoConcededPenalties}</td>
+														</tr>
+													)}
+												</tbody>
+											</table>
+										</div>
+									</div>
+								)}
+
+								{featureFlags.teamStatsTeamRecordings && selectedTeam && teamRecordings.length > 0 && (
+									<RecordingsSection
+										id='team-recordings'
+										title='Team Recordings'
+										subtitle='All matches with a recording link for the selected team and current filters.'
+										fixtures={teamRecordings}
+										testIdPrefix='team-recording'
+									/>
+								)}
+
 								{!isDataTableMode &&
 									featureFlags.teamStatsXiStreakCards &&
 									teamData.teamStreaks && (
@@ -2320,336 +2651,6 @@ export default function TeamStats() {
 											)}
 										</div>
 									</div>
-								)}
-
-								{/* Goals Scored vs Conceded Waterfall Chart */}
-								{(toNumber(teamData.goalsScored) > 0 || toNumber(teamData.goalsConceded) > 0) && (
-									<div id='team-goals-scored-conceded' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
-										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Goals Scored vs Conceded</h3>
-										<div className='chart-container' style={{ touchAction: 'pan-y' }}>
-											<ResponsiveContainer width='100%' height={300}>
-												<ComposedChart data={goalsData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
-													<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
-													<XAxis dataKey='name' stroke='#fff' fontSize={12} />
-													<YAxis stroke='#fff' fontSize={12} />
-													<Tooltip content={customTooltip} />
-													<Bar dataKey='value' radius={[4, 4, 0, 0]} opacity={0.8} activeBar={{ opacity: 0.5 }}>
-														{goalsData.map((entry, index) => (
-															<Cell key={`cell-${index}`} fill={entry.fill} />
-														))}
-													<LabelList 
-														dataKey="value"
-														position="inside"
-														content={(props: any) => {
-															const { x, y, width, height, name, index, value } = props;
-															if (value === undefined || value === null || height <= 0) return null;
-															// Access perGame from the data entry using index or name
-															const dataEntry = typeof index === 'number' && index >= 0 ? goalsData[index] : goalsData.find((e: any) => e.name === name);
-															const perGame = dataEntry?.perGame || "0.00";
-															// Calculate center position accounting for two-line layout
-															const lineHeight = 14;
-															const centerY = y + height / 2;
-															const startY = centerY - lineHeight / 2;
-															return (
-																<g>
-																	<text
-																		x={x + width / 2}
-																		y={startY}
-																		fill="#ffffff"
-																		fontSize={12}
-																		fontWeight="bold"
-																		textAnchor="middle"
-																		dominantBaseline="middle"
-																		style={{ pointerEvents: 'none', userSelect: 'none' }}
-																	>
-																		{value}
-																	</text>
-																	<text
-																		x={x + width / 2}
-																		y={startY + lineHeight}
-																		fill="#ffffff"
-																		fontSize={11}
-																		fontWeight="normal"
-																		textAnchor="middle"
-																		dominantBaseline="middle"
-																		style={{ pointerEvents: 'none', userSelect: 'none' }}
-																	>
-																		{perGame} per game
-																	</text>
-																</g>
-															);
-														}}
-													/>
-													</Bar>
-												</ComposedChart>
-											</ResponsiveContainer>
-										</div>
-									</div>
-								)}
-
-								{/* Home vs Away Performance Dual Gauge */}
-								{(toNumber(teamData.homeGames) > 0 || toNumber(teamData.awayGames) > 0) && (
-									<div id='team-home-away-performance' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
-										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Home vs Away Performance</h3>
-										<HomeAwayGauge 
-											homeWinPercentage={toNumber(teamData.homeWinPercentage)} 
-											awayWinPercentage={toNumber(teamData.awayWinPercentage)} 
-										/>
-									</div>
-								)}
-
-								{/* Key Team Stats KPI Cards */}
-								{toNumber(teamData.gamesPlayed) > 0 && (
-									<div id='team-key-team-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
-										<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Key Team Stats</h3>
-										<div className='grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4'>
-											<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
-												<div className='flex-shrink-0'>
-													<Image
-														src='/stat-icons/TeamAppearance-Icon.svg'
-														alt='Games'
-														width={40}
-														height={40}
-														className='w-8 h-8 md:w-10 md:h-10 object-contain'
-													/>
-												</div>
-												<div className='flex-1 min-w-0'>
-													<div className='text-white/70 text-sm md:text-base mb-1'>Games</div>
-													<div className='text-white font-bold text-xl md:text-2xl'>{toNumber(teamData.gamesPlayed).toLocaleString()}</div>
-												</div>
-											</div>
-											<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
-												<div className='flex-shrink-0'>
-													<Image
-														src='/stat-icons/CleanSheet-Icon.svg'
-														alt='Clean Sheets'
-														width={40}
-														height={40}
-														className='w-8 h-8 md:w-10 md:h-10 object-contain'
-													/>
-												</div>
-												<div className='flex-1 min-w-0'>
-													<div className='text-white/70 text-sm md:text-base mb-1'>Clean Sheets</div>
-													<div className='text-white font-bold text-xl md:text-2xl'>{toNumber(teamData.cleanSheets).toLocaleString()}</div>
-												</div>
-											</div>
-											<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
-												<div className='flex-shrink-0'>
-													<Image
-														src='/stat-icons/PointsPerGame-Icon.svg'
-														alt='Points/Game'
-														width={40}
-														height={40}
-														className='w-8 h-8 md:w-10 md:h-10 object-contain'
-													/>
-												</div>
-												<div className='flex-1 min-w-0'>
-													<div className='text-white/70 text-sm md:text-base mb-1'>Points/Game</div>
-													<div className='text-white font-bold text-xl md:text-2xl'>{toNumber(teamData.pointsPerGame).toFixed(2)}</div>
-												</div>
-											</div>
-											<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
-												<div className='flex-shrink-0'>
-													<Image
-														src='/stat-icons/GoalsPerAppearance-Icon.svg'
-														alt='Goals / Game'
-														width={40}
-														height={40}
-														className='w-8 h-8 md:w-10 md:h-10 object-contain'
-													/>
-												</div>
-												<div className='flex-1 min-w-0'>
-													<div className='text-white/70 text-sm md:text-base mb-1'>Goals / Game</div>
-													<div className='text-white font-bold text-xl md:text-2xl'>{toNumber(teamData.goalsPerGame).toFixed(2)}</div>
-												</div>
-											</div>
-											<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
-												<div className='flex-shrink-0'>
-													<Image
-														src='/stat-icons/ConcededPerAppearance-Icon.svg'
-														alt='Conceded / Game'
-														width={40}
-														height={40}
-														className='w-8 h-8 md:w-10 md:h-10 object-contain'
-													/>
-												</div>
-												<div className='flex-1 min-w-0'>
-													<div className='text-white/70 text-sm md:text-base mb-1'>Conceded / Game</div>
-													<div className='text-white font-bold text-xl md:text-2xl'>{toNumber(teamData.goalsConcededPerGame).toFixed(2)}</div>
-												</div>
-											</div>
-											<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
-												<div className='flex-shrink-0'>
-													<Image
-														src='/stat-icons/PercentageGamesWon-Icon.svg'
-														alt='Win %'
-														width={40}
-														height={40}
-														className='w-8 h-8 md:w-10 md:h-10 object-contain'
-													/>
-												</div>
-												<div className='flex-1 min-w-0'>
-													<div className='text-white/70 text-sm md:text-base mb-1'>Win %</div>
-													<div className='text-white font-bold text-xl md:text-2xl'>{Math.round(toNumber(teamData.winPercentage))}%</div>
-												</div>
-											</div>
-											<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
-												<div className='flex-shrink-0'>
-													<Image
-														src='/stat-icons/GoalDifference-Icon.svg'
-														alt='Goal Difference'
-														width={40}
-														height={40}
-														className='w-8 h-8 md:w-10 md:h-10 object-contain'
-													/>
-												</div>
-												<div className='flex-1 min-w-0'>
-													<div className='text-white/70 text-sm md:text-base mb-1'>Goal Diff</div>
-													<div className='text-white font-bold text-xl md:text-2xl'>{toNumber(teamData.goalDifference).toLocaleString()}</div>
-												</div>
-											</div>
-											{teamData.totalFantasyPoints && toNumber(teamData.totalFantasyPoints) > 0 && (
-												<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
-													<div className='flex-shrink-0'>
-														<Image
-															src='/stat-icons/FantasyPoints-Icon.svg'
-															alt='Fantasy Points'
-															width={40}
-															height={40}
-															className='w-8 h-8 md:w-10 md:h-10 object-contain'
-														/>
-													</div>
-													<div className='flex-1 min-w-0'>
-														<div className='text-white/70 text-sm md:text-base mb-1'>Fantasy Points</div>
-														<div className='text-white font-bold text-xl md:text-2xl'>{Math.round(toNumber(teamData.totalFantasyPoints)).toLocaleString()}</div>
-													</div>
-												</div>
-											)}
-										</div>
-									</div>
-								)}
-
-								{/* Unique Player Stats Section */}
-								{isLoadingUniqueStats ? (
-									<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-										<div id='team-unique-player-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
-											<Skeleton height={20} width="40%" className="mb-2" />
-											<Skeleton height={16} width="60%" className="mb-3" />
-											<div className='overflow-x-auto'>
-												<table className='w-full text-white text-sm'>
-													<thead>
-														<tr className='border-b border-white/20'>
-															<th className='text-left py-2 px-2'><Skeleton height={16} width={80} /></th>
-															<th className='text-right py-2 px-2'><Skeleton height={16} width={100} className="ml-auto" /></th>
-														</tr>
-													</thead>
-													<tbody>
-														{[...Array(5)].map((_, i) => (
-															<tr key={i} className='border-b border-white/10'>
-																<td className='py-2 px-2'><Skeleton height={14} width="70%" /></td>
-																<td className='text-right py-2 px-2'><Skeleton height={14} width={30} className="ml-auto" /></td>
-															</tr>
-														))}
-													</tbody>
-												</table>
-											</div>
-										</div>
-									</SkeletonTheme>
-								) : uniquePlayerStats && (
-									<div id='team-unique-player-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
-										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Unique Player Stats</h3>
-										<p className='text-white text-sm md:text-base mb-3'>
-											Unique players for the {selectedTeam || "2s"}: <span className='font-bold'>{toNumber(teamData.numberOfPlayers).toLocaleString()}</span>
-										</p>
-										<div className='overflow-x-auto'>
-											<table className='w-full text-white text-sm'>
-												<thead>
-													<tr className='border-b border-white/20'>
-														<th className='text-left py-2 px-2'>Stat</th>
-														<th className='text-right py-2 px-2'>Unique Players</th>
-													</tr>
-												</thead>
-												<tbody>
-													{uniquePlayerStats.playersWhoScored > 0 && (
-														<tr className='border-b border-white/10'>
-															<td className='py-2 px-2'>Players Who Scored</td>
-															<td className='text-right py-2 px-2 font-mono font-bold'>{uniquePlayerStats.playersWhoScored}</td>
-														</tr>
-													)}
-													{uniquePlayerStats.playersWhoAssisted > 0 && (
-														<tr className='border-b border-white/10'>
-															<td className='py-2 px-2'>Players Who Assisted</td>
-															<td className='text-right py-2 px-2 font-mono font-bold'>{uniquePlayerStats.playersWhoAssisted}</td>
-														</tr>
-													)}
-													{uniquePlayerStats.playersWithOwnGoals > 0 && (
-														<tr className='border-b border-white/10'>
-															<td className='py-2 px-2'>Players With Own Goals</td>
-															<td className='text-right py-2 px-2 font-mono font-bold'>{uniquePlayerStats.playersWithOwnGoals}</td>
-														</tr>
-													)}
-													{uniquePlayerStats.playersWithCleanSheets > 0 && (
-														<tr className='border-b border-white/10'>
-															<td className='py-2 px-2'>Players With Clean Sheets</td>
-															<td className='text-right py-2 px-2 font-mono font-bold'>{uniquePlayerStats.playersWithCleanSheets}</td>
-														</tr>
-													)}
-													{uniquePlayerStats.playersWithMoM > 0 && (
-														<tr className='border-b border-white/10'>
-															<td className='py-2 px-2'>Players With MoM</td>
-															<td className='text-right py-2 px-2 font-mono font-bold'>{uniquePlayerStats.playersWithMoM}</td>
-														</tr>
-													)}
-													{uniquePlayerStats.playersWithSaves > 0 && (
-														<tr className='border-b border-white/10'>
-															<td className='py-2 px-2'>Players With Saves</td>
-															<td className='text-right py-2 px-2 font-mono font-bold'>{uniquePlayerStats.playersWithSaves}</td>
-														</tr>
-													)}
-													{uniquePlayerStats.playersWithYellowCards > 0 && (
-														<tr className='border-b border-white/10'>
-															<td className='py-2 px-2'>Players With Yellow Cards</td>
-															<td className='text-right py-2 px-2 font-mono font-bold'>{uniquePlayerStats.playersWithYellowCards}</td>
-														</tr>
-													)}
-													{uniquePlayerStats.playersWithRedCards > 0 && (
-														<tr className='border-b border-white/10'>
-															<td className='py-2 px-2'>Players With Red Cards</td>
-															<td className='text-right py-2 px-2 font-mono font-bold'>{uniquePlayerStats.playersWithRedCards}</td>
-														</tr>
-													)}
-													{uniquePlayerStats.playersWhoScoredPenalties > 0 && (
-														<tr className='border-b border-white/10'>
-															<td className='py-2 px-2'>Players Who Scored Penalties</td>
-															<td className='text-right py-2 px-2 font-mono font-bold'>{uniquePlayerStats.playersWhoScoredPenalties}</td>
-														</tr>
-													)}
-													{uniquePlayerStats.playersWhoSavedPenalties > 0 && (
-														<tr className='border-b border-white/10'>
-															<td className='py-2 px-2'>Players Who Saved Penalties</td>
-															<td className='text-right py-2 px-2 font-mono font-bold'>{uniquePlayerStats.playersWhoSavedPenalties}</td>
-														</tr>
-													)}
-													{uniquePlayerStats.playersWhoConcededPenalties > 0 && (
-														<tr>
-															<td className='py-2 px-2'>Players Who Conceded Penalties</td>
-															<td className='text-right py-2 px-2 font-mono font-bold'>{uniquePlayerStats.playersWhoConcededPenalties}</td>
-														</tr>
-													)}
-												</tbody>
-											</table>
-										</div>
-									</div>
-								)}
-
-								{featureFlags.teamStatsTeamRecordings && selectedTeam && teamRecordings.length > 0 && (
-									<RecordingsSection
-										id='team-recordings'
-										title='Team Recordings'
-										subtitle='All matches with a recording link for the selected team and current filters.'
-										fixtures={teamRecordings}
-										testIdPrefix='team-recording'
-									/>
 								)}
 
 								{/* Best Season Finish Section */}

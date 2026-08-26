@@ -1786,120 +1786,6 @@ export default function ClubStats() {
 								</div>
 								)}
 
-								{/* Longest Active Streaks (whole club) */}
-								{!isDataTableMode &&
-									featureFlags.clubStatsLongestActiveStreaks &&
-									((teamData.streakLeaders && teamData.streakLeaders.length > 0) ||
-										(teamData.streakLeadersAllTime && teamData.streakLeadersAllTime.length > 0)) && (
-										<div id='club-streak-leaders' className='md:break-inside-avoid md:mb-4'>
-											<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-												<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Club Streaks</h3>
-												{teamData.streakLeaders && teamData.streakLeaders.length > 0 && (
-													<>
-														<div className='flex items-center gap-2 mb-2'>
-															<h4 className='text-white/85 font-medium text-xs md:text-sm'>Longest Active Streaks</h4>
-															<FloatingTooltipTrigger
-																className='inline-flex items-center justify-center w-4 h-4 text-[10px] rounded-full border border-white/40 text-white/80 cursor-help outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow/80'
-																tooltip={
-																	<>
-																		Shows the player with the longest current run for each category across the full club (all XIs).
-																	</>
-																}
-															>
-																i
-															</FloatingTooltipTrigger>
-														</div>
-														<div className='grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3'>
-															{teamData.streakLeaders.map((row) => {
-																const tipByCategory: Record<string, string> = {
-																	wins: "Consecutive games won by the player while playing for the club.",
-																	unbeaten: "Consecutive games without a loss while the player is on the pitch (wins or draws).",
-																	goalsScored: "Consecutive games where the player scores at least once (goal or penalty).",
-																	cleanSheets: "Consecutive clean sheets while the player plays.",
-																	noCards: "Consecutive games with no yellow or red card while the player plays.",
-																};
-																const tip = tipByCategory[row.category] ?? "Current active run for this streak category.";
-																return (
-																	<FloatingTooltipTrigger
-																		key={`active-${row.category}`}
-																		className='bg-white/5 rounded-lg px-3 py-2 flex flex-col gap-0.5 cursor-help outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow/80'
-																		tooltip={
-																			<>
-																				<p className='text-white/95 leading-snug'>{tip}</p>
-																				<div className='mt-2 pt-2 border-t border-white/20 space-y-1 text-white/90'>
-																					<p>Player: {row.playerName}</p>
-																					<p>Active run: {row.value} in a row</p>
-																					<p>Date range: {formatStreakRange(row.startDate, row.endDate) || "-"}</p>
-																				</div>
-																			</>
-																		}
-																	>
-																		<span className='text-white/70 text-xs'>{row.label}</span>
-																		<span className='text-white font-semibold text-sm md:text-base'>{row.playerName}</span>
-																		<span className='text-dorkinians-yellow text-xs md:text-sm'>
-																			{row.value} in a row{formatStreakRange(row.startDate, row.endDate)}
-																		</span>
-																	</FloatingTooltipTrigger>
-																);
-															})}
-														</div>
-													</>
-												)}
-												{teamData.streakLeadersAllTime && teamData.streakLeadersAllTime.length > 0 && (
-													<>
-														<div className='flex items-center gap-2 mb-2'>
-															<h4 className='text-white/85 font-medium text-xs md:text-sm'>Longest All Time Streaks</h4>
-															<FloatingTooltipTrigger
-																className='inline-flex items-center justify-center w-4 h-4 text-[10px] rounded-full border border-white/40 text-white/80 cursor-help outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow/80'
-																tooltip={
-																	<>
-																		Shows the player with the longest historical run for each category across the full club (all XIs).
-																	</>
-																}
-															>
-																i
-															</FloatingTooltipTrigger>
-														</div>
-														<div className='grid grid-cols-1 sm:grid-cols-2 gap-2'>
-															{teamData.streakLeadersAllTime.map((row) => {
-																const tipByCategory: Record<string, string> = {
-																	wins: "Longest historical run of games won by the player while playing for the club.",
-																	unbeaten: "Longest historical run of games without a loss while the player is on the pitch (wins or draws).",
-																	goalsScored: "Longest historical run of games where the player scores at least once (goal or penalty).",
-																	cleanSheets: "Longest historical run of clean sheets while the player plays.",
-																	noCards: "Longest historical run of games with no yellow or red card while the player plays.",
-																};
-																const tip = tipByCategory[row.category] ?? "Longest all-time run for this streak category.";
-																return (
-																	<FloatingTooltipTrigger
-																		key={`alltime-${row.category}`}
-																		className='bg-white/[0.07] border border-white/20 rounded-lg px-3 py-2 flex flex-col gap-0.5 cursor-help outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow/80'
-																		tooltip={
-																			<>
-																				<p className='text-white/95 leading-snug'>{tip}</p>
-																				<div className='mt-2 pt-2 border-t border-white/20 space-y-1 text-white/90'>
-																					<p>Player: {row.playerName}</p>
-																					<p>All-time run: {row.value} in a row</p>
-																					<p>Date range: {formatStreakRange(row.startDate, row.endDate) || "-"}</p>
-																				</div>
-																			</>
-																		}
-																	>
-																		<span className='text-white/70 text-xs'>{row.label}</span>
-																		<span className='text-white font-semibold text-sm md:text-base'>{row.playerName}</span>
-																		<span className='text-white/90 text-xs md:text-sm'>
-																			{row.value} in a row{formatStreakRange(row.startDate, row.endDate)}
-																		</span>
-																	</FloatingTooltipTrigger>
-																);
-															})}
-														</div>
-													</>
-												)}
-											</div>
-										</div>
-									)}
-
 								{/* Team Comparison Section */}
 					{!isDataTableMode && (isLoadingTeamComparison ? (
 						<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
@@ -2021,6 +1907,568 @@ export default function ClubStats() {
 						</div>
 									))}
 
+								{/* Seasonal Performance Section */}
+								{!isDataTableMode && allSeasonsSelected && (
+									<div id='club-seasonal-performance' className='md:break-inside-avoid md:mb-4'>
+										<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+											<div className='flex items-center justify-between mb-2 gap-2'>
+												<h3 className='text-white font-semibold text-sm md:text-base flex-shrink-0'>Seasonal Performance</h3>
+												<div className='flex-1 max-w-[45%]'>
+													<Listbox
+														value={seasonalSelectedStat}
+														onChange={(v) => {
+															setSeasonalSelectedStat(v);
+															trackStatsStatSelected("club-stats", "club-seasonal-performance", v);
+														}}>
+														<div className='relative'>
+															<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-xs md:text-sm'>
+																<span className='block truncate text-white'>
+																	{statOptions.find(opt => opt.value === seasonalSelectedStat)?.label || seasonalSelectedStat}
+																</span>
+																<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
+																	<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
+																</span>
+															</Listbox.Button>
+															<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-xs md:text-sm shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
+																{statOptions.map((option) => (
+																	<Listbox.Option
+																		key={option.value}
+																		className={({ active }) =>
+																			`relative cursor-default select-none dark-dropdown-option ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
+																		}
+																		value={option.value}>
+																		{({ selected }) => (
+																			<span className={`block truncate py-1 px-2 ${selected ? "font-medium" : "font-normal"}`}>
+																				{option.label}
+																			</span>
+																		)}
+																	</Listbox.Option>
+																))}
+															</Listbox.Options>
+														</div>
+													</Listbox>
+												</div>
+											</div>
+											<div className='flex items-center justify-center gap-2 mb-2'>
+												<input 
+													type='checkbox' 
+													checked={showTrend} 
+													onChange={(e) => setShowTrend(e.target.checked)}
+													className='w-4 h-4 accent-dorkinians-yellow cursor-pointer'
+													id='show-trend-checkbox-club'
+													style={{ accentColor: '#f9ed32' }}
+												/>
+												<label htmlFor='show-trend-checkbox-club' className='text-white text-xs md:text-sm cursor-pointer'>Show trend</label>
+											</div>
+											{(isLoadingSeasonalStats || appConfig.forceSkeletonView) ? (
+												<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+													<ChartSkeleton />
+												</SkeletonTheme>
+											) : seasonalChartData.length > 0 ? (
+												<div className='chart-container' style={{ touchAction: 'pan-y' }}>
+													<ResponsiveContainer width='100%' height={240}>
+														<ComposedChart 
+															data={seasonalChartData} 
+															margin={{ top: 5, right: 5, left: -20, bottom: 5 }}
+														>
+															<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
+															<XAxis dataKey='name' stroke='#fff' fontSize={12} />
+															<YAxis stroke='#fff' fontSize={12} domain={[0, 'auto']} allowDecimals={false} />
+															<Tooltip content={customTooltip} />
+															<Bar 
+																dataKey='value' 
+																fill='#f9ed32' 
+																radius={[4, 4, 0, 0]} 
+																opacity={0.9} 
+																activeBar={{ fill: '#f9ed32', opacity: 1, stroke: 'none' }}
+															/>
+															{showTrend && (
+																<Line 
+																	type='linear' 
+																	dataKey='trendline' 
+																	stroke='#ffffff' 
+																	strokeWidth={2}
+																	strokeDasharray='5 5'
+																	dot={false}
+																	activeDot={false}
+																	isAnimationActive={false}
+																	connectNulls={false}
+																/>
+															)}
+														</ComposedChart>
+													</ResponsiveContainer>
+												</div>
+											) : (
+												<div className='flex items-center justify-center h-64'>
+													<p className='text-white text-sm'>No seasonal data available</p>
+												</div>
+											)}
+										</div>
+									</div>
+								)}
+
+								{/* Win/Draw/Loss Pie Chart */}
+								{pieChartData.length > 0 && (() => {
+									const wins = toNumber(teamData.wins || 0);
+									const draws = toNumber(teamData.draws || 0);
+									const losses = toNumber(teamData.losses || 0);
+									const gamesPlayed = wins + draws + losses;
+									const pointsPerGame = gamesPlayed > 0 ? ((3 * wins) + (1 * draws)) / gamesPlayed : 0;
+									const pointsPerGameFormatted = Math.min(3, Math.max(0, pointsPerGame)).toFixed(1);
+									
+									return (
+									<div id='club-match-results' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
+										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Match Results</h3>
+										<p className='text-white text-sm mb-2 text-center'>Points per game: {pointsPerGameFormatted}</p>
+										<div className='chart-container -my-2' style={{ touchAction: 'pan-y' }}>
+											<ResponsiveContainer width='100%' height={220}>
+												<PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+													<Pie
+														data={pieChartData}
+														cx='50%'
+														cy='50%'
+														labelLine={false}
+														label={({ cx, cy, midAngle, innerRadius, outerRadius, name, value }) => {
+															const RADIAN = Math.PI / 180;
+															const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+															const x = cx + radius * Math.cos(-midAngle * RADIAN);
+															const y = cy + radius * Math.sin(-midAngle * RADIAN);
+															
+															return (
+																<text
+																	x={x}
+																	y={y}
+																	fill="#ffffff"
+																	textAnchor={x > cx ? 'start' : 'end'}
+																	dominantBaseline="central"
+																	fontSize={14}
+																	fontWeight='bold'
+																>
+																	{`${name}: ${value}`}
+																</text>
+															);
+														}}
+														outerRadius={90}
+														fill='#8884d8'
+														dataKey='value'
+													>
+													{pieChartData.map((entry, index) => (
+														<Cell key={`cell-${index}`} fill={entry.color} />
+													))}
+												</Pie>
+												<Tooltip content={customTooltip} />
+												</PieChart>
+											</ResponsiveContainer>
+										</div>
+							</div>
+						);
+								})()}
+
+								{/* Game Details Section */}
+								{isLoadingGameDetails ? (
+									<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+										<GameDetailsTableSkeleton />
+									</SkeletonTheme>
+								) : !isLoadingGameDetails && gameDetails && (
+									<div id='club-game-details' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
+										<h3 className='text-white font-semibold text-sm md:text-base mb-4'>Game Details</h3>
+										
+										{/* CompType Table */}
+										<div className='mb-6'>
+											<table className='w-full text-white text-sm'>
+												<thead>
+													<tr className='border-b border-white/20'>
+														<th className='text-left py-2 px-2'>Type</th>
+														<th className='text-right py-2 px-2'>Count</th>
+														<th className='text-right py-2 px-2'>% Won</th>
+													</tr>
+												</thead>
+												<tbody>
+													{(gameDetails.leagueGames || 0) > 0 && (
+														<tr className='border-b border-white/10'>
+															<td className='py-2 px-2'>
+																<span className='px-2 py-1 rounded text-xs font-medium mr-2 bg-blue-600/30 text-blue-300'>League</span>
+															</td>
+															<td className='text-right py-2 px-2 font-mono'>{gameDetails.leagueGames || 0}</td>
+															<td className='text-right py-2 px-2 font-mono'>
+																{gameDetails.leagueGames > 0 
+																	? ((gameDetails.leagueWins || 0) / gameDetails.leagueGames * 100).toFixed(1) + '%'
+																	: '0.0%'}
+															</td>
+														</tr>
+													)}
+													{(gameDetails.cupGames || 0) > 0 && (
+														<tr className='border-b border-white/10'>
+															<td className='py-2 px-2'>
+																<span className='px-2 py-1 rounded text-xs font-medium mr-2 bg-purple-600/30 text-purple-300'>Cup</span>
+															</td>
+															<td className='text-right py-2 px-2 font-mono'>{gameDetails.cupGames || 0}</td>
+															<td className='text-right py-2 px-2 font-mono'>
+																{gameDetails.cupGames > 0 
+																	? ((gameDetails.cupWins || 0) / gameDetails.cupGames * 100).toFixed(1) + '%'
+																	: '0.0%'}
+															</td>
+														</tr>
+													)}
+													{(gameDetails.friendlyGames || 0) > 0 && (
+														<tr>
+															<td className='py-2 px-2'>
+																<span className='px-2 py-1 rounded text-xs font-medium mr-2 bg-green-600/30 text-green-300'>Friendly</span>
+															</td>
+															<td className='text-right py-2 px-2 font-mono'>{gameDetails.friendlyGames || 0}</td>
+															<td className='text-right py-2 px-2 font-mono'>
+																{gameDetails.friendlyGames > 0 
+																	? ((gameDetails.friendlyWins || 0) / gameDetails.friendlyGames * 100).toFixed(1) + '%'
+																	: '0.0%'}
+															</td>
+														</tr>
+													)}
+												</tbody>
+											</table>
+										</div>
+
+										{/* Home/Away Table */}
+										<div className='mb-6'>
+											<table className='w-full text-white text-sm'>
+												<thead>
+													<tr className='border-b border-white/20'>
+														<th className='text-left py-2 px-2'>Location</th>
+														<th className='text-right py-2 px-2'>Count</th>
+														<th className='text-right py-2 px-2'>% Won</th>
+													</tr>
+												</thead>
+												<tbody>
+													{(gameDetails.homeGames || 0) > 0 && (
+														<tr className='border-b border-white/10'>
+															<td className='py-2 px-2'>
+																<span className='px-2 py-1 rounded text-xs font-medium mr-2 bg-dorkinians-yellow/20 text-dorkinians-yellow'>Home</span>
+															</td>
+															<td className='text-right py-2 px-2 font-mono'>{gameDetails.homeGames || 0}</td>
+															<td className='text-right py-2 px-2 font-mono'>
+																{gameDetails.homeGames > 0 
+																	? ((gameDetails.homeWins || 0) / gameDetails.homeGames * 100).toFixed(1) + '%'
+																	: '0.0%'}
+															</td>
+														</tr>
+													)}
+													{(gameDetails.awayGames || 0) > 0 && (
+														<tr>
+															<td className='py-2 px-2'>
+																<span className='px-2 py-1 rounded text-xs font-medium mr-2 bg-gray-700 text-gray-300'>Away</span>
+															</td>
+															<td className='text-right py-2 px-2 font-mono'>{gameDetails.awayGames || 0}</td>
+															<td className='text-right py-2 px-2 font-mono'>
+																{gameDetails.awayGames > 0 
+																	? ((gameDetails.awayWins || 0) / gameDetails.awayGames * 100).toFixed(1) + '%'
+																	: '0.0%'}
+															</td>
+														</tr>
+													)}
+												</tbody>
+											</table>
+										</div>
+
+										{/* Unique Counts */}
+										<div className='space-y-2'>
+											<p className='text-white text-sm'>
+												<span className='text-white'>Opposition played against: </span>
+												<span className='font-mono font-bold'>{gameDetails.uniqueOpponents || 0}</span>
+											</p>
+											<p className='text-white text-sm'>
+												<span className='text-white'>Competitions competed in: </span>
+												<span className='font-mono font-bold'>{gameDetails.uniqueCompetitions || 0}</span>
+											</p>
+										</div>
+									</div>
+								)}
+
+								{/* Goals Scored vs Conceded Waterfall Chart */}
+								{(toNumber(teamData.goalsScored) > 0 || toNumber(teamData.goalsConceded) > 0) && (
+									<div id='club-goals-scored-conceded' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
+										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Goals Scored vs Conceded</h3>
+										<div className='chart-container' style={{ touchAction: 'pan-y' }}>
+											<ResponsiveContainer width='100%' height={300}>
+												<ComposedChart data={goalsData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+													<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
+													<XAxis dataKey='name' stroke='#fff' fontSize={12} />
+													<YAxis stroke='#fff' fontSize={12} />
+													<Tooltip content={customTooltip} />
+													<Bar dataKey='value' radius={[4, 4, 0, 0]} opacity={0.8} activeBar={{ opacity: 0.5 }}>
+														{goalsData.map((entry, index) => (
+															<Cell key={`cell-${index}`} fill={entry.fill} />
+														))}
+													<LabelList 
+														dataKey="value"
+														position="inside"
+														content={(props: any) => {
+															const { x, y, width, height, name, index, value } = props;
+															if (value === undefined || value === null || height <= 0) return null;
+															// Access perGame from the data entry using index or name
+															const dataEntry = typeof index === 'number' && index >= 0 ? goalsData[index] : goalsData.find((e: any) => e.name === name);
+															const perGame = dataEntry?.perGame || "0.00";
+															// Calculate center position accounting for two-line layout
+															const lineHeight = 14;
+															const centerY = y + height / 2;
+															const startY = centerY - lineHeight / 2;
+															return (
+																<g>
+																	<text
+																		x={x + width / 2}
+																		y={startY}
+																		fill="#ffffff"
+																		fontSize={12}
+																		fontWeight="bold"
+																		textAnchor="middle"
+																		dominantBaseline="middle"
+																		style={{ pointerEvents: 'none', userSelect: 'none' }}
+																	>
+																		{value}
+																	</text>
+																	<text
+																		x={x + width / 2}
+																		y={startY + lineHeight}
+																		fill="#ffffff"
+																		fontSize={11}
+																		fontWeight="normal"
+																		textAnchor="middle"
+																		dominantBaseline="middle"
+																		style={{ pointerEvents: 'none', userSelect: 'none' }}
+																	>
+																		{perGame} per game
+																	</text>
+																</g>
+															);
+														}}
+													/>
+													</Bar>
+												</ComposedChart>
+											</ResponsiveContainer>
+										</div>
+									</div>
+								)}
+
+								{/* Home vs Away Performance Dual Gauge */}
+								{(toNumber(teamData.homeGames) > 0 || toNumber(teamData.awayGames) > 0) && (
+									<div id='club-home-away-performance' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
+										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Home vs Away Performance</h3>
+										<HomeAwayGauge 
+											homeWinPercentage={toNumber(teamData.homeWinPercentage)} 
+											awayWinPercentage={toNumber(teamData.awayWinPercentage)} 
+										/>
+									</div>
+								)}
+
+								{/* Big Club Numbers Section */}
+								{teamData && (
+									<div id='club-big-club-numbers' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
+										<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Big Club Numbers</h3>
+										<div className='grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4'>
+											{teamData.totalMinutes && toNumber(teamData.totalMinutes) > 0 && (
+												<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
+													<div className='flex-shrink-0'>
+														<Image
+															src='/stat-icons/Minutes-Icon.svg'
+															alt='Total Minutes'
+															width={40}
+															height={40}
+															className='w-8 h-8 md:w-10 md:h-10 object-contain'
+														/>
+													</div>
+													<div className='flex-1 min-w-0'>
+														<div className='text-white/70 text-sm md:text-base mb-1'>Total Minutes Played</div>
+														<div className='text-white font-bold text-xl md:text-2xl'>
+															{(toNumber(teamData.totalMinutes) / 525600).toFixed(2)} years
+														</div>
+														<div className='text-white/60 text-xs mt-1'>
+															{toNumber(teamData.totalMinutes).toLocaleString()} minutes
+														</div>
+													</div>
+												</div>
+											)}
+											{teamData.totalDistance && toNumber(teamData.totalDistance) > 0 && (
+												<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
+													<div className='flex-shrink-0'>
+														<Image
+															src='/stat-icons/DistanceTravelled-Icon.svg'
+															alt='Total Distance'
+															width={40}
+															height={40}
+															className='w-8 h-8 md:w-10 md:h-10 object-contain'
+														/>
+													</div>
+													<div className='flex-1 min-w-0'>
+														<div className='text-white/70 text-sm md:text-base mb-1'>Distance Travelled</div>
+														<div className='text-white font-bold text-xl md:text-2xl'>
+															{(toNumber(teamData.totalDistance) / 238900).toFixed(2)}x to the moon
+														</div>
+														<div className='text-white/60 text-xs mt-1'>
+															{Math.round(toNumber(teamData.totalDistance)).toLocaleString()} miles
+														</div>
+													</div>
+												</div>
+											)}
+											{(teamData.totalYellowCards || teamData.totalRedCards) && 
+												(toNumber(teamData.totalYellowCards || 0) > 0 || toNumber(teamData.totalRedCards || 0) > 0) && (
+												<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
+													<div className='flex-shrink-0'>
+														<Image
+															src='/stat-icons/RedCard-Icon.svg'
+															alt='Total Cards Cost'
+															width={40}
+															height={40}
+															className='w-8 h-8 md:w-10 md:h-10 object-contain'
+														/>
+													</div>
+													<div className='flex-1 min-w-0'>
+														<div className='text-white/70 text-sm md:text-base mb-1'>Total Cards Cost</div>
+														<div className='text-white font-bold text-xl md:text-2xl'>
+															£
+															{calculateCardFineTotal(
+																toNumber(teamData.totalYellowCards || 0),
+																toNumber(teamData.totalRedCards || 0),
+															).toLocaleString()}
+														</div>
+														<div className='text-white/60 text-xs mt-1'>
+															Yellow + Red cards combined
+														</div>
+													</div>
+												</div>
+											)}
+										</div>
+									</div>
+								)}
+
+								{/* Other Club Stats KPI Cards */}
+								{toNumber(teamData.gamesPlayed) > 0 && (
+									<div id='club-other-club-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
+										<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Other Club Stats</h3>
+										<div className='grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4'>
+											<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
+												<div className='flex-shrink-0'>
+													<Image
+														src='/stat-icons/TeamAppearance-Icon.svg'
+														alt='Games'
+														width={40}
+														height={40}
+														className='w-8 h-8 md:w-10 md:h-10 object-contain'
+													/>
+												</div>
+												<div className='flex-1 min-w-0'>
+													<div className='text-white/70 text-sm md:text-base mb-1'>Games</div>
+													<div className='text-white font-bold text-xl md:text-2xl'>{toNumber(teamData.gamesPlayed).toLocaleString()}</div>
+												</div>
+											</div>
+											<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
+												<div className='flex-shrink-0'>
+													<Image
+														src='/stat-icons/CleanSheet-Icon.svg'
+														alt='Clean Sheets'
+														width={40}
+														height={40}
+														className='w-8 h-8 md:w-10 md:h-10 object-contain'
+													/>
+												</div>
+												<div className='flex-1 min-w-0'>
+													<div className='text-white/70 text-sm md:text-base mb-1'>Clean Sheets</div>
+													<div className='text-white font-bold text-xl md:text-2xl'>{toNumber(teamData.cleanSheets).toLocaleString()}</div>
+												</div>
+											</div>
+											<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
+												<div className='flex-shrink-0'>
+													<Image
+														src='/stat-icons/PointsPerGame-Icon.svg'
+														alt='Points/Game'
+														width={40}
+														height={40}
+														className='w-8 h-8 md:w-10 md:h-10 object-contain'
+													/>
+												</div>
+												<div className='flex-1 min-w-0'>
+													<div className='text-white/70 text-sm md:text-base mb-1'>Points/Game</div>
+													<div className='text-white font-bold text-xl md:text-2xl'>{toNumber(teamData.pointsPerGame).toFixed(2)}</div>
+												</div>
+											</div>
+											<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
+												<div className='flex-shrink-0'>
+													<Image
+														src='/stat-icons/GoalsPerAppearance-Icon.svg'
+														alt='Goals / Game'
+														width={40}
+														height={40}
+														className='w-8 h-8 md:w-10 md:h-10 object-contain'
+													/>
+												</div>
+												<div className='flex-1 min-w-0'>
+													<div className='text-white/70 text-sm md:text-base mb-1'>Goals / Game</div>
+													<div className='text-white font-bold text-xl md:text-2xl'>{toNumber(teamData.goalsPerGame).toFixed(2)}</div>
+												</div>
+											</div>
+											<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
+												<div className='flex-shrink-0'>
+													<Image
+														src='/stat-icons/ConcededPerAppearance-Icon.svg'
+														alt='Conceded / Game'
+														width={40}
+														height={40}
+														className='w-8 h-8 md:w-10 md:h-10 object-contain'
+													/>
+												</div>
+												<div className='flex-1 min-w-0'>
+													<div className='text-white/70 text-sm md:text-base mb-1'>Conceded / Game</div>
+													<div className='text-white font-bold text-xl md:text-2xl'>{toNumber(teamData.goalsConcededPerGame).toFixed(2)}</div>
+												</div>
+											</div>
+											<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
+												<div className='flex-shrink-0'>
+													<Image
+														src='/stat-icons/PercentageGamesWon-Icon.svg'
+														alt='Win %'
+														width={40}
+														height={40}
+														className='w-8 h-8 md:w-10 md:h-10 object-contain'
+													/>
+												</div>
+												<div className='flex-1 min-w-0'>
+													<div className='text-white/70 text-sm md:text-base mb-1'>Win %</div>
+													<div className='text-white font-bold text-xl md:text-2xl'>{Math.round(toNumber(teamData.winPercentage))}%</div>
+												</div>
+											</div>
+											<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
+												<div className='flex-shrink-0'>
+													<Image
+														src='/stat-icons/GoalDifference-Icon.svg'
+														alt='Goal Difference'
+														width={40}
+														height={40}
+														className='w-8 h-8 md:w-10 md:h-10 object-contain'
+													/>
+												</div>
+												<div className='flex-1 min-w-0'>
+													<div className='text-white/70 text-sm md:text-base mb-1'>Goal Diff</div>
+													<div className='text-white font-bold text-xl md:text-2xl'>{toNumber(teamData.goalDifference).toLocaleString()}</div>
+												</div>
+											</div>
+											{teamData.totalFantasyPoints && toNumber(teamData.totalFantasyPoints) > 0 && (
+												<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
+													<div className='flex-shrink-0'>
+														<Image
+															src='/stat-icons/FantasyPoints-Icon.svg'
+															alt='Fantasy Points'
+															width={40}
+															height={40}
+															className='w-8 h-8 md:w-10 md:h-10 object-contain'
+														/>
+													</div>
+													<div className='flex-1 min-w-0'>
+														<div className='text-white/70 text-sm md:text-base mb-1'>Fantasy Points</div>
+														<div className='text-white font-bold text-xl md:text-2xl'>{Math.round(toNumber(teamData.totalFantasyPoints)).toLocaleString()}</div>
+													</div>
+												</div>
+											)}
+										</div>
+									</div>
+								)}
+
 								{/* Top Players Table */}
 								{!isDataTableMode && (
 								<div id='club-top-players' className='flex-shrink-0 md:break-inside-avoid md:mb-4'>
@@ -2141,106 +2589,6 @@ export default function ClubStats() {
 										)}
 									</div>
 								</div>
-								)}
-
-								{/* Seasonal Performance Section */}
-								{!isDataTableMode && allSeasonsSelected && (
-									<div id='club-seasonal-performance' className='md:break-inside-avoid md:mb-4'>
-										<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-											<div className='flex items-center justify-between mb-2 gap-2'>
-												<h3 className='text-white font-semibold text-sm md:text-base flex-shrink-0'>Seasonal Performance</h3>
-												<div className='flex-1 max-w-[45%]'>
-													<Listbox
-														value={seasonalSelectedStat}
-														onChange={(v) => {
-															setSeasonalSelectedStat(v);
-															trackStatsStatSelected("club-stats", "club-seasonal-performance", v);
-														}}>
-														<div className='relative'>
-															<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-xs md:text-sm'>
-																<span className='block truncate text-white'>
-																	{statOptions.find(opt => opt.value === seasonalSelectedStat)?.label || seasonalSelectedStat}
-																</span>
-																<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
-																	<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
-																</span>
-															</Listbox.Button>
-															<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-xs md:text-sm shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
-																{statOptions.map((option) => (
-																	<Listbox.Option
-																		key={option.value}
-																		className={({ active }) =>
-																			`relative cursor-default select-none dark-dropdown-option ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
-																		}
-																		value={option.value}>
-																		{({ selected }) => (
-																			<span className={`block truncate py-1 px-2 ${selected ? "font-medium" : "font-normal"}`}>
-																				{option.label}
-																			</span>
-																		)}
-																	</Listbox.Option>
-																))}
-															</Listbox.Options>
-														</div>
-													</Listbox>
-												</div>
-											</div>
-											<div className='flex items-center justify-center gap-2 mb-2'>
-												<input 
-													type='checkbox' 
-													checked={showTrend} 
-													onChange={(e) => setShowTrend(e.target.checked)}
-													className='w-4 h-4 accent-dorkinians-yellow cursor-pointer'
-													id='show-trend-checkbox-club'
-													style={{ accentColor: '#f9ed32' }}
-												/>
-												<label htmlFor='show-trend-checkbox-club' className='text-white text-xs md:text-sm cursor-pointer'>Show trend</label>
-											</div>
-											{(isLoadingSeasonalStats || appConfig.forceSkeletonView) ? (
-												<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-													<ChartSkeleton />
-												</SkeletonTheme>
-											) : seasonalChartData.length > 0 ? (
-												<div className='chart-container' style={{ touchAction: 'pan-y' }}>
-													<ResponsiveContainer width='100%' height={240}>
-														<ComposedChart 
-															data={seasonalChartData} 
-															margin={{ top: 5, right: 5, left: -20, bottom: 5 }}
-														>
-															<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
-															<XAxis dataKey='name' stroke='#fff' fontSize={12} />
-															<YAxis stroke='#fff' fontSize={12} domain={[0, 'auto']} allowDecimals={false} />
-															<Tooltip content={customTooltip} />
-															<Bar 
-																dataKey='value' 
-																fill='#f9ed32' 
-																radius={[4, 4, 0, 0]} 
-																opacity={0.9} 
-																activeBar={{ fill: '#f9ed32', opacity: 1, stroke: 'none' }}
-															/>
-															{showTrend && (
-																<Line 
-																	type='linear' 
-																	dataKey='trendline' 
-																	stroke='#ffffff' 
-																	strokeWidth={2}
-																	strokeDasharray='5 5'
-																	dot={false}
-																	activeDot={false}
-																	isAnimationActive={false}
-																	connectNulls={false}
-																/>
-															)}
-														</ComposedChart>
-													</ResponsiveContainer>
-												</div>
-											) : (
-												<div className='flex items-center justify-center h-64'>
-													<p className='text-white text-sm'>No seasonal data available</p>
-												</div>
-											)}
-										</div>
-									</div>
 								)}
 
 								{/* Player Distribution Section */}
@@ -2489,468 +2837,6 @@ export default function ClubStats() {
 								</div>
 								)}
 
-								{/* Win/Draw/Loss Pie Chart */}
-								{pieChartData.length > 0 && (() => {
-									const wins = toNumber(teamData.wins || 0);
-									const draws = toNumber(teamData.draws || 0);
-									const losses = toNumber(teamData.losses || 0);
-									const gamesPlayed = wins + draws + losses;
-									const pointsPerGame = gamesPlayed > 0 ? ((3 * wins) + (1 * draws)) / gamesPlayed : 0;
-									const pointsPerGameFormatted = Math.min(3, Math.max(0, pointsPerGame)).toFixed(1);
-									
-									return (
-									<div id='club-match-results' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
-										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Match Results</h3>
-										<p className='text-white text-sm mb-2 text-center'>Points per game: {pointsPerGameFormatted}</p>
-										<div className='chart-container -my-2' style={{ touchAction: 'pan-y' }}>
-											<ResponsiveContainer width='100%' height={220}>
-												<PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
-													<Pie
-														data={pieChartData}
-														cx='50%'
-														cy='50%'
-														labelLine={false}
-														label={({ cx, cy, midAngle, innerRadius, outerRadius, name, value }) => {
-															const RADIAN = Math.PI / 180;
-															const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-															const x = cx + radius * Math.cos(-midAngle * RADIAN);
-															const y = cy + radius * Math.sin(-midAngle * RADIAN);
-															
-															return (
-																<text
-																	x={x}
-																	y={y}
-																	fill="#ffffff"
-																	textAnchor={x > cx ? 'start' : 'end'}
-																	dominantBaseline="central"
-																	fontSize={14}
-																	fontWeight='bold'
-																>
-																	{`${name}: ${value}`}
-																</text>
-															);
-														}}
-														outerRadius={90}
-														fill='#8884d8'
-														dataKey='value'
-													>
-													{pieChartData.map((entry, index) => (
-														<Cell key={`cell-${index}`} fill={entry.color} />
-													))}
-												</Pie>
-												<Tooltip content={customTooltip} />
-												</PieChart>
-											</ResponsiveContainer>
-										</div>
-							</div>
-						);
-								})()}
-
-								{/* Game Details Section */}
-								{isLoadingGameDetails ? (
-									<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-										<GameDetailsTableSkeleton />
-									</SkeletonTheme>
-								) : !isLoadingGameDetails && gameDetails && (
-									<div id='club-game-details' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
-										<h3 className='text-white font-semibold text-sm md:text-base mb-4'>Game Details</h3>
-										
-										{/* CompType Table */}
-										<div className='mb-6'>
-											<table className='w-full text-white text-sm'>
-												<thead>
-													<tr className='border-b border-white/20'>
-														<th className='text-left py-2 px-2'>Type</th>
-														<th className='text-right py-2 px-2'>Count</th>
-														<th className='text-right py-2 px-2'>% Won</th>
-													</tr>
-												</thead>
-												<tbody>
-													{(gameDetails.leagueGames || 0) > 0 && (
-														<tr className='border-b border-white/10'>
-															<td className='py-2 px-2'>
-																<span className='px-2 py-1 rounded text-xs font-medium mr-2 bg-blue-600/30 text-blue-300'>League</span>
-															</td>
-															<td className='text-right py-2 px-2 font-mono'>{gameDetails.leagueGames || 0}</td>
-															<td className='text-right py-2 px-2 font-mono'>
-																{gameDetails.leagueGames > 0 
-																	? ((gameDetails.leagueWins || 0) / gameDetails.leagueGames * 100).toFixed(1) + '%'
-																	: '0.0%'}
-															</td>
-														</tr>
-													)}
-													{(gameDetails.cupGames || 0) > 0 && (
-														<tr className='border-b border-white/10'>
-															<td className='py-2 px-2'>
-																<span className='px-2 py-1 rounded text-xs font-medium mr-2 bg-purple-600/30 text-purple-300'>Cup</span>
-															</td>
-															<td className='text-right py-2 px-2 font-mono'>{gameDetails.cupGames || 0}</td>
-															<td className='text-right py-2 px-2 font-mono'>
-																{gameDetails.cupGames > 0 
-																	? ((gameDetails.cupWins || 0) / gameDetails.cupGames * 100).toFixed(1) + '%'
-																	: '0.0%'}
-															</td>
-														</tr>
-													)}
-													{(gameDetails.friendlyGames || 0) > 0 && (
-														<tr>
-															<td className='py-2 px-2'>
-																<span className='px-2 py-1 rounded text-xs font-medium mr-2 bg-green-600/30 text-green-300'>Friendly</span>
-															</td>
-															<td className='text-right py-2 px-2 font-mono'>{gameDetails.friendlyGames || 0}</td>
-															<td className='text-right py-2 px-2 font-mono'>
-																{gameDetails.friendlyGames > 0 
-																	? ((gameDetails.friendlyWins || 0) / gameDetails.friendlyGames * 100).toFixed(1) + '%'
-																	: '0.0%'}
-															</td>
-														</tr>
-													)}
-												</tbody>
-											</table>
-										</div>
-
-										{/* Home/Away Table */}
-										<div className='mb-6'>
-											<table className='w-full text-white text-sm'>
-												<thead>
-													<tr className='border-b border-white/20'>
-														<th className='text-left py-2 px-2'>Location</th>
-														<th className='text-right py-2 px-2'>Count</th>
-														<th className='text-right py-2 px-2'>% Won</th>
-													</tr>
-												</thead>
-												<tbody>
-													{(gameDetails.homeGames || 0) > 0 && (
-														<tr className='border-b border-white/10'>
-															<td className='py-2 px-2'>
-																<span className='px-2 py-1 rounded text-xs font-medium mr-2 bg-dorkinians-yellow/20 text-dorkinians-yellow'>Home</span>
-															</td>
-															<td className='text-right py-2 px-2 font-mono'>{gameDetails.homeGames || 0}</td>
-															<td className='text-right py-2 px-2 font-mono'>
-																{gameDetails.homeGames > 0 
-																	? ((gameDetails.homeWins || 0) / gameDetails.homeGames * 100).toFixed(1) + '%'
-																	: '0.0%'}
-															</td>
-														</tr>
-													)}
-													{(gameDetails.awayGames || 0) > 0 && (
-														<tr>
-															<td className='py-2 px-2'>
-																<span className='px-2 py-1 rounded text-xs font-medium mr-2 bg-gray-700 text-gray-300'>Away</span>
-															</td>
-															<td className='text-right py-2 px-2 font-mono'>{gameDetails.awayGames || 0}</td>
-															<td className='text-right py-2 px-2 font-mono'>
-																{gameDetails.awayGames > 0 
-																	? ((gameDetails.awayWins || 0) / gameDetails.awayGames * 100).toFixed(1) + '%'
-																	: '0.0%'}
-															</td>
-														</tr>
-													)}
-												</tbody>
-											</table>
-										</div>
-
-										{/* Unique Counts */}
-										<div className='space-y-2'>
-											<p className='text-white text-sm'>
-												<span className='text-white'>Opposition played against: </span>
-												<span className='font-mono font-bold'>{gameDetails.uniqueOpponents || 0}</span>
-											</p>
-											<p className='text-white text-sm'>
-												<span className='text-white'>Competitions competed in: </span>
-												<span className='font-mono font-bold'>{gameDetails.uniqueCompetitions || 0}</span>
-											</p>
-										</div>
-									</div>
-								)}
-
-								{/* Big Club Numbers Section */}
-								{teamData && (
-									<div id='club-big-club-numbers' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
-										<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Big Club Numbers</h3>
-										<div className='grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4'>
-											{teamData.totalMinutes && toNumber(teamData.totalMinutes) > 0 && (
-												<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
-													<div className='flex-shrink-0'>
-														<Image
-															src='/stat-icons/Minutes-Icon.svg'
-															alt='Total Minutes'
-															width={40}
-															height={40}
-															className='w-8 h-8 md:w-10 md:h-10 object-contain'
-														/>
-													</div>
-													<div className='flex-1 min-w-0'>
-														<div className='text-white/70 text-sm md:text-base mb-1'>Total Minutes Played</div>
-														<div className='text-white font-bold text-xl md:text-2xl'>
-															{(toNumber(teamData.totalMinutes) / 525600).toFixed(2)} years
-														</div>
-														<div className='text-white/60 text-xs mt-1'>
-															{toNumber(teamData.totalMinutes).toLocaleString()} minutes
-														</div>
-													</div>
-												</div>
-											)}
-											{teamData.totalDistance && toNumber(teamData.totalDistance) > 0 && (
-												<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
-													<div className='flex-shrink-0'>
-														<Image
-															src='/stat-icons/DistanceTravelled-Icon.svg'
-															alt='Total Distance'
-															width={40}
-															height={40}
-															className='w-8 h-8 md:w-10 md:h-10 object-contain'
-														/>
-													</div>
-													<div className='flex-1 min-w-0'>
-														<div className='text-white/70 text-sm md:text-base mb-1'>Distance Travelled</div>
-														<div className='text-white font-bold text-xl md:text-2xl'>
-															{(toNumber(teamData.totalDistance) / 238900).toFixed(2)}x to the moon
-														</div>
-														<div className='text-white/60 text-xs mt-1'>
-															{Math.round(toNumber(teamData.totalDistance)).toLocaleString()} miles
-														</div>
-													</div>
-												</div>
-											)}
-											{(teamData.totalYellowCards || teamData.totalRedCards) && 
-												(toNumber(teamData.totalYellowCards || 0) > 0 || toNumber(teamData.totalRedCards || 0) > 0) && (
-												<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
-													<div className='flex-shrink-0'>
-														<Image
-															src='/stat-icons/RedCard-Icon.svg'
-															alt='Total Cards Cost'
-															width={40}
-															height={40}
-															className='w-8 h-8 md:w-10 md:h-10 object-contain'
-														/>
-													</div>
-													<div className='flex-1 min-w-0'>
-														<div className='text-white/70 text-sm md:text-base mb-1'>Total Cards Cost</div>
-														<div className='text-white font-bold text-xl md:text-2xl'>
-															£
-															{calculateCardFineTotal(
-																toNumber(teamData.totalYellowCards || 0),
-																toNumber(teamData.totalRedCards || 0),
-															).toLocaleString()}
-														</div>
-														<div className='text-white/60 text-xs mt-1'>
-															Yellow + Red cards combined
-														</div>
-													</div>
-												</div>
-											)}
-										</div>
-									</div>
-								)}
-
-								{/* Goals Scored vs Conceded Waterfall Chart */}
-								{(toNumber(teamData.goalsScored) > 0 || toNumber(teamData.goalsConceded) > 0) && (
-									<div id='club-goals-scored-conceded' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
-										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Goals Scored vs Conceded</h3>
-										<div className='chart-container' style={{ touchAction: 'pan-y' }}>
-											<ResponsiveContainer width='100%' height={300}>
-												<ComposedChart data={goalsData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
-													<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
-													<XAxis dataKey='name' stroke='#fff' fontSize={12} />
-													<YAxis stroke='#fff' fontSize={12} />
-													<Tooltip content={customTooltip} />
-													<Bar dataKey='value' radius={[4, 4, 0, 0]} opacity={0.8} activeBar={{ opacity: 0.5 }}>
-														{goalsData.map((entry, index) => (
-															<Cell key={`cell-${index}`} fill={entry.fill} />
-														))}
-													<LabelList 
-														dataKey="value"
-														position="inside"
-														content={(props: any) => {
-															const { x, y, width, height, name, index, value } = props;
-															if (value === undefined || value === null || height <= 0) return null;
-															// Access perGame from the data entry using index or name
-															const dataEntry = typeof index === 'number' && index >= 0 ? goalsData[index] : goalsData.find((e: any) => e.name === name);
-															const perGame = dataEntry?.perGame || "0.00";
-															// Calculate center position accounting for two-line layout
-															const lineHeight = 14;
-															const centerY = y + height / 2;
-															const startY = centerY - lineHeight / 2;
-															return (
-																<g>
-																	<text
-																		x={x + width / 2}
-																		y={startY}
-																		fill="#ffffff"
-																		fontSize={12}
-																		fontWeight="bold"
-																		textAnchor="middle"
-																		dominantBaseline="middle"
-																		style={{ pointerEvents: 'none', userSelect: 'none' }}
-																	>
-																		{value}
-																	</text>
-																	<text
-																		x={x + width / 2}
-																		y={startY + lineHeight}
-																		fill="#ffffff"
-																		fontSize={11}
-																		fontWeight="normal"
-																		textAnchor="middle"
-																		dominantBaseline="middle"
-																		style={{ pointerEvents: 'none', userSelect: 'none' }}
-																	>
-																		{perGame} per game
-																	</text>
-																</g>
-															);
-														}}
-													/>
-													</Bar>
-												</ComposedChart>
-											</ResponsiveContainer>
-										</div>
-									</div>
-								)}
-
-								{/* Home vs Away Performance Dual Gauge */}
-								{(toNumber(teamData.homeGames) > 0 || toNumber(teamData.awayGames) > 0) && (
-									<div id='club-home-away-performance' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
-										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Home vs Away Performance</h3>
-										<HomeAwayGauge 
-											homeWinPercentage={toNumber(teamData.homeWinPercentage)} 
-											awayWinPercentage={toNumber(teamData.awayWinPercentage)} 
-										/>
-									</div>
-								)}
-
-								{/* Other Club Stats KPI Cards */}
-								{toNumber(teamData.gamesPlayed) > 0 && (
-									<div id='club-other-club-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
-										<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Other Club Stats</h3>
-										<div className='grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4'>
-											<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
-												<div className='flex-shrink-0'>
-													<Image
-														src='/stat-icons/TeamAppearance-Icon.svg'
-														alt='Games'
-														width={40}
-														height={40}
-														className='w-8 h-8 md:w-10 md:h-10 object-contain'
-													/>
-												</div>
-												<div className='flex-1 min-w-0'>
-													<div className='text-white/70 text-sm md:text-base mb-1'>Games</div>
-													<div className='text-white font-bold text-xl md:text-2xl'>{toNumber(teamData.gamesPlayed).toLocaleString()}</div>
-												</div>
-											</div>
-											<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
-												<div className='flex-shrink-0'>
-													<Image
-														src='/stat-icons/CleanSheet-Icon.svg'
-														alt='Clean Sheets'
-														width={40}
-														height={40}
-														className='w-8 h-8 md:w-10 md:h-10 object-contain'
-													/>
-												</div>
-												<div className='flex-1 min-w-0'>
-													<div className='text-white/70 text-sm md:text-base mb-1'>Clean Sheets</div>
-													<div className='text-white font-bold text-xl md:text-2xl'>{toNumber(teamData.cleanSheets).toLocaleString()}</div>
-												</div>
-											</div>
-											<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
-												<div className='flex-shrink-0'>
-													<Image
-														src='/stat-icons/PointsPerGame-Icon.svg'
-														alt='Points/Game'
-														width={40}
-														height={40}
-														className='w-8 h-8 md:w-10 md:h-10 object-contain'
-													/>
-												</div>
-												<div className='flex-1 min-w-0'>
-													<div className='text-white/70 text-sm md:text-base mb-1'>Points/Game</div>
-													<div className='text-white font-bold text-xl md:text-2xl'>{toNumber(teamData.pointsPerGame).toFixed(2)}</div>
-												</div>
-											</div>
-											<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
-												<div className='flex-shrink-0'>
-													<Image
-														src='/stat-icons/GoalsPerAppearance-Icon.svg'
-														alt='Goals / Game'
-														width={40}
-														height={40}
-														className='w-8 h-8 md:w-10 md:h-10 object-contain'
-													/>
-												</div>
-												<div className='flex-1 min-w-0'>
-													<div className='text-white/70 text-sm md:text-base mb-1'>Goals / Game</div>
-													<div className='text-white font-bold text-xl md:text-2xl'>{toNumber(teamData.goalsPerGame).toFixed(2)}</div>
-												</div>
-											</div>
-											<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
-												<div className='flex-shrink-0'>
-													<Image
-														src='/stat-icons/ConcededPerAppearance-Icon.svg'
-														alt='Conceded / Game'
-														width={40}
-														height={40}
-														className='w-8 h-8 md:w-10 md:h-10 object-contain'
-													/>
-												</div>
-												<div className='flex-1 min-w-0'>
-													<div className='text-white/70 text-sm md:text-base mb-1'>Conceded / Game</div>
-													<div className='text-white font-bold text-xl md:text-2xl'>{toNumber(teamData.goalsConcededPerGame).toFixed(2)}</div>
-												</div>
-											</div>
-											<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
-												<div className='flex-shrink-0'>
-													<Image
-														src='/stat-icons/PercentageGamesWon-Icon.svg'
-														alt='Win %'
-														width={40}
-														height={40}
-														className='w-8 h-8 md:w-10 md:h-10 object-contain'
-													/>
-												</div>
-												<div className='flex-1 min-w-0'>
-													<div className='text-white/70 text-sm md:text-base mb-1'>Win %</div>
-													<div className='text-white font-bold text-xl md:text-2xl'>{Math.round(toNumber(teamData.winPercentage))}%</div>
-												</div>
-											</div>
-											<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
-												<div className='flex-shrink-0'>
-													<Image
-														src='/stat-icons/GoalDifference-Icon.svg'
-														alt='Goal Difference'
-														width={40}
-														height={40}
-														className='w-8 h-8 md:w-10 md:h-10 object-contain'
-													/>
-												</div>
-												<div className='flex-1 min-w-0'>
-													<div className='text-white/70 text-sm md:text-base mb-1'>Goal Diff</div>
-													<div className='text-white font-bold text-xl md:text-2xl'>{toNumber(teamData.goalDifference).toLocaleString()}</div>
-												</div>
-											</div>
-											{teamData.totalFantasyPoints && toNumber(teamData.totalFantasyPoints) > 0 && (
-												<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
-													<div className='flex-shrink-0'>
-														<Image
-															src='/stat-icons/FantasyPoints-Icon.svg'
-															alt='Fantasy Points'
-															width={40}
-															height={40}
-															className='w-8 h-8 md:w-10 md:h-10 object-contain'
-														/>
-													</div>
-													<div className='flex-1 min-w-0'>
-														<div className='text-white/70 text-sm md:text-base mb-1'>Fantasy Points</div>
-														<div className='text-white font-bold text-xl md:text-2xl'>{Math.round(toNumber(teamData.totalFantasyPoints)).toLocaleString()}</div>
-													</div>
-												</div>
-											)}
-										</div>
-									</div>
-								)}
-
 								{/* Unique Player Stats Section */}
 								{isLoadingUniqueStats ? (
 									<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
@@ -3075,6 +2961,120 @@ export default function ClubStats() {
 										testIdPrefix='club-recording'
 									/>
 								)}
+
+								{/* Longest Active Streaks (whole club) */}
+								{!isDataTableMode &&
+									featureFlags.clubStatsLongestActiveStreaks &&
+									((teamData.streakLeaders && teamData.streakLeaders.length > 0) ||
+										(teamData.streakLeadersAllTime && teamData.streakLeadersAllTime.length > 0)) && (
+										<div id='club-streak-leaders' className='md:break-inside-avoid md:mb-4'>
+											<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+												<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Club Streaks</h3>
+												{teamData.streakLeaders && teamData.streakLeaders.length > 0 && (
+													<>
+														<div className='flex items-center gap-2 mb-2'>
+															<h4 className='text-white/85 font-medium text-xs md:text-sm'>Longest Active Streaks</h4>
+															<FloatingTooltipTrigger
+																className='inline-flex items-center justify-center w-4 h-4 text-[10px] rounded-full border border-white/40 text-white/80 cursor-help outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow/80'
+																tooltip={
+																	<>
+																		Shows the player with the longest current run for each category across the full club (all XIs).
+																	</>
+																}
+															>
+																i
+															</FloatingTooltipTrigger>
+														</div>
+														<div className='grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3'>
+															{teamData.streakLeaders.map((row) => {
+																const tipByCategory: Record<string, string> = {
+																	wins: "Consecutive games won by the player while playing for the club.",
+																	unbeaten: "Consecutive games without a loss while the player is on the pitch (wins or draws).",
+																	goalsScored: "Consecutive games where the player scores at least once (goal or penalty).",
+																	cleanSheets: "Consecutive clean sheets while the player plays.",
+																	noCards: "Consecutive games with no yellow or red card while the player plays.",
+																};
+																const tip = tipByCategory[row.category] ?? "Current active run for this streak category.";
+																return (
+																	<FloatingTooltipTrigger
+																		key={`active-${row.category}`}
+																		className='bg-white/5 rounded-lg px-3 py-2 flex flex-col gap-0.5 cursor-help outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow/80'
+																		tooltip={
+																			<>
+																				<p className='text-white/95 leading-snug'>{tip}</p>
+																				<div className='mt-2 pt-2 border-t border-white/20 space-y-1 text-white/90'>
+																					<p>Player: {row.playerName}</p>
+																					<p>Active run: {row.value} in a row</p>
+																					<p>Date range: {formatStreakRange(row.startDate, row.endDate) || "-"}</p>
+																				</div>
+																			</>
+																		}
+																	>
+																		<span className='text-white/70 text-xs'>{row.label}</span>
+																		<span className='text-white font-semibold text-sm md:text-base'>{row.playerName}</span>
+																		<span className='text-dorkinians-yellow text-xs md:text-sm'>
+																			{row.value} in a row{formatStreakRange(row.startDate, row.endDate)}
+																		</span>
+																	</FloatingTooltipTrigger>
+																);
+															})}
+														</div>
+													</>
+												)}
+												{teamData.streakLeadersAllTime && teamData.streakLeadersAllTime.length > 0 && (
+													<>
+														<div className='flex items-center gap-2 mb-2'>
+															<h4 className='text-white/85 font-medium text-xs md:text-sm'>Longest All Time Streaks</h4>
+															<FloatingTooltipTrigger
+																className='inline-flex items-center justify-center w-4 h-4 text-[10px] rounded-full border border-white/40 text-white/80 cursor-help outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow/80'
+																tooltip={
+																	<>
+																		Shows the player with the longest historical run for each category across the full club (all XIs).
+																	</>
+																}
+															>
+																i
+															</FloatingTooltipTrigger>
+														</div>
+														<div className='grid grid-cols-1 sm:grid-cols-2 gap-2'>
+															{teamData.streakLeadersAllTime.map((row) => {
+																const tipByCategory: Record<string, string> = {
+																	wins: "Longest historical run of games won by the player while playing for the club.",
+																	unbeaten: "Longest historical run of games without a loss while the player is on the pitch (wins or draws).",
+																	goalsScored: "Longest historical run of games where the player scores at least once (goal or penalty).",
+																	cleanSheets: "Longest historical run of clean sheets while the player plays.",
+																	noCards: "Longest historical run of games with no yellow or red card while the player plays.",
+																};
+																const tip = tipByCategory[row.category] ?? "Longest all-time run for this streak category.";
+																return (
+																	<FloatingTooltipTrigger
+																		key={`alltime-${row.category}`}
+																		className='bg-white/[0.07] border border-white/20 rounded-lg px-3 py-2 flex flex-col gap-0.5 cursor-help outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow/80'
+																		tooltip={
+																			<>
+																				<p className='text-white/95 leading-snug'>{tip}</p>
+																				<div className='mt-2 pt-2 border-t border-white/20 space-y-1 text-white/90'>
+																					<p>Player: {row.playerName}</p>
+																					<p>All-time run: {row.value} in a row</p>
+																					<p>Date range: {formatStreakRange(row.startDate, row.endDate) || "-"}</p>
+																				</div>
+																			</>
+																		}
+																	>
+																		<span className='text-white/70 text-xs'>{row.label}</span>
+																		<span className='text-white font-semibold text-sm md:text-base'>{row.playerName}</span>
+																		<span className='text-white/90 text-xs md:text-sm'>
+																			{row.value} in a row{formatStreakRange(row.startDate, row.endDate)}
+																		</span>
+																	</FloatingTooltipTrigger>
+																);
+															})}
+														</div>
+													</>
+												)}
+											</div>
+										</div>
+									)}
 							</div>
 						);
 
