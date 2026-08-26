@@ -57,6 +57,14 @@ import Neo4jPreWarm from "@/components/Neo4jPreWarm";
 import { useToast } from "@/lib/hooks/useToast";
 import { initializeCurrentSeason, getCurrentSeasonFromStorage } from "@/lib/services/currentSeasonService";
 import { preloadCaptainsData } from "@/lib/services/captainsPreloadService";
+import {
+	COLD_START_RECOVERED_TOAST_MESSAGE,
+	COLD_START_STILL_FAILING_TOAST_MESSAGE,
+	COLD_START_TOAST_MESSAGE,
+	getActiveColdStartToastId,
+	resetColdStartNotifierState,
+	setColdStartNotifier,
+} from "@/lib/services/coldStartNotifier";
 import { log } from "@/lib/utils/logger";
 
 const RECENT_PLAYERS_KEY = "dorkinians-recent-players";
@@ -138,7 +146,7 @@ export default function HomePage() {
 		getRecentPlayersServerSnapshot
 	);
 	const [showStatsMenu, setShowStatsMenu] = useState(false);
-	const { toasts, dismissToast, showSuccess } = useToast();
+	const { toasts, dismissToast, showSuccess, showInfo, showWarning } = useToast();
 
 	const showChatbot =
 		currentMainPage === "home" &&
@@ -146,6 +154,33 @@ export default function HomePage() {
 		!!selectedPlayer &&
 		!isEditMode &&
 		chatbotRevealReady;
+
+	// Register cold-start toast callbacks with the page-level toast stack (once per mount).
+	useEffect(() => {
+		resetColdStartNotifierState();
+		setColdStartNotifier({
+			onColdStart: () =>
+				showInfo(COLD_START_TOAST_MESSAGE, 15000),
+			onRecovered: () => {
+				const toastId = getActiveColdStartToastId();
+				if (toastId) {
+					dismissToast(toastId);
+				}
+				showSuccess(COLD_START_RECOVERED_TOAST_MESSAGE, 3000);
+			},
+			onStillFailing: () => {
+				const toastId = getActiveColdStartToastId();
+				if (toastId) {
+					dismissToast(toastId);
+				}
+				showWarning(COLD_START_STILL_FAILING_TOAST_MESSAGE, 8000);
+			},
+		});
+		return () => {
+			setColdStartNotifier(null);
+			resetColdStartNotifierState();
+		};
+	}, [showInfo, showSuccess, showWarning, dismissToast]);
 
 	// Initialize from localStorage and load filter data after mount
 	useEffect(() => {
@@ -158,9 +193,7 @@ export default function HomePage() {
 			// Preload captains data for current season asynchronously
 			const currentSeason = getCurrentSeasonFromStorage();
 			if (currentSeason) {
-				preloadCaptainsData(currentSeason).catch((error) => {
-					console.error("Error preloading captains data:", error);
-				});
+				void preloadCaptainsData(currentSeason);
 			}
 		};
 		initAndPreload();

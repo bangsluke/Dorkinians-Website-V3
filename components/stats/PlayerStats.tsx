@@ -3464,196 +3464,6 @@ export default function PlayerStats() {
 				</div>
 			)}
 
-			{/* All Games Section */}
-			<div id='all-games' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
-				<h3 className='text-white font-semibold text-sm md:text-base mb-3'>All Games</h3>
-				<div className='flex justify-center pb-4'>
-					<button
-						type='button'
-						onClick={openAllGamesModal}
-						className='text-white hover:text-dorkinians-yellow underline text-sm md:text-base transition-colors bg-transparent border-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)]'
-					>
-						Click to show all games and details
-					</button>
-				</div>
-			</div>
-
-			{/* Streaks - live computation for current filter set (foundation / chatbot rules) */}
-			{playerData && streakDisplaySource && featureFlags.playerStatsStreaks ? (
-				<div id='streaks-section' className='relative z-30 bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
-					<div className='flex items-center gap-2 mb-2'>
-						<h3 className='text-white font-semibold text-sm md:text-base'>Streaks</h3>
-						<div className='relative group'>
-							<span
-								tabIndex={0}
-								className='inline-flex items-center justify-center w-4 h-4 text-[10px] rounded-full border border-white/40 text-white/80 cursor-help outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow/80'>
-								i
-							</span>
-							<div className='pointer-events-none absolute left-0 top-6 z-20 hidden w-72 rounded-md bg-black/90 p-2 text-[11px] text-white shadow-lg group-hover:block group-focus-within:block'>
-								Streaks are tracked week-by-week using seasonWeek references. Appearance streaks increase for every match you play across any XI
-								(including multiple matches in one week), and only break when your most-played team for that season plays in that week and you do not
-								appear for any team. For all other streak types (scoring, assists, clean sheets, etc.), weeks you do not play are skipped (they do not
-								break the streak); if you play, the streak increments only when you satisfy that streak condition for that match. Streaks carry across
-								seasons, use your most-recent team as the tie-break for &quot;most-played team,&quot; and are recalculated if fixture statuses change.
-							</div>
-						</div>
-					</div>
-					{(() => {
-						type StreakCard = {
-							label: string;
-							cur: keyof PlayerData;
-							seasonBest?: keyof PlayerData;
-							allTimeBest?: keyof PlayerData;
-							tip: string;
-							singularUnit: string;
-							pluralUnit: string;
-						};
-						const src = streakDisplaySource;
-						const sn = (k: keyof PlayerData) => {
-							const v = src[k];
-							return typeof v === "number" && !Number.isNaN(v) ? v : 0;
-						};
-						const fmtOpt = (k?: keyof PlayerData) => {
-							if (!k) return "-";
-							const v = src[k];
-							return typeof v === "number" && !Number.isNaN(v) ? String(v) : "-";
-						};
-						const activeCards: StreakCard[] = [
-							{
-								label: "Appearances",
-								cur: "currentAppearanceStreak",
-								seasonBest: "seasonBestAppearanceStreak",
-								allTimeBest: "allTimeBestAppearanceStreak",
-								tip: "Consecutive matches played. Weeks with no fixture for your season anchor team are protected; if that anchor team plays and you do not appear, the run breaks.",
-								singularUnit: "appearance",
-								pluralUnit: "appearances",
-							},
-							{
-								label: "Starts",
-								cur: "currentStartStreak",
-								seasonBest: "seasonBestStartStreak",
-								allTimeBest: "allTimeBestStartStreak",
-								tip: "Consecutive matches where you started. A bench cameo in a played match resets the run.",
-								singularUnit: "start",
-								pluralUnit: "starts",
-							},
-							{
-								label: "Goal involvement",
-								cur: "currentGoalInvolvementStreak",
-								seasonBest: "seasonBestGoalInvolvementStreak",
-								allTimeBest: "allTimeBestGoalInvolvementStreak",
-								tip: "Consecutive matches with a goal or assist (or both).",
-								singularUnit: "game",
-								pluralUnit: "games",
-							},
-							{
-								label: "MoM",
-								cur: "currentMomStreak",
-								seasonBest: "seasonBestMomStreak",
-								allTimeBest: "allTimeBestMomStreak",
-								tip: "Consecutive matches where you were named Player of the Match.",
-								singularUnit: "MoM",
-								pluralUnit: "MoMs",
-							},
-							{
-								label: "Scoring",
-								cur: "currentScoringStreak",
-								seasonBest: "seasonBestScoringStreak",
-								allTimeBest: "allTimeBestScoringStreak",
-								tip: "Counts consecutive games where you scored (goals or penalties). A blank scores resets the run.",
-								singularUnit: "game",
-								pluralUnit: "games",
-							},
-							{
-								label: "Assists",
-								cur: "currentAssistStreak",
-								seasonBest: "seasonBestAssistStreak",
-								allTimeBest: "allTimeBestAssistStreak",
-								tip: "Counts consecutive games with at least one assist. A game with no assist resets the run.",
-								singularUnit: "game",
-								pluralUnit: "games",
-							},
-							{
-								label: "Clean sheet",
-								cur: "currentCleanSheetStreak",
-								seasonBest: "seasonBestCleanSheetStreak",
-								allTimeBest: "allTimeBestCleanSheetStreak",
-								tip: "As a defender or keeper: consecutive games where your side conceded zero while you played. Conceding resets the run.",
-								singularUnit: "clean sheet",
-								pluralUnit: "clean sheets",
-							},
-							{
-								label: "85+ mins",
-								cur: "currentFullMatchStreak",
-								seasonBest: "seasonBestFullMatchStreak",
-								allTimeBest: "allTimeBestFullMatchStreak",
-								tip: "Consecutive games with at least 85 minutes played. Subbing earlier resets the run.",
-								singularUnit: "match",
-								pluralUnit: "matches",
-							},
-							{
-								label: "No cards",
-								cur: "currentDisciplineStreak",
-								seasonBest: "seasonBestDisciplineStreak",
-								allTimeBest: "allTimeBestDisciplineStreak",
-								tip: "Consecutive games with no yellow or red card. Any booking resets the run.",
-								singularUnit: "match",
-								pluralUnit: "matches",
-							},
-							{
-								label: "Wins",
-								cur: "currentWinStreak",
-								seasonBest: "seasonBestWinStreak",
-								allTimeBest: "allTimeBestWinStreak",
-								tip: "Consecutive games your side won while you played. A draw or loss resets the run.",
-								singularUnit: "win",
-								pluralUnit: "wins",
-							},
-							{
-								label: "Unbeaten",
-								cur: "currentUnbeatenStreak",
-								seasonBest: "seasonBestUnbeatenStreak",
-								allTimeBest: "allTimeBestUnbeatenStreak",
-								tip: "Consecutive matches without a loss while you played (wins or draws). A loss resets the run.",
-								singularUnit: "match",
-								pluralUnit: "matches",
-							},
-						];
-						const orderedCards = [...activeCards].sort((a, b) => {
-							const aVal = sn(a.cur);
-							const bVal = sn(b.cur);
-							return Number(bVal > 0) - Number(aVal > 0);
-						});
-						return (
-							<div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2'>
-								{orderedCards.map(({ label, cur, seasonBest, allTimeBest, tip, singularUnit, pluralUnit }) => {
-									const currentValue = sn(cur);
-									const seasonBestValue = seasonBest ? sn(seasonBest) : 0;
-									const allTimeBestValue = allTimeBest ? sn(allTimeBest) : 0;
-									const meta = streakTooltipMeta?.[String(cur)];
-									const currentLine = `Current: ${formatStreakCountLabel(currentValue, singularUnit, pluralUnit)}${formatTooltipDateRange(meta?.current)}`;
-									const seasonBestLine = `Season best: ${formatStreakCountLabel(seasonBestValue, singularUnit, pluralUnit)}${formatTooltipDateRange(meta?.seasonBest)}`;
-									const allTimeBestLine = `All-time best: ${formatStreakCountLabel(allTimeBestValue, singularUnit, pluralUnit)}${formatTooltipDateRange(meta?.allTimeBest)}`;
-									return (
-										<StreakStatTile
-											key={String(cur)}
-											label={label}
-											current={currentValue}
-											seasonBest={fmtOpt(seasonBest)}
-											allTimeBest={fmtOpt(allTimeBest)}
-											tip={tip}
-											currentLine={currentLine}
-											seasonBestLine={seasonBestLine}
-											allTimeBestLine={allTimeBestLine}
-										/>
-									);
-								})}
-							</div>
-						);
-					})()}
-				</div>
-			) : null}
-
 			{/* Seasonal Performance Section */}
 			<div id='seasonal-performance' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 				{allSeasonsSelected && (
@@ -4423,6 +4233,196 @@ export default function PlayerStats() {
 					testIdPrefix='player-recording'
 				/>
 			)}
+
+			{/* All Games Section */}
+			<div id='all-games' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
+				<h3 className='text-white font-semibold text-sm md:text-base mb-3'>All Games</h3>
+				<div className='flex justify-center pb-4'>
+					<button
+						type='button'
+						onClick={openAllGamesModal}
+						className='text-white hover:text-dorkinians-yellow underline text-sm md:text-base transition-colors bg-transparent border-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)]'
+					>
+						Click to show all games and details
+					</button>
+				</div>
+			</div>
+
+			{/* Streaks - live computation for current filter set (foundation / chatbot rules) */}
+			{playerData && streakDisplaySource && featureFlags.playerStatsStreaks ? (
+				<div id='streaks-section' className='relative z-30 bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
+					<div className='flex items-center gap-2 mb-2'>
+						<h3 className='text-white font-semibold text-sm md:text-base'>Streaks</h3>
+						<div className='relative group'>
+							<span
+								tabIndex={0}
+								className='inline-flex items-center justify-center w-4 h-4 text-[10px] rounded-full border border-white/40 text-white/80 cursor-help outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow/80'>
+								i
+							</span>
+							<div className='pointer-events-none absolute left-0 top-6 z-20 hidden w-72 rounded-md bg-black/90 p-2 text-[11px] text-white shadow-lg group-hover:block group-focus-within:block'>
+								Streaks are tracked week-by-week using seasonWeek references. Appearance streaks increase for every match you play across any XI
+								(including multiple matches in one week), and only break when your most-played team for that season plays in that week and you do not
+								appear for any team. For all other streak types (scoring, assists, clean sheets, etc.), weeks you do not play are skipped (they do not
+								break the streak); if you play, the streak increments only when you satisfy that streak condition for that match. Streaks carry across
+								seasons, use your most-recent team as the tie-break for &quot;most-played team,&quot; and are recalculated if fixture statuses change.
+							</div>
+						</div>
+					</div>
+					{(() => {
+						type StreakCard = {
+							label: string;
+							cur: keyof PlayerData;
+							seasonBest?: keyof PlayerData;
+							allTimeBest?: keyof PlayerData;
+							tip: string;
+							singularUnit: string;
+							pluralUnit: string;
+						};
+						const src = streakDisplaySource;
+						const sn = (k: keyof PlayerData) => {
+							const v = src[k];
+							return typeof v === "number" && !Number.isNaN(v) ? v : 0;
+						};
+						const fmtOpt = (k?: keyof PlayerData) => {
+							if (!k) return "-";
+							const v = src[k];
+							return typeof v === "number" && !Number.isNaN(v) ? String(v) : "-";
+						};
+						const activeCards: StreakCard[] = [
+							{
+								label: "Appearances",
+								cur: "currentAppearanceStreak",
+								seasonBest: "seasonBestAppearanceStreak",
+								allTimeBest: "allTimeBestAppearanceStreak",
+								tip: "Consecutive matches played. Weeks with no fixture for your season anchor team are protected; if that anchor team plays and you do not appear, the run breaks.",
+								singularUnit: "appearance",
+								pluralUnit: "appearances",
+							},
+							{
+								label: "Starts",
+								cur: "currentStartStreak",
+								seasonBest: "seasonBestStartStreak",
+								allTimeBest: "allTimeBestStartStreak",
+								tip: "Consecutive matches where you started. A bench cameo in a played match resets the run.",
+								singularUnit: "start",
+								pluralUnit: "starts",
+							},
+							{
+								label: "Goal involvement",
+								cur: "currentGoalInvolvementStreak",
+								seasonBest: "seasonBestGoalInvolvementStreak",
+								allTimeBest: "allTimeBestGoalInvolvementStreak",
+								tip: "Consecutive matches with a goal or assist (or both).",
+								singularUnit: "game",
+								pluralUnit: "games",
+							},
+							{
+								label: "MoM",
+								cur: "currentMomStreak",
+								seasonBest: "seasonBestMomStreak",
+								allTimeBest: "allTimeBestMomStreak",
+								tip: "Consecutive matches where you were named Player of the Match.",
+								singularUnit: "MoM",
+								pluralUnit: "MoMs",
+							},
+							{
+								label: "Scoring",
+								cur: "currentScoringStreak",
+								seasonBest: "seasonBestScoringStreak",
+								allTimeBest: "allTimeBestScoringStreak",
+								tip: "Counts consecutive games where you scored (goals or penalties). A blank scores resets the run.",
+								singularUnit: "game",
+								pluralUnit: "games",
+							},
+							{
+								label: "Assists",
+								cur: "currentAssistStreak",
+								seasonBest: "seasonBestAssistStreak",
+								allTimeBest: "allTimeBestAssistStreak",
+								tip: "Counts consecutive games with at least one assist. A game with no assist resets the run.",
+								singularUnit: "game",
+								pluralUnit: "games",
+							},
+							{
+								label: "Clean sheet",
+								cur: "currentCleanSheetStreak",
+								seasonBest: "seasonBestCleanSheetStreak",
+								allTimeBest: "allTimeBestCleanSheetStreak",
+								tip: "As a defender or keeper: consecutive games where your side conceded zero while you played. Conceding resets the run.",
+								singularUnit: "clean sheet",
+								pluralUnit: "clean sheets",
+							},
+							{
+								label: "85+ mins",
+								cur: "currentFullMatchStreak",
+								seasonBest: "seasonBestFullMatchStreak",
+								allTimeBest: "allTimeBestFullMatchStreak",
+								tip: "Consecutive games with at least 85 minutes played. Subbing earlier resets the run.",
+								singularUnit: "match",
+								pluralUnit: "matches",
+							},
+							{
+								label: "No cards",
+								cur: "currentDisciplineStreak",
+								seasonBest: "seasonBestDisciplineStreak",
+								allTimeBest: "allTimeBestDisciplineStreak",
+								tip: "Consecutive games with no yellow or red card. Any booking resets the run.",
+								singularUnit: "match",
+								pluralUnit: "matches",
+							},
+							{
+								label: "Wins",
+								cur: "currentWinStreak",
+								seasonBest: "seasonBestWinStreak",
+								allTimeBest: "allTimeBestWinStreak",
+								tip: "Consecutive games your side won while you played. A draw or loss resets the run.",
+								singularUnit: "win",
+								pluralUnit: "wins",
+							},
+							{
+								label: "Unbeaten",
+								cur: "currentUnbeatenStreak",
+								seasonBest: "seasonBestUnbeatenStreak",
+								allTimeBest: "allTimeBestUnbeatenStreak",
+								tip: "Consecutive matches without a loss while you played (wins or draws). A loss resets the run.",
+								singularUnit: "match",
+								pluralUnit: "matches",
+							},
+						];
+						const orderedCards = [...activeCards].sort((a, b) => {
+							const aVal = sn(a.cur);
+							const bVal = sn(b.cur);
+							return Number(bVal > 0) - Number(aVal > 0);
+						});
+						return (
+							<div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2'>
+								{orderedCards.map(({ label, cur, seasonBest, allTimeBest, tip, singularUnit, pluralUnit }) => {
+									const currentValue = sn(cur);
+									const seasonBestValue = seasonBest ? sn(seasonBest) : 0;
+									const allTimeBestValue = allTimeBest ? sn(allTimeBest) : 0;
+									const meta = streakTooltipMeta?.[String(cur)];
+									const currentLine = `Current: ${formatStreakCountLabel(currentValue, singularUnit, pluralUnit)}${formatTooltipDateRange(meta?.current)}`;
+									const seasonBestLine = `Season best: ${formatStreakCountLabel(seasonBestValue, singularUnit, pluralUnit)}${formatTooltipDateRange(meta?.seasonBest)}`;
+									const allTimeBestLine = `All-time best: ${formatStreakCountLabel(allTimeBestValue, singularUnit, pluralUnit)}${formatTooltipDateRange(meta?.allTimeBest)}`;
+									return (
+										<StreakStatTile
+											key={String(cur)}
+											label={label}
+											current={currentValue}
+											seasonBest={fmtOpt(seasonBest)}
+											allTimeBest={fmtOpt(allTimeBest)}
+											tip={tip}
+											currentLine={currentLine}
+											seasonBestLine={seasonBestLine}
+											allTimeBestLine={allTimeBestLine}
+										/>
+									);
+								})}
+							</div>
+						);
+					})()}
+				</div>
+			) : null}
 
 			{/* Captaincies, Awards and Achievements Section */}
 			<div id='captaincies-awards-and-achievements' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
