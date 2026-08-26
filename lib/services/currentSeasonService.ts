@@ -1,3 +1,11 @@
+import { log } from "@/lib/utils/logger";
+import { retryFetch } from "@/lib/utils/retryFetch";
+import {
+	notifyNeo4jColdStart,
+	notifyNeo4jColdStartRecovered,
+	notifyNeo4jColdStartStillFailing,
+} from "@/lib/services/coldStartNotifier";
+
 const CURRENT_SEASON_KEY = "dorkinians-current-season";
 
 /**
@@ -5,9 +13,18 @@ const CURRENT_SEASON_KEY = "dorkinians-current-season";
  */
 export async function fetchAndCacheCurrentSeason(): Promise<string | null> {
 	try {
-		const response = await fetch("/api/site-details");
+		const response = await retryFetch("/api/site-details", undefined, {
+			onRetryableFailure: () => {
+				notifyNeo4jColdStart();
+			},
+			onRecovered: () => {
+				notifyNeo4jColdStartRecovered();
+			},
+		});
 		if (!response.ok) {
-			throw new Error("Failed to fetch site details");
+			log("warn", "Failed to fetch site details:", response.status, response.statusText);
+			notifyNeo4jColdStartStillFailing();
+			return null;
 		}
 		const data = await response.json();
 		const currentSeason = data.currentSeason || null;
@@ -18,7 +35,8 @@ export async function fetchAndCacheCurrentSeason(): Promise<string | null> {
 
 		return currentSeason;
 	} catch (error) {
-		console.error("Error fetching current season:", error);
+		log("warn", "Error fetching current season:", error);
+		notifyNeo4jColdStartStillFailing();
 		return null;
 	}
 }

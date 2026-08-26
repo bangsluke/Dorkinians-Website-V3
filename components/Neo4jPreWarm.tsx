@@ -20,18 +20,18 @@ export default function Neo4jPreWarm({ enabled = true }: Neo4jPreWarmProps) {
 				await fetch("/api/players", {
 					method: "GET",
 					// Use low priority to not block other requests
-					priority: "low" as any,
-				}).catch(() => {
+					priority: "low",
+				} as RequestInit).catch(() => {
 					// Silently fail - this is just a pre-warm attempt
 				});
 				log("info", "✅ Neo4j connection pre-warmed");
-			} catch (error) {
+			} catch {
 				// Silently fail - pre-warming is optional
 			}
 		};
 
-		// Delay pre-warm slightly to not interfere with initial page load
-		const timeoutId = setTimeout(prewarmConnection, 1000);
+		// Short delay so initial player/captains fetches can share the connect path first
+		const timeoutId = setTimeout(prewarmConnection, 200);
 		
 		return () => clearTimeout(timeoutId);
 	}, [enabled]);
