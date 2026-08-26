@@ -40,6 +40,7 @@ import { getPlayerProfileHref } from "@/lib/profile/slug";
 import type { LiveStreakPayload, StreakDateRange, StreakTooltipMeta } from "@/lib/stats/playerStreaksComputation";
 import { matchRatingCircleStyle } from "@/lib/utils/matchRatingDisplay";
 import { formatXiTeamLabel } from "@/lib/utils/formatXiTeamLabel";
+import { sortPartnershipRows, type PartnershipSortMode } from "@/lib/stats/partnershipSort";
 import RecordingsSection from "@/components/stats/RecordingsSection";
 import type { RecordingFixture } from "@/lib/utils/recordingsDisplay";
 
@@ -75,7 +76,6 @@ const MonthlyPerformanceChart = dynamic(() => import("./player-stats/MonthlyPerf
 
 type PlayerStatsTableMode = "totals" | "perApp" | "per90";
 type PlayerStatsKeyMode = "totals" | "per90";
-type PartnershipSortMode = "bestWinRate" | "mostImprovedWinRate" | "mostGames";
 type FormTrend = "rising" | "declining" | "stable";
 
 const PER90_STAT_NAMES = new Set([
@@ -1958,17 +1958,35 @@ export default function PlayerStats() {
 
 	const partnershipList = useMemo(() => {
 		const raw = playerData?.partnershipsTopJson;
-		if (!raw) return [] as Array<{ name: string; winRate: number; matches: number }>;
+		if (!raw) return [] as Array<{ name: string; winRate: number; matches: number; winRateWithout: number | null; lift: number | null }>;
 		try {
 			const parsed = JSON.parse(raw) as unknown;
 			if (!Array.isArray(parsed)) return [];
 			return parsed
 				.filter((x): x is Record<string, unknown> => x != null && typeof x === "object")
-				.map((x) => ({
-					name: String(x.name ?? ""),
-					winRate: typeof x.winRate === "number" ? x.winRate : Number(x.winRate),
-					matches: typeof x.matches === "number" ? x.matches : Number(x.matches),
-				}))
+				.map((x) => {
+					const liftRaw = x.lift;
+					const withoutRaw = x.winRateWithout;
+					const lift =
+						liftRaw == null || liftRaw === ""
+							? null
+							: typeof liftRaw === "number"
+								? liftRaw
+								: Number(liftRaw);
+					const winRateWithout =
+						withoutRaw == null || withoutRaw === ""
+							? null
+							: typeof withoutRaw === "number"
+								? withoutRaw
+								: Number(withoutRaw);
+					return {
+						name: String(x.name ?? ""),
+						winRate: typeof x.winRate === "number" ? x.winRate : Number(x.winRate),
+						matches: typeof x.matches === "number" ? x.matches : Number(x.matches),
+						winRateWithout: winRateWithout != null && !Number.isNaN(winRateWithout) ? winRateWithout : null,
+						lift: lift != null && !Number.isNaN(lift) ? lift : null,
+					};
+				})
 				.filter((x) => x.name.length > 0 && !Number.isNaN(x.winRate) && !Number.isNaN(x.matches) && x.matches >= 5);
 		} catch {
 			return [];
@@ -1976,27 +1994,8 @@ export default function PlayerStats() {
 	}, [playerData?.partnershipsTopJson]);
 
 	const partnershipListDisplay = useMemo(() => {
-		const list = [...partnershipList];
-		const base = playerData?.impactWinRateWith;
-
-		if (partnershipSortMode === "mostGames") {
-			list.sort((a, b) => b.matches - a.matches || a.name.localeCompare(b.name));
-		} else if (partnershipSortMode === "mostImprovedWinRate") {
-			// Rank by the same value as the green subtitle: partnership win % minus your win rate when you play (percentage points).
-			list.sort((a, b) => {
-				if (base != null && typeof base === "number" && !Number.isNaN(base)) {
-					const da = a.winRate - base;
-					const db = b.winRate - base;
-					if (db !== da) return db - da;
-				}
-				return b.winRate - a.winRate || b.matches - a.matches || a.name.localeCompare(b.name);
-			});
-		} else {
-			// bestWinRate: highest partnership win percentage (ties: more shared games first)
-			list.sort((a, b) => b.winRate - a.winRate || b.matches - a.matches || a.name.localeCompare(b.name));
-		}
-		return list.slice(0, 10);
-	}, [partnershipList, partnershipSortMode, playerData?.impactWinRateWith]);
+		return sortPartnershipRows(partnershipList, partnershipSortMode).slice(0, 10);
+	}, [partnershipList, partnershipSortMode]);
 
 	const streakDisplaySource = useMemo((): PlayerData | null => {
 		if (!playerData) return null;
@@ -3251,7 +3250,7 @@ export default function PlayerStats() {
 						i
 					</span>
 					<div className='pointer-events-none absolute left-0 top-6 z-20 hidden w-72 rounded-md bg-black/90 p-2 text-[11px] text-white shadow-lg group-hover:block'>
-						Each point is your match rating for that game (with fantasy-points fallback when needed). The yellow line is current form (5-match EWMA) and the green line is the longer baseline (15-match EWMA). Grey dots are the raw rating for each match.
+						Each point is your match rating for that game (with fantasy-points fallback when needed). The yellow line is current form (5-match Exponentially Weighted Moving Average (EWMA)) and the green line is the longer baseline (15-match EWMA). Grey dots are the raw rating for each match.
 					</div>
 				</div>
 			</div>
@@ -3886,8 +3885,8 @@ export default function PlayerStats() {
 										i
 									</span>
 									<div className='pointer-events-none absolute left-0 top-6 z-20 hidden w-[min(100vw-2rem,22rem)] rounded-md bg-black/90 p-2 text-[11px] text-white shadow-lg group-hover:block group-focus-within:block'>
-										Win rate in games where you and each teammate both played (minimum five shared games) compared to your baseline win rate when
-										you play.
+										Win rate in games where you and each teammate both played (minimum five shared games). &quot;Most improved&quot; ranks by how much
+										higher your win rate is with that teammate versus your games without them.
 									</div>
 								</div>
 							</div>
@@ -3918,18 +3917,19 @@ export default function PlayerStats() {
 							<p className='text-white/60 text-xs'>
 								No partnership data yet. Run a full seed so graph insights (Feature 7) can populate this section.
 							</p>
+						) : partnershipListDisplay.length === 0 && partnershipSortMode === "mostImprovedWinRate" ? (
+							<p className='text-white/60 text-xs'>
+								Most improved needs per-partner lift data. Apply filters (live recalculation) or re-run graph insights (Feature 7) after
+								seeding.
+							</p>
 						) : (
 							<ul className='space-y-2'>
 								{partnershipListDisplay.map((p) => {
-									const base = playerData.impactWinRateWith;
-									const deltaPct =
-										base != null && typeof p.winRate === "number" && !Number.isNaN(p.winRate)
-											? Math.round((p.winRate - base) * 10) / 10
-											: null;
+									const deltaPct = p.lift != null && !Number.isNaN(p.lift) ? Math.round(p.lift * 10) / 10 : null;
 									const deltaClass =
 										deltaPct != null ? (deltaPct < 0 ? "text-red-400" : deltaPct > 0 ? "text-dorkinians-green-text" : "text-white/50") : "";
 									const deltaLabel =
-										deltaPct != null ? `${deltaPct > 0 ? "+" : ""}${deltaPct.toFixed(1)}% vs your win rate` : null;
+										deltaPct != null ? `${deltaPct > 0 ? "+" : ""}${deltaPct.toFixed(1)}% vs without them` : null;
 									return (
 										<li key={p.name} className='flex flex-wrap items-baseline justify-between gap-2 bg-white/5 rounded-md px-3 py-2'>
 											<div className='min-w-0'>
@@ -3956,49 +3956,39 @@ export default function PlayerStats() {
 				</div>
 			) : null}
 
-			{playerData && featureFlags.playerStatsImpact ? (
+			{playerData &&
+			featureFlags.playerStatsImpact &&
+			playerData.impactDelta != null &&
+			playerData.impactDelta > 0 &&
+			playerData.impactWinRateWith != null &&
+			playerData.mostPlayedForTeam &&
+			String(playerData.mostPlayedForTeam).trim() !== "" ? (
 				<div
 					id='impact-section'
 					className='relative z-30 bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 					<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Impact</h3>
-					{playerData.impactDelta == null ||
-					playerData.impactWinRateWith == null ||
-					!playerData.mostPlayedForTeam ||
-					String(playerData.mostPlayedForTeam).trim() === "" ? (
-						<p className='text-white/60 text-xs'>
-							Impact compares your most-played XI&apos;s results when you play vs when you don&apos;t (needs enough games without you).
-							Filtered fixtures are used so the comparison matches your current filter set. Run a full seed after Feature 7, or check you
-							have a primary team set.
+					<>
+						<p className='text-white text-sm md:text-base font-medium mb-2'>
+							{(() => {
+								const teamLine = formatXiTeamLabel(playerData.mostPlayedForTeam);
+								const delta = Math.abs(Math.round(playerData.impactDelta * 10) / 10);
+								return (
+									<>
+										The <span className='text-dorkinians-yellow'>{teamLine}</span> wins{" "}
+										<span className='text-dorkinians-yellow font-bold'>{delta}%</span> more often when you play.
+									</>
+								);
+							})()}
 						</p>
-					) : (
-						<>
-							<p className='text-white text-sm md:text-base font-medium mb-2'>
-								{(() => {
-									const teamLine = formatXiTeamLabel(playerData.mostPlayedForTeam);
-									const delta = Math.abs(Math.round(playerData.impactDelta * 10) / 10);
-									return playerData.impactDelta >= 0 ? (
-										<>
-											The <span className='text-dorkinians-yellow'>{teamLine}</span> wins{" "}
-											<span className='text-dorkinians-yellow font-bold'>{delta}%</span> more often when you play.
-										</>
-									) : (
-										<>
-											The <span className='text-dorkinians-yellow'>{teamLine}</span> wins{" "}
-											<span className='text-dorkinians-yellow font-bold'>{delta}%</span> less often when you play.
-										</>
-									);
-								})()}
+						{playerData.impactRatesDisplay ? (
+							<p className='text-white/70 text-xs md:text-sm mb-2'>{playerData.impactRatesDisplay}</p>
+						) : null}
+						{playerData.impactSampleWithout != null && playerData.impactSampleWithout < 10 ? (
+							<p className='text-white/50 text-[11px] md:text-xs border-l-2 border-[rgba(232,197,71,0.35)] pl-2'>
+								Sample without you is small ({playerData.impactSampleWithout} games) - interpret with care.
 							</p>
-							{playerData.impactRatesDisplay ? (
-								<p className='text-white/70 text-xs md:text-sm mb-2'>{playerData.impactRatesDisplay}</p>
-							) : null}
-							{playerData.impactSampleWithout != null && playerData.impactSampleWithout < 10 ? (
-								<p className='text-white/50 text-[11px] md:text-xs border-l-2 border-[rgba(232,197,71,0.35)] pl-2'>
-									Sample without you is small ({playerData.impactSampleWithout} games) - interpret with care.
-								</p>
-							) : null}
-						</>
-					)}
+						) : null}
+					</>
 				</div>
 			) : null}
 

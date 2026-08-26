@@ -74,9 +74,9 @@ export async function GET(request: NextRequest) {
 			MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
 			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
 			${whereConditions}
-			WITH f.season AS rawSeason, count(DISTINCT f) AS apps
+			WITH f.season AS rawSeason, count(DISTINCT f) AS apps, avg(md.matchRating) AS avgRatingRaw
 			WHERE rawSeason IS NOT NULL
-			RETURN rawSeason, apps
+			RETURN rawSeason, apps, avgRatingRaw
 			ORDER BY rawSeason ASC
 		`;
 
@@ -85,9 +85,14 @@ export async function GET(request: NextRequest) {
 		const seasons = result.records.map((r) => {
 			const rawSeason = r.get("rawSeason");
 			const seasonStr = rawSeason != null ? String(rawSeason) : "";
+			const avgRaw = r.get("avgRatingRaw");
+			const avgNum = avgRaw == null ? null : toNumber(avgRaw);
+			const avgRating =
+				avgNum != null && !Number.isNaN(avgNum) && avgNum > 0 ? Math.round(avgNum * 10) / 10 : null;
 			return {
 				season: normalizeSeasonDisplay(seasonStr),
 				apps: toNumber(r.get("apps")),
+				avgRating,
 			};
 		});
 

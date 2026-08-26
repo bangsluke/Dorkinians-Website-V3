@@ -94,10 +94,13 @@ const statsNavigationItems = [
 ];
 
 export default function StatsNavigationMenu({ isOpen, onClose }: StatsNavigationMenuProps) {
-	const { setStatsSubPage, currentStatsSubPage, setDataTableMode, preloadStatsData } = useNavigationStore();
+	const { setStatsSubPage, currentStatsSubPage, setDataTableMode, preloadStatsData, cachedPlayerData } = useNavigationStore();
 
 	const navigationPages = useMemo(() => {
 		const f = featureFlags;
+		const impactDelta = cachedPlayerData?.playerData?.impactDelta;
+		const hasPositiveImpact =
+			impactDelta != null && typeof impactDelta === "number" && !Number.isNaN(impactDelta) && impactDelta > 0;
 		return statsNavigationItems.map((page) => {
 			if (page.id === "player-stats") {
 				return {
@@ -107,7 +110,7 @@ export default function StatsNavigationMenu({ isOpen, onClose }: StatsNavigation
 						if (s.id === "streaks-section" && !f.playerStatsStreaks) return false;
 						if (s.id === "starting-impact" && !f.playerStatsStartingImpact) return false;
 						if (s.id === "partnerships-section" && !f.playerStatsPartnerships) return false;
-						if (s.id === "impact-section" && !f.playerStatsImpact) return false;
+						if (s.id === "impact-section" && (!f.playerStatsImpact || !hasPositiveImpact)) return false;
 						if (s.id === "player-recordings" && !f.playerStatsPlayerRecordings) return false;
 						return true;
 					}),
@@ -135,7 +138,7 @@ export default function StatsNavigationMenu({ isOpen, onClose }: StatsNavigation
 			}
 			return page;
 		});
-	}, []);
+	}, [cachedPlayerData?.playerData?.impactDelta]);
 	// Initialize with only the current page expanded
 	const [expandedPages, setExpandedPages] = useState<Record<string, boolean>>(() => {
 		const initial: Record<string, boolean> = {

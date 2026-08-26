@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import type { CSSProperties } from "react";
 import {
 	CartesianGrid,
@@ -12,6 +12,7 @@ import {
 	XAxis,
 	YAxis,
 } from "recharts";
+import { formYAxisFromData } from "@/lib/stats/formYAxis";
 
 export type FormChartPoint = {
 	week: string;
@@ -73,6 +74,8 @@ export default function FormComposedChart({
 	goldenCrosses?: GoldenCrossPoint[];
 	onRenderReady?: () => void;
 }) {
+	const { domain, ticks } = useMemo(() => formYAxisFromData(formData), [formData]);
+
 	useEffect(() => {
 		if (!onRenderReady || formData.length === 0) return;
 		let raf1 = 0;
@@ -110,8 +113,8 @@ export default function FormComposedChart({
 					<CartesianGrid strokeDasharray='3 3' stroke='rgba(255,255,255,0.06)' vertical={false} />
 					<XAxis dataKey='week' tick={{ fill: "#ffffff", fontSize: 10 }} tickLine={{ stroke: "rgba(255,255,255,0.35)" }} />
 					<YAxis
-						domain={[2, 10]}
-						ticks={[2, 4, 6, 8, 10]}
+						domain={domain}
+						ticks={ticks}
 						width={28}
 						tick={{ fill: "#ffffff", fontSize: 10 }}
 						tickMargin={2}
