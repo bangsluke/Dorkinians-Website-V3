@@ -4,20 +4,22 @@ import { useEffect, useMemo, useState } from "react";
 import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
 import VeoWatchMatchButtons from "@/components/club-info/VeoWatchMatchButtons";
+import { getCurrentSeasonFromStorage } from "@/lib/services/currentSeasonService";
 import type { RecordingFixture } from "@/lib/utils/recordingsDisplay";
 import {
-	buildRecordingYearOptions,
-	filterRecordingsByYear,
+	buildRecordingSeasonFilterOptions,
+	filterRecordingsBySeason,
 	formatRecordingDateDesktop,
 	formatRecordingDateMobile,
 	formatRecordingScore,
-	formatRecordingYearOptionLabel,
+	formatRecordingSeasonOptionLabel,
 	recordingCompBadgeClass,
 	recordingCompLabelDesktop,
 	recordingCompLabelMobile,
 	recordingLocBadgeClass,
 	recordingLocLabelDesktop,
 	recordingLocLabelMobile,
+	resolveDefaultRecordingSeason,
 } from "@/lib/utils/recordingsDisplay";
 
 export type RecordingsSectionProps = {
@@ -29,8 +31,8 @@ export type RecordingsSectionProps = {
 	teamColumn?: boolean;
 	/** When set, show only this many rows until user expands (club-wide lists). */
 	collapseAfter?: number;
-	/** When true, show a calendar-year filter under the heading (Team Stats). */
-	enableYearFilter?: boolean;
+	/** When true, show a season filter under the heading (Team Stats). */
+	enableSeasonFilter?: boolean;
 	testIdPrefix: string;
 };
 
@@ -41,50 +43,51 @@ export default function RecordingsSection({
 	fixtures,
 	teamColumn = false,
 	collapseAfter,
-	enableYearFilter = false,
+	enableSeasonFilter = false,
 	testIdPrefix,
 }: RecordingsSectionProps) {
 	const [expanded, setExpanded] = useState(false);
-	const yearOptions = useMemo(
-		() => (enableYearFilter ? buildRecordingYearOptions(fixtures) : []),
-		[enableYearFilter, fixtures]
+	const seasonOptions = useMemo(
+		() => (enableSeasonFilter ? buildRecordingSeasonFilterOptions(fixtures) : []),
+		[enableSeasonFilter, fixtures]
 	);
-	const [selectedYear, setSelectedYear] = useState<number | null>(null);
+	const [selectedSeason, setSelectedSeason] = useState<string | null>(null);
 
 	useEffect(() => {
-		if (!enableYearFilter) {
-			setSelectedYear(null);
+		if (!enableSeasonFilter) {
+			setSelectedSeason(null);
 			return;
 		}
-		if (yearOptions.length === 0) {
-			setSelectedYear(null);
+		if (seasonOptions.length === 0) {
+			setSelectedSeason(null);
 			return;
 		}
-		setSelectedYear((prev) => {
-			if (prev != null && yearOptions.some((opt) => opt.year === prev)) {
+		const currentSeason = getCurrentSeasonFromStorage();
+		setSelectedSeason((prev) => {
+			if (prev != null && seasonOptions.some((opt) => opt.season === prev)) {
 				return prev;
 			}
-			return yearOptions[0].year;
+			return resolveDefaultRecordingSeason(seasonOptions, currentSeason);
 		});
-	}, [enableYearFilter, yearOptions]);
+	}, [enableSeasonFilter, seasonOptions]);
 
 	if (fixtures.length === 0) return null;
 
 	const total = fixtures.length;
-	const selectedYearOption =
-		enableYearFilter && selectedYear != null
-			? yearOptions.find((opt) => opt.year === selectedYear) ?? null
+	const selectedSeasonOption =
+		enableSeasonFilter && selectedSeason != null
+			? seasonOptions.find((opt) => opt.season === selectedSeason) ?? null
 			: null;
-	const yearFilteredFixtures =
-		enableYearFilter && selectedYear != null
-			? filterRecordingsByYear(fixtures, selectedYear)
+	const seasonFilteredFixtures =
+		enableSeasonFilter && selectedSeason != null
+			? filterRecordingsBySeason(fixtures, selectedSeason)
 			: fixtures;
 	const collapsed =
-		collapseAfter != null && !expanded && yearFilteredFixtures.length > collapseAfter;
+		collapseAfter != null && !expanded && seasonFilteredFixtures.length > collapseAfter;
 	const visibleFixtures = collapsed
-		? yearFilteredFixtures.slice(0, collapseAfter)
-		: yearFilteredFixtures;
-	const visibleTotal = yearFilteredFixtures.length;
+		? seasonFilteredFixtures.slice(0, collapseAfter)
+		: seasonFilteredFixtures;
+	const visibleTotal = seasonFilteredFixtures.length;
 
 	return (
 		<div id={id} className='relative bg-white/10 backdrop-blur-sm rounded-lg p-2 pt-3 md:p-4 md:break-inside-avoid md:mb-4'>
@@ -95,34 +98,34 @@ export default function RecordingsSection({
 			<h3 className='text-white font-semibold text-sm md:text-base mb-2 pr-14'>
 				{title} ({total})
 			</h3>
-			{enableYearFilter && yearOptions.length > 0 && selectedYearOption ? (
+			{enableSeasonFilter && seasonOptions.length > 0 && selectedSeasonOption ? (
 				<div className='mb-3 w-full max-w-xs'>
-					<Listbox value={selectedYear} onChange={setSelectedYear}>
+					<Listbox value={selectedSeason} onChange={setSelectedSeason}>
 						<div className='relative'>
 							<Listbox.Button
-								aria-label='Filter recordings by year'
-								data-testid={`${testIdPrefix}-year-filter`}
+								aria-label='Filter recordings by season'
+								data-testid={`${testIdPrefix}-season-filter`}
 								className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-xs md:text-sm'
 							>
 								<span className='block truncate text-white'>
-									{formatRecordingYearOptionLabel(selectedYearOption)}
+									{formatRecordingSeasonOptionLabel(selectedSeasonOption)}
 								</span>
 								<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
 									<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
 								</span>
 							</Listbox.Button>
 							<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-xs md:text-sm shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
-								{yearOptions.map((option) => (
+								{seasonOptions.map((option) => (
 									<Listbox.Option
-										key={option.year}
+										key={option.season}
 										className={({ active }) =>
 											`relative cursor-default select-none dark-dropdown-option ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
 										}
-										value={option.year}
+										value={option.season}
 									>
 										{({ selected }) => (
 											<span className={`block truncate py-1 px-2 ${selected ? "font-medium" : "font-normal"}`}>
-												{formatRecordingYearOptionLabel(option)}
+												{formatRecordingSeasonOptionLabel(option)}
 											</span>
 										)}
 									</Listbox.Option>
