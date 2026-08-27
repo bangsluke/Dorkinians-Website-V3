@@ -1919,11 +1919,11 @@ export default function TeamStats() {
 															textAnchor='end'
 															height={72}
 														/>
-														<YAxis yAxisId='games' tick={{ fill: '#e5e5e5', fontSize: 11 }} allowDecimals={false} width={36} />
+														<YAxis yAxisId='games' tick={{ fill: '#d4a012', fontSize: 11 }} allowDecimals={false} width={36} />
 														<YAxis
 															yAxisId='pct'
 															orientation='right'
-															tick={{ fill: '#e5e5e5', fontSize: 11 }}
+															tick={{ fill: '#22c55e', fontSize: 11 }}
 															domain={[0, 100]}
 															width={40}
 															unit='%'
@@ -2419,6 +2419,7 @@ export default function TeamStats() {
 										title='Team Recordings'
 										subtitle='All matches with a recording link for the selected team and current filters.'
 										fixtures={teamRecordings}
+										enableYearFilter
 										testIdPrefix='team-recording'
 									/>
 								)}

@@ -1,12 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Listbox } from "@headlessui/react";
+import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
 import VeoWatchMatchButtons from "@/components/club-info/VeoWatchMatchButtons";
 import type { RecordingFixture } from "@/lib/utils/recordingsDisplay";
 import {
+	buildRecordingYearOptions,
+	filterRecordingsByYear,
 	formatRecordingDateDesktop,
 	formatRecordingDateMobile,
 	formatRecordingScore,
+	formatRecordingYearOptionLabel,
 	recordingCompBadgeClass,
 	recordingCompLabelDesktop,
 	recordingCompLabelMobile,
@@ -24,6 +29,8 @@ export type RecordingsSectionProps = {
 	teamColumn?: boolean;
 	/** When set, show only this many rows until user expands (club-wide lists). */
 	collapseAfter?: number;
+	/** When true, show a calendar-year filter under the heading (Team Stats). */
+	enableYearFilter?: boolean;
 	testIdPrefix: string;
 };
 
@@ -34,15 +41,50 @@ export default function RecordingsSection({
 	fixtures,
 	teamColumn = false,
 	collapseAfter,
+	enableYearFilter = false,
 	testIdPrefix,
 }: RecordingsSectionProps) {
 	const [expanded, setExpanded] = useState(false);
+	const yearOptions = useMemo(
+		() => (enableYearFilter ? buildRecordingYearOptions(fixtures) : []),
+		[enableYearFilter, fixtures]
+	);
+	const [selectedYear, setSelectedYear] = useState<number | null>(null);
+
+	useEffect(() => {
+		if (!enableYearFilter) {
+			setSelectedYear(null);
+			return;
+		}
+		if (yearOptions.length === 0) {
+			setSelectedYear(null);
+			return;
+		}
+		setSelectedYear((prev) => {
+			if (prev != null && yearOptions.some((opt) => opt.year === prev)) {
+				return prev;
+			}
+			return yearOptions[0].year;
+		});
+	}, [enableYearFilter, yearOptions]);
+
 	if (fixtures.length === 0) return null;
 
 	const total = fixtures.length;
+	const selectedYearOption =
+		enableYearFilter && selectedYear != null
+			? yearOptions.find((opt) => opt.year === selectedYear) ?? null
+			: null;
+	const yearFilteredFixtures =
+		enableYearFilter && selectedYear != null
+			? filterRecordingsByYear(fixtures, selectedYear)
+			: fixtures;
 	const collapsed =
-		collapseAfter != null && !expanded && total > collapseAfter;
-	const visibleFixtures = collapsed ? fixtures.slice(0, collapseAfter) : fixtures;
+		collapseAfter != null && !expanded && yearFilteredFixtures.length > collapseAfter;
+	const visibleFixtures = collapsed
+		? yearFilteredFixtures.slice(0, collapseAfter)
+		: yearFilteredFixtures;
+	const visibleTotal = yearFilteredFixtures.length;
 
 	return (
 		<div id={id} className='relative bg-white/10 backdrop-blur-sm rounded-lg p-2 pt-3 md:p-4 md:break-inside-avoid md:mb-4'>
@@ -53,6 +95,43 @@ export default function RecordingsSection({
 			<h3 className='text-white font-semibold text-sm md:text-base mb-2 pr-14'>
 				{title} ({total})
 			</h3>
+			{enableYearFilter && yearOptions.length > 0 && selectedYearOption ? (
+				<div className='mb-3 w-full max-w-xs'>
+					<Listbox value={selectedYear} onChange={setSelectedYear}>
+						<div className='relative'>
+							<Listbox.Button
+								aria-label='Filter recordings by year'
+								data-testid={`${testIdPrefix}-year-filter`}
+								className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-xs md:text-sm'
+							>
+								<span className='block truncate text-white'>
+									{formatRecordingYearOptionLabel(selectedYearOption)}
+								</span>
+								<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
+									<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
+								</span>
+							</Listbox.Button>
+							<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-xs md:text-sm shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
+								{yearOptions.map((option) => (
+									<Listbox.Option
+										key={option.year}
+										className={({ active }) =>
+											`relative cursor-default select-none dark-dropdown-option ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
+										}
+										value={option.year}
+									>
+										{({ selected }) => (
+											<span className={`block truncate py-1 px-2 ${selected ? "font-medium" : "font-normal"}`}>
+												{formatRecordingYearOptionLabel(option)}
+											</span>
+										)}
+									</Listbox.Option>
+								))}
+							</Listbox.Options>
+						</div>
+					</Listbox>
+				</div>
+			) : null}
 			<p className='text-white/70 text-xs md:text-sm mb-3 pr-14'>{subtitle}</p>
 			<div className='w-full overflow-x-auto'>
 				<table className='w-full max-w-full table-fixed text-white text-[10px] sm:text-xs md:text-sm'>
@@ -190,7 +269,7 @@ export default function RecordingsSection({
 						onClick={() => setExpanded(true)}
 						data-testid={`${testIdPrefix}-see-all`}
 					>
-						See all ({total})
+						See all ({visibleTotal})
 					</button>
 				</div>
 			) : null}
