@@ -1909,7 +1909,7 @@ export default function TeamStats() {
 												<ResponsiveContainer width='100%' height={280}>
 													<BarChart
 														data={teamData.formationBreakdown}
-														margin={{ top: 8, right: 12, left: 0, bottom: 4 }}>
+														margin={{ top: 8, right: 28, left: 8, bottom: 4 }}>
 														<CartesianGrid strokeDasharray='3 3' stroke='#ffffff22' />
 														<XAxis
 															dataKey='formation'
@@ -1919,14 +1919,33 @@ export default function TeamStats() {
 															textAnchor='end'
 															height={72}
 														/>
-														<YAxis yAxisId='games' tick={{ fill: '#d4a012', fontSize: 11 }} allowDecimals={false} width={36} />
+														<YAxis
+															yAxisId='games'
+															tick={{ fill: '#d4a012', fontSize: 11 }}
+															allowDecimals={false}
+															width={40}
+															label={{
+																value: 'Games',
+																angle: -90,
+																position: 'insideLeft',
+																offset: 8,
+																style: { textAnchor: 'middle', fill: '#d4a012', fontSize: 11 },
+															}}
+														/>
 														<YAxis
 															yAxisId='pct'
 															orientation='right'
 															tick={{ fill: '#22c55e', fontSize: 11 }}
 															domain={[0, 100]}
-															width={40}
+															width={44}
 															unit='%'
+															label={{
+																value: 'Win %',
+																angle: 90,
+																position: 'insideRight',
+																offset: 8,
+																style: { textAnchor: 'middle', fill: '#22c55e', fontSize: 11 },
+															}}
 														/>
 														<Tooltip
 															contentStyle={{ backgroundColor: '#1a1a1a', border: '1px solid #444' }}
@@ -2419,7 +2438,7 @@ export default function TeamStats() {
 										title='Team Recordings'
 										subtitle='All matches with a recording link for the selected team and current filters.'
 										fixtures={teamRecordings}
-										enableYearFilter
+										enableSeasonFilter
 										testIdPrefix='team-recording'
 									/>
 								)}

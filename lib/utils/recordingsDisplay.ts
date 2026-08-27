@@ -14,49 +14,77 @@ export interface RecordingFixture {
 	team?: string;
 }
 
-export type RecordingYearOption = {
-	year: number;
+export type RecordingSeasonOption = {
+	season: string;
 	count: number;
 };
 
-/**
- * Calendar year from fixture date. Prefer ISO `YYYY-…` prefix to avoid timezone off-by-one.
- */
-export function recordingCalendarYear(dateString: string): number | null {
-	if (!dateString) return null;
-	const isoMatch = /^(\d{4})/.exec(dateString.trim());
-	if (isoMatch) {
-		const year = Number(isoMatch[1]);
-		return Number.isFinite(year) ? year : null;
-	}
-	try {
-		const date = new Date(dateString);
-		if (Number.isNaN(date.getTime())) return null;
-		return date.getFullYear();
-	} catch {
-		return null;
-	}
+/** Sentinel value for the recordings season dropdown "All" option. */
+export const RECORDING_SEASON_ALL = "__all__";
+
+/** Leading year from a season label like `2025/26` or `2025/2026`. */
+export function recordingSeasonStartYear(season: string): number {
+	const match = /^(\d{4})/.exec((season || "").trim());
+	if (!match) return 0;
+	const year = Number(match[1]);
+	return Number.isFinite(year) ? year : 0;
 }
 
-/** Distinct calendar years with counts, newest first. */
-export function buildRecordingYearOptions(fixtures: RecordingFixture[]): RecordingYearOption[] {
-	const counts = new Map<number, number>();
+/** Distinct seasons with counts, newest first. */
+export function buildRecordingSeasonOptions(fixtures: RecordingFixture[]): RecordingSeasonOption[] {
+	const counts = new Map<string, number>();
 	for (const fx of fixtures) {
-		const year = recordingCalendarYear(fx.date);
-		if (year == null) continue;
-		counts.set(year, (counts.get(year) || 0) + 1);
+		const season = (fx.season || "").trim();
+		if (!season) continue;
+		counts.set(season, (counts.get(season) || 0) + 1);
 	}
 	return Array.from(counts.entries())
-		.map(([year, count]) => ({ year, count }))
-		.sort((a, b) => b.year - a.year);
+		.map(([season, count]) => ({ season, count }))
+		.sort((a, b) => {
+			const ya = recordingSeasonStartYear(a.season);
+			const yb = recordingSeasonStartYear(b.season);
+			if (yb !== ya) return yb - ya;
+			return b.season.localeCompare(a.season);
+		});
 }
 
-export function filterRecordingsByYear(fixtures: RecordingFixture[], year: number): RecordingFixture[] {
-	return fixtures.filter((fx) => recordingCalendarYear(fx.date) === year);
+/** Season options plus a leading All row (count = total fixtures). */
+export function buildRecordingSeasonFilterOptions(fixtures: RecordingFixture[]): RecordingSeasonOption[] {
+	const seasons = buildRecordingSeasonOptions(fixtures);
+	if (seasons.length === 0) return [];
+	return [{ season: RECORDING_SEASON_ALL, count: fixtures.length }, ...seasons];
 }
 
-export function formatRecordingYearOptionLabel(option: RecordingYearOption): string {
-	return `${option.year} (${option.count})`;
+/**
+ * Default selection: current season when it has recordings, else newest season with recordings.
+ * Falls back to All only when there are no season rows.
+ */
+export function resolveDefaultRecordingSeason(
+	options: RecordingSeasonOption[],
+	currentSeason: string | null
+): string | null {
+	const seasons = options.filter((opt) => opt.season !== RECORDING_SEASON_ALL);
+	if (seasons.length === 0) {
+		return options.some((opt) => opt.season === RECORDING_SEASON_ALL) ? RECORDING_SEASON_ALL : null;
+	}
+	const current = (currentSeason || "").trim();
+	if (current && seasons.some((opt) => opt.season === current)) {
+		return current;
+	}
+	return seasons[0].season;
+}
+
+export function filterRecordingsBySeason(fixtures: RecordingFixture[], season: string): RecordingFixture[] {
+	if (season === RECORDING_SEASON_ALL) return fixtures;
+	const target = (season || "").trim();
+	return fixtures.filter((fx) => (fx.season || "").trim() === target);
+}
+
+export function formatRecordingSeasonOptionLabel(option: RecordingSeasonOption): string {
+	if (option.season === RECORDING_SEASON_ALL) {
+		return `All (${option.count})`;
+	}
+	return `${option.season} (${option.count})`;
 }
 
 export function formatRecordingDateDesktop(dateString: string): string {
