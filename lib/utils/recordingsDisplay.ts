@@ -14,6 +14,51 @@ export interface RecordingFixture {
 	team?: string;
 }
 
+export type RecordingYearOption = {
+	year: number;
+	count: number;
+};
+
+/**
+ * Calendar year from fixture date. Prefer ISO `YYYY-…` prefix to avoid timezone off-by-one.
+ */
+export function recordingCalendarYear(dateString: string): number | null {
+	if (!dateString) return null;
+	const isoMatch = /^(\d{4})/.exec(dateString.trim());
+	if (isoMatch) {
+		const year = Number(isoMatch[1]);
+		return Number.isFinite(year) ? year : null;
+	}
+	try {
+		const date = new Date(dateString);
+		if (Number.isNaN(date.getTime())) return null;
+		return date.getFullYear();
+	} catch {
+		return null;
+	}
+}
+
+/** Distinct calendar years with counts, newest first. */
+export function buildRecordingYearOptions(fixtures: RecordingFixture[]): RecordingYearOption[] {
+	const counts = new Map<number, number>();
+	for (const fx of fixtures) {
+		const year = recordingCalendarYear(fx.date);
+		if (year == null) continue;
+		counts.set(year, (counts.get(year) || 0) + 1);
+	}
+	return Array.from(counts.entries())
+		.map(([year, count]) => ({ year, count }))
+		.sort((a, b) => b.year - a.year);
+}
+
+export function filterRecordingsByYear(fixtures: RecordingFixture[], year: number): RecordingFixture[] {
+	return fixtures.filter((fx) => recordingCalendarYear(fx.date) === year);
+}
+
+export function formatRecordingYearOptionLabel(option: RecordingYearOption): string {
+	return `${option.year} (${option.count})`;
+}
+
 export function formatRecordingDateDesktop(dateString: string): string {
 	if (!dateString) return "-";
 	try {
