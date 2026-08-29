@@ -1231,25 +1231,18 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess, renderAboveA
 													{filterData.seasons.length === 0 ? (
 														<div className='text-sm text-[var(--color-text-primary)]/60'>Loading seasons...</div>
 													) : (
-														<div 
-															className='max-h-32 overflow-y-scroll'
-															style={{
-																scrollbarWidth: 'thin',
-																scrollbarColor: 'rgba(255, 255, 255, 0.2) transparent'
-															}}>
-															<div className='grid grid-cols-2 gap-1'>
-																{filterData.seasons.map((season) => (
-																	<label key={season.season} className='flex items-center min-h-[36px]'>
-																		<input
-																			type='checkbox'
-																			checked={(playerFilters?.timeRange?.seasons || []).includes(season.season)}
-																			onChange={() => handleSeasonToggle(season.season)}
-																			className='mr-2 accent-dorkinians-yellow w-5 h-5 md:w-4 md:h-4 focus:outline-none focus:ring-2 focus:ring-[var(--color-field-focus)] focus:ring-offset-2 focus:ring-offset-transparent'
-																		/>
-																		<span className='text-base md:text-sm text-[var(--color-text-primary)]/80'>{season.season}</span>
-																	</label>
-																))}
-															</div>
+														<div className='grid grid-cols-2 gap-1'>
+															{filterData.seasons.map((season) => (
+																<label key={season.season} className='flex items-center min-h-[36px]'>
+																	<input
+																		type='checkbox'
+																		checked={(playerFilters?.timeRange?.seasons || []).includes(season.season)}
+																		onChange={() => handleSeasonToggle(season.season)}
+																		className='mr-2 accent-dorkinians-yellow w-5 h-5 md:w-4 md:h-4 focus:outline-none focus:ring-2 focus:ring-[var(--color-field-focus)] focus:ring-offset-2 focus:ring-offset-transparent'
+																	/>
+																	<span className='text-base md:text-sm text-[var(--color-text-primary)]/80'>{season.season}</span>
+																</label>
+															))}
 														</div>
 													)}
 												</div>
