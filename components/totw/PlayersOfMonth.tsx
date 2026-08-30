@@ -1300,7 +1300,7 @@ export default function PlayersOfMonth() {
 														return (
 															<React.Fragment key={row.playerName}>
 																<tr
-																	className={`cursor-pointer hover:bg-gray-800 transition-colors ${isLastRow ? "" : "border-b border-green-500"} ${isSelected ? "bg-yellow-400/20" : ""}`}
+																	className={`cursor-pointer transition-colors ${isLastRow ? "" : "border-b border-green-500"} ${isSelected ? "bg-yellow-400/20 hover:bg-dorkinians-yellow/30" : "hover:bg-gray-800"}`}
 																	style={
 																		isSelected
 																			? {}
@@ -1462,7 +1462,7 @@ export default function PlayersOfMonth() {
 																	return (
 																		<React.Fragment key={`${row.playerName}-${row.rank}`}>
 																			<tr
-																				className={`cursor-pointer hover:bg-gray-800 transition-colors ${isLastRow ? "" : "border-b border-green-500"} ${row.isSelected ? "bg-yellow-400/20" : ""}`}
+																				className={`cursor-pointer transition-colors ${isLastRow ? "" : "border-b border-green-500"} ${row.isSelected ? "bg-yellow-400/20 hover:bg-dorkinians-yellow/30" : "hover:bg-gray-800"}`}
 																				style={
 																					row.isSelected
 																						? {}

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { XMarkIcon, ChevronDownIcon, ChevronRightIcon, FunnelIcon } from "@heroicons/react/24/outline";
 import { useMemo } from "react";
+import FullscreenModalContent from "@/components/modals/FullscreenModalContent";
 import ModalWrapper from "@/components/modals/ModalWrapper";
 import { useNavigationStore } from "@/lib/stores/navigation";
 import { getActiveFilterCount } from "@/lib/utils/filterUtils";
@@ -317,7 +318,7 @@ export default function AllGamesModal({
 			modalClassName="fixed inset-0 h-screen w-screen z-[10000] shadow-xl"
 			ariaLabel={`All Games - ${playerDisplayName}`}
 		>
-			<div className="h-full flex flex-col" style={{ backgroundColor: "#0f0f0f" }}>
+			<FullscreenModalContent>
 				{/* Header */}
 				<div className="flex items-center justify-between p-4 border-b border-white/20">
 					<h2 className="text-lg font-semibold text-white">All Games - {playerDisplayName}</h2>
@@ -604,7 +605,7 @@ export default function AllGamesModal({
 						Close
 					</button>
 				</div>
-			</div>
+			</FullscreenModalContent>
 		</ModalWrapper>
 	);
 

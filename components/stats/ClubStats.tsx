@@ -2207,55 +2207,57 @@ export default function ClubStats() {
 								{!isDataTableMode && (
 								<div id='club-top-players' className='flex-shrink-0 md:break-inside-avoid md:mb-4'>
 									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-										<h3 className='text-white font-semibold text-sm md:text-base mb-2' data-testid="club-top-players-heading">Top 5 {getStatTypeLabel(selectedStatType)}</h3>
-										<div className='mb-2'>
-											<Listbox value={selectedStatType} onChange={handleStatTypeSelect}>
-												<div className='relative'>
-													<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-xs md:text-sm'>
-														<span className='block truncate text-white'>
-															{getStatTypeLabel(selectedStatType)}
-														</span>
-													<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
-														<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
-													</span>
-												</Listbox.Button>
-												<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-xs md:text-sm shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
-													{([
-														"appearances",
-														"minutes",
-														"mom",
-														"goals",
-														"assists",
-														"goalInvolvements",
-														"fantasyPoints",
-														"cleanSheets",
-														"saves",
-														"yellowCards",
-														"redCards",
-														"penaltiesScored",
-														"penaltiesSaved",
-														"penaltiesConceded",
-														"penaltiesMissed",
-														"conceded",
-														"ownGoals",
-														"distance",
-													] as StatType[]).map((statType) => (
-														<Listbox.Option
-															key={statType}
-															className={({ active }) =>
-																`relative cursor-default select-none dark-dropdown-option ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
-															}
-															value={statType}>
-															{({ selected }) => (
-																<span className={`block truncate py-1 px-2 ${selected ? "font-medium" : "font-normal"}`}>
-																	{getStatTypeLabel(statType)}
-																</span>
-															)}
-														</Listbox.Option>
-													))}
-												</Listbox.Options>
-											</div>
+										<div className='flex items-center justify-between mb-2 gap-2'>
+											<h3 className='text-white font-semibold text-sm md:text-base flex-shrink-0' data-testid="club-top-players-heading">Top 5</h3>
+											<div className='flex-1 max-w-[45%]'>
+												<Listbox value={selectedStatType} onChange={handleStatTypeSelect}>
+													<div className='relative'>
+														<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-xs md:text-sm'>
+															<span className='block truncate text-white'>
+																{getStatTypeLabel(selectedStatType)}
+															</span>
+															<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
+																<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
+															</span>
+														</Listbox.Button>
+														<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-xs md:text-sm shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
+															{([
+																"appearances",
+																"minutes",
+																"mom",
+																"goals",
+																"assists",
+																"goalInvolvements",
+																"fantasyPoints",
+																"cleanSheets",
+																"saves",
+																"yellowCards",
+																"redCards",
+																"penaltiesScored",
+																"penaltiesSaved",
+																"penaltiesConceded",
+																"penaltiesMissed",
+																"conceded",
+																"ownGoals",
+																"distance",
+															] as StatType[]).map((statType) => (
+																<Listbox.Option
+																	key={statType}
+																	className={({ active }) =>
+																		`relative cursor-default select-none dark-dropdown-option ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
+																	}
+																	value={statType}>
+																	{({ selected }) => (
+																		<span className={`block truncate py-1 px-2 ${selected ? "font-medium" : "font-normal"}`}>
+																			{getStatTypeLabel(statType)}
+																		</span>
+																	)}
+																</Listbox.Option>
+															))}
+														</Listbox.Options>
+													</div>
 												</Listbox>
+											</div>
 										</div>
 										{isLoadingTopPlayers ? (
 											<TopPlayersTableSkeleton />
@@ -2468,41 +2470,43 @@ export default function ClubStats() {
 								{!isDataTableMode && (
 								<div id='club-stats-distribution' className='md:break-inside-avoid md:mb-4'>
 									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Stats Distribution</h3>
-										<div className='mb-2'>
-											<Listbox
-												value={selectedPositionStat}
-												onChange={(v) => {
-													setSelectedPositionStat(v);
-													trackStatsStatSelected("club-stats", "club-stats-distribution", v);
-												}}>
-												<div className='relative'>
-													<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-xs md:text-sm'>
-														<span className='block truncate text-white'>
-															{getPositionStatLabel(selectedPositionStat)}
-														</span>
-														<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
-															<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
-														</span>
-													</Listbox.Button>
-													<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-xs md:text-sm shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
-														{["goals", "assists", "appearances", "cleanSheets", "saves", "yellowCards", "redCards", "penaltiesScored", "fantasyPoints", "minutes", "mom"].map((statType) => (
-															<Listbox.Option
-																key={statType}
-																className={({ active }) =>
-																	`relative cursor-default select-none dark-dropdown-option ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
-																}
-																value={statType}>
-																{({ selected }) => (
-																	<span className={`block truncate py-1 px-2 ${selected ? "font-medium" : "font-normal"}`}>
-																		{getPositionStatLabel(statType)}
-																	</span>
-																)}
-															</Listbox.Option>
-														))}
-													</Listbox.Options>
-												</div>
-											</Listbox>
+										<div className='flex items-center justify-between mb-2 gap-2'>
+											<h3 className='text-white font-semibold text-sm md:text-base flex-shrink-0'>Stats Distribution</h3>
+											<div className='flex-1 max-w-[45%]'>
+												<Listbox
+													value={selectedPositionStat}
+													onChange={(v) => {
+														setSelectedPositionStat(v);
+														trackStatsStatSelected("club-stats", "club-stats-distribution", v);
+													}}>
+													<div className='relative'>
+														<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-xs md:text-sm'>
+															<span className='block truncate text-white'>
+																{getPositionStatLabel(selectedPositionStat)}
+															</span>
+															<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
+																<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
+															</span>
+														</Listbox.Button>
+														<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-xs md:text-sm shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
+															{["goals", "assists", "appearances", "cleanSheets", "saves", "yellowCards", "redCards", "penaltiesScored", "fantasyPoints", "minutes", "mom"].map((statType) => (
+																<Listbox.Option
+																	key={statType}
+																	className={({ active }) =>
+																		`relative cursor-default select-none dark-dropdown-option ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
+																	}
+																	value={statType}>
+																	{({ selected }) => (
+																		<span className={`block truncate py-1 px-2 ${selected ? "font-medium" : "font-normal"}`}>
+																			{getPositionStatLabel(statType)}
+																		</span>
+																	)}
+																</Listbox.Option>
+															))}
+														</Listbox.Options>
+													</div>
+												</Listbox>
+											</div>
 										</div>
 										{isLoadingPositionStats ? (
 											<ChartSkeleton />
@@ -2650,6 +2654,7 @@ export default function ClubStats() {
 										fixtures={clubRecordings}
 										teamColumn={showClubRecordingsTeamColumn}
 										collapseAfter={10}
+										enableSeasonFilter
 										testIdPrefix='club-recording'
 									/>
 								)}

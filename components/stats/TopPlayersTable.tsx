@@ -49,7 +49,7 @@ export default function TopPlayersTable({
 					<tr className='border-b-2 border-dorkinians-yellow'>
 						<th className='text-left py-2 px-2 text-xs md:text-sm w-auto'>
 							<div className='flex items-center gap-2'>
-								<div className='w-10 md:w-12'></div>
+								<div className='w-14 md:w-16'></div>
 								<div>Player Name</div>
 							</div>
 						</th>
@@ -81,7 +81,7 @@ export default function TopPlayersTable({
 									<td className='py-2 px-2 align-top' colSpan={2}>
 										<div className='flex flex-col'>
 											<div className='flex items-center gap-2'>
-												<div className='text-base md:text-lg font-semibold whitespace-nowrap w-10 md:w-12'>
+												<div className='text-base md:text-lg font-semibold whitespace-nowrap w-14 md:w-16'>
 													{formatRank(rank)}
 												</div>
 												<div className='text-base md:text-lg font-semibold flex-1'>{player.playerName}</div>
@@ -89,7 +89,7 @@ export default function TopPlayersTable({
 													{formattedStatValue}
 												</div>
 											</div>
-											<div className='pt-1 pl-[3rem] md:pl-[3.5rem]'>
+											<div className='pt-1 pl-16 md:pl-[4.5rem]'>
 												<div className='text-[0.7rem] md:text-[0.8rem] text-gray-300 text-left'>{summary}</div>
 											</div>
 										</div>

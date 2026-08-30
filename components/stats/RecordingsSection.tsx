@@ -92,51 +92,53 @@ export default function RecordingsSection({
 
 	return (
 		<div id={id} className='relative bg-white/10 backdrop-blur-sm rounded-lg p-2 pt-3 md:p-4 md:break-inside-avoid md:mb-4'>
-			<div className='absolute right-3 top-2.5 md:right-4 md:top-3.5'>
-				{/* eslint-disable-next-line @next/next/no-img-element -- static brand SVG from public */}
-				<img src='/icons/veo.svg' alt='Veo' className='h-5 w-auto opacity-90 brightness-0 invert md:h-6' />
-			</div>
-			<h3 className='text-white font-semibold text-sm md:text-base mb-2 pr-14'>
-				{title} ({total})
-			</h3>
-			{enableSeasonFilter && seasonOptions.length > 0 && selectedSeasonOption ? (
-				<div className='mb-3 w-full max-w-xs'>
-					<Listbox value={selectedSeason} onChange={setSelectedSeason}>
-						<div className='relative'>
-							<Listbox.Button
-								aria-label='Filter recordings by season'
-								data-testid={`${testIdPrefix}-season-filter`}
-								className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-xs md:text-sm'
-							>
-								<span className='block truncate text-white'>
-									{formatRecordingSeasonOptionLabel(selectedSeasonOption)}
-								</span>
-								<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
-									<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
-								</span>
-							</Listbox.Button>
-							<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-xs md:text-sm shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
-								{seasonOptions.map((option) => (
-									<Listbox.Option
-										key={option.season}
-										className={({ active }) =>
-											`relative cursor-default select-none dark-dropdown-option ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
-										}
-										value={option.season}
-									>
-										{({ selected }) => (
-											<span className={`block truncate py-1 px-2 ${selected ? "font-medium" : "font-normal"}`}>
-												{formatRecordingSeasonOptionLabel(option)}
-											</span>
-										)}
-									</Listbox.Option>
-								))}
-							</Listbox.Options>
-						</div>
-					</Listbox>
+			<div className='flex items-center justify-between mb-2 gap-2'>
+				<div className='flex items-center gap-2 flex-shrink-0 min-w-0'>
+					{/* eslint-disable-next-line @next/next/no-img-element -- static brand SVG from public */}
+					<img src='/icons/veo.svg' alt='Veo' className='h-5 w-auto opacity-90 brightness-0 invert md:h-6 shrink-0' />
+					<h3 className='text-white font-semibold text-sm md:text-base truncate'>
+						{title} ({total})
+					</h3>
 				</div>
-			) : null}
-			<p className='text-white/70 text-xs md:text-sm mb-3 pr-14'>{subtitle}</p>
+				{enableSeasonFilter && seasonOptions.length > 0 && selectedSeasonOption ? (
+					<div className='flex-1 max-w-[45%]'>
+						<Listbox value={selectedSeason} onChange={setSelectedSeason}>
+							<div className='relative'>
+								<Listbox.Button
+									aria-label='Filter recordings by season'
+									data-testid={`${testIdPrefix}-season-filter`}
+									className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-xs md:text-sm'
+								>
+									<span className='block truncate text-white'>
+										{formatRecordingSeasonOptionLabel(selectedSeasonOption)}
+									</span>
+									<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
+										<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
+									</span>
+								</Listbox.Button>
+								<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-xs md:text-sm shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
+									{seasonOptions.map((option) => (
+										<Listbox.Option
+											key={option.season}
+											className={({ active }) =>
+												`relative cursor-default select-none dark-dropdown-option ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
+											}
+											value={option.season}
+										>
+											{({ selected }) => (
+												<span className={`block truncate py-1 px-2 ${selected ? "font-medium" : "font-normal"}`}>
+													{formatRecordingSeasonOptionLabel(option)}
+												</span>
+											)}
+										</Listbox.Option>
+									))}
+								</Listbox.Options>
+							</div>
+						</Listbox>
+					</div>
+				) : null}
+			</div>
+			<p className='text-white/70 text-xs md:text-sm mb-3'>{subtitle}</p>
 			<div className='w-full overflow-x-auto'>
 				<table className='w-full max-w-full table-fixed text-white text-[10px] sm:text-xs md:text-sm'>
 					<colgroup>

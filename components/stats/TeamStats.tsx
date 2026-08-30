@@ -1794,68 +1794,70 @@ export default function TeamStats() {
 								{/* Top Players Table */}
 								<div id='team-top-players' className='relative z-30 mb-4 flex-shrink-0 md:break-inside-avoid md:mb-4'>
 									<div className='relative z-30 bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-										<h3 className='text-white font-semibold text-sm md:text-base mb-2' data-testid="team-top-players-heading">Top 5 {getStatTypeLabel(selectedStatType)}</h3>
-										<div className='relative z-40 mb-2'>
-											<Listbox value={selectedStatType} onChange={handleStatTypeSelect}>
-												<div className='relative'>
-													<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-xs md:text-sm'>
-														<span className='block truncate text-white'>
-															{getStatTypeLabel(selectedStatType)}
-														</span>
-														<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
-															<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
-														</span>
-													</Listbox.Button>
-													<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-xs md:text-sm shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
-														{([
-															"appearances",
-															"starts",
-															"minutes",
-															"mom",
-															"goals",
-															"assists",
-															"goalInvolvements",
-															"fantasyPoints",
-															"cleanSheets",
-															"saves",
-															"yellowCards",
-															"redCards",
-															"penaltiesScored",
-															"penaltiesSaved",
-															"penaltiesConceded",
-															"penaltiesMissed",
-															"conceded",
-															"ownGoals",
-															"distance",
-															"avgMatchRating",
-															"matchesRated8Plus",
-															"goalsPer90",
-															"assistsPer90",
-															"goalInvolvementsPer90",
-															"ftpPer90",
-															"cleanSheetsPer90",
-															"concededPer90",
-															"savesPer90",
-															"cardsPer90",
-															"momPer90",
-															...(featureFlags.teamStatsStreakAndForm ? (["bestCurrentForm"] as const) : []),
-														] as StatType[]).map((statType) => (
-															<Listbox.Option
-																key={statType}
-																className={({ active }) =>
-																	`relative cursor-default select-none dark-dropdown-option ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
-																}
-																value={statType}>
-																{({ selected }) => (
-																	<span className={`block truncate py-1 px-2 ${selected ? "font-medium" : "font-normal"}`}>
-																		{getStatTypeLabel(statType)}
-																	</span>
-																)}
-															</Listbox.Option>
-														))}
-													</Listbox.Options>
-												</div>
-											</Listbox>
+										<div className='flex items-center justify-between mb-2 gap-2'>
+											<h3 className='text-white font-semibold text-sm md:text-base flex-shrink-0' data-testid="team-top-players-heading">Top 5</h3>
+											<div className='relative z-40 flex-1 max-w-[45%]'>
+												<Listbox value={selectedStatType} onChange={handleStatTypeSelect}>
+													<div className='relative'>
+														<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-xs md:text-sm'>
+															<span className='block truncate text-white'>
+																{getStatTypeLabel(selectedStatType)}
+															</span>
+															<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
+																<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
+															</span>
+														</Listbox.Button>
+														<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-xs md:text-sm shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
+															{([
+																"appearances",
+																"starts",
+																"minutes",
+																"mom",
+																"goals",
+																"assists",
+																"goalInvolvements",
+																"fantasyPoints",
+																"cleanSheets",
+																"saves",
+																"yellowCards",
+																"redCards",
+																"penaltiesScored",
+																"penaltiesSaved",
+																"penaltiesConceded",
+																"penaltiesMissed",
+																"conceded",
+																"ownGoals",
+																"distance",
+																"avgMatchRating",
+																"matchesRated8Plus",
+																"goalsPer90",
+																"assistsPer90",
+																"goalInvolvementsPer90",
+																"ftpPer90",
+																"cleanSheetsPer90",
+																"concededPer90",
+																"savesPer90",
+																"cardsPer90",
+																"momPer90",
+																...(featureFlags.teamStatsStreakAndForm ? (["bestCurrentForm"] as const) : []),
+															] as StatType[]).map((statType) => (
+																<Listbox.Option
+																	key={statType}
+																	className={({ active }) =>
+																		`relative cursor-default select-none dark-dropdown-option ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
+																	}
+																	value={statType}>
+																	{({ selected }) => (
+																		<span className={`block truncate py-1 px-2 ${selected ? "font-medium" : "font-normal"}`}>
+																			{getStatTypeLabel(statType)}
+																		</span>
+																	)}
+																</Listbox.Option>
+															))}
+														</Listbox.Options>
+													</div>
+												</Listbox>
+											</div>
 										</div>
 										{isLoadingTopPlayers ? (
 											<TopPlayersTableSkeleton />

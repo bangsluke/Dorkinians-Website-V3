@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { XMarkIcon } from "@heroicons/react/24/outline";
+import FullscreenModalContent from "@/components/modals/FullscreenModalContent";
 import ModalWrapper from "@/components/modals/ModalWrapper";
 import TopPlayersTable from "@/components/stats/TopPlayersTable";
 import { TopPlayersTableSkeleton } from "@/components/skeletons";
@@ -177,7 +178,7 @@ export default function TopPlayersModal({
 			backdropClassName='fixed inset-0 bg-black/50 z-[9999]'
 			modalClassName='fixed inset-0 h-screen w-screen z-[10000] shadow-xl'
 			ariaLabel={`${heading} - ${contextLabel}`}>
-			<div className='h-full flex flex-col' style={{ backgroundColor: "#0f0f0f" }}>
+			<FullscreenModalContent>
 				<div className='flex items-center justify-between p-4 border-b border-white/20'>
 					<div>
 						<h2 className='text-lg font-semibold text-white'>{heading}</h2>
@@ -242,7 +243,7 @@ export default function TopPlayersModal({
 						Close
 					</button>
 				</div>
-			</div>
+			</FullscreenModalContent>
 		</ModalWrapper>
 	);
 
