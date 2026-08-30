@@ -1104,7 +1104,7 @@ export default function PlayersOfMonth() {
 	);
 
 	return (
-		<div className='flex flex-col p-2 md:p-4 relative md:max-w-2xl md:mx-auto lg:max-w-6xl lg:mx-auto w-full'>
+		<div className='flex flex-col w-full px-3 pt-2 pb-6 md:px-4 md:pt-4 lg:px-6 relative'>
 			{/* Header */}
 			<div className='text-center mb-3'>
 				<h1 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-1'>Players of the Month</h1>
