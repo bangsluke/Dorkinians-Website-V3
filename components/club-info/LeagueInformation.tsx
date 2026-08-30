@@ -12,10 +12,9 @@ import FixtureExpandedDetails, { type FixtureLineupPlayer } from "./FixtureExpan
 import VeoWatchMatchButtons from "./VeoWatchMatchButtons";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LabelList } from "recharts";
 import { getDivisionValueFromMapping, getStandardizedDivisionName } from "@/config/divisionMapping";
-import { SkeletonTheme } from "react-loading-skeleton";
 import Skeleton from "react-loading-skeleton";
-import "react-loading-skeleton/dist/skeleton.css";
 import { LeagueTableSkeleton, ChartSkeleton } from "@/components/skeletons";
+import { TooltipSurface } from "@/components/ui/Tooltip";
 import { appConfig, featureFlags } from "@/config/config";
 import { log } from "@/lib/utils/logger";
 import { UmamiEvents } from "@/lib/analytics/events";
@@ -800,9 +799,7 @@ export default function LeagueInformation() {
 			<div>
 				{loading || seasons.length === 0 ? (
 					<div className='w-full max-w-xs mx-auto'>
-						<SkeletonTheme baseColor='var(--skeleton-base)' highlightColor='var(--skeleton-highlight)'>
-							<Skeleton height={48} className='rounded-md' />
-						</SkeletonTheme>
+						<Skeleton height={48} className='rounded-md' />
 					</div>
 				) : (
 					<Listbox value={selectedSeason || ""} onChange={handleSeasonChange} disabled={loading || seasons.length === 0}>
@@ -873,13 +870,11 @@ export default function LeagueInformation() {
 					<>
 						{!leagueData || loading || appConfig.forceSkeletonView ? (
 							<div className='sticky top-0 z-20 py-2 -mx-3 md:-mx-4 lg:-mx-6'>
-								<SkeletonTheme baseColor='var(--skeleton-base)' highlightColor='var(--skeleton-highlight)'>
-									<div className='flex flex-wrap justify-center gap-2 md:gap-3 px-2'>
-										{["1s", "2s", "3s", "4s", "5s", "6s", "7s", "8s"].map((teamKey) => (
-											<Skeleton key={teamKey} height={24} width={32} className='rounded' />
-										))}
-									</div>
-								</SkeletonTheme>
+								<div className='flex flex-wrap justify-center gap-2 md:gap-3 px-2'>
+									{["1s", "2s", "3s", "4s", "5s", "6s", "7s", "8s"].map((teamKey) => (
+										<Skeleton key={teamKey} height={24} width={32} className='rounded' />
+									))}
+								</div>
 							</div>
 						) : (
 							<div
@@ -920,9 +915,7 @@ export default function LeagueInformation() {
 
 			{/* Loading State */}
 			{(loading || appConfig.forceSkeletonView) && (
-				<SkeletonTheme baseColor='var(--skeleton-base)' highlightColor='var(--skeleton-highlight)'>
-					<LeagueTableSkeleton />
-				</SkeletonTheme>
+				<LeagueTableSkeleton />
 			)}
 
 			{/* Covid-19 Message for 2019/20 Season */}
@@ -1123,20 +1116,11 @@ export default function LeagueInformation() {
 
 			{/* Loading state for My Seasons */}
 			{isMySeasonsMode && (loadingMySeasons || appConfig.forceSkeletonView) && (
-				<SkeletonTheme baseColor='var(--skeleton-base)' highlightColor='var(--skeleton-highlight)'>
-					<LeagueTableSkeleton />
-				</SkeletonTheme>
+				<LeagueTableSkeleton />
 			)}
 
 			{/* Loading state for Season Progress */}
-			{isSeasonProgressMode && (loadingSeasonProgress || appConfig.forceSkeletonView) && (
-				<SkeletonTheme baseColor='var(--skeleton-base)' highlightColor='var(--skeleton-highlight)'>
-					<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-						<Skeleton height={20} width='40%' className='mb-2' />
-						<ChartSkeleton />
-					</div>
-				</SkeletonTheme>
-			)}
+			{isSeasonProgressMode && (loadingSeasonProgress || appConfig.forceSkeletonView) && <ChartSkeleton />}
 
 			{/* Season Progress Chart */}
 			{isSeasonProgressMode &&
@@ -1195,8 +1179,8 @@ export default function LeagueInformation() {
 						if (active && payload && payload.length) {
 							const data = payload[0].payload;
 							return (
-								<div className='bg-black border border-yellow-400/30 rounded-lg p-3 shadow-lg'>
-									<p className='text-yellow-300 font-semibold mb-2'>{data.season}</p>
+								<TooltipSurface>
+									<p className='mb-2 font-medium text-white/90'>{data.season}</p>
 									{payload.map((entry: any, index: number) => {
 										// When single team selected, use selectedTeamFilter; otherwise use teamKeys[index]
 										const teamKey = isSingleTeamSelected ? selectedTeamFilter : teamKeys[index];
@@ -1207,8 +1191,8 @@ export default function LeagueInformation() {
 											if (position === null || position === undefined) return null;
 											const divisionName = divisionValueToName.get(divisionValue) || getDivisionName(divisionValue) || `Division ${divisionValue}`;
 											return (
-												<p key={teamKey} className='text-white text-sm'>
-													<span style={{ color: entry.color }} className='font-semibold'>
+												<p key={teamKey} className='text-white/80'>
+													<span style={{ color: entry.color }} className='font-medium'>
 														{getTeamDisplayName(teamKey)}:
 													</span>{" "}
 													{divisionName}
@@ -1219,17 +1203,17 @@ export default function LeagueInformation() {
 											if (divisionValue === null || divisionValue === undefined) return null;
 											const divisionName = divisionValueToName.get(divisionValue) || getDivisionName(divisionValue) || `Division ${divisionValue}`;
 											return (
-												<p key={teamKey} className='text-white text-sm'>
-													<span style={{ color: entry.color }} className='font-semibold'>
+												<p key={teamKey} className='text-white/80'>
+													<span style={{ color: entry.color }} className='font-medium'>
 														{getTeamDisplayName(teamKey)}:
 													</span>{" "}
 													{divisionName}
-													{position !== null && position !== undefined && <span className='text-gray-300'> (Position: {position})</span>}
+													{position !== null && position !== undefined && <span className='text-white/60'> (Position: {position})</span>}
 												</p>
 											);
 										}
 									})}
-								</div>
+								</TooltipSurface>
 							);
 						}
 						return null;

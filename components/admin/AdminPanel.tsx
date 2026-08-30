@@ -6,7 +6,9 @@ import { seedingStatusService } from "@/lib/services/seedingStatusService";
 import { getCsrfHeaders } from "@/lib/middleware/csrf";
 import { summarizeSeedingTriggerError } from "@/lib/utils/summarizeSeedingTriggerError";
 import JobMonitoringDashboard from "./JobMonitoringDashboard";
+import { HoverTooltip } from "@/components/ui/Tooltip";
 import { killJob as killJobUtil } from "../../lib/jobUtils";
+import { useToast } from "@/lib/hooks/useToast";
 
 interface SiteDetails {
 	lastSeededStats: string | null;
@@ -130,9 +132,7 @@ export default function AdminPanel() {
 	// UI state
 	const [isInfoTooltipOpen, setIsInfoTooltipOpen] = useState(false);
 	
-	// Toast notification state
-	const [toastMessage, setToastMessage] = useState<string | null>(null);
-	const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
+	const { showToast: showGlobalToast } = useToast();
 
 	// Check if we're in development mode
 	const isDevelopment = process.env.NODE_ENV === "development";
@@ -240,15 +240,9 @@ export default function AdminPanel() {
 		// Debug logging removed
 	};
 
-	// Toast notification function
+	// Toast notification function - delegates to the shared global toast system
 	const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
-		setToastMessage(message);
-		setToastType(type);
-		
-		// Auto-hide toast after 3 seconds
-		setTimeout(() => {
-			setToastMessage(null);
-		}, 3000);
+		showGlobalToast(message, type);
 	};
 
 	// Timer effect - simplified since timer management is now handled in status check functions
@@ -1110,19 +1104,20 @@ export default function AdminPanel() {
 		<div className='w-full min-h-screen p-2 sm:p-6 bg-white overflow-x-hidden py-4 px-4'>
 			<div className='mb-6 flex items-center justify-center gap-2'>
 				<h2 className='text-xl sm:text-2xl font-bold text-gray-900 text-center'>Dorkinians Database Seeding Admin Panel</h2>
-				<button
-					type='button'
-					aria-label='Admin panel help and capabilities'
-					title='How this admin panel works'
-					onClick={() => setIsInfoTooltipOpen((prev) => !prev)}
-					onTouchStart={(event) => {
-						event.preventDefault();
-						setIsInfoTooltipOpen((prev) => !prev);
-					}}
-					className='h-7 w-7 rounded-full border border-blue-400 text-blue-700 text-sm font-bold bg-white hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500'
-				>
-					i
-				</button>
+				<HoverTooltip content='How this admin panel works'>
+					<button
+						type='button'
+						aria-label='Admin panel help and capabilities'
+						onClick={() => setIsInfoTooltipOpen((prev) => !prev)}
+						onTouchStart={(event) => {
+							event.preventDefault();
+							setIsInfoTooltipOpen((prev) => !prev);
+						}}
+						className='h-7 w-7 rounded-full border border-blue-400 text-blue-700 text-sm font-bold bg-white hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500'
+					>
+						i
+					</button>
+				</HoverTooltip>
 			</div>
 			{isInfoTooltipOpen && (
 				<div
@@ -1383,20 +1378,22 @@ export default function AdminPanel() {
 				<p className='text-xs text-gray-700'>While seeding is running, you can stream full backend logs locally:</p>
 				<div className='mt-2 relative'>
 					<pre className='p-2 bg-gray-900 text-gray-100 text-xs rounded pr-10'><code>heroku logs --tail --app dorkinians-database-v3</code></pre>
-					<button
-						onClick={async () => {
-							try {
-								await navigator.clipboard.writeText('heroku logs --tail --app dorkinians-database-v3');
-								showToast('Command copied to clipboard!', 'success');
-							} catch (err) {
-								showToast('Failed to copy to clipboard', 'error');
-							}
-						}}
-						className='absolute top-1 right-1 p-1 text-gray-400 hover:text-white transition-colors'
-						title='Copy to clipboard'
-					>
-						📋
-					</button>
+					<HoverTooltip content='Copy to clipboard'>
+						<button
+							onClick={async () => {
+								try {
+									await navigator.clipboard.writeText('heroku logs --tail --app dorkinians-database-v3');
+									showToast('Command copied to clipboard!', 'success');
+								} catch (err) {
+									showToast('Failed to copy to clipboard', 'error');
+								}
+							}}
+							className='absolute top-1 right-1 p-1 text-gray-400 hover:text-white transition-colors'
+							aria-label='Copy to clipboard'
+						>
+							📋
+						</button>
+					</HoverTooltip>
 				</div>
 			</div>
 
@@ -2199,22 +2196,6 @@ export default function AdminPanel() {
 				</div>
 			)}
 
-			{/* Toast Notification */}
-			{toastMessage && (
-				<div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg transition-all duration-300 ${
-					toastType === 'success' ? 'bg-green-500 text-white' :
-					toastType === 'error' ? 'bg-red-500 text-white' :
-					'bg-blue-500 text-white'
-				}`}>
-					<div className="flex items-center gap-2">
-						<span>
-							{toastType === 'success' ? '✅' : 
-							 toastType === 'error' ? '❌' : 'ℹ️'}
-						</span>
-						<span className="font-medium">{toastMessage}</span>
-					</div>
-				</div>
-			)}
 		</div>
 	);
 }

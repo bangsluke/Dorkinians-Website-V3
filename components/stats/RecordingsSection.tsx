@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
 import VeoWatchMatchButtons from "@/components/club-info/VeoWatchMatchButtons";
+import { HoverTooltip } from "@/components/ui/Tooltip";
 import { getCurrentSeasonFromStorage } from "@/lib/services/currentSeasonService";
 import type { RecordingFixture } from "@/lib/utils/recordingsDisplay";
 import {
@@ -198,12 +199,12 @@ export default function RecordingsSection({
 									<span className='hidden sm:inline'>{formatRecordingDateDesktop(fx.date)}</span>
 								</td>
 								{teamColumn ? (
-									<td
-										className='py-1.5 pl-1 pr-0.5 align-middle sm:py-2 sm:px-2'
-										title={fx.team || ""}>
-										<div className='max-w-[4rem] truncate text-[9px] font-normal leading-tight sm:max-w-none sm:text-xs'>
-											{fx.team || "-"}
-										</div>
+									<td className='py-1.5 pl-1 pr-0.5 align-middle sm:py-2 sm:px-2'>
+										<HoverTooltip content={fx.team || undefined} className='block min-w-0'>
+											<div className='max-w-[4rem] truncate text-[9px] font-normal leading-tight sm:max-w-none sm:text-xs'>
+												{fx.team || "-"}
+											</div>
+										</HoverTooltip>
 									</td>
 								) : null}
 								<td colSpan={2} className='py-1.5 pl-1.5 pr-0 align-middle sm:hidden'>
@@ -211,36 +212,41 @@ export default function RecordingsSection({
 										Location {recordingLocLabelDesktop(fx.homeOrAway)}, competition {recordingCompLabelDesktop(fx.compType)}
 									</span>
 									<div className='flex flex-nowrap items-center justify-start gap-px'>
-										<span
-											className={`shrink-0 rounded px-1 py-0.5 text-[9px] font-medium leading-none ${recordingLocBadgeClass(fx.homeOrAway)}`}
-											title={fx.homeOrAway || ""}>
-											{recordingLocLabelMobile(fx.homeOrAway)}
-										</span>
-										<span
-											className={`shrink-0 rounded px-1 py-0.5 text-[9px] font-medium leading-none ${recordingCompBadgeClass(fx.compType)}`}
-											title={fx.compType || ""}>
-											{recordingCompLabelMobile(fx.compType)}
-										</span>
+										<HoverTooltip content={fx.homeOrAway || undefined}>
+											<span
+												className={`shrink-0 rounded px-1 py-0.5 text-[9px] font-medium leading-none ${recordingLocBadgeClass(fx.homeOrAway)}`}>
+												{recordingLocLabelMobile(fx.homeOrAway)}
+											</span>
+										</HoverTooltip>
+										<HoverTooltip content={fx.compType || undefined}>
+											<span
+												className={`shrink-0 rounded px-1 py-0.5 text-[9px] font-medium leading-none ${recordingCompBadgeClass(fx.compType)}`}>
+												{recordingCompLabelMobile(fx.compType)}
+											</span>
+										</HoverTooltip>
 									</div>
 								</td>
 								<td className='hidden py-1.5 px-1 sm:table-cell sm:py-2 sm:px-2'>
-									<span
-										className={`inline-block max-w-full rounded px-1.5 py-0.5 text-[9px] sm:text-xs font-medium ${recordingLocBadgeClass(fx.homeOrAway)}`}
-										title={fx.homeOrAway || ""}>
-										{recordingLocLabelDesktop(fx.homeOrAway)}
-									</span>
+									<HoverTooltip content={fx.homeOrAway || undefined}>
+										<span
+											className={`inline-block max-w-full rounded px-1.5 py-0.5 text-[9px] sm:text-xs font-medium ${recordingLocBadgeClass(fx.homeOrAway)}`}>
+											{recordingLocLabelDesktop(fx.homeOrAway)}
+										</span>
+									</HoverTooltip>
 								</td>
 								<td className='hidden py-1.5 px-1 sm:table-cell sm:py-2 sm:px-2'>
-									<span
-										className={`inline-block max-w-full rounded px-1.5 py-0.5 text-[9px] sm:text-xs font-medium ${recordingCompBadgeClass(fx.compType)}`}
-										title={fx.compType || ""}>
-										{recordingCompLabelDesktop(fx.compType)}
-									</span>
+									<HoverTooltip content={fx.compType || undefined}>
+										<span
+											className={`inline-block max-w-full rounded px-1.5 py-0.5 text-[9px] sm:text-xs font-medium ${recordingCompBadgeClass(fx.compType)}`}>
+											{recordingCompLabelDesktop(fx.compType)}
+										</span>
+									</HoverTooltip>
 								</td>
 								<td
-									className={`min-w-0 max-w-none py-1.5 align-middle sm:py-2 sm:px-2 ${teamColumn ? "px-0.5 text-[9px] font-normal sm:text-xs" : "px-1"}`}
-									title={fx.opposition || ""}>
-									<div className='truncate'>{fx.opposition || "-"}</div>
+									className={`min-w-0 max-w-none py-1.5 align-middle sm:py-2 sm:px-2 ${teamColumn ? "px-0.5 text-[9px] font-normal sm:text-xs" : "px-1"}`}>
+									<HoverTooltip content={fx.opposition || undefined} className='block min-w-0'>
+										<div className='truncate'>{fx.opposition || "-"}</div>
+									</HoverTooltip>
 								</td>
 								<td
 									className={`whitespace-nowrap py-1.5 px-0.5 align-middle font-mono tabular-nums sm:py-2 sm:px-2 ${teamColumn ? "max-sm:text-[9px]" : ""}`}>

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { buildMatchRatingBreakdown } from "@/lib/utils/matchRatingBreakdown";
 import { matchRatingCircleStyle, playerSurnameOrAfterFirstName } from "@/lib/utils/matchRatingDisplay";
 import VeoWatchMatchButtons from "./VeoWatchMatchButtons";
+import { HoverTooltip, TooltipSurface } from "@/components/ui/Tooltip";
 
 export interface FixtureLineupPlayer {
 	playerName: string;
@@ -255,32 +256,32 @@ export default function FixtureExpandedDetails({
 										data-testid={`${testIdPrefix}-formation-player`}>
 										{ratingText}
 									</button>
-									<span
-										className='w-full text-center text-[10px] leading-snug text-white break-words hyphens-auto'
-										title={player.playerName}>
-										{shortName}
-									</span>
+									<HoverTooltip content={player.playerName} className='w-full'>
+										<span className='w-full text-center text-[10px] leading-snug text-white break-words hyphens-auto'>
+											{shortName}
+										</span>
+									</HoverTooltip>
 									{isActive ? (
-										<div
-											className='absolute left-1/2 top-full z-20 mt-1 w-64 -translate-x-1/2 rounded-lg border border-white/15 bg-[#111] p-3 text-xs text-gray-200 shadow-lg'
+										<TooltipSurface
+											className='absolute left-1/2 top-full z-20 mt-1 w-64 -translate-x-1/2 text-left'
 											data-testid={`${testIdPrefix}-rating-tooltip`}>
-											<p className='font-semibold text-white mb-1'>{player.playerName}</p>
-											<p className='mb-1'>
+											<p className='font-semibold text-white/90 mb-1'>{player.playerName}</p>
+											<p className='mb-1 text-white/80'>
 												Rating: <span className='font-semibold'>{breakdown.final.toFixed(1)}</span>
 											</p>
-											<p className='mb-1 text-gray-400'>Position: {breakdown.position}</p>
+											<p className='mb-1 text-white/70'>Position: {breakdown.position}</p>
 											<ul className='space-y-0.5 max-h-32 overflow-y-auto'>
 												{breakdown.lines.map((line, idx) => (
 													<li key={`${line.label}-${idx}`} className='flex justify-between gap-2'>
-														<span className='text-gray-300'>{line.label}</span>
-														<span className='font-medium'>
+														<span className='text-white/70'>{line.label}</span>
+														<span className='font-medium text-white/90'>
 															{line.delta > 0 ? "+" : ""}
 															{line.delta.toFixed(1)}
 														</span>
 													</li>
 												))}
 											</ul>
-										</div>
+										</TooltipSurface>
 									) : null}
 								</div>
 							);

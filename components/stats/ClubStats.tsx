@@ -17,9 +17,9 @@ import { safeLocalStorageGet, safeLocalStorageSet } from "@/lib/utils/pwaDebug";
 import { UmamiEvents } from "@/lib/analytics/events";
 import { trackStatsStatSelected } from "@/lib/analytics/statsTracking";
 import { trackEvent } from "@/lib/utils/trackEvent";
-import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
-import "react-loading-skeleton/dist/skeleton.css";
-import { StatCardSkeleton, ChartSkeleton, TopPlayersTableSkeleton, RadarChartSkeleton, GameDetailsTableSkeleton, DataTableSkeleton } from "@/components/skeletons";
+import Skeleton from "react-loading-skeleton";
+import { StatCardSkeleton, ChartSkeleton, TopPlayersTableSkeleton, RadarChartSkeleton, GameDetailsTableSkeleton, DataTableSkeleton, SankeyChartSkeleton } from "@/components/skeletons";
+import { TooltipSurface, TooltipArrow, FloatingTooltipTrigger } from "@/components/ui/Tooltip";
 import { log } from "@/lib/utils/logger";
 import LazyWhenVisible from "@/components/perf/LazyWhenVisible";
 import RecordingsSection from "@/components/stats/RecordingsSection";
@@ -29,11 +29,7 @@ import type { RecordingFixture } from "@/lib/utils/recordingsDisplay";
 const ResponsiveSankey = dynamic(
 	() => import("@nivo/sankey").then((mod) => mod.ResponsiveSankey),
 	{
-		loading: () => (
-			<div className='flex min-h-[320px] items-center justify-center rounded-lg bg-white/5'>
-				<p className='text-sm text-white/45'>Loading…</p>
-			</div>
-		),
+		loading: () => <SankeyChartSkeleton noContainer />,
 		ssr: false,
 	}
 );
@@ -263,21 +259,16 @@ function StatRow({ stat, value, teamData }: { stat: any; value: any; teamData: T
 				</td>
 			</tr>
 			{showTooltip && tooltipPosition && typeof document !== 'undefined' && createPortal(
-				<div 
+				<TooltipSurface
 					ref={tooltipRef}
-					className='fixed z-[9999] px-3 py-2 text-sm text-white rounded-lg shadow-lg w-64 text-center pointer-events-none' 
-					style={{ 
-						backgroundColor: '#0f0f0f',
+					className='fixed z-[9999] w-64 text-center pointer-events-none'
+					style={{
 						top: `${tooltipPosition.top}px`,
 						left: `${tooltipPosition.left}px`
 					}}>
-					{tooltipPosition.placement === 'above' ? (
-						<div className='absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent mt-1' style={{ borderTopColor: '#0f0f0f' }}></div>
-					) : (
-						<div className='absolute bottom-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent mb-1' style={{ borderBottomColor: '#0f0f0f' }}></div>
-					)}
+					<TooltipArrow placement={tooltipPosition.placement === 'above' ? 'above' : 'below'} />
 					{stat.description}
-				</div>,
+				</TooltipSurface>,
 				document.body
 			)}
 		</>
@@ -370,84 +361,6 @@ function formatStreakRange(startDate: string | null | undefined, endDate: string
 	if (!start && !end) return "";
 	if (start && end) return start === end ? ` (${start})` : ` (${start} - ${end})`;
 	return ` (${start || end})`;
-}
-
-function FloatingTooltipTrigger({
-	tooltip,
-	children,
-	className,
-}: {
-	tooltip: ReactNode;
-	children: ReactNode;
-	className: string;
-}) {
-	const [visible, setVisible] = useState(false);
-	const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
-	const triggerRef = useRef<HTMLDivElement>(null);
-	const tooltipRef = useRef<HTMLDivElement>(null);
-
-	const updatePosition = () => {
-		if (!triggerRef.current || typeof window === "undefined") return;
-		const triggerRect = triggerRef.current.getBoundingClientRect();
-		const tooltipWidth = tooltipRef.current?.offsetWidth ?? 320;
-		const tooltipHeight = tooltipRef.current?.offsetHeight ?? 120;
-		const margin = 8;
-		const gap = 8;
-		let left = triggerRect.left + triggerRect.width / 2 - tooltipWidth / 2;
-		left = Math.max(margin, Math.min(left, window.innerWidth - tooltipWidth - margin));
-		const aboveTop = triggerRect.top - tooltipHeight - gap;
-		const belowTop = triggerRect.bottom + gap;
-		const top = aboveTop >= margin ? aboveTop : belowTop;
-		setPosition({ top, left });
-	};
-
-	useEffect(() => {
-		if (!visible) return;
-		updatePosition();
-		const onViewportChange = () => updatePosition();
-		window.addEventListener("resize", onViewportChange);
-		window.addEventListener("scroll", onViewportChange, true);
-		return () => {
-			window.removeEventListener("resize", onViewportChange);
-			window.removeEventListener("scroll", onViewportChange, true);
-		};
-	}, [visible]);
-
-	return (
-		<>
-			<div
-				ref={triggerRef}
-				tabIndex={0}
-				className={className}
-				onMouseEnter={() => setVisible(true)}
-				onMouseLeave={() => setVisible(false)}
-				onFocus={() => setVisible(true)}
-				onBlur={() => setVisible(false)}
-			>
-				{children}
-			</div>
-			{visible &&
-				position &&
-				typeof document !== "undefined" &&
-				document.body &&
-				createPortal(
-					<div
-						ref={tooltipRef}
-						className='pointer-events-none rounded-md bg-black/95 p-2 text-left text-[11px] text-white shadow-xl ring-1 ring-white/15'
-						style={{
-							position: "fixed",
-							top: position.top,
-							left: position.left,
-							zIndex: 9999,
-							maxWidth: "min(20rem, calc(100vw - 16px))",
-						}}
-					>
-						{tooltip}
-					</div>,
-					document.body,
-				)}
-		</>
-	);
 }
 
 export default function ClubStats() {
@@ -1275,13 +1188,6 @@ export default function ClubStats() {
 		];
 	}, [teamData]);
 
-	const tooltipStyle = {
-		backgroundColor: 'rgb(14, 17, 15)',
-		border: '1px solid rgba(249, 237, 50, 0.3)',
-		borderRadius: '8px',
-		color: '#fff',
-	};
-
 	// Custom tooltip formatter to capitalize "value" and show per game
 	const customTooltip = ({ active, payload, label }: any) => {
 		if (active && payload && payload.length) {
@@ -1294,23 +1200,23 @@ export default function ClubStats() {
 			const uniqueGoalscorers = uniquePlayerStats?.playersWhoScored || 0;
 			
 			return (
-				<div style={tooltipStyle} className='px-3 py-2'>
-					<p className='text-white text-sm'>{displayLabel}</p>
-					<p className='text-white text-sm'>
-						<span className='font-semibold'>Value</span>: {displayValue}
+				<TooltipSurface>
+					<p className='mb-1 font-medium text-white/90'>{displayLabel}</p>
+					<p className='text-white/80'>
+						<span className='font-medium text-white/60'>Value:</span> {displayValue}
 					</p>
-					<p className='text-white text-sm'>
-						<span className='font-semibold'>Per Game</span>: {perGame}
+					<p className='text-white/80'>
+						<span className='font-medium text-white/60'>Per Game:</span> {perGame}
 					</p>
-					<p className='text-white text-sm'>
-						<span className='font-semibold'>Games</span>: {gamesPlayed}
+					<p className='text-white/80'>
+						<span className='font-medium text-white/60'>Games:</span> {gamesPlayed}
 					</p>
 					{displayLabel === "Goals Scored" && uniqueGoalscorers > 0 && (
-						<p className='text-white text-sm'>
-							<span className='font-semibold'>Unique Goalscorers</span>: {uniqueGoalscorers}
+						<p className='text-white/80'>
+							<span className='font-medium text-white/60'>Unique Goalscorers:</span> {uniqueGoalscorers}
 						</p>
 					)}
-				</div>
+				</TooltipSurface>
 			);
 		}
 		return null;
@@ -1323,12 +1229,12 @@ export default function ClubStats() {
 			const displayValue = payload[0].value || 0;
 			const formattedValue = typeof displayValue === 'number' ? displayValue.toLocaleString('en-US') : displayValue;
 			return (
-				<div style={tooltipStyle} className='px-3 py-2'>
-					<p className='text-white text-sm'>{displayLabel}</p>
-					<p className='text-white text-sm'>
-						<span className='font-semibold'>Value</span>: {formattedValue}
+				<TooltipSurface>
+					<p className='mb-1 font-medium text-white/90'>{displayLabel}</p>
+					<p className='text-white/80'>
+						<span className='font-medium text-white/60'>Value:</span> {formattedValue}
 					</p>
-				</div>
+				</TooltipSurface>
 			);
 		}
 		return null;
@@ -1414,8 +1320,8 @@ export default function ClubStats() {
 		if (!tooltipContent) return null;
 
 		return (
-			<div style={tooltipStyle} className='px-3 py-2'>
-				<p className='text-white text-sm font-semibold mb-2'>{tooltipContent.category}</p>
+			<TooltipSurface>
+				<p className='mb-2 font-medium text-white/90'>{tooltipContent.category}</p>
 				{tooltipContent.entries.map(({ team, color, value }) => {
 					// Format distance values to 0 decimal places with comma separators
 					// Format Fantasy Points with comma separators
@@ -1426,12 +1332,12 @@ export default function ClubStats() {
 						displayValue = Math.round(value).toLocaleString('en-US');
 					}
 					return (
-						<p key={team} className='text-white text-sm' style={{ color: color }}>
+						<p key={team} style={{ color: color }}>
 							{team}: {displayValue}
 						</p>
 					);
 				})}
-			</div>
+			</TooltipSurface>
 		);
 	};
 
@@ -1449,9 +1355,9 @@ export default function ClubStats() {
 		if (active && payload && payload.length) {
 			const displayValue = payload[0].value || 0;
 			return (
-				<div style={tooltipStyle} className='px-3 py-2'>
-					<p className='text-white text-sm'>{displayValue} {displayValue === 1 ? 'player' : 'players'}</p>
-				</div>
+				<TooltipSurface>
+					<p className='text-white/90'>{displayValue} {displayValue === 1 ? 'player' : 'players'}</p>
+				</TooltipSurface>
 			);
 		}
 		return null;
@@ -1655,22 +1561,20 @@ export default function ClubStats() {
 
 			{(isLoadingTeamData || appConfig.forceSkeletonView) ? (
 				<div data-testid="loading-skeleton">
-					<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-						<div className='flex-1 px-2 md:px-4 pb-4 min-h-0 overflow-y-auto space-y-4 md:space-y-0 player-stats-masonry'>
-						<div className='md:break-inside-avoid md:mb-4'>
-							<StatCardSkeleton />
-						</div>
-						<div className='md:break-inside-avoid md:mb-4'>
-							<RadarChartSkeleton />
-						</div>
-						<div className='md:break-inside-avoid md:mb-4'>
-							<TopPlayersTableSkeleton />
-						</div>
-						<div className='md:break-inside-avoid md:mb-4'>
-							<ChartSkeleton />
-						</div>
+					<div className='flex-1 px-2 md:px-4 pb-4 min-h-0 overflow-y-auto space-y-4 md:space-y-0 player-stats-masonry'>
+					<div className='md:break-inside-avoid md:mb-4'>
+						<StatCardSkeleton />
 					</div>
-					</SkeletonTheme>
+					<div className='md:break-inside-avoid md:mb-4'>
+						<RadarChartSkeleton />
+					</div>
+					<div className='md:break-inside-avoid md:mb-4'>
+						<TopPlayersTableSkeleton />
+					</div>
+					<div className='md:break-inside-avoid md:mb-4'>
+						<ChartSkeleton />
+					</div>
+				</div>
 				</div>
 			) : !teamData ? (
 				<div className='flex-1 flex items-center justify-center p-4'>
@@ -1788,9 +1692,7 @@ export default function ClubStats() {
 
 								{/* Team Comparison Section */}
 					{!isDataTableMode && (isLoadingTeamComparison ? (
-						<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-							<RadarChartSkeleton />
-						</SkeletonTheme>
+						<RadarChartSkeleton />
 					) : !isLoadingTeamComparison && teamComparisonData.length > 0 && (
 						<div id='club-team-comparison' className='md:break-inside-avoid md:mb-4'>
 							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
@@ -1961,9 +1863,7 @@ export default function ClubStats() {
 												<label htmlFor='show-trend-checkbox-club' className='text-white text-xs md:text-sm cursor-pointer'>Show trend</label>
 											</div>
 											{(isLoadingSeasonalStats || appConfig.forceSkeletonView) ? (
-												<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-													<ChartSkeleton />
-												</SkeletonTheme>
+												<ChartSkeleton />
 											) : seasonalChartData.length > 0 ? (
 												<div className='chart-container' style={{ touchAction: 'pan-y' }}>
 													<ResponsiveContainer width='100%' height={240}>
@@ -2066,9 +1966,7 @@ export default function ClubStats() {
 
 								{/* Game Details Section */}
 								{isLoadingGameDetails ? (
-									<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-										<GameDetailsTableSkeleton />
-									</SkeletonTheme>
+									<GameDetailsTableSkeleton />
 								) : !isLoadingGameDetails && gameDetails && (
 									<div id='club-game-details' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-4'>Game Details</h3>
@@ -2524,9 +2422,7 @@ export default function ClubStats() {
 												</Listbox>
 										</div>
 										{isLoadingTopPlayers ? (
-											<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-												<TopPlayersTableSkeleton />
-											</SkeletonTheme>
+											<TopPlayersTableSkeleton />
 										) : topPlayers.length > 0 ? (
 											<div className='overflow-x-auto'>
 												<table className='w-full text-white'>
@@ -2594,12 +2490,7 @@ export default function ClubStats() {
 								{/* Player Distribution Section */}
 								{!isDataTableMode && (isLoadingPlayerDistribution ? (
 									<div id='club-player-distribution' className='md:mb-4 md:break-inside-avoid'>
-										<div className='min-h-[320px] rounded-lg bg-white/10 p-2 backdrop-blur-sm md:p-4'>
-											<h3 className='mb-2 text-sm font-semibold text-white md:text-base'>Player Distribution</h3>
-											<div className='flex min-h-[240px] items-center justify-center'>
-												<p className='text-sm text-white/45'>Loading…</p>
-											</div>
-										</div>
+										<SankeyChartSkeleton />
 									</div>
 								) : !isLoadingPlayerDistribution && sankeyData && sankeyData.nodes.length > 1 && sankeyData.links.length > 0 && (() => {
 									// Validate that all links reference existing nodes
@@ -2698,11 +2589,7 @@ export default function ClubStats() {
 											<LazyWhenVisible
 												rootMargin="120px"
 												className="chart-container min-h-[320px]"
-												fallback={
-													<div className='flex min-h-[320px] items-center justify-center rounded-lg bg-white/5'>
-														<p className='text-xs text-white/40'>Loading chart…</p>
-													</div>
-												}
+												fallback={<SankeyChartSkeleton noContainer />}
 											>
 												<div className="h-[320px]" style={{ touchAction: 'pan-y' }}>
 													<ResponsiveSankey
@@ -2741,14 +2628,12 @@ export default function ClubStats() {
 
 								{/* Player Tenure Section */}
 								{!isDataTableMode && (isLoadingPlayerTenure ? (
-									<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-										<div id='club-player-tenure' className='md:break-inside-avoid md:mb-4'>
-											<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-												<Skeleton height={20} width="40%" className="mb-2" />
-												<ChartSkeleton />
-											</div>
+									<div id='club-player-tenure' className='md:break-inside-avoid md:mb-4'>
+										<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+											<Skeleton height={20} width="40%" className="mb-2" />
+											<ChartSkeleton />
 										</div>
-									</SkeletonTheme>
+									</div>
 					) : !isLoadingPlayerTenure && tenureHistogramData.length > 0 && (
 						<div id='club-player-tenure' className='md:break-inside-avoid md:mb-4'>
 										<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
@@ -2809,9 +2694,7 @@ export default function ClubStats() {
 											</Listbox>
 										</div>
 										{isLoadingPositionStats ? (
-											<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-												<ChartSkeleton />
-											</SkeletonTheme>
+											<ChartSkeleton />
 										) : positionStatsData.length > 0 ? (
 											<div className='chart-container' style={{ touchAction: 'pan-y' }}>
 												<ResponsiveContainer width='100%' height={300}>
@@ -2839,30 +2722,28 @@ export default function ClubStats() {
 
 								{/* Unique Player Stats Section */}
 								{isLoadingUniqueStats ? (
-									<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-										<div id='club-unique-player-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
-											<Skeleton height={20} width="40%" className="mb-2" />
-											<Skeleton height={16} width="60%" className="mb-3" />
-											<div className='overflow-x-auto'>
-												<table className='w-full text-white text-sm'>
-													<thead>
-														<tr className='border-b border-white/20'>
-															<th className='text-left py-2 px-2'><Skeleton height={16} width={80} /></th>
-															<th className='text-right py-2 px-2'><Skeleton height={16} width={100} className="ml-auto" /></th>
+									<div id='club-unique-player-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
+										<Skeleton height={20} width="40%" className="mb-2" />
+										<Skeleton height={16} width="60%" className="mb-3" />
+										<div className='overflow-x-auto'>
+											<table className='w-full text-white text-sm'>
+												<thead>
+													<tr className='border-b border-white/20'>
+														<th className='text-left py-2 px-2'><Skeleton height={16} width={80} /></th>
+														<th className='text-right py-2 px-2'><Skeleton height={16} width={100} className="ml-auto" /></th>
+													</tr>
+												</thead>
+												<tbody>
+													{[...Array(5)].map((_, i) => (
+														<tr key={i} className='border-b border-white/10'>
+															<td className='py-2 px-2'><Skeleton height={14} width="70%" /></td>
+															<td className='text-right py-2 px-2'><Skeleton height={14} width={30} className="ml-auto" /></td>
 														</tr>
-													</thead>
-													<tbody>
-														{[...Array(5)].map((_, i) => (
-															<tr key={i} className='border-b border-white/10'>
-																<td className='py-2 px-2'><Skeleton height={14} width="70%" /></td>
-																<td className='text-right py-2 px-2'><Skeleton height={14} width={30} className="ml-auto" /></td>
-															</tr>
-														))}
-													</tbody>
-												</table>
-											</div>
+													))}
+												</tbody>
+											</table>
 										</div>
-									</SkeletonTheme>
+									</div>
 								) : !isLoadingUniqueStats && uniquePlayerStats && (
 									<div id='club-unique-player-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Unique Player Stats</h3>
@@ -3106,9 +2987,7 @@ export default function ClubStats() {
 								{!isDataTableMode && chartContent}
 								{isDataTableMode && (
 									isLoadingTeamData ? (
-										<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-											<DataTableSkeleton />
-										</SkeletonTheme>
+										<DataTableSkeleton />
 									) : (
 										dataTableContent
 									)

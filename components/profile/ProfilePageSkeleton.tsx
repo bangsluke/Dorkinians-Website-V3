@@ -1,7 +1,6 @@
 "use client";
 
-import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
-import "react-loading-skeleton/dist/skeleton.css";
+import Skeleton from "react-loading-skeleton";
 import { featureFlags } from "@/config/config";
 import { isSeasonWrappedPromoMonth } from "@/lib/wrapped/seasonWrappedPromo";
 
@@ -9,7 +8,7 @@ export default function ProfilePageSkeleton() {
 	const showSeasonWrappedPromoBlock = featureFlags.seasonWrapped && isSeasonWrappedPromoMonth(new Date());
 
 	return (
-		<SkeletonTheme baseColor='var(--skeleton-base)' highlightColor='var(--skeleton-highlight)'>
+		<>
 			{showSeasonWrappedPromoBlock ? (
 				<div
 					className='rounded-xl border-2 border-[#E8C547]/60 bg-gradient-to-br from-[#E8C547]/25 via-[#E8C547]/15 to-[#b8941f]/12 p-4 md:p-5 shadow-md ring-1 ring-inset ring-[#E8C547]/25'
@@ -61,6 +60,6 @@ export default function ProfilePageSkeleton() {
 					</div>
 				</div>
 			</div>
-		</SkeletonTheme>
+		</>
 	);
 }

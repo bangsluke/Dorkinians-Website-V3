@@ -16,8 +16,7 @@ import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageRemove } from
 import { cachedFetch, generatePageCacheKey } from "@/lib/utils/pageCache";
 import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Tooltip, ResponsiveContainer } from "recharts";
 import { RadarChartSkeleton } from "@/components/skeletons";
-import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
-import "react-loading-skeleton/dist/skeleton.css";
+import { TooltipSurface, TooltipArrow, HoverTooltip } from "@/components/ui/Tooltip";
 import Button from "@/components/ui/Button";
 
 interface Player {
@@ -451,28 +450,23 @@ function ComparisonStatRow({
 				</div>
 			</div>
 			{showTooltip && tooltipPosition && typeof document !== 'undefined' && createPortal(
-				<div 
+				<TooltipSurface
 					ref={tooltipRef}
-					className='fixed z-[9999] px-3 py-2 text-sm text-white rounded-lg shadow-lg w-64 text-center pointer-events-none' 
-					style={{ 
-						backgroundColor: '#0f0f0f',
+					className='fixed z-[9999] w-64 text-center pointer-events-none'
+					style={{
 						top: `${tooltipPosition.top}px`,
 						left: `${tooltipPosition.left}px`
 					}}>
-					{tooltipPosition.placement === 'above' ? (
-						<div className='absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent mt-1' style={{ borderTopColor: '#0f0f0f' }}></div>
-					) : (
-						<div className='absolute bottom-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent mb-1' style={{ borderBottomColor: '#0f0f0f' }}></div>
-					)}
-					<div className='font-semibold mb-1'>{stat.displayText}</div>
-					<div className='text-xs text-white/80 mb-2'>{stat.description}</div>
+					<TooltipArrow placement={tooltipPosition.placement === 'above' ? 'above' : 'below'} />
+					<div className='mb-1 font-medium text-white/90'>{stat.displayText}</div>
+					<div className='mb-2 text-white/80'>{stat.description}</div>
 					{player1Name && player2Name && (
-						<div className='text-xs text-white/90 mt-2 pt-2 border-t border-white/20'>
+						<div className='mt-2 pt-2 border-t border-white/20 text-white/80'>
 							<div className='mb-1'>{player1Name}: <span className='font-mono'>{player1Formatted}</span></div>
 							<div>{player2Name}: <span className='font-mono'>{player2Formatted}</span></div>
 						</div>
 					)}
-				</div>,
+				</TooltipSurface>,
 				document.body
 			)}
 		</>
@@ -698,8 +692,8 @@ export default function Comparison() {
 		if (!data) return null;
 
 		return (
-			<div className='bg-black/90 px-3 py-2 rounded-lg shadow-lg border border-yellow-400/20'>
-				<p className='text-white text-sm font-semibold mb-2'>{label}</p>
+			<TooltipSurface>
+				<p className='mb-2 font-medium text-white/90'>{label}</p>
 				{payload.map((entry: any, index: number) => {
 					// Determine which player based on dataKey
 					const isPlayer1 = entry.dataKey === "player1";
@@ -718,12 +712,12 @@ export default function Comparison() {
 					}
 					
 					return (
-						<p key={index} className='text-white text-xs' style={{ color: color }}>
+						<p key={index} style={{ color: color }}>
 							{playerName}: {displayValue}
 						</p>
 					);
 				})}
-			</div>
+			</TooltipSurface>
 		);
 	};
 
@@ -848,12 +842,14 @@ export default function Comparison() {
 				<div className='text-center'>
 					<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-2 md:mb-4'>Player Comparison</h2>
 					<p className='text-white text-sm md:text-base mb-4'>Select a player to display data here</p>
-					<button
-						onClick={handleEditClick}
-						className='flex items-center justify-center mx-auto w-8 h-8 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors'
-						title='Select a player'>
-						<PencilIcon className='h-4 w-4 md:h-5 md:w-5' />
-					</button>
+					<HoverTooltip content='Select a player'>
+						<button
+							onClick={handleEditClick}
+							className='flex items-center justify-center mx-auto w-8 h-8 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors'
+							aria-label='Select a player'>
+							<PencilIcon className='h-4 w-4 md:h-5 md:w-5' />
+						</button>
+					</HoverTooltip>
 				</div>
 			</div>
 		);
@@ -898,12 +894,14 @@ export default function Comparison() {
 						<div className='flex items-center gap-2 mb-2'>
 							<label className='text-sm md:text-base font-medium text-white/90 mt-1 mb-2'>Select Second Player</label>
 							{secondPlayer && (
-								<button
-									onClick={handleClearSecondPlayer}
-									className='flex items-center justify-center w-5 h-5 md:w-6 md:h-6 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors flex-shrink-0'
-									title='Clear player 2 selection'>
+								<HoverTooltip content='Clear player 2 selection'>
+									<button
+										onClick={handleClearSecondPlayer}
+										className='flex items-center justify-center w-5 h-5 md:w-6 md:h-6 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors flex-shrink-0'
+										aria-label='Clear player 2 selection'>
 									<XMarkIcon className='h-3 w-3 md:h-4 md:w-4' />
-								</button>
+									</button>
+								</HoverTooltip>
 							)}
 						</div>
 						<Listbox 
@@ -983,8 +981,8 @@ export default function Comparison() {
 			
 			<div className='flex-1 px-2 md:px-4 pb-4 min-h-0 overflow-y-auto overflow-x-hidden' style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}>
 				{isLoadingSecondPlayer ? (
-					<div className='flex items-center justify-center h-64'>
-						<p className='text-sm md:text-base text-gray-300'>Loading comparison data...</p>
+					<div className='w-full md:max-w-4xl md:mx-auto'>
+						<RadarChartSkeleton />
 					</div>
 				) : !secondPlayer ? (
 					<div className='flex items-center justify-center h-full'>

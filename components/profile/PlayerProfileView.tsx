@@ -7,8 +7,7 @@ import { useAppRouter } from "@/lib/hooks/useAppRouter";
 import { createPortal } from "react-dom";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigationStore } from "@/lib/stores/navigation";
-import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
-import "react-loading-skeleton/dist/skeleton.css";
+import Skeleton from "react-loading-skeleton";
 import ProfilePageSkeleton from "@/components/profile/ProfilePageSkeleton";
 import { profileSlugToPlayerName } from "@/lib/profile/slug";
 import { generatePageCacheKey } from "@/lib/utils/pageCache";
@@ -16,6 +15,7 @@ import { isSeasonWrappedPromoMonth } from "@/lib/wrapped/seasonWrappedPromo";
 import { playerNameToWrappedSlug } from "@/lib/wrapped/slug";
 import type { PlayerData } from "@/lib/stores/navigation";
 import type { EarnedBadgeRow, ProgressRow } from "@/components/stats/PlayerBadgeMilestoneGrid";
+import { HoverTooltip } from "@/components/ui/Tooltip";
 import { featureFlags } from "@/config/config";
 
 const PlayerBadgeMilestoneGrid = dynamic(() => import("@/components/stats/PlayerBadgeMilestoneGrid"), {
@@ -427,21 +427,23 @@ export default function PlayerProfileView({
 							Profile{playerName ? ` - ${playerName}` : ""}
 						</h1>
 						{playerName ? (
-							<button
-								type='button'
-								data-testid='player-profile-edit-player-button'
-								onClick={handleEditPlayerClick}
-								className='p-1.5 md:p-2 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors shrink-0'
-								title='Edit player selection'>
-								<svg className='h-4 w-4 md:h-5 md:w-5' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
-									<path
-										strokeLinecap='round'
-										strokeLinejoin='round'
-										strokeWidth={2}
-										d='M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z'
-									/>
-								</svg>
-							</button>
+							<HoverTooltip content='Edit player selection'>
+								<button
+									type='button'
+									data-testid='player-profile-edit-player-button'
+									onClick={handleEditPlayerClick}
+									className='p-1.5 md:p-2 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors shrink-0'
+									aria-label='Edit player selection'>
+									<svg className='h-4 w-4 md:h-5 md:w-5' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+										<path
+											strokeLinecap='round'
+											strokeLinejoin='round'
+											strokeWidth={2}
+											d='M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z'
+										/>
+									</svg>
+								</button>
+							</HoverTooltip>
 						) : null}
 					</div>
 				</div>
@@ -596,7 +598,7 @@ export default function PlayerProfileView({
 								className='rounded-lg bg-white/10 backdrop-blur-sm p-4'>
 								<h3 className='text-white font-semibold text-sm md:text-base'>Achievement Badges</h3>
 								{isLoadingBadges ? (
-									<SkeletonTheme baseColor='var(--skeleton-base)' highlightColor='var(--skeleton-highlight)'>
+									<>
 										<div className='mt-3 rounded-xl border border-white/10 bg-black/15 p-3 mb-3'>
 											<div className='flex items-center justify-between mb-2'>
 												<Skeleton height={16} width={110} />
@@ -607,13 +609,13 @@ export default function PlayerProfileView({
 										<div className='rounded-xl border border-white/10 bg-black/15 p-3 mb-3'>
 											<Skeleton height={14} width={130} className='mb-2' />
 											<div className='space-y-2'>
-													<div className='flex items-center justify-between gap-2'>
-														<div className='flex items-center gap-2'>
-															<Skeleton circle height={40} width={40} />
-															<Skeleton height={10} width={120} />
-														</div>
-														<Skeleton height={10} width={50} />
+												<div className='flex items-center justify-between gap-2'>
+													<div className='flex items-center gap-2'>
+														<Skeleton circle height={40} width={40} />
+														<Skeleton height={10} width={120} />
 													</div>
+													<Skeleton height={10} width={50} />
+												</div>
 											</div>
 										</div>
 										<div className='rounded-xl border border-white/10 bg-black/15 p-3'>
@@ -628,7 +630,7 @@ export default function PlayerProfileView({
 												))}
 											</div>
 										</div>
-									</SkeletonTheme>
+									</>
 								) : badgePayload ? (
 									<>
 										<p className='text-white/75 text-sm mt-1'>

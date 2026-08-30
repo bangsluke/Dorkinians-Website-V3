@@ -3,7 +3,7 @@
 import { useNavigationStore, type TeamData } from "@/lib/stores/navigation";
 import { statObject, statsPageConfig, appConfig, featureFlags } from "@/config/config";
 import Image from "next/image";
-import { useState, useMemo, useEffect, useRef, type ReactNode } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { cachedFetch, generatePageCacheKey } from "@/lib/utils/pageCache";
 import { createPortal } from "react-dom";
 import { Listbox } from "@headlessui/react";
@@ -13,10 +13,10 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Ba
 import RecentGamesForm from "./RecentGamesForm";
 import { safeLocalStorageGet, safeLocalStorageSet, getPWADebugInfo } from "@/lib/utils/pwaDebug";
 import HomeAwayGauge from "./HomeAwayGauge";
-import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
-import "react-loading-skeleton/dist/skeleton.css";
+import Skeleton from "react-loading-skeleton";
 import { StatCardSkeleton, ChartSkeleton, TableSkeleton, TopPlayersTableSkeleton, BestSeasonFinishSkeleton, RecentGamesSkeleton, DataTableSkeleton } from "@/components/skeletons";
 import { ErrorState } from "@/components/ui/StateComponents";
+import { TooltipSurface, TooltipArrow, ChartTooltip, FloatingTooltipTrigger, HoverTooltip } from "@/components/ui/Tooltip";
 import { useToast } from "@/lib/hooks/useToast";
 import { log } from "@/lib/utils/logger";
 import Button from "@/components/ui/Button";
@@ -283,21 +283,16 @@ function StatRow({ stat, value, teamData }: { stat: any; value: any; teamData: T
 				</td>
 			</tr>
 			{showTooltip && tooltipPosition && typeof document !== 'undefined' && document.body && createPortal(
-				<div 
+				<TooltipSurface
 					ref={tooltipRef}
-					className='fixed z-[9999] px-3 py-2 text-sm text-white rounded-lg shadow-lg w-64 text-center pointer-events-none' 
-					style={{ 
-						backgroundColor: '#0f0f0f',
+					className='fixed z-[9999] w-64 text-center pointer-events-none'
+					style={{
 						top: `${tooltipPosition.top}px`,
 						left: `${tooltipPosition.left}px`
 					}}>
-					{tooltipPosition.placement === 'above' ? (
-						<div className='absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent mt-1' style={{ borderTopColor: '#0f0f0f' }}></div>
-					) : (
-						<div className='absolute bottom-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent mb-1' style={{ borderBottomColor: '#0f0f0f' }}></div>
-					)}
+					<TooltipArrow placement={tooltipPosition.placement === 'above' ? 'above' : 'below'} />
 					{stat.description}
-				</div>,
+				</TooltipSurface>,
 				document.body
 			)}
 		</>
@@ -390,85 +385,6 @@ function formatStreakRange(startDate: string | null | undefined, endDate: string
 	if (!start && !end) return "";
 	if (start && end) return start === end ? ` (${start})` : ` (${start} - ${end})`;
 	return ` (${start || end})`;
-}
-
-function FloatingTooltipTrigger({
-	tooltip,
-	children,
-	className,
-}: {
-	tooltip: ReactNode;
-	children: ReactNode;
-	className: string;
-}) {
-	const [visible, setVisible] = useState(false);
-	const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
-	const triggerRef = useRef<HTMLDivElement>(null);
-	const tooltipRef = useRef<HTMLDivElement>(null);
-
-	const updatePosition = () => {
-		if (!triggerRef.current || typeof window === "undefined") return;
-		const triggerRect = triggerRef.current.getBoundingClientRect();
-		const tooltipWidth = tooltipRef.current?.offsetWidth ?? 320;
-		const tooltipHeight = tooltipRef.current?.offsetHeight ?? 120;
-		const margin = 8;
-		const gap = 8;
-		let left = triggerRect.left + triggerRect.width / 2 - tooltipWidth / 2;
-		left = Math.max(margin, Math.min(left, window.innerWidth - tooltipWidth - margin));
-
-		const aboveTop = triggerRect.top - tooltipHeight - gap;
-		const belowTop = triggerRect.bottom + gap;
-		const top = aboveTop >= margin ? aboveTop : belowTop;
-		setPosition({ top, left });
-	};
-
-	useEffect(() => {
-		if (!visible) return;
-		updatePosition();
-		const onViewportChange = () => updatePosition();
-		window.addEventListener("resize", onViewportChange);
-		window.addEventListener("scroll", onViewportChange, true);
-		return () => {
-			window.removeEventListener("resize", onViewportChange);
-			window.removeEventListener("scroll", onViewportChange, true);
-		};
-	}, [visible]);
-
-	return (
-		<>
-			<div
-				ref={triggerRef}
-				tabIndex={0}
-				className={className}
-				onMouseEnter={() => setVisible(true)}
-				onMouseLeave={() => setVisible(false)}
-				onFocus={() => setVisible(true)}
-				onBlur={() => setVisible(false)}
-			>
-				{children}
-			</div>
-			{visible &&
-				position &&
-				typeof document !== "undefined" &&
-				document.body &&
-				createPortal(
-					<div
-						ref={tooltipRef}
-						className='pointer-events-none rounded-md bg-black/95 p-2 text-left text-[11px] text-white shadow-xl ring-1 ring-white/15'
-						style={{
-							position: "fixed",
-							top: position.top,
-							left: position.left,
-							zIndex: 9999,
-							maxWidth: "min(20rem, calc(100vw - 16px))",
-						}}
-					>
-						{tooltip}
-					</div>,
-					document.body,
-				)}
-		</>
-	);
 }
 
 export default function TeamStats() {
@@ -1387,13 +1303,6 @@ export default function TeamStats() {
 		return { formation: top.formation, winPercentage: toNumber(top.winPercentage), games, wins: toNumber(top.wins), lowSample };
 	}, [teamData]);
 
-	const tooltipStyle = {
-		backgroundColor: 'rgb(14, 17, 15)',
-		border: '1px solid rgba(249, 237, 50, 0.3)',
-		borderRadius: '8px',
-		color: '#fff',
-	};
-
 	// Custom tooltip formatter to capitalize "value" and show per game
 	const customTooltip = ({ active, payload, label }: any) => {
 		if (active && payload && payload.length) {
@@ -1406,23 +1315,23 @@ export default function TeamStats() {
 			const uniqueGoalscorers = uniquePlayerStats?.playersWhoScored || 0;
 			
 			return (
-				<div style={tooltipStyle} className='px-3 py-2'>
-					<p className='text-white text-sm'>{displayLabel}</p>
-					<p className='text-white text-sm'>
-						<span className='font-semibold'>Value</span>: {displayValue}
+				<TooltipSurface>
+					<p className='mb-1 font-medium text-white/90'>{displayLabel}</p>
+					<p className='text-white/80'>
+						<span className='font-medium text-white/60'>Value:</span> {displayValue}
 					</p>
-					<p className='text-white text-sm'>
-						<span className='font-semibold'>Per Game</span>: {perGame}
+					<p className='text-white/80'>
+						<span className='font-medium text-white/60'>Per Game:</span> {perGame}
 					</p>
-					<p className='text-white text-sm'>
-						<span className='font-semibold'>Games</span>: {gamesPlayed}
+					<p className='text-white/80'>
+						<span className='font-medium text-white/60'>Games:</span> {gamesPlayed}
 					</p>
 					{displayLabel === "Goals Scored" && uniqueGoalscorers > 0 && (
-						<p className='text-white text-sm'>
-							<span className='font-semibold'>Unique Goalscorers</span>: {uniqueGoalscorers}
+						<p className='text-white/80'>
+							<span className='font-medium text-white/60'>Unique Goalscorers:</span> {uniqueGoalscorers}
 						</p>
 					)}
-				</div>
+				</TooltipSurface>
 			);
 		}
 		return null;
@@ -1520,75 +1429,73 @@ export default function TeamStats() {
 				</div>
 			) : (isLoadingTeamData || appConfig.forceSkeletonView) ? (
 				<div data-testid="loading-skeleton" className='flex-1 flex flex-col md:min-h-0'>
-					<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-						<div className='flex-1 px-2 md:px-4 pb-6 md:overflow-y-auto md:min-h-0 space-y-4 md:space-y-0 md:grid md:grid-cols-2 md:gap-4'>
-							<div className='mb-4 md:mb-0'>
-								<StatCardSkeleton />
-							</div>
-							<div className='mb-4 md:mb-0'>
-								<RecentGamesSkeleton />
-							</div>
-							<div className='mb-4 md:mb-0'>
-								<TopPlayersTableSkeleton />
-							</div>
-							<div className='mb-4 md:mb-0'>
-								<ChartSkeleton showDropdown={true} showTrend={true} noContainer={false} />
-							</div>
-							<div className='mb-4 md:mb-0'>
-								<ChartSkeleton showDropdown={false} showTrend={false} noContainer={false} />
-							</div>
-							<div className='mb-4 md:mb-0'>
-								<ChartSkeleton showDropdown={false} showTrend={false} noContainer={false} />
-							</div>
-							<div className='mb-4 md:mb-0'>
-								<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-									<Skeleton height={20} width="35%" className="mb-3" />
-									<div className='grid grid-cols-5 gap-2 md:gap-3'>
-										{[...Array(5)].map((_, i) => (
-											<div key={i} className='bg-white/5 rounded-lg p-2 md:p-3'>
-												<Skeleton height={30} width={30} circle className="mb-2 mx-auto" />
-												<Skeleton height={10} width="70%" className="mx-auto mb-1" />
-												<Skeleton height={14} width="50%" className="mx-auto" />
-											</div>
-										))}
-									</div>
-								</div>
-							</div>
-							<div className='mb-4 md:mb-0'>
-								<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-									<Skeleton height={20} width="40%" className="mb-3" />
-									<TableSkeleton rows={4} />
-								</div>
-							</div>
-							<div className='mb-4 md:mb-0'>
-								<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-									<Skeleton height={20} width="45%" className="mb-3" />
-									<div className='grid grid-cols-2 gap-2 md:gap-4'>
-										<div className='bg-white/5 rounded-lg p-3'>
-											<Skeleton height={12} width="55%" className="mb-3" />
-											<Skeleton height={120} width="100%" />
+					<div className='flex-1 px-2 md:px-4 pb-6 md:overflow-y-auto md:min-h-0 space-y-4 md:space-y-0 md:grid md:grid-cols-2 md:gap-4'>
+						<div className='mb-4 md:mb-0'>
+							<StatCardSkeleton />
+						</div>
+						<div className='mb-4 md:mb-0'>
+							<RecentGamesSkeleton />
+						</div>
+						<div className='mb-4 md:mb-0'>
+							<TopPlayersTableSkeleton />
+						</div>
+						<div className='mb-4 md:mb-0'>
+							<ChartSkeleton showDropdown={true} showTrend={true} noContainer={false} />
+						</div>
+						<div className='mb-4 md:mb-0'>
+							<ChartSkeleton showDropdown={false} showTrend={false} noContainer={false} />
+						</div>
+						<div className='mb-4 md:mb-0'>
+							<ChartSkeleton showDropdown={false} showTrend={false} noContainer={false} />
+						</div>
+						<div className='mb-4 md:mb-0'>
+							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+								<Skeleton height={20} width="35%" className="mb-3" />
+								<div className='grid grid-cols-5 gap-2 md:gap-3'>
+									{[...Array(5)].map((_, i) => (
+										<div key={i} className='bg-white/5 rounded-lg p-2 md:p-3'>
+											<Skeleton height={30} width={30} circle className="mb-2 mx-auto" />
+											<Skeleton height={10} width="70%" className="mx-auto mb-1" />
+											<Skeleton height={14} width="50%" className="mx-auto" />
 										</div>
-										<div className='bg-white/5 rounded-lg p-3'>
-											<Skeleton height={12} width="55%" className="mb-3" />
-											<Skeleton height={120} width="100%" />
-										</div>
-									</div>
+									))}
 								</div>
-							</div>
-							<div className='mb-4 md:mb-0'>
-								<StatCardSkeleton count={8} />
-							</div>
-							<div className='mb-4 md:mb-0'>
-								<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-									<Skeleton height={20} width="50%" className="mb-3" />
-									<TableSkeleton rows={6} />
-								</div>
-							</div>
-							<div className='mb-4 md:mb-0'>
-								<BestSeasonFinishSkeleton />
 							</div>
 						</div>
-					</SkeletonTheme>
+						<div className='mb-4 md:mb-0'>
+							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+								<Skeleton height={20} width="40%" className="mb-3" />
+								<TableSkeleton rows={4} />
+							</div>
+						</div>
+						<div className='mb-4 md:mb-0'>
+							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+								<Skeleton height={20} width="45%" className="mb-3" />
+								<div className='grid grid-cols-2 gap-2 md:gap-4'>
+									<div className='bg-white/5 rounded-lg p-3'>
+										<Skeleton height={12} width="55%" className="mb-3" />
+										<Skeleton height={120} width="100%" />
+									</div>
+									<div className='bg-white/5 rounded-lg p-3'>
+										<Skeleton height={12} width="55%" className="mb-3" />
+										<Skeleton height={120} width="100%" />
+									</div>
+								</div>
+							</div>
+						</div>
+						<div className='mb-4 md:mb-0'>
+							<StatCardSkeleton count={8} />
+						</div>
+						<div className='mb-4 md:mb-0'>
+							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+								<Skeleton height={20} width="50%" className="mb-3" />
+								<TableSkeleton rows={6} />
+							</div>
+						</div>
+						<div className='mb-4 md:mb-0'>
+							<BestSeasonFinishSkeleton />
+						</div>
+					</div>
 				</div>
 			) : !teamData ? (
 				<div className='flex-1 flex items-center justify-center p-4'>
@@ -1765,9 +1672,7 @@ export default function TeamStats() {
 											<label htmlFor='show-trend-checkbox-team' className='text-white text-xs md:text-sm cursor-pointer'>Show trend</label>
 										</div>
 										{(isLoadingSeasonalStats || appConfig.forceSkeletonView) ? (
-											<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-												<ChartSkeleton showDropdown={true} noContainer={true} />
-											</SkeletonTheme>
+											<ChartSkeleton showDropdown={true} noContainer={true} />
 										) : seasonalChartData.length > 0 ? (
 											<div className='chart-container' style={{ touchAction: 'pan-y' }}>
 												<ResponsiveContainer width='100%' height={240}>
@@ -1933,10 +1838,12 @@ export default function TeamStats() {
 															}}
 														/>
 														<Tooltip
-															contentStyle={{ backgroundColor: '#1a1a1a', border: '1px solid #444' }}
-															labelStyle={{ color: '#fff' }}
-															formatter={(value: number, name: string) =>
-																name === 'Win %' ? [`${value}%`, name] : [value, name]
+															content={
+																<ChartTooltip
+																	formatValue={(entry) =>
+																		entry.name === 'Win %' ? `${entry.value}%` : `${entry.value ?? '-'}`
+																	}
+																/>
 															}
 														/>
 														<Bar yAxisId='games' dataKey='games' name='Games' fill='#d4a012' radius={[4, 4, 0, 0]} />
@@ -2244,9 +2151,7 @@ export default function TeamStats() {
 											</Listbox>
 										</div>
 										{isLoadingTopPlayers ? (
-											<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-												<TopPlayersTableSkeleton />
-											</SkeletonTheme>
+											<TopPlayersTableSkeleton />
 										) : topPlayers.length > 0 ? (
 											<div className='overflow-x-auto'>
 												<table className='w-full text-white'>
@@ -2328,30 +2233,28 @@ export default function TeamStats() {
 
 								{/* Unique Player Stats Section */}
 								{isLoadingUniqueStats ? (
-									<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-										<div id='team-unique-player-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
-											<Skeleton height={20} width="40%" className="mb-2" />
-											<Skeleton height={16} width="60%" className="mb-3" />
-											<div className='overflow-x-auto'>
-												<table className='w-full text-white text-sm'>
-													<thead>
-														<tr className='border-b border-white/20'>
-															<th className='text-left py-2 px-2'><Skeleton height={16} width={80} /></th>
-															<th className='text-right py-2 px-2'><Skeleton height={16} width={100} className="ml-auto" /></th>
+									<div id='team-unique-player-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
+										<Skeleton height={20} width="40%" className="mb-2" />
+										<Skeleton height={16} width="60%" className="mb-3" />
+										<div className='overflow-x-auto'>
+											<table className='w-full text-white text-sm'>
+												<thead>
+													<tr className='border-b border-white/20'>
+														<th className='text-left py-2 px-2'><Skeleton height={16} width={80} /></th>
+														<th className='text-right py-2 px-2'><Skeleton height={16} width={100} className="ml-auto" /></th>
+													</tr>
+												</thead>
+												<tbody>
+													{[...Array(5)].map((_, i) => (
+														<tr key={i} className='border-b border-white/10'>
+															<td className='py-2 px-2'><Skeleton height={14} width="70%" /></td>
+															<td className='text-right py-2 px-2'><Skeleton height={14} width={30} className="ml-auto" /></td>
 														</tr>
-													</thead>
-													<tbody>
-														{[...Array(5)].map((_, i) => (
-															<tr key={i} className='border-b border-white/10'>
-																<td className='py-2 px-2'><Skeleton height={14} width="70%" /></td>
-																<td className='text-right py-2 px-2'><Skeleton height={14} width={30} className="ml-auto" /></td>
-															</tr>
-														))}
-													</tbody>
-												</table>
-											</div>
+													))}
+												</tbody>
+											</table>
 										</div>
-									</SkeletonTheme>
+									</div>
 								) : uniquePlayerStats && (
 									<div id='team-unique-player-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Unique Player Stats</h3>
@@ -2696,9 +2599,7 @@ export default function TeamStats() {
 													{isSeasonFilter ? "Season Finish" : "Best Season Finish"}
 												</h3>
 												{isLoadingBestSeasonFinish ? (
-													<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-														<BestSeasonFinishSkeleton />
-													</SkeletonTheme>
+													<BestSeasonFinishSkeleton />
 												) : bestSeasonFinishError ? (
 													<div className='flex items-center justify-center py-8'>
 														<p className='text-white text-sm md:text-base text-center'>{bestSeasonFinishError}</p>
@@ -2794,7 +2695,11 @@ export default function TeamStats() {
 																					} hover:bg-white/5`}
 																				>
 																					<td className='pl-2 pr-0.5 py-1.5 text-white'>{entry.position}</td>
-																					<td className='px-1.5 py-1.5 text-white max-w-[120px] truncate' title={entry.team}>{entry.team}</td>
+																					<td className='px-1.5 py-1.5 text-white max-w-[120px]'>
+																						<HoverTooltip content={entry.team} className='block min-w-0'>
+																							<span className='block truncate'>{entry.team}</span>
+																						</HoverTooltip>
+																					</td>
 																					<td className='px-0.5 py-1.5 text-center text-white'>{entry.played}</td>
 																					<td className='px-0.5 py-1.5 text-center text-white'>{entry.won}</td>
 																					<td className='px-0.5 py-1.5 text-center text-white'>{entry.drawn}</td>
@@ -2853,9 +2758,7 @@ export default function TeamStats() {
 							{!isDataTableMode && chartContent}
 							{isDataTableMode && (
 								isLoadingTeamData ? (
-									<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-										<DataTableSkeleton />
-									</SkeletonTheme>
+									<DataTableSkeleton />
 								) : (
 									dataTableContent
 								)

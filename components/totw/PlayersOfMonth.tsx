@@ -6,14 +6,14 @@ import { getCurrentSeasonFromStorage } from "@/lib/services/currentSeasonService
 import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
 import { ChevronDownIcon, ChevronUpIcon, PencilIcon } from "@heroicons/react/24/outline";
-import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
-import "react-loading-skeleton/dist/skeleton.css";
+import Skeleton from "react-loading-skeleton";
 import { PlayerStatsExpansionSkeleton, RankingTableSkeleton } from "@/components/skeletons";
 import { appConfig } from "@/config/config";
 import { log } from "@/lib/utils/logger";
 import { cachedFetch, generatePageCacheKey } from "@/lib/utils/pageCache";
 import { UmamiEvents } from "@/lib/analytics/events";
 import { trackEvent } from "@/lib/utils/trackEvent";
+import { HoverTooltip } from "@/components/ui/Tooltip";
 
 interface PlayerStats {
 	appearances: number;
@@ -973,9 +973,7 @@ export default function PlayersOfMonth() {
 	) => {
 		if (isLoadingStats) {
 			return (
-				<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-					<PlayerStatsExpansionSkeleton />
-				</SkeletonTheme>
+				<PlayerStatsExpansionSkeleton />
 			);
 		}
 		if (!stats) {
@@ -1114,7 +1112,7 @@ export default function PlayersOfMonth() {
 
 			{/* Loading Skeleton - Show during initial load */}
 			{isInitialLoading && (
-				<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+				<>
 					<div className='flex flex-row justify-center gap-4 mb-6 w-full'>
 						<div className='w-full max-w-[14rem]'>
 							<Skeleton height={36} width="100%" className="rounded-md" />
@@ -1139,7 +1137,7 @@ export default function PlayersOfMonth() {
 							</div>
 						</div>
 					</div>
-				</SkeletonTheme>
+				</>
 			)}
 
 			{/* Filters - Hide during initial load */}
@@ -1199,9 +1197,7 @@ export default function PlayersOfMonth() {
 								<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none text-[0.65rem] md:text-sm'>
 									{months.length === 0 ? (
 										<Listbox.Option value="" className='relative cursor-default select-none dark-dropdown-option py-2 pl-3 pr-9 text-white'>
-											<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-												<Skeleton height={16} width={100} />
-											</SkeletonTheme>
+											<Skeleton height={16} width={100} />
 										</Listbox.Option>
 									) : (
 										months.map((month) => (
@@ -1230,24 +1226,22 @@ export default function PlayersOfMonth() {
 			{!isInitialLoading && (
 				shouldShowRankingsSkeleton ? (
 					<div data-testid="loading-skeleton" className='mt-0'>
-						<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-								<div className='lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start space-y-10 lg:space-y-0'>
-									<div className='min-w-0'>
-										<div className='mb-4'>
-											<Skeleton height={24} width="70%" />
-										</div>
-										<RankingTableSkeleton />
+						<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+							<div className='lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start space-y-10 lg:space-y-0'>
+								<div className='min-w-0'>
+									<div className='mb-4'>
+										<Skeleton height={24} width="70%" />
 									</div>
-									<div className='min-w-0'>
-										<div className='mb-4'>
-											<Skeleton height={24} width="55%" />
-										</div>
-										<RankingTableSkeleton />
+									<RankingTableSkeleton />
+								</div>
+								<div className='min-w-0'>
+									<div className='mb-4'>
+										<Skeleton height={24} width="55%" />
 									</div>
+									<RankingTableSkeleton />
 								</div>
 							</div>
-						</SkeletonTheme>
+						</div>
 					</div>
 				) : (
 					<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
@@ -1418,9 +1412,7 @@ export default function PlayersOfMonth() {
 								{selectedPlayer ? (
 									<>
 										{loadingSeasonRankings ? (
-											<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-												<RankingTableSkeleton />
-											</SkeletonTheme>
+											<RankingTableSkeleton />
 										) : seasonRankings.length > 0 ? (
 											(() => {
 												const selectedInSeason = seasonRankings.findIndex((p) => p.playerName === selectedPlayer) !== -1;
@@ -1575,13 +1567,15 @@ export default function PlayersOfMonth() {
 										<p className='text-white text-sm md:text-base mb-4'>
 											Select a player to see their current FTP ranking
 										</p>
-										<button
-											type='button'
-											onClick={handleEditClick}
-											className='flex items-center justify-center mx-auto w-8 h-8 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors'
-											title='Select a player'>
-											<PencilIcon className='h-4 w-4 md:h-5 md:w-5' />
-										</button>
+										<HoverTooltip content='Select a player'>
+											<button
+												type='button'
+												onClick={handleEditClick}
+												className='flex items-center justify-center mx-auto w-8 h-8 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors'
+												aria-label='Select a player'>
+												<PencilIcon className='h-4 w-4 md:h-5 md:w-5' />
+											</button>
+										</HoverTooltip>
 									</div>
 								)}
 							</div>

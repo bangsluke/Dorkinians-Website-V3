@@ -3,8 +3,7 @@
 import { useEffect, useState } from "react";
 import { useNavigationStore } from "@/lib/stores/navigation";
 import { cachedFetch, generatePageCacheKey } from "@/lib/utils/pageCache";
-import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
-import "react-loading-skeleton/dist/skeleton.css";
+import Skeleton from "react-loading-skeleton";
 import { appConfig } from "@/config/config";
 
 type Row = { playerName: string; totalBadges: number; highestBadgeTier: string | null };
@@ -60,10 +59,8 @@ export default function BadgeLeaderboardSection() {
 	if (appConfig.forceSkeletonView) {
 		return (
 			<div data-testid='badge-leaderboard-section'>
-				<SkeletonTheme baseColor='var(--skeleton-base)' highlightColor='var(--skeleton-highlight)'>
-					<Skeleton height={22} width='55%' className='mb-3' />
-					<Skeleton count={4} height={16} className='mb-2' />
-				</SkeletonTheme>
+				<Skeleton height={22} width='55%' className='mb-3' />
+				<Skeleton count={4} height={16} className='mb-2' />
 			</div>
 		);
 	}
@@ -71,10 +68,8 @@ export default function BadgeLeaderboardSection() {
 	if (loading) {
 		return (
 			<div data-testid='badge-leaderboard-section'>
-				<SkeletonTheme baseColor='var(--skeleton-base)' highlightColor='var(--skeleton-highlight)'>
-					<Skeleton height={22} width='55%' className='mb-3' />
-					<Skeleton count={5} height={14} className='mb-2' />
-				</SkeletonTheme>
+				<Skeleton height={22} width='55%' className='mb-3' />
+				<Skeleton count={5} height={14} className='mb-2' />
 			</div>
 		);
 	}

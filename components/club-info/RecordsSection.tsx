@@ -3,8 +3,7 @@
 import { useEffect, useState } from "react";
 import { useNavigationStore } from "@/lib/stores/navigation";
 import { cachedFetch, generatePageCacheKey } from "@/lib/utils/pageCache";
-import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
-import "react-loading-skeleton/dist/skeleton.css";
+import Skeleton from "react-loading-skeleton";
 import { formatXiTeamLabel } from "@/lib/utils/formatXiTeamLabel";
 
 export interface ClubRecordDTO {
@@ -141,9 +140,7 @@ export default function RecordsSection() {
 		return (
 			<div data-testid='records-section' className='flex-shrink-0 pb-6 w-full mt-0 lg:mt-0'>
 				<h3 className='text-lg md:text-xl font-bold text-dorkinians-yellow mb-4'>Records</h3>
-				<SkeletonTheme baseColor='var(--skeleton-base)' highlightColor='var(--skeleton-highlight)'>
-					<Skeleton count={4} className='rounded-lg mb-2' height={56} />
-				</SkeletonTheme>
+				<Skeleton count={4} className='rounded-lg mb-2' height={56} />
 			</div>
 		);
 	}

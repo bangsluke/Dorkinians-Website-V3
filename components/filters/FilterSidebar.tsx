@@ -10,13 +10,13 @@ import Input from "@/components/ui/Input";
 import { useToast } from "@/lib/hooks/useToast";
 import ProgressIndicator from "@/components/ui/ProgressIndicator";
 import ConfirmModal from "@/components/modals/ConfirmModal";
+import { HoverTooltip } from "@/components/ui/Tooltip";
 import { UmamiEvents } from "@/lib/analytics/events";
 import { trackEvent } from "@/lib/utils/trackEvent";
 
 interface FilterSidebarProps {
 	isOpen: boolean;
 	onClose: () => void;
-	onSuccess?: (message: string) => void;
 	/** When true, use higher z-index so sidebar appears above the All Games modal */
 	renderAboveAllGamesModal?: boolean;
 }
@@ -27,7 +27,7 @@ interface AccordionSection {
 	isOpen: boolean;
 }
 
-export default function FilterSidebar({ isOpen, onClose, onSuccess, renderAboveAllGamesModal = false }: FilterSidebarProps) {
+export default function FilterSidebar({ isOpen, onClose, renderAboveAllGamesModal = false }: FilterSidebarProps) {
 	const {
 		playerFilters,
 		updatePlayerFilters,
@@ -39,8 +39,7 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess, renderAboveA
 		loadFilterData,
 		currentStatsSubPage,
 	} = useNavigationStore();
-	const { showSuccess: localShowSuccess } = useToast();
-	const showSuccess = onSuccess || localShowSuccess;
+	const { showSuccess } = useToast();
 
 	// State for autocomplete dropdowns
 	const [showOppositionDropdown, setShowOppositionDropdown] = useState(false);
@@ -1125,14 +1124,15 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess, renderAboveA
 										title="Reset filters to defaults">
 										Reset Filters
 									</Button>
-									<button 
-										data-testid="filter-sidebar-close" 
-										onClick={handleClose} 
-										className='min-w-[44px] min-h-[44px] p-3 flex items-center justify-center text-[var(--color-text-primary)]/60 hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent' 
-										aria-label='Close filter sidebar'
-										title="Close filters">
-										<XMarkIcon className='w-5 h-5' />
-									</button>
+									<HoverTooltip content="Close filters">
+										<button 
+											data-testid="filter-sidebar-close" 
+											onClick={handleClose} 
+											className='min-w-[44px] min-h-[44px] p-3 flex items-center justify-center text-[var(--color-text-primary)]/60 hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent' 
+											aria-label='Close filter sidebar'>
+											<XMarkIcon className='w-5 h-5' />
+										</button>
+									</HoverTooltip>
 								</div>
 							</div>
 

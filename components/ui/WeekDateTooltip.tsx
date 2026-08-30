@@ -1,6 +1,8 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { HoverTooltip } from "@/components/ui/Tooltip";
+import { cn } from "@/lib/utils/cn";
 import { weekDateTooltipTitle } from "@/lib/utils/weekNumDates";
 
 type WeekDateTooltipProps = {
@@ -11,7 +13,7 @@ type WeekDateTooltipProps = {
 	className?: string;
 };
 
-/** Native title tooltip showing the Saturday for a WEEKNUM week reference. */
+/** Hover/focus tooltip showing the Saturday for a WEEKNUM week reference. */
 export default function WeekDateTooltip({
 	seasonWeek,
 	fixtureDate,
@@ -20,9 +22,10 @@ export default function WeekDateTooltip({
 	className,
 }: WeekDateTooltipProps) {
 	const title = weekDateTooltipTitle(seasonWeek, fixtureDate, calendarWeek);
+
 	return (
-		<span title={title ?? undefined} className={className}>
+		<HoverTooltip content={title} className={cn("cursor-help outline-none", className)}>
 			{children}
-		</span>
+		</HoverTooltip>
 	);
 }

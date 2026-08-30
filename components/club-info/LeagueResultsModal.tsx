@@ -3,8 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { XMarkIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
-import { SkeletonTheme } from "react-loading-skeleton";
-import "react-loading-skeleton/dist/skeleton.css";
 import { FixturesListSkeleton } from "@/components/skeletons";
 import ModalWrapper from "@/components/modals/ModalWrapper";
 import FixtureExpandedDetails, { type FixtureLineupPlayer } from "./FixtureExpandedDetails";
@@ -187,9 +185,7 @@ export default function LeagueResultsModal({ isOpen, onClose, teamKey, teamDispl
 				<div className='flex-1 overflow-y-auto p-4' style={{ WebkitOverflowScrolling: "touch" }}>
 					<div className='w-full max-w-xl md:max-w-lg lg:max-w-xl mx-auto space-y-4'>
 					{loading && (
-						<SkeletonTheme baseColor='var(--skeleton-base)' highlightColor='var(--skeleton-highlight)'>
-							<FixturesListSkeleton />
-						</SkeletonTheme>
+						<FixturesListSkeleton />
 					)}
 
 					{error && <div className='p-4 bg-red-900/30 border border-red-500 rounded-lg text-red-200 text-center'>{error}</div>}

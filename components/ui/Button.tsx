@@ -2,6 +2,7 @@
 
 import { ReactNode, forwardRef } from "react";
 import { cn } from "@/lib/utils/cn";
+import { HoverTooltip } from "@/components/ui/Tooltip";
 
 export interface ButtonProps {
 	variant?: "primary" | "secondary" | "tertiary" | "ghost" | "icon";
@@ -143,9 +144,11 @@ const Button = forwardRef<HTMLButtonElement | HTMLAnchorElement, ButtonProps>(
 			</>
 		);
 
+		const tooltipWrapClass = cn(fullWidth && "w-full");
+
 		// Render as anchor if href is provided or as="a"
 		if (as === "a" || href) {
-			return (
+			const anchor = (
 				<a
 					ref={ref as React.Ref<HTMLAnchorElement>}
 					href={href}
@@ -153,14 +156,21 @@ const Button = forwardRef<HTMLButtonElement | HTMLAnchorElement, ButtonProps>(
 					onClick={disabled || loading ? (e) => e.preventDefault() : onClick}
 					aria-label={ariaLabel}
 					aria-disabled={disabled || loading}
-					title={title}
 					{...props}>
 					{content}
 				</a>
 			);
+
+			return title ? (
+				<HoverTooltip content={title} className={tooltipWrapClass}>
+					{anchor}
+				</HoverTooltip>
+			) : (
+				anchor
+			);
 		}
 
-		return (
+		const button = (
 			<button
 				ref={ref as React.Ref<HTMLButtonElement>}
 				type={type}
@@ -168,10 +178,28 @@ const Button = forwardRef<HTMLButtonElement | HTMLAnchorElement, ButtonProps>(
 				className={classes}
 				onClick={onClick}
 				aria-label={ariaLabel}
-				title={title}
 				{...props}>
 				{content}
 			</button>
+		);
+
+		if (!title) {
+			return button;
+		}
+
+		// Disabled buttons ignore pointer events; wrap so the tooltip still receives hover.
+		if (disabled || loading) {
+			return (
+				<HoverTooltip content={title} className={tooltipWrapClass}>
+					<span className={cn("inline-flex", fullWidth && "w-full")}>{button}</span>
+				</HoverTooltip>
+			);
+		}
+
+		return (
+			<HoverTooltip content={title} className={tooltipWrapClass}>
+				{button}
+			</HoverTooltip>
 		);
 	}
 );

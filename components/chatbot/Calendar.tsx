@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { ChatbotResponse } from "@/lib/services/chatbotService";
+import { TooltipSurface } from "@/components/ui/Tooltip";
 import {
 	formatSaturdayForCalendarWeek,
 	getMondayOfWeek,
@@ -114,24 +115,23 @@ function Tooltip({ week, show, position }: TooltipProps) {
 	}
 
 	return createPortal(
-		<div
-			className='fixed z-[9999] px-3 py-2 text-sm text-white rounded-lg shadow-lg pointer-events-none'
+		<TooltipSurface
+			className='fixed z-[9999] pointer-events-none'
 			style={{
-				backgroundColor: "#0f0f0f",
 				top: `${position.top}px`,
 				left: `${position.left}px`,
 			}}>
 			<div className='text-center space-y-1'>
-				<div className='font-semibold'>{week.year}</div>
-				<div>{monthName}</div>
-				<div>Week {week.weekNumber}</div>
-				<div className='text-white/80'>{saturdayLabel}</div>
-				<div className='font-medium' style={{ color: '#F9ED32' }}>{tooltipText}</div>
+				<div className='font-medium text-white/90'>{week.year}</div>
+				<div className='text-white/80'>{monthName}</div>
+				<div className='text-white/80'>Week {week.weekNumber}</div>
+				<div className='text-white/70'>{saturdayLabel}</div>
+				<div className='font-medium text-dorkinians-yellow-text'>{tooltipText}</div>
 				{tooltipSecondaryText && (
-					<div className='font-medium' style={{ color: '#F9ED32' }}>{tooltipSecondaryText}</div>
+					<div className='font-medium text-dorkinians-yellow-text'>{tooltipSecondaryText}</div>
 				)}
 			</div>
-		</div>,
+		</TooltipSurface>,
 		document.body
 	);
 }

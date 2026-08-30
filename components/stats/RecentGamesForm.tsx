@@ -2,9 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { SkeletonTheme } from "react-loading-skeleton";
-import "react-loading-skeleton/dist/skeleton.css";
 import { RecentGamesSkeleton } from "@/components/skeletons";
+import { TooltipSurface, TooltipArrow } from "@/components/ui/Tooltip";
 import { cachedFetch, generatePageCacheKey } from "@/lib/utils/pageCache";
 import { useNavigationStore } from "@/lib/stores/navigation";
 
@@ -335,9 +334,7 @@ export default function RecentGamesForm({ teamName, filters }: RecentGamesFormPr
 
 	if (isLoading) {
 		return (
-			<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-				<RecentGamesSkeleton />
-			</SkeletonTheme>
+			<RecentGamesSkeleton />
 		);
 	}
 
@@ -446,22 +443,20 @@ export default function RecentGamesForm({ teamName, filters }: RecentGamesFormPr
 			)}
 			{/* Tooltip */}
 			{showTooltip !== null && activeFixture && tooltipPosition && typeof document !== 'undefined' && document.body && createPortal(
-				<div 
+				<TooltipSurface
 					ref={tooltipRef}
-					className='fixed z-[9999] px-3 py-2 text-sm text-white rounded-lg shadow-lg w-48 text-center pointer-events-none' 
-					style={{ 
-						backgroundColor: '#0f0f0f',
+					className='fixed z-[9999] w-48 text-center pointer-events-none'
+					style={{
 						top: `${tooltipPosition.top}px`,
 						left: `${tooltipPosition.left}px`
 					}}>
-					{tooltipPosition.placement === 'above' ? (
-						<div className='absolute top-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent mt-1' style={{ borderTopColor: '#0f0f0f', left: `${tooltipPosition.arrowLeft}px`, transform: 'translateX(-50%)' }}></div>
-					) : (
-						<div className='absolute bottom-full w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent mb-1' style={{ borderBottomColor: '#0f0f0f', left: `${tooltipPosition.arrowLeft}px`, transform: 'translateX(-50%)' }}></div>
-					)}
-					<div className='font-semibold mb-1'>{activeFixture.opposition || 'Unknown'}</div>
-					<div className='text-xs mb-1'>{formatDate(activeFixture.date)}</div>
-					<div className='text-xs mb-1 flex items-center justify-center gap-2 flex-wrap'>
+					<TooltipArrow
+						placement={tooltipPosition.placement === 'above' ? 'above' : 'below'}
+						offsetLeft={tooltipPosition.arrowLeft}
+					/>
+					<div className='mb-1 font-medium text-white/90'>{activeFixture.opposition || 'Unknown'}</div>
+					<div className='mb-1 text-white/80'>{formatDate(activeFixture.date)}</div>
+					<div className='mb-1 flex items-center justify-center gap-2 flex-wrap'>
 						<span className={`px-2 py-1 rounded text-xs font-medium ${getHomeAwayColor(activeFixture.homeOrAway)}`}>
 							{activeFixture.homeOrAway || 'Unknown'}
 						</span>
@@ -472,7 +467,7 @@ export default function RecentGamesForm({ teamName, filters }: RecentGamesFormPr
 							{activeFixture.goalsScored} - {activeFixture.goalsConceded}
 						</span>
 					</div>
-				</div>,
+				</TooltipSurface>,
 				document.body
 			)}
 		</div>

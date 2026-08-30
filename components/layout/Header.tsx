@@ -13,6 +13,7 @@ import { isDevelopBranchDeploy } from "@/lib/utils/isDevelopBranchDeploy";
 import { usePathname } from "next/navigation";
 import { useAppRouter } from "@/lib/hooks/useAppRouter";
 import { scheduleProfileIntroBursts, shouldRunProfileIntro } from "@/lib/utils/profileNavIntro";
+import { HoverTooltip } from "@/components/ui/Tooltip";
 
 const MENU_INTRO_KEY = "stats-nav-menu-animated";
 let menuIntroSnapshot = false;
@@ -281,13 +282,13 @@ export default function Header({
 				transition={isSettingsPage ? {} : { type: "spring", stiffness: 300, damping: 30 }}>
 				<div className='flex items-center justify-between px-4 md:px-[15%] py-3 min-w-0'>
 					{/* Club Logo and Dorkinians FC Text */}
-					<motion.button
-						whileHover={{ scale: 1.05 }}
-						whileTap={{ scale: 0.95 }}
-						onClick={handleLogoClick}
-						title='Click to return to homepage'
-						aria-label='Return to homepage'
-						className='flex-shrink-0 min-w-fit inline-flex items-center space-x-2 p-0 bg-transparent border-none h-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'>
+					<HoverTooltip content='Click to return to homepage'>
+						<motion.button
+							whileHover={{ scale: 1.05 }}
+							whileTap={{ scale: 0.95 }}
+							onClick={handleLogoClick}
+							aria-label='Return to homepage'
+							className='flex-shrink-0 min-w-fit inline-flex items-center space-x-2 p-0 bg-transparent border-none h-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'>
 						<div className='w-8 h-8 flex items-center justify-center flex-shrink-0'>
 							<Image src='/icons/icon-96x96.png' alt='Dorkinians FC Logo' width={32} height={32} loading='eager' className='rounded-full' />
 						</div>
@@ -299,47 +300,49 @@ export default function Header({
 								Dev
 							</span>
 						) : null}
-					</motion.button>
+						</motion.button>
+					</HoverTooltip>
 
 					{/* Right side icons */}
 					<div className='flex items-center gap-1 flex-shrink-0'>
 						{/* Burger Menu Icon - only show on stats pages */}
 						{showMenuIcon && onMenuClick && (
 							<div className='relative'>
-								<motion.button
-									data-testid='header-menu'
-									onClick={() => {
-										dismissMenuTooltip();
-										onMenuClick();
-									}}
-									className={`p-2 rounded-full hover:bg-[var(--color-surface)] transition-colors flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${
-										showMenuTooltip ? "bg-dorkinians-yellow/20" : ""
-									}`}
-									whileHover={{ scale: 1.1 }}
-									whileTap={{ scale: 0.9 }}
-									initial={{ scale: 1 }}
-									animate={
-										showMenuTooltip
-											? { scale: [1, 1.15, 1] }
-											: menuIntroPulseDone
-												? { scale: 1 }
-												: { scale: [1, 1.15, 1] }
-									}
-									transition={
-										showMenuTooltip
-											? { duration: 0.6, repeat: Infinity }
-											: menuIntroPulseDone
-												? {}
-												: { duration: 0.6, repeat: 2, delay: 0.5 }
-									}
-									onAnimationComplete={() => {
-										if (showMenuTooltip || menuIntroPulseDone) return;
-										persistMenuIntroPulseDone();
-									}}
-									title={showMenuTooltip ? "Click to navigate sections" : "Open stats navigation"}
-									aria-label='Open stats navigation'>
-									<Bars3Icon className={`w-6 h-6 ${showMenuTooltip ? "text-dorkinians-yellow" : "text-[var(--color-text-primary)]"}`} />
-								</motion.button>
+								<HoverTooltip content={showMenuTooltip ? undefined : "Open stats navigation"}>
+									<motion.button
+										data-testid='header-menu'
+										onClick={() => {
+											dismissMenuTooltip();
+											onMenuClick();
+										}}
+										className={`p-2 rounded-full hover:bg-[var(--color-surface)] transition-colors flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${
+											showMenuTooltip ? "bg-dorkinians-yellow/20" : ""
+										}`}
+										whileHover={{ scale: 1.1 }}
+										whileTap={{ scale: 0.9 }}
+										initial={{ scale: 1 }}
+										animate={
+											showMenuTooltip
+												? { scale: [1, 1.15, 1] }
+												: menuIntroPulseDone
+													? { scale: 1 }
+													: { scale: [1, 1.15, 1] }
+										}
+										transition={
+											showMenuTooltip
+												? { duration: 0.6, repeat: Infinity }
+												: menuIntroPulseDone
+													? {}
+													: { duration: 0.6, repeat: 2, delay: 0.5 }
+										}
+										onAnimationComplete={() => {
+											if (showMenuTooltip || menuIntroPulseDone) return;
+											persistMenuIntroPulseDone();
+										}}
+										aria-label='Open stats navigation'>
+										<Bars3Icon className={`w-6 h-6 ${showMenuTooltip ? "text-dorkinians-yellow" : "text-[var(--color-text-primary)]"}`} />
+									</motion.button>
+								</HoverTooltip>
 								{/* Tooltip - bottom left on mobile, top center on desktop */}
 								{showMenuTooltip && (
 									<motion.div
@@ -359,30 +362,30 @@ export default function Header({
 						{/* Filter Icon - only show on stats pages */}
 						{showFilterIcon && onFilterClick && (
 							<div className='relative'>
-								<motion.button
-									data-testid='header-filter'
-									onClick={() => {
-										dismissFilterTooltip();
-										onFilterClick();
-									}}
-									className={`p-2 rounded-full hover:bg-[var(--color-surface)] transition-colors flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${
-										showFilterTooltip ? "bg-dorkinians-yellow/20" : ""
-									}`}
-									whileHover={{ scale: 1.1 }}
-									whileTap={{ scale: 0.9 }}
-									initial={showFilterTooltip ? { scale: 1 } : {}}
-									animate={showFilterTooltip ? { scale: [1, 1.15, 1] } : {}}
-									transition={showFilterTooltip ? { duration: 0.6, repeat: Infinity } : {}}
-									title={showFilterTooltip ? "Click to open filters" : "Open filters"}
-									aria-label='Open filters'>
-									<FunnelIcon className={`w-6 h-6 ${showFilterTooltip ? "text-dorkinians-yellow" : "text-[var(--color-text-primary)]"}`} />
-									{/* Active filter count badge */}
-									{activeFilterCount > 0 && (
-										<span className='absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 flex items-center justify-center bg-dorkinians-yellow text-black text-xs font-bold rounded-full'>
-											{activeFilterCount > 99 ? "99+" : activeFilterCount}
-										</span>
-									)}
-								</motion.button>
+								<HoverTooltip content={showFilterTooltip ? undefined : "Open filters"}>
+									<motion.button
+										data-testid='header-filter'
+										onClick={() => {
+											dismissFilterTooltip();
+											onFilterClick();
+										}}
+										className={`p-2 rounded-full hover:bg-[var(--color-surface)] transition-colors flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${
+											showFilterTooltip ? "bg-dorkinians-yellow/20" : ""
+										}`}
+										whileHover={{ scale: 1.1 }}
+										whileTap={{ scale: 0.9 }}
+										initial={showFilterTooltip ? { scale: 1 } : {}}
+										animate={showFilterTooltip ? { scale: [1, 1.15, 1] } : {}}
+										transition={showFilterTooltip ? { duration: 0.6, repeat: Infinity } : {}}
+										aria-label='Open filters'>
+										<FunnelIcon className={`w-6 h-6 ${showFilterTooltip ? "text-dorkinians-yellow" : "text-[var(--color-text-primary)]"}`} />
+										{activeFilterCount > 0 && (
+											<span className='absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 flex items-center justify-center bg-dorkinians-yellow text-black text-xs font-bold rounded-full'>
+												{activeFilterCount > 99 ? "99+" : activeFilterCount}
+											</span>
+										)}
+									</motion.button>
+								</HoverTooltip>
 								{/* Filter Tooltip - bottom left on mobile */}
 								{showFilterTooltip && isMobile && (
 									<motion.div
@@ -402,28 +405,29 @@ export default function Header({
 						{/* Settings/Close Icon */}
 						{showProfileIcon && (
 							<div className='relative'>
-								<motion.button
-									data-testid='header-profile'
-									onClick={() => {
-										dismissProfileTooltip();
-										handleProfileClick();
-									}}
-									disabled={isProfileNavPending}
-									className={`p-2 rounded-full transition-all duration-200 flex items-center justify-center ${
-										isProfileRoute
-											? "ring-[3px] ring-dorkinians-yellow ring-offset-2 ring-offset-[var(--color-bg)] bg-dorkinians-yellow/20"
-											: "hover:bg-[var(--color-surface)]"
-									} ${
-										profileRingAttention && !isProfileRoute
-											? "ring-[3px] ring-dorkinians-yellow ring-offset-2 ring-offset-[var(--color-bg)] shadow-[0_0_22px_rgba(232,197,71,0.9)] scale-105"
-											: ""
-									}`}
-									whileHover={isProfileNavPending ? undefined : { scale: 1.1 }}
-									whileTap={isProfileNavPending ? undefined : { scale: 0.9 }}
-									title='Open player profile'
-									aria-label='Open player profile'>
-									<UserCircleIcon className={`w-6 h-6 ${isProfileRoute ? "text-dorkinians-yellow-text" : "text-[var(--color-text-primary)]"}`} />
-								</motion.button>
+								<HoverTooltip content={showProfileTooltip ? undefined : "Open player profile"}>
+									<motion.button
+										data-testid='header-profile'
+										onClick={() => {
+											dismissProfileTooltip();
+											handleProfileClick();
+										}}
+										disabled={isProfileNavPending}
+										className={`p-2 rounded-full transition-all duration-200 flex items-center justify-center ${
+											isProfileRoute
+												? "ring-[3px] ring-dorkinians-yellow ring-offset-2 ring-offset-[var(--color-bg)] bg-dorkinians-yellow/20"
+												: "hover:bg-[var(--color-surface)]"
+										} ${
+											profileRingAttention && !isProfileRoute
+												? "ring-[3px] ring-dorkinians-yellow ring-offset-2 ring-offset-[var(--color-bg)] shadow-[0_0_22px_rgba(232,197,71,0.9)] scale-105"
+												: ""
+										}`}
+										whileHover={isProfileNavPending ? undefined : { scale: 1.1 }}
+										whileTap={isProfileNavPending ? undefined : { scale: 0.9 }}
+										aria-label='Open player profile'>
+										<UserCircleIcon className={`w-6 h-6 ${isProfileRoute ? "text-dorkinians-yellow-text" : "text-[var(--color-text-primary)]"}`} />
+									</motion.button>
+								</HoverTooltip>
 								{showProfileTooltip && (
 									<motion.div
 										initial={{ opacity: 0, y: 10 }}
@@ -438,20 +442,21 @@ export default function Header({
 						)}
 
 						{/* Settings/Close Icon */}
-						<motion.button
-							data-testid='header-settings'
-							onClick={onSettingsClick}
-							className='p-2 rounded-full hover:bg-[var(--color-surface)] transition-colors flex items-center justify-center'
-							whileHover={{ scale: 1.1 }}
-							whileTap={{ scale: 0.9 }}
-							title={isSettingsPage ? "Close settings" : "Open settings"}
-							aria-label={isSettingsPage ? "Close settings" : "Open settings"}>
-							{isSettingsPage ? (
-								<XMarkIcon className='w-6 h-6 text-[var(--color-text-primary)]' />
-							) : (
-								<Cog6ToothIcon className='w-6 h-6 text-[var(--color-text-primary)]' />
-							)}
-						</motion.button>
+						<HoverTooltip content={isSettingsPage ? "Close settings" : "Open settings"}>
+							<motion.button
+								data-testid='header-settings'
+								onClick={onSettingsClick}
+								className='p-2 rounded-full hover:bg-[var(--color-surface)] transition-colors flex items-center justify-center'
+								whileHover={{ scale: 1.1 }}
+								whileTap={{ scale: 0.9 }}
+								aria-label={isSettingsPage ? "Close settings" : "Open settings"}>
+								{isSettingsPage ? (
+									<XMarkIcon className='w-6 h-6 text-[var(--color-text-primary)]' />
+								) : (
+									<Cog6ToothIcon className='w-6 h-6 text-[var(--color-text-primary)]' />
+								)}
+							</motion.button>
+						</HoverTooltip>
 					</div>
 				</div>
 			</motion.header>

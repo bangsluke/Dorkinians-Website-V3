@@ -1,45 +1,27 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { ToastItem } from "@/components/ui/ToastContainer";
+import { useCallback } from "react";
+import type { ToastItem } from "@/components/ui/ToastContainer";
+import { useToastStore } from "@/lib/stores/toast";
 
-let toastIdCounter = 0;
-
+/**
+ * Raise toasts from anywhere. Backed by a global store, so callers do not need to be
+ * inside the subtree that renders ToastContainer.
+ */
 export function useToast() {
-	const [toasts, setToasts] = useState<ToastItem[]>([]);
+	const toasts = useToastStore((state) => state.toasts);
+	const show = useToastStore((state) => state.show);
+	const dismissToast = useToastStore((state) => state.dismiss);
 
-	const showToast = useCallback((message: string, type: ToastItem['type'], duration?: number) => {
-		const id = `toast-${++toastIdCounter}`;
-		const newToast: ToastItem = {
-			id,
-			message,
-			type,
-			duration,
-		};
+	const showToast = useCallback(
+		(message: string, type: ToastItem["type"], duration?: number) => show(message, type, duration),
+		[show],
+	);
 
-		setToasts((prev) => [...prev, newToast]);
-		return id;
-	}, []);
-
-	const dismissToast = useCallback((id: string) => {
-		setToasts((prev) => prev.filter((toast) => toast.id !== id));
-	}, []);
-
-	const showSuccess = useCallback((message: string, duration?: number) => {
-		return showToast(message, 'success', duration);
-	}, [showToast]);
-
-	const showError = useCallback((message: string, duration = 5000) => {
-		return showToast(message, 'error', duration);
-	}, [showToast]);
-
-	const showInfo = useCallback((message: string, duration?: number) => {
-		return showToast(message, 'info', duration);
-	}, [showToast]);
-
-	const showWarning = useCallback((message: string, duration?: number) => {
-		return showToast(message, 'warning', duration);
-	}, [showToast]);
+	const showSuccess = useCallback((message: string, duration?: number) => show(message, "success", duration), [show]);
+	const showError = useCallback((message: string, duration = 5000) => show(message, "error", duration), [show]);
+	const showInfo = useCallback((message: string, duration?: number) => show(message, "info", duration), [show]);
+	const showWarning = useCallback((message: string, duration?: number) => show(message, "warning", duration), [show]);
 
 	return {
 		toasts,

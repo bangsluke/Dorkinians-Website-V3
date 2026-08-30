@@ -13,6 +13,8 @@ import ErrorBoundaryWrapper from "@/components/ErrorBoundaryWrapper";
 import DynamicChunksPrefetch from "@/components/perf/DynamicChunksPrefetch";
 import TopLoadingBar from "@/components/ui/TopLoadingBar";
 import NavigationProgressListener from "@/components/ui/NavigationProgressListener";
+import ToastContainer from "@/components/ui/ToastContainer";
+import SkeletonProvider from "@/components/providers/SkeletonProvider";
 import { validateEnv } from "@/lib/config/envValidation";
 import { isDevelopBranchDeploy } from "@/lib/utils/isDevelopBranchDeploy";
 import { logError } from "@/lib/utils/logger";
@@ -266,7 +268,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 			</head>
 			<body className={inter.className} suppressHydrationWarning={true} style={criticalBodyPaint}>
 				<ErrorBoundaryWrapper>
-					{children}
+					<SkeletonProvider>{children}</SkeletonProvider>
+					<ToastContainer />
 					<TopLoadingBar />
 					<NavigationProgressListener />
 					<DynamicChunksPrefetch />
