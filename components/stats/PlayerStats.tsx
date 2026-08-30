@@ -32,6 +32,7 @@ import { trackEvent } from "@/lib/utils/trackEvent";
 import Button from "@/components/ui/Button";
 import { calculateFTPBreakdown } from "@/lib/utils/fantasyPoints";
 import { ErrorState, EmptyState } from "@/components/ui/StateComponents";
+import WeekDateTooltip from "@/components/ui/WeekDateTooltip";
 import { useToast } from "@/lib/hooks/useToast";
 import AllGamesModal from "@/components/stats/AllGamesModal";
 import PlayerRecentFormBoxes, { type PlayerFormRecentMatch } from "@/components/stats/PlayerRecentFormBoxes";
@@ -552,7 +553,17 @@ function formatStreakCountLabel(count: number, singular: string, plural: string)
 
 // Penalty Stats Visualization Component
 function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltyShootoutScored, penaltyShootoutMissed, penaltyShootoutSaved }: { scored: number; missed: number; saved: number; conceded: number; penaltyShootoutScored: number; penaltyShootoutMissed: number; penaltyShootoutSaved: number }) {
-	
+	const [isDesktopViewport, setIsDesktopViewport] = useState(false);
+
+	useEffect(() => {
+		if (typeof window === "undefined") return;
+		const mq = window.matchMedia("(min-width: 768px)");
+		const apply = () => setIsDesktopViewport(mq.matches);
+		apply();
+		mq.addEventListener("change", apply);
+		return () => mq.removeEventListener("change", apply);
+	}, []);
+
 	// Calculate sizes (max size 120px, min size 30px) - increased by 50%
 	const maxValue = Math.max(scored, missed, saved, conceded, penaltyShootoutScored, penaltyShootoutMissed, penaltyShootoutSaved, 1);
 	const scoredSize = Math.max(30, Math.min(120, (scored / maxValue) * 120));
@@ -573,6 +584,8 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 	// Center positions
 	const goalCenterX = goalX + goalWidth / 2;
 	const goalCenterY = goalY + goalHeight / 2;
+	// Scored/saved circles sit 50px lower on desktop so they clear the heading
+	const scoredSavedY = goalCenterY - 80 + (isDesktopViewport ? 50 : 0);
 	
 	// Penalty box dimensions (semi-circle in front of goal)
 	const penaltyBoxRadius = 60;
@@ -600,20 +613,20 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 				
 				<svg width='100%' height='300' viewBox='0 0 500 300' preserveAspectRatio='xMidYMid meet' className='relative z-10'>
 					
-					{/* Green circle - Scored (left side of center line, moved up more and separated further) */}
+					{/* Green circle - Scored (left of centre; 50px lower on desktop) */}
 					{scored > 0 && (
 						<g>
 							{/* Larger invisible hit area */}
 							<circle
 								cx={goalCenterX - 65}
-								cy={goalCenterY - 80}
+								cy={scoredSavedY}
 								r={scoredSize / 2 + 15}
 								fill='transparent'
 								cursor='pointer'
 							/>
 							<circle
 								cx={goalCenterX - 65}
-								cy={goalCenterY - 80}
+								cy={scoredSavedY}
 								r={scoredSize / 2}
 								fill='#22c55e'
 								cursor='pointer'
@@ -627,7 +640,7 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 							/>
 							<text
 								x={goalCenterX - 65}
-								y={goalCenterY - 80}
+								y={scoredSavedY}
 								textAnchor='middle'
 								dominantBaseline='middle'
 								fill='#ffffff'
@@ -641,20 +654,20 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 						</g>
 					)}
 					
-					{/* Blue circle - Saved (right side of center line, moved up more and separated further) */}
+					{/* Blue circle - Saved (right of centre; 50px lower on desktop) */}
 					{saved > 0 && (
 						<g>
 							{/* Larger invisible hit area */}
 							<circle
 								cx={goalCenterX + 60}
-								cy={goalCenterY - 80}
+								cy={scoredSavedY}
 								r={savedSize / 2 + 15}
 								fill='transparent'
 								cursor='pointer'
 							/>
 							<circle
 								cx={goalCenterX + 60}
-								cy={goalCenterY - 80}
+								cy={scoredSavedY}
 								r={savedSize / 2}
 								fill='#60a5fa'
 								cursor='pointer'
@@ -668,7 +681,7 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 							/>
 							<text
 								x={goalCenterX + 60}
-								y={goalCenterY - 80}
+								y={scoredSavedY}
 								textAnchor='middle'
 								dominantBaseline='middle'
 								fill='#ffffff'
@@ -682,20 +695,20 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 						</g>
 					)}
 					
-					{/* Dark blue circle - Penalty Shootout Saved (same position as Saved but 20px left) */}
+					{/* Dark blue circle - Penalty Shootout Saved (same Y as Saved, 20px left) */}
 					{penaltyShootoutSaved > 0 && (
 						<g>
 							{/* Larger invisible hit area */}
 							<circle
 								cx={goalCenterX + 20}
-								cy={goalCenterY - 80}
+								cy={scoredSavedY}
 								r={penaltyShootoutSavedSize / 2 + 15}
 								fill='transparent'
 								cursor='pointer'
 							/>
 							<circle
 								cx={goalCenterX + 20}
-								cy={goalCenterY - 80}
+								cy={scoredSavedY}
 								r={penaltyShootoutSavedSize / 2}
 								fill='#1e40af'
 								cursor='pointer'
@@ -709,7 +722,7 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 							/>
 							<text
 								x={goalCenterX + 20}
-								y={goalCenterY - 80}
+								y={scoredSavedY}
 								textAnchor='middle'
 								dominantBaseline='middle'
 								fill='#ffffff'
@@ -848,20 +861,20 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 						</g>
 					)}
 					
-					{/* Dark green circle - Penalty Shootout Scored (same vertical position as Scored, 40px more to the left) */}
+					{/* Dark green circle - Penalty Shootout Scored (same Y as Scored, 40px further left) */}
 					{penaltyShootoutScored > 0 && (
 						<g>
 							{/* Larger invisible hit area */}
 							<circle
 								cx={goalCenterX - 110}
-								cy={goalCenterY - 80}
+								cy={scoredSavedY}
 								r={penaltyShootoutScoredSize / 2 + 15}
 								fill='transparent'
 								cursor='pointer'
 							/>
 							<circle
 								cx={goalCenterX - 110}
-								cy={goalCenterY - 80}
+								cy={scoredSavedY}
 								r={penaltyShootoutScoredSize / 2}
 								fill='#15803d'
 								cursor='pointer'
@@ -875,7 +888,7 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 							/>
 							<text
 								x={goalCenterX - 110}
-								y={goalCenterY - 80}
+								y={scoredSavedY}
 								textAnchor='middle'
 								dominantBaseline='middle'
 								fill='#ffffff'
@@ -2007,6 +2020,11 @@ export default function PlayerStats() {
 	const streakTooltipMeta = useMemo((): StreakTooltipMeta | null => {
 		return liveStreaks?.tooltipMeta ?? null;
 	}, [liveStreaks]);
+
+	const formPeakFixtureDate = useMemo(() => {
+		if (!formSummary?.formPeakWeek) return null;
+		return formData.find((point) => point.week === formSummary.formPeakWeek)?.date ?? null;
+	}, [formData, formSummary?.formPeakWeek]);
 
 	// Debug log for position counts (must be before early returns)
 	useEffect(() => {
@@ -3327,9 +3345,14 @@ export default function PlayerStats() {
 									}}>
 									<p className='text-white/75 text-xs'>Peak form</p>
 									<p className='font-semibold text-sm md:text-base' style={{ color: band?.color ?? "rgba(255,255,255,0.95)" }}>
-										{formSummary?.formPeak != null
-											? `${formSummary.formPeak.toFixed(1)} (${formatFormWeekLabel(formSummary.formPeakWeek)})`
-											: "-"}
+										<WeekDateTooltip
+											seasonWeek={formSummary?.formPeakWeek}
+											fixtureDate={formPeakFixtureDate}
+											className='cursor-help'>
+											{formSummary?.formPeak != null
+												? `${formSummary.formPeak.toFixed(1)} (${formatFormWeekLabel(formSummary.formPeakWeek)})`
+												: "-"}
+										</WeekDateTooltip>
 									</p>
 								</div>
 							);
@@ -3885,8 +3908,8 @@ export default function PlayerStats() {
 										i
 									</span>
 									<div className='pointer-events-none absolute left-0 top-6 z-20 hidden w-[min(100vw-2rem,22rem)] rounded-md bg-black/90 p-2 text-[11px] text-white shadow-lg group-hover:block group-focus-within:block'>
-										Win rate in games where you and each teammate both played (minimum five shared games). &quot;Most improved&quot; ranks by how much
-										higher your win rate is with that teammate versus your games without them.
+										Win rate in games where you and each teammate both played (minimum five shared games). The delta shows how your win
+										rate with that teammate compares to your games without them.
 									</div>
 								</div>
 							</div>
@@ -3897,12 +3920,6 @@ export default function PlayerStats() {
 										onClick={() => setPartnershipSortMode("bestWinRate")}
 										className={`px-2 py-1 text-[10px] md:text-xs whitespace-nowrap ${partnershipSortMode === "bestWinRate" ? "bg-dorkinians-yellow text-black font-semibold" : "bg-transparent text-white"}`}>
 										Best win rate
-									</button>
-									<button
-										type='button'
-										onClick={() => setPartnershipSortMode("mostImprovedWinRate")}
-										className={`px-2 py-1 text-[10px] md:text-xs text-center leading-tight border-l border-white/20 ${partnershipSortMode === "mostImprovedWinRate" ? "bg-dorkinians-yellow text-black font-semibold" : "bg-transparent text-white"}`}>
-										Most improved win rate
 									</button>
 									<button
 										type='button'
@@ -3917,33 +3934,33 @@ export default function PlayerStats() {
 							<p className='text-white/60 text-xs'>
 								No partnership data yet. Run a full seed so graph insights (Feature 7) can populate this section.
 							</p>
-						) : partnershipListDisplay.length === 0 && partnershipSortMode === "mostImprovedWinRate" ? (
-							<p className='text-white/60 text-xs'>
-								Most improved needs per-partner lift data. Apply filters (live recalculation) or re-run graph insights (Feature 7) after
-								seeding.
-							</p>
 						) : (
 							<ul className='space-y-2'>
-								{partnershipListDisplay.map((p) => {
+								{partnershipListDisplay.map((p, index) => {
 									const deltaPct = p.lift != null && !Number.isNaN(p.lift) ? Math.round(p.lift * 10) / 10 : null;
 									const deltaClass =
 										deltaPct != null ? (deltaPct < 0 ? "text-red-400" : deltaPct > 0 ? "text-dorkinians-green-text" : "text-white/50") : "";
 									const deltaLabel =
 										deltaPct != null ? `${deltaPct > 0 ? "+" : ""}${deltaPct.toFixed(1)}% vs without them` : null;
 									return (
-										<li key={p.name} className='flex flex-wrap items-baseline justify-between gap-2 bg-white/5 rounded-md px-3 py-2'>
-											<div className='min-w-0'>
-												<button
-													type='button'
-													onClick={() => {
-														selectPlayer(p.name, "picker");
-														setMainPage("stats");
-														setStatsSubPage("player-stats");
-													}}
-													className='text-[#E8C547] text-xs md:text-sm font-medium hover:underline text-left'>
-													{p.name}
-												</button>
-												{deltaLabel ? <p className={`text-[10px] mt-0.5 ${deltaClass}`}>{deltaLabel}</p> : null}
+										<li key={p.name} className='flex flex-wrap items-baseline justify-between gap-2 bg-white/5 rounded-md px-3 py-2 md:py-1'>
+											<div className='min-w-0 flex flex-col md:flex-row md:items-baseline md:gap-2'>
+												<div className='flex items-baseline gap-1.5 min-w-0'>
+													<span className='text-white/50 tabular-nums shrink-0 text-xs md:text-sm'>{index + 1}.</span>
+													<button
+														type='button'
+														onClick={() => {
+															selectPlayer(p.name, "picker");
+															setMainPage("stats");
+															setStatsSubPage("player-stats");
+														}}
+														className='text-[#E8C547] text-xs md:text-sm font-medium hover:underline text-left truncate'>
+														{p.name}
+													</button>
+												</div>
+												{deltaLabel ? (
+													<span className={`text-[10px] md:text-[11px] shrink-0 ${deltaClass}`}>{deltaLabel}</span>
+												) : null}
 											</div>
 											<p className='text-white text-xs md:text-sm font-semibold tabular-nums shrink-0'>
 												{Math.round(p.winRate * 10) / 10}% · {Math.round(p.matches)} games

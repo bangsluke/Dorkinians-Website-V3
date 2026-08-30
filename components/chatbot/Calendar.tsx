@@ -3,6 +3,13 @@
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { ChatbotResponse } from "@/lib/services/chatbotService";
+import {
+	formatSaturdayForCalendarWeek,
+	getMondayOfWeek,
+	getMonthNameFromWeekMonday,
+	getWeeksInYear,
+	weekNum,
+} from "@/lib/utils/weekNumDates";
 
 interface CalendarProps {
 	visualization: ChatbotResponse["visualization"];
@@ -75,59 +82,6 @@ interface MonthLabel {
 	endWeekIndex: number;
 }
 
-// Google Sheets WEEKNUM(date, 2) equivalent
-// Mode 2: Week starts Monday, Week 1 = week containing January 1st
-function weekNum(date: Date): number {
-	const year = date.getFullYear();
-	const jan1 = new Date(year, 0, 1);
-	
-	// Get day of week for Jan 1 (0=Sunday, 1=Monday, ..., 6=Saturday)
-	const jan1Day = jan1.getDay();
-	
-	// Convert to Monday-based (0=Monday, 1=Tuesday, ..., 6=Sunday)
-	const jan1MondayBased = jan1Day === 0 ? 6 : jan1Day - 1;
-	
-	// Calculate days since Jan 1
-	const daysSinceJan1 = Math.floor((date.getTime() - jan1.getTime()) / (1000 * 60 * 60 * 24));
-	
-	// Calculate week number
-	// Week 1 starts on the Monday of the week containing Jan 1
-	const weekNumber = Math.floor((daysSinceJan1 + jan1MondayBased) / 7) + 1;
-	
-	return weekNumber;
-}
-
-// Get the Monday of a given week number in a year
-function getMondayOfWeek(year: number, weekNumber: number): Date {
-	const jan1 = new Date(year, 0, 1);
-	const jan1Day = jan1.getDay();
-	const jan1MondayBased = jan1Day === 0 ? 6 : jan1Day - 1;
-	
-	// Calculate days to add to get to the Monday of weekNumber
-	const daysToAdd = (weekNumber - 1) * 7 - jan1MondayBased;
-	const monday = new Date(jan1);
-	monday.setDate(jan1.getDate() + daysToAdd);
-	
-	return monday;
-}
-
-// Get number of weeks in a year (52 or 53)
-function getWeeksInYear(year: number): number {
-	const dec31 = new Date(year, 11, 31);
-	const weekNumDec31 = weekNum(dec31);
-	
-	// If Dec 31 is in week 53, the year has 53 weeks
-	return weekNumDec31 === 53 ? 53 : 52;
-}
-
-// Get full month name from a week's date (using Thursday as reference)
-function getMonthName(weekStartDate: Date): string {
-	const thursday = new Date(weekStartDate);
-	thursday.setDate(weekStartDate.getDate() + 3);
-	const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-	return monthNames[thursday.getMonth()];
-}
-
 // Custom Tooltip Component
 interface TooltipProps {
 	week: WeekData;
@@ -138,7 +92,8 @@ interface TooltipProps {
 function Tooltip({ week, show, position }: TooltipProps) {
 	if (!show || typeof document === "undefined") return null;
 
-	const monthName = getMonthName(week.startDate);
+	const monthName = getMonthNameFromWeekMonday(week.startDate);
+	const saturdayLabel = formatSaturdayForCalendarWeek(week.year, week.weekNumber);
 
 	// Show different tooltip text based on whether week has fixtures and what data type to show
 	let tooltipText: string;
@@ -170,6 +125,7 @@ function Tooltip({ week, show, position }: TooltipProps) {
 				<div className='font-semibold'>{week.year}</div>
 				<div>{monthName}</div>
 				<div>Week {week.weekNumber}</div>
+				<div className='text-white/80'>{saturdayLabel}</div>
 				<div className='font-medium' style={{ color: '#F9ED32' }}>{tooltipText}</div>
 				{tooltipSecondaryText && (
 					<div className='font-medium' style={{ color: '#F9ED32' }}>{tooltipSecondaryText}</div>

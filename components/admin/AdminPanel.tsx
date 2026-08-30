@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useAppRouter } from "@/lib/hooks/useAppRouter";
 import { seedingStatusService } from "@/lib/services/seedingStatusService";
 import { getCsrfHeaders } from "@/lib/middleware/csrf";
 import { summarizeSeedingTriggerError } from "@/lib/utils/summarizeSeedingTriggerError";
@@ -72,7 +72,7 @@ interface SeedingResult {
 }
 
 export default function AdminPanel() {
-	const router = useRouter();
+	const router = useAppRouter();
 	const [isLoading, setIsLoading] = useState(false);
 	const [result, setResult] = useState<SeedingResult | null>(null);
 	const [error, setError] = useState<string | null>(null);

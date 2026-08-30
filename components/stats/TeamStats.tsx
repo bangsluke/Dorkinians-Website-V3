@@ -1873,7 +1873,7 @@ export default function TeamStats() {
 									teamData.formationBreakdown.length > 0 && (
 									<div id='team-formation-breakdown' className='md:break-inside-avoid md:mb-4'>
 										<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-											<div className='flex items-center gap-2 mb-2'>
+											<div className='flex items-center gap-2 mb-4'>
 												<h3 className='text-white font-semibold text-sm md:text-base'>Formations Used</h3>
 												<FloatingTooltipTrigger
 													className='inline-flex items-center justify-center w-4 h-4 text-[10px] rounded-full border border-white/40 text-white/80 cursor-help outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow/80'
@@ -1888,28 +1888,11 @@ export default function TeamStats() {
 													i
 												</FloatingTooltipTrigger>
 											</div>
-											{formationRecommendation ? (
-												<div
-													data-testid='formation-recommendation'
-													className='mb-3 rounded-md border border-dorkinians-yellow/40 bg-yellow-400/10 px-3 py-2 text-xs text-white'
-												>
-													<p className='font-semibold text-dorkinians-yellow'>Suggested setup</p>
-													<p className='mt-1'>
-														<strong>{formationRecommendation.formation}</strong> - best win rate in this sample (
-														{formationRecommendation.winPercentage.toFixed(1)}% over {formationRecommendation.games} game
-														{formationRecommendation.games === 1 ? "" : "s"}, {formationRecommendation.wins} win
-														{formationRecommendation.wins === 1 ? "" : "s"}).
-													</p>
-													{formationRecommendation.lowSample ? (
-														<p className='mt-1 text-white/70'>Low sample size - treat as a hint, not a rule.</p>
-													) : null}
-												</div>
-											) : null}
-											<div className='chart-container -my-2' style={{ touchAction: 'pan-y' }}>
+											<div className='chart-container' style={{ touchAction: 'pan-y' }}>
 												<ResponsiveContainer width='100%' height={280}>
 													<BarChart
 														data={teamData.formationBreakdown}
-														margin={{ top: 8, right: 28, left: 8, bottom: 4 }}>
+														margin={{ top: 8, right: 12, left: 12, bottom: 0 }}>
 														<CartesianGrid strokeDasharray='3 3' stroke='#ffffff22' />
 														<XAxis
 															dataKey='formation'
@@ -1917,19 +1900,20 @@ export default function TeamStats() {
 															interval={0}
 															angle={-30}
 															textAnchor='end'
-															height={72}
+															height={56}
 														/>
 														<YAxis
 															yAxisId='games'
 															tick={{ fill: '#d4a012', fontSize: 11 }}
 															allowDecimals={false}
 															width={40}
+															tickMargin={8}
 															label={{
 																value: 'Games',
 																angle: -90,
-																position: 'insideLeft',
-																offset: 8,
-																style: { textAnchor: 'middle', fill: '#d4a012', fontSize: 11 },
+																position: 'left',
+																offset: 0,
+																style: { textAnchor: 'middle', fill: '#d4a012', fontSize: 10 },
 															}}
 														/>
 														<YAxis
@@ -1937,14 +1921,15 @@ export default function TeamStats() {
 															orientation='right'
 															tick={{ fill: '#22c55e', fontSize: 11 }}
 															domain={[0, 100]}
-															width={44}
+															width={48}
+															tickMargin={8}
 															unit='%'
 															label={{
 																value: 'Win %',
 																angle: 90,
-																position: 'insideRight',
-																offset: 8,
-																style: { textAnchor: 'middle', fill: '#22c55e', fontSize: 11 },
+																position: 'right',
+																offset: 0,
+																style: { textAnchor: 'middle', fill: '#22c55e', fontSize: 10 },
 															}}
 														/>
 														<Tooltip
@@ -1959,6 +1944,28 @@ export default function TeamStats() {
 													</BarChart>
 												</ResponsiveContainer>
 											</div>
+											{formationRecommendation ? (
+												<div
+													data-testid='formation-recommendation'
+													className='relative z-10 mt-0 rounded-lg border border-white/40 bg-white/[0.07] px-3 py-2 flex flex-col gap-0.5'
+												>
+													<span className='text-dorkinians-yellow text-xs font-semibold'>Suggested setup</span>
+													<span className='text-white font-semibold text-sm md:text-base'>
+														{formationRecommendation.formation}
+													</span>
+													<span className='text-white/90 text-xs md:text-sm'>
+														Best win rate in this sample ({formationRecommendation.winPercentage.toFixed(1)}% over{" "}
+														{formationRecommendation.games} game
+														{formationRecommendation.games === 1 ? "" : "s"}, {formationRecommendation.wins} win
+														{formationRecommendation.wins === 1 ? "" : "s"}).
+													</span>
+													{formationRecommendation.lowSample ? (
+														<span className='text-white/55 text-[10px] md:text-xs'>
+															Low sample size - treat as a hint, not a rule.
+														</span>
+													) : null}
+												</div>
+											) : null}
 										</div>
 									</div>
 								)}

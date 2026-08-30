@@ -94,6 +94,7 @@ export default function TeamOfTheWeek() {
 	const [loadingPlayerDetails, setLoadingPlayerDetails] = useState(false);
 	const [isSharingTOTW, setIsSharingTOTW] = useState(false);
 	const [containerWidth, setContainerWidth] = useState(800);
+	const [isDesktopViewport, setIsDesktopViewport] = useState(false);
 	const [isAllTimeSelected, setIsAllTimeSelected] = useState(false);
 	const [isSeasonTOTWSelected, setIsSeasonTOTWSelected] = useState(false);
 
@@ -512,6 +513,16 @@ export default function TeamOfTheWeek() {
 		};
 	}, [totwData, loading]);
 
+	// Desktop (md+) name boxes need extra gap so four-across rows do not form a solid bar
+	useEffect(() => {
+		if (typeof window === "undefined") return;
+		const mq = window.matchMedia("(min-width: 768px)");
+		const apply = (): void => setIsDesktopViewport(mq.matches);
+		apply();
+		mq.addEventListener("change", apply);
+		return () => mq.removeEventListener("change", apply);
+	}, []);
+
 	// Handle player click
 	const handlePlayerClick = async (playerName: string) => {
 		if (!selectedSeason || !playerName) return;
@@ -898,8 +909,8 @@ export default function TeamOfTheWeek() {
 		const minWidth = 55; // Minimum width in pixels
 
 		rowData.forEach((data, rowY) => {
-			// Use smaller gap for 4-player rows to maximize box width
-			const gapBetweenBoxes = data.playerCount === 4 ? 1 : 2;
+			// Four-across rows used a 1px gap that reads as a solid bar on desktop; keep a visible pitch gap there
+			const gapBetweenBoxes = data.playerCount === 4 ? (isDesktopViewport ? 8 : 1) : 2;
 			
 			// Get players in this row with their positions
 			const rowPlayersWithPositions = playersInFormation
@@ -936,6 +947,10 @@ export default function TeamOfTheWeek() {
 					boxWidth = Math.min(boxWidth, maxBoxWidth);
 				}
 				
+				if (isDesktopViewport) {
+					boxWidth = Math.max(minWidth, boxWidth - 8);
+				}
+
 				dimensions.set(rowY, {
 					width: boxWidth,
 					height: baseHeight,
@@ -986,12 +1001,11 @@ export default function TeamOfTheWeek() {
 				let boxWidth;
 				if (data.playerCount === 4) {
 					// For 4-player rows, use the full available width from the row
-					// Use 92% of the calculated width to ensure small gaps remain
-					const widerBoxWidth = maxBoxWidthFromRow * 0.92;
-					// Also consider using more of the spacing if it's larger
-					const widerFromSpacing = maxBoxWidthFromSpacing * 1.05;
-					// Use the larger of the two to maximize width, then reduce by 5px
-					boxWidth = Math.max(minWidth, Math.max(widerBoxWidth, widerFromSpacing) - 5);
+					// Desktop: slightly narrower so adjacent boxes leave visible pitch between them
+					const widerBoxWidth = maxBoxWidthFromRow * (isDesktopViewport ? 0.86 : 0.92);
+					const widerFromSpacing = maxBoxWidthFromSpacing * (isDesktopViewport ? 1 : 1.05);
+					const widthTrim = isDesktopViewport ? 10 : 5;
+					boxWidth = Math.max(minWidth, Math.max(widerBoxWidth, widerFromSpacing) - widthTrim);
 				} else if (data.playerCount === 5) {
 					// For 5-player rows, use the smaller of the two and add 14px
 					boxWidth = Math.max(minWidth, Math.min(maxBoxWidthFromRow, maxBoxWidthFromSpacing) + 14);
@@ -999,7 +1013,11 @@ export default function TeamOfTheWeek() {
 					// Use the smaller of the two for other row sizes
 					boxWidth = Math.max(minWidth, Math.min(maxBoxWidthFromRow, maxBoxWidthFromSpacing));
 				}
-				
+
+				if (isDesktopViewport && data.playerCount !== 4) {
+					boxWidth = Math.max(minWidth, boxWidth - 8);
+				}
+
 				dimensions.set(rowY, {
 					width: boxWidth,
 					height: baseHeight,
@@ -1008,7 +1026,7 @@ export default function TeamOfTheWeek() {
 		});
 
 		return dimensions;
-	}, [formation, playersInFormation, containerWidth]);
+	}, [formation, playersInFormation, containerWidth, isDesktopViewport]);
 
 	return (
 		<div className='flex flex-col px-[11.2px] md:px-[16.8px] pt-2 md:pt-4 pb-4 md:pb-6 relative md:max-w-2xl md:mx-auto lg:max-w-6xl w-full'>

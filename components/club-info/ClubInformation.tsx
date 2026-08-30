@@ -507,7 +507,7 @@ export default function ClubInformation() {
 					</div>
 				</div>
 
-				<div className='min-w-0 space-y-8 mt-8 lg:mt-0'>
+				<div className='min-w-0 space-y-8 mt-8 lg:mt-0 w-full md:max-w-2xl md:mx-auto px-2 md:px-4'>
 					{featureFlags.achievementBadges ? <BadgeLeaderboardSection /> : null}
 					{featureFlags.clubInfoRecords ? <RecordsSection /> : null}
 				</div>

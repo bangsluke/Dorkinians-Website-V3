@@ -18,7 +18,8 @@ import {
 	XMarkIcon,
 } from "@heroicons/react/24/outline";
 import { ChevronDownIcon, ChevronUpIcon } from "@heroicons/react/24/outline";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
+import { useAppRouter } from "@/lib/hooks/useAppRouter";
 
 const navigationItems = [
 	{
@@ -61,7 +62,7 @@ const navigationItems = [
 ];
 
 export default function Settings() {
-	const router = useRouter();
+	const router = useAppRouter();
 	const pathname = usePathname();
 	const { setMainPage, setStatsSubPage, setTOTWSubPage, setClubInfoSubPage } = useNavigationStore();
 	const [seedingStatus] = useState(() => seedingStatusService.getSeedingStatus());

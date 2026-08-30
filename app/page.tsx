@@ -8,7 +8,7 @@ import FooterNavigation from "@/components/layout/FooterNavigation";
 import SidebarNavigation from "@/components/layout/SidebarNavigation";
 import dynamic from "next/dynamic";
 import { wrapDynamicImport } from "@/lib/utils/chunkLoadRetry";
-import ClearChunkRetryFlag from "@/components/system/ClearChunkRetryFlag";
+import { useAppRouter } from "@/lib/hooks/useAppRouter";
 
 // Dynamically import sidebar/menu components - only load when opened
 const FilterSidebar = dynamic(() => wrapDynamicImport(() => import("@/components/filters/FilterSidebar")), {
@@ -54,6 +54,7 @@ import UpdateToast from "@/components/admin/UpdateToast";
 import DevClearStorageFAB from "@/components/admin/DevClearStorageFAB";
 import ToastContainer from "@/components/ui/ToastContainer";
 import Neo4jPreWarm from "@/components/Neo4jPreWarm";
+import ClearChunkRetryFlag from "@/components/system/ClearChunkRetryFlag";
 import { useToast } from "@/lib/hooks/useToast";
 import { initializeCurrentSeason, getCurrentSeasonFromStorage } from "@/lib/services/currentSeasonService";
 import { preloadCaptainsData } from "@/lib/services/captainsPreloadService";
@@ -137,6 +138,7 @@ export default function HomePage() {
 		isAllGamesModalOpen,
 		loadFilterData,
 	} = useNavigationStore();
+	const router = useAppRouter();
 
 	const [chatbotRevealReady, setChatbotRevealReady] = useState(true);
 	const [showUpdateToast, setShowUpdateToast] = useState(true);
@@ -239,7 +241,7 @@ export default function HomePage() {
 		if (typeof window !== "undefined") {
 			localStorage.setItem("dorkinians-previous-main-page", currentMainPage);
 		}
-		window.location.href = "/settings";
+		router.push("/settings");
 	};
 
 	const handleFilterClick = () => {

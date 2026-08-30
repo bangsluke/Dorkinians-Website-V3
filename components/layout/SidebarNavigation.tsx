@@ -17,10 +17,11 @@ import Image from "next/image";
 import { log } from "@/lib/utils/logger";
 import Button from "@/components/ui/Button";
 import { useState, useEffect, useMemo, useRef, useSyncExternalStore } from "react";
-import { getPlayerProfileHref } from "@/lib/profile/slug";
 import { featureFlags } from "@/config/config";
+import { useProfileNavigation } from "@/lib/hooks/useProfileNavigation";
 import { isDevelopBranchDeploy } from "@/lib/utils/isDevelopBranchDeploy";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
+import { useAppRouter } from "@/lib/hooks/useAppRouter";
 import { scheduleProfileIntroBursts, shouldRunProfileIntro } from "@/lib/utils/profileNavIntro";
 
 const emptySubscribe = () => () => {};
@@ -104,7 +105,7 @@ export default function SidebarNavigation({
 		isPlayerSelected,
 	} = useNavigationStore();
 	const pathname = usePathname();
-	const router = useRouter();
+	const router = useAppRouter();
 	const [showTooltip, setShowTooltip] = useState(false);
 	const [showFilterTooltip, setShowFilterTooltip] = useState(false);
 	const [showProfileTooltip, setShowProfileTooltip] = useState(false);
@@ -429,9 +430,11 @@ export default function SidebarNavigation({
 		return false;
 	};
 
+	const { isPending: isProfileNavPending, navigateToProfile } = useProfileNavigation(selectedPlayer);
+
 	const handleProfileClick = () => {
 		if (!selectedPlayer) return;
-		router.push(getPlayerProfileHref(selectedPlayer));
+		navigateToProfile(selectedPlayer);
 	};
 
 	const profileRingAttention = profileIntroPulse || showProfileTooltip;
@@ -565,6 +568,7 @@ export default function SidebarNavigation({
 										dismissProfileTooltip();
 										handleProfileClick();
 									}}
+									disabled={isProfileNavPending}
 									className={`p-2 rounded-full transition-all duration-200 flex items-center justify-center ${
 										isProfileRoute
 											? "ring-[3px] ring-dorkinians-yellow ring-offset-2 ring-offset-[var(--color-bg)] bg-dorkinians-yellow/20"
@@ -574,8 +578,8 @@ export default function SidebarNavigation({
 											? "ring-[3px] ring-dorkinians-yellow ring-offset-2 ring-offset-[var(--color-bg)] shadow-[0_0_22px_rgba(232,197,71,0.9)] scale-105"
 											: ""
 									}`}
-									whileHover={{ scale: 1.1 }}
-									whileTap={{ scale: 0.9 }}
+									whileHover={isProfileNavPending ? undefined : { scale: 1.1 }}
+									whileTap={isProfileNavPending ? undefined : { scale: 0.9 }}
 									title='Open player profile'
 									aria-label='Open player profile'>
 									<UserCircleIcon className={`w-7 h-7 ${isProfileRoute ? "text-dorkinians-yellow-text" : "text-[var(--color-text-primary)]"}`} />
@@ -661,7 +665,7 @@ export default function SidebarNavigation({
 								{hasSubPages && (
 									<div className='pl-4 space-y-0.5'>
 										{item.subPages.map((subPage) => {
-											const isSubActive = isSubPageActive(item.id, subPage.id) && !isSettingsPage;
+											const isSubActive = isSubPageActive(item.id, subPage.id) && !isSettingsPage && !isProfileRoute;
 											return (
 												<motion.div key={subPage.id} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
 													<button

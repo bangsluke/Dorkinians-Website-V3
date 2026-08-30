@@ -7,10 +7,11 @@ import { Cog6ToothIcon, XMarkIcon, FunnelIcon, Bars3Icon, UserCircleIcon } from 
 import { useNavigationStore } from "@/lib/stores/navigation";
 import { getActiveFilterCount } from "@/lib/utils/filterUtils";
 import Image from "next/image";
-import { getPlayerProfileHref } from "@/lib/profile/slug";
 import { featureFlags } from "@/config/config";
+import { useProfileNavigation } from "@/lib/hooks/useProfileNavigation";
 import { isDevelopBranchDeploy } from "@/lib/utils/isDevelopBranchDeploy";
 import { usePathname } from "next/navigation";
+import { useAppRouter } from "@/lib/hooks/useAppRouter";
 import { scheduleProfileIntroBursts, shouldRunProfileIntro } from "@/lib/utils/profileNavIntro";
 
 const MENU_INTRO_KEY = "stats-nav-menu-animated";
@@ -58,6 +59,7 @@ export default function Header({
 }: HeaderProps) {
 	const { setMainPage, playerFilters, filterData, currentMainPage, selectedPlayer, isPlayerSelected } = useNavigationStore();
 	const pathname = usePathname();
+	const router = useAppRouter();
 	const [showMenuTooltip, setShowMenuTooltip] = useState(false);
 	const [showFilterTooltip, setShowFilterTooltip] = useState(false);
 	const [showProfileTooltip, setShowProfileTooltip] = useState(false);
@@ -234,19 +236,19 @@ export default function Header({
 
 	const handleLogoClick = () => {
 		setMainPage("home");
-		if (typeof window !== "undefined") {
-			window.location.href = "/";
+		if (pathname !== "/") {
+			router.push("/");
 		}
 	};
 
 	const showAnyTooltip = showMenuTooltip || showFilterTooltip || showProfileTooltip;
 	const showDevBadge = isDevelopBranchDeploy() && currentMainPage === "home";
 
+	const { isPending: isProfileNavPending, navigateToProfile } = useProfileNavigation(selectedPlayer);
+
 	const handleProfileClick = () => {
 		if (!selectedPlayer) return;
-		if (typeof window !== "undefined") {
-			window.location.href = getPlayerProfileHref(selectedPlayer);
-		}
+		navigateToProfile(selectedPlayer);
 	};
 
 	const profileRingAttention = profileIntroPulse || showProfileTooltip;
@@ -406,6 +408,7 @@ export default function Header({
 										dismissProfileTooltip();
 										handleProfileClick();
 									}}
+									disabled={isProfileNavPending}
 									className={`p-2 rounded-full transition-all duration-200 flex items-center justify-center ${
 										isProfileRoute
 											? "ring-[3px] ring-dorkinians-yellow ring-offset-2 ring-offset-[var(--color-bg)] bg-dorkinians-yellow/20"
@@ -415,8 +418,8 @@ export default function Header({
 											? "ring-[3px] ring-dorkinians-yellow ring-offset-2 ring-offset-[var(--color-bg)] shadow-[0_0_22px_rgba(232,197,71,0.9)] scale-105"
 											: ""
 									}`}
-									whileHover={{ scale: 1.1 }}
-									whileTap={{ scale: 0.9 }}
+									whileHover={isProfileNavPending ? undefined : { scale: 1.1 }}
+									whileTap={isProfileNavPending ? undefined : { scale: 0.9 }}
 									title='Open player profile'
 									aria-label='Open player profile'>
 									<UserCircleIcon className={`w-6 h-6 ${isProfileRoute ? "text-dorkinians-yellow-text" : "text-[var(--color-text-primary)]"}`} />

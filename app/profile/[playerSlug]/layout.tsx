@@ -3,12 +3,13 @@
 import SidebarNavigation from "@/components/layout/SidebarNavigation";
 import Header from "@/components/layout/Header";
 import FooterNavigation from "@/components/layout/FooterNavigation";
+import { useAppRouter } from "@/lib/hooks/useAppRouter";
 
 export default function PlayerProfileLayout({ children }: { children: React.ReactNode }) {
+	const router = useAppRouter();
+
 	const handleSettingsClick = () => {
-		if (typeof window !== "undefined") {
-			window.location.href = "/settings";
-		}
+		router.push("/settings");
 	};
 
 	return (

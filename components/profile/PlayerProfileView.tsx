@@ -3,12 +3,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { useRouter } from "next/navigation";
+import { useAppRouter } from "@/lib/hooks/useAppRouter";
 import { createPortal } from "react-dom";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigationStore } from "@/lib/stores/navigation";
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
+import ProfilePageSkeleton from "@/components/profile/ProfilePageSkeleton";
 import { profileSlugToPlayerName } from "@/lib/profile/slug";
 import { generatePageCacheKey } from "@/lib/utils/pageCache";
 import { isSeasonWrappedPromoMonth } from "@/lib/wrapped/seasonWrappedPromo";
@@ -68,7 +69,7 @@ export default function PlayerProfileView({
 	initialHeadlineData?: PlayerData | null;
 	initialWrappedMeta?: InitialWrappedMeta | null;
 }) {
-	const router = useRouter();
+	const router = useAppRouter();
 	const enterEditMode = useNavigationStore((s) => s.enterEditMode);
 	const setMainPage = useNavigationStore((s) => s.setMainPage);
 	const getCachedPageData = useNavigationStore((s) => s.getCachedPageData);
@@ -301,19 +302,24 @@ export default function PlayerProfileView({
 						})();
 				const wrappedPromise =
 					featureFlags.seasonWrapped && wrappedSlug
-						? (async () => {
-								const wrappedRes = await fetch(`/api/wrapped/${encodeURIComponent(wrappedSlug)}?meta=1`);
-								if (!wrappedRes.ok) {
-									return { seasons: [], selectedSeason: null as string | null };
-								}
-								const wj = (await wrappedRes.json()) as {
-									seasonsAvailable?: string[];
-									season?: string;
-								};
-								const seasons = Array.isArray(wj.seasonsAvailable) ? wj.seasonsAvailable : [];
-								const season = typeof wj.season === "string" ? wj.season : null;
-								return { seasons, selectedSeason: season ?? seasons[0] ?? null };
-							})()
+						? initialWrappedMeta
+							? Promise.resolve({
+									seasons: initialWrappedMeta.seasons,
+									selectedSeason: initialWrappedMeta.selectedSeason,
+								})
+							: (async () => {
+									const wrappedRes = await fetch(`/api/wrapped/${encodeURIComponent(wrappedSlug)}?meta=1`);
+									if (!wrappedRes.ok) {
+										return { seasons: [], selectedSeason: null as string | null };
+									}
+									const wj = (await wrappedRes.json()) as {
+										seasonsAvailable?: string[];
+										season?: string;
+									};
+									const seasons = Array.isArray(wj.seasonsAvailable) ? wj.seasonsAvailable : [];
+									const season = typeof wj.season === "string" ? wj.season : null;
+									return { seasons, selectedSeason: season ?? seasons[0] ?? null };
+								})()
 						: Promise.resolve({ seasons: [], selectedSeason: null as string | null });
 				const badgesPromise = featureFlags.achievementBadges
 					? (async () => {
@@ -441,59 +447,7 @@ export default function PlayerProfileView({
 				</div>
 
 				{isLoading ? (
-					<SkeletonTheme baseColor='var(--skeleton-base)' highlightColor='var(--skeleton-highlight)'>
-						{showSeasonWrappedPromoBlock ? (
-							<div
-								className='rounded-xl border-2 border-[#E8C547]/60 bg-gradient-to-br from-[#E8C547]/25 via-[#E8C547]/15 to-[#b8941f]/12 p-4 md:p-5 shadow-md ring-1 ring-inset ring-[#E8C547]/25'
-								data-testid='player-profile-season-wrapped-loading'>
-								<h3 className='text-dorkinians-yellow font-semibold text-base md:text-lg'>Season Wrapped</h3>
-								<p className='mt-2 text-white/75 text-sm'>Loading season options…</p>
-							</div>
-						) : null}
-						<div className='rounded-lg bg-white/10 backdrop-blur-sm p-4 mt-4 space-y-3'>
-							<Skeleton height={20} width='30%' />
-							<div className='grid grid-cols-2 md:grid-cols-4 gap-2'>
-								{Array.from({ length: 8 }).map((_, i) => (
-									<Skeleton key={i} height={64} className='rounded-md' />
-								))}
-							</div>
-						</div>
-						<div className='rounded-lg bg-white/10 backdrop-blur-sm p-4 mt-4'>
-							<Skeleton height={18} width='38%' className='mb-1' />
-							<Skeleton height={13} width='55%' className='mb-3' />
-							<div className='rounded-xl border border-white/10 bg-black/15 p-3 mb-3'>
-								<div className='flex items-center justify-between mb-2'>
-									<Skeleton height={16} width={110} />
-									<Skeleton height={16} width={44} />
-								</div>
-								<Skeleton height={6} className='rounded-full w-full' />
-							</div>
-							<div className='rounded-xl border border-white/10 bg-black/15 p-3 mb-3'>
-								<Skeleton height={14} width={130} className='mb-2' />
-								<div className='space-y-2'>
-										<div className='flex items-center justify-between gap-2'>
-											<div className='flex items-center gap-2'>
-												<Skeleton circle height={40} width={40} />
-												<Skeleton height={10} width={120} />
-											</div>
-											<Skeleton height={10} width={50} />
-										</div>
-								</div>
-							</div>
-							<div className='rounded-xl border border-white/10 bg-black/15 p-3'>
-								<Skeleton height={16} width='42%' className='mb-3' />
-								<div className='grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3'>
-									{Array.from({ length: 8 }).map((_, i) => (
-										<div key={i} className='flex flex-col items-center text-center gap-1.5 p-2 rounded-lg'>
-											<Skeleton circle height={36} width={36} />
-											<Skeleton height={10} width='75%' />
-											<Skeleton height={10} width='45%' />
-										</div>
-									))}
-								</div>
-							</div>
-						</div>
-					</SkeletonTheme>
+					<ProfilePageSkeleton />
 				) : error ? (
 					<div className='rounded-lg bg-white/10 backdrop-blur-sm p-4 text-red-200'>{error}</div>
 				) : (
