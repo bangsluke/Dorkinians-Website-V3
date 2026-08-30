@@ -23,6 +23,14 @@ import { TooltipSurface, TooltipArrow, FloatingTooltipTrigger } from "@/componen
 import { log } from "@/lib/utils/logger";
 import LazyWhenVisible from "@/components/perf/LazyWhenVisible";
 import RecordingsSection from "@/components/stats/RecordingsSection";
+import TopPlayersTable from "@/components/stats/TopPlayersTable";
+import TopPlayersModal from "@/components/stats/TopPlayersModal";
+import {
+	getStatTypeLabel,
+	normalizeTopPlayer,
+	type TopPlayer,
+	type TopPlayersStatType,
+} from "@/lib/stats/topPlayersUtils";
 import type { RecordingFixture } from "@/lib/utils/recordingsDisplay";
 
 // Dynamically import ResponsiveSankey to reduce initial bundle size (151 KB -> only loads when needed)
@@ -35,32 +43,27 @@ const ResponsiveSankey = dynamic(
 );
 import Button from "@/components/ui/Button";
 
-
-interface TopPlayer {
-	playerName: string;
-	appearances: number;
-	goals: number;
-	assists: number;
-	cleanSheets: number;
-	mom: number;
-	penaltiesScored: number;
-	saves: number;
-	yellowCards: number;
-	redCards: number;
-	fantasyPoints: number;
-	goalInvolvements: number;
-	homeGames: number;
-	awayGames: number;
-	minutes: number;
-	ownGoals: number;
-	conceded: number;
-	penaltiesMissed: number;
-	penaltiesConceded: number;
-	penaltiesSaved: number;
-	distance: number;
-}
-
-type StatType = "appearances" | "goals" | "assists" | "cleanSheets" | "mom" | "saves" | "yellowCards" | "redCards" | "penaltiesScored" | "fantasyPoints" | "goalInvolvements" | "minutes" | "ownGoals" | "conceded" | "penaltiesMissed" | "penaltiesConceded" | "penaltiesSaved" | "distance";
+type StatType = Extract<
+	TopPlayersStatType,
+	| "appearances"
+	| "goals"
+	| "assists"
+	| "cleanSheets"
+	| "mom"
+	| "saves"
+	| "yellowCards"
+	| "redCards"
+	| "penaltiesScored"
+	| "fantasyPoints"
+	| "goalInvolvements"
+	| "minutes"
+	| "ownGoals"
+	| "conceded"
+	| "penaltiesMissed"
+	| "penaltiesConceded"
+	| "penaltiesSaved"
+	| "distance"
+>;
 
 function StatRow({ stat, value, teamData }: { stat: any; value: any; teamData: TeamData }) {
 	const [showTooltip, setShowTooltip] = useState(false);
@@ -397,6 +400,7 @@ export default function ClubStats() {
 	});
 	const [topPlayers, setTopPlayers] = useState<TopPlayer[]>([]);
 	const [isLoadingTopPlayers, setIsLoadingTopPlayers] = useState(false);
+	const [isTopPlayersModalOpen, setIsTopPlayersModalOpen] = useState(false);
 
 	// State for view mode toggle - initialize from localStorage
 	const [isDataTableMode, setIsDataTableMode] = useState<boolean>(() => {
@@ -634,7 +638,7 @@ export default function ClubStats() {
 					setCachedPageData,
 				});
 				log("info", `[ClubStats] Received ${data.players?.length || 0} players for statType: ${selectedStatType}`, data.players);
-				setTopPlayers(data.players || []);
+				setTopPlayers((data.players || []).map((p: Partial<TopPlayer>) => normalizeTopPlayer(p)));
 			} catch (error) {
 				log("error", "[ClubStats] Error fetching top players:", error);
 				setTopPlayers([]);
@@ -983,174 +987,6 @@ export default function ClubStats() {
 	const handleStatTypeSelect = (statType: StatType) => {
 		setSelectedStatType(statType);
 		trackStatsStatSelected("club-stats", "club-top-players", statType);
-	};
-
-	// Get stat value for a player based on stat type
-	const getStatValue = (player: TopPlayer, statType: StatType): number => {
-		switch (statType) {
-			case "appearances":
-				return player.appearances;
-			case "goals":
-				return player.goals + player.penaltiesScored;
-			case "assists":
-				return player.assists;
-			case "cleanSheets":
-				return player.cleanSheets;
-			case "mom":
-				return player.mom;
-			case "saves":
-				return player.saves;
-			case "yellowCards":
-				return player.yellowCards;
-			case "redCards":
-				return player.redCards;
-			case "penaltiesScored":
-				return player.penaltiesScored;
-			case "fantasyPoints":
-				return Math.round(player.fantasyPoints);
-			case "goalInvolvements":
-				return player.goalInvolvements;
-			case "minutes":
-				return player.minutes;
-			case "ownGoals":
-				return player.ownGoals;
-			case "conceded":
-				return player.conceded;
-			case "penaltiesMissed":
-				return player.penaltiesMissed;
-			case "penaltiesConceded":
-				return player.penaltiesConceded;
-			case "penaltiesSaved":
-				return player.penaltiesSaved;
-			case "distance":
-				return player.distance;
-			default:
-				return 0;
-		}
-	};
-
-	// Format player summary text based on stat type
-	const formatPlayerSummary = (player: TopPlayer, statType: StatType): string => {
-		const apps = `${player.appearances} ${player.appearances === 1 ? "App" : "Apps"}`;
-		
-		switch (statType) {
-			case "appearances":
-				const homeGamesText = `${player.homeGames} ${player.homeGames === 1 ? "Home Game" : "Home Games"}`;
-				const awayGamesText = `${player.awayGames} ${player.awayGames === 1 ? "Away Game" : "Away Games"}`;
-				return `${homeGamesText} and ${awayGamesText}`;
-			case "goals":
-				const totalGoals = player.goals + player.penaltiesScored;
-				const penaltyText = player.penaltiesScored > 0 ? ` (incl. ${player.penaltiesScored} ${player.penaltiesScored === 1 ? "penalty" : "penalties"})` : "";
-				return `${totalGoals} ${totalGoals === 1 ? "Goal" : "Goals"}${penaltyText} in ${apps}`;
-			case "assists":
-				return `${player.assists} ${player.assists === 1 ? "Assist" : "Assists"} in ${apps}`;
-			case "cleanSheets":
-				return `${player.cleanSheets} ${player.cleanSheets === 1 ? "Clean Sheet" : "Clean Sheets"} in ${apps}`;
-			case "mom":
-				return `${player.mom} ${player.mom === 1 ? "Man of the Match" : "Man of the Matches"} in ${apps}`;
-			case "saves":
-				return `${player.saves} ${player.saves === 1 ? "Save" : "Saves"} in ${apps}`;
-			case "yellowCards":
-				return `${player.yellowCards} ${player.yellowCards === 1 ? "Yellow Card" : "Yellow Cards"} in ${apps}`;
-			case "redCards":
-				return `${player.redCards} ${player.redCards === 1 ? "Red Card" : "Red Cards"} in ${apps}`;
-			case "penaltiesScored":
-				return `${player.penaltiesScored} ${player.penaltiesScored === 1 ? "Penalty Scored" : "Penalties Scored"} in ${apps}`;
-			case "fantasyPoints":
-				return `${Math.round(player.fantasyPoints)} ${Math.round(player.fantasyPoints) === 1 ? "Fantasy Point" : "Fantasy Points"} in ${apps}`;
-			case "goalInvolvements":
-				const totalGoalsForInvolvements = player.goals + player.penaltiesScored;
-				const penaltyTextGi =
-					player.penaltiesScored > 0
-						? ` (incl. ${player.penaltiesScored} ${player.penaltiesScored === 1 ? "penalty" : "penalties"})`
-						: "";
-				const goalsText = `${totalGoalsForInvolvements} ${totalGoalsForInvolvements === 1 ? "Goal" : "Goals"}${penaltyTextGi}`;
-				const assistsText = `${player.assists} ${player.assists === 1 ? "Assist" : "Assists"}`;
-				return `${goalsText} and ${assistsText} in ${apps}`;
-			case "minutes":
-				const formattedMinutes = player.minutes.toLocaleString();
-				return `${formattedMinutes} ${player.minutes === 1 ? "Minute" : "Minutes"} in ${apps}`;
-			case "ownGoals":
-				return `${player.ownGoals} ${player.ownGoals === 1 ? "Own Goal" : "Own Goals"} in ${apps}`;
-			case "conceded":
-				return `${player.conceded} ${player.conceded === 1 ? "Goal Conceded" : "Goals Conceded"} in ${apps}`;
-			case "penaltiesMissed":
-				return `${player.penaltiesMissed} ${player.penaltiesMissed === 1 ? "Penalty Missed" : "Penalties Missed"} in ${apps}`;
-			case "penaltiesConceded":
-				return `${player.penaltiesConceded} ${player.penaltiesConceded === 1 ? "Penalty Conceded" : "Penalties Conceded"} in ${apps}`;
-			case "penaltiesSaved":
-				return `${player.penaltiesSaved} ${player.penaltiesSaved === 1 ? "Penalty Saved" : "Penalties Saved"} in ${apps}`;
-			case "distance":
-				const roundedDistance = Math.round(player.distance * 10) / 10;
-				return `${roundedDistance} miles travelled to games in ${apps}`;
-			default:
-				return apps;
-		}
-	};
-
-	// Get stat type display label
-	const getStatTypeLabel = (statType: StatType): string => {
-		switch (statType) {
-			case "appearances":
-				return "Appearances";
-			case "goals":
-				return "Goals";
-			case "assists":
-				return "Assists";
-			case "cleanSheets":
-				return "Clean Sheets";
-			case "mom":
-				return "Man of the Matches";
-			case "saves":
-				return "Saves";
-			case "yellowCards":
-				return "Yellow Cards";
-			case "redCards":
-				return "Red Cards";
-			case "penaltiesScored":
-				return "Penalties Scored";
-			case "fantasyPoints":
-				return "Fantasy Points";
-			case "goalInvolvements":
-				return "Goal Involvements";
-			case "minutes":
-				return "Minutes Played";
-			case "ownGoals":
-				return "Own Goals";
-			case "conceded":
-				return "Goals Conceded";
-			case "penaltiesMissed":
-				return "Penalties Missed";
-			case "penaltiesConceded":
-				return "Penalties Conceded";
-			case "penaltiesSaved":
-				return "Penalties Saved";
-			case "distance":
-				return "Distance Travelled";
-			default:
-				return "Appearances";
-		}
-	};
-
-	// Format rank as ordinal (1st, 2nd, 3rd, etc.)
-	const formatRank = (rank: number): string => {
-		const lastDigit = rank % 10;
-		const lastTwoDigits = rank % 100;
-		
-		if (lastTwoDigits >= 11 && lastTwoDigits <= 13) {
-			return `${rank}th`;
-		}
-		
-		switch (lastDigit) {
-			case 1:
-				return `${rank}st`;
-			case 2:
-				return `${rank}nd`;
-			case 3:
-				return `${rank}rd`;
-			default:
-				return `${rank}th`;
-		}
 	};
 
 	// Prepare chart data (must be at top level for hooks)
@@ -2424,60 +2260,21 @@ export default function ClubStats() {
 										{isLoadingTopPlayers ? (
 											<TopPlayersTableSkeleton />
 										) : topPlayers.length > 0 ? (
-											<div className='overflow-x-auto'>
-												<table className='w-full text-white'>
-												<thead>
-													<tr className='border-b-2 border-dorkinians-yellow'>
-														<th className='text-left py-2 px-2 text-xs md:text-sm w-auto'>
-															<div className='flex items-center gap-2'>
-																<div className='w-10 md:w-12'></div>
-																<div>Player Name</div>
-															</div>
-														</th>
-														<th className='text-center py-2 px-2 text-xs md:text-sm w-20 md:w-24'>{getStatTypeLabel(selectedStatType)}</th>
-													</tr>
-												</thead>
-												<tbody>
-													{topPlayers.map((player, index) => {
-														const isLastPlayer = index === topPlayers.length - 1;
-														const statValue = getStatValue(player, selectedStatType);
-														let formattedStatValue: string | number;
-														if (selectedStatType === "minutes") {
-															formattedStatValue = statValue.toLocaleString();
-														} else if (selectedStatType === "distance") {
-															formattedStatValue = (Math.round(statValue * 10) / 10).toFixed(1);
-														} else {
-															formattedStatValue = statValue;
-														}
-														const summary = formatPlayerSummary(player, selectedStatType);
-														
-														return (
-															<tr
-																key={player.playerName}
-																className={`${isLastPlayer ? '' : 'border-b border-green-500'}`}
-																style={{
-																	background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05))',
-																}}>
-																<td className='py-2 px-2 align-top' colSpan={2}>
-																	<div className='flex flex-col'>
-																		<div className='flex items-center gap-2'>
-																			<div className='text-base md:text-lg font-semibold whitespace-nowrap w-10 md:w-12'>{formatRank(index + 1)}</div>
-																			<div className='text-base md:text-lg font-semibold flex-1'>{player.playerName}</div>
-																			<div className='text-base md:text-lg font-bold w-20 md:w-24 text-center'>{formattedStatValue}</div>
-																		</div>
-																		<div className='pt-1 pl-[3rem] md:pl-[3.5rem]'>
-																			<div className='text-[0.7rem] md:text-[0.8rem] text-gray-300 text-left'>
-																				{summary}
-																			</div>
-																		</div>
-																	</div>
-																</td>
-															</tr>
-														);
-													})}
-												</tbody>
-												</table>
-											</div>
+											<>
+												<TopPlayersTable
+													players={topPlayers}
+													statType={selectedStatType}
+													highlightPlayerName={selectedPlayer}
+												/>
+												{featureFlags.statsTopPlayersShowAll && (
+													<button
+														type='button'
+														className='mt-3 w-full text-center text-white underline text-sm hover:text-white/80 min-h-[44px]'
+														onClick={() => setIsTopPlayersModalOpen(true)}>
+														Show all
+													</button>
+												)}
+											</>
 										) : (
 											<div className='p-4'>
 												<p className='text-white text-xs md:text-sm text-center'>No players found</p>
@@ -2485,6 +2282,20 @@ export default function ClubStats() {
 										)}
 									</div>
 								</div>
+								)}
+
+								{featureFlags.statsTopPlayersShowAll && playerFilters && (
+									<TopPlayersModal
+										isOpen={isTopPlayersModalOpen}
+										onClose={() => setIsTopPlayersModalOpen(false)}
+										statType={selectedStatType}
+										filters={playerFilters}
+										contextLabel='Club Stats'
+										highlightPlayerName={selectedPlayer}
+										pageSource='club-stats'
+										getCachedPageData={getCachedPageData}
+										setCachedPageData={setCachedPageData}
+									/>
 								)}
 
 								{/* Player Distribution Section */}

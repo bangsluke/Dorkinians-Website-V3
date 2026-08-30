@@ -392,4 +392,161 @@ describe("top-players-stats API (POST)", () => {
 		const res = await POST(req as any);
 		expect(res.status).toBe(400);
 	});
+
+	it("returns players with rank when limit is 25", async () => {
+		const { neo4jService } = mocked();
+		neo4jService.connect.mockResolvedValue(true);
+		neo4jService.runQuery.mockResolvedValue({
+			records: [
+				fakeRecord({
+					playerName: "Player One",
+					appearances: 30,
+					goals: 0,
+					assists: 0,
+					cleanSheets: 0,
+					mom: 0,
+					penaltiesScored: 0,
+					saves: 0,
+					yellowCards: 0,
+					redCards: 0,
+					fantasyPoints: 0,
+					goalInvolvements: 0,
+					minutes: 0,
+					ownGoals: 0,
+					conceded: 0,
+					penaltiesMissed: 0,
+					penaltiesConceded: 0,
+					penaltiesSaved: 0,
+					distance: 0,
+					homeGames: 0,
+					awayGames: 0,
+					starts: 0,
+					averageMatchRating: null,
+					matchesRated8Plus: 0,
+				}),
+				fakeRecord({
+					playerName: "Player Two",
+					appearances: 20,
+					goals: 0,
+					assists: 0,
+					cleanSheets: 0,
+					mom: 0,
+					penaltiesScored: 0,
+					saves: 0,
+					yellowCards: 0,
+					redCards: 0,
+					fantasyPoints: 0,
+					goalInvolvements: 0,
+					minutes: 0,
+					ownGoals: 0,
+					conceded: 0,
+					penaltiesMissed: 0,
+					penaltiesConceded: 0,
+					penaltiesSaved: 0,
+					distance: 0,
+					homeGames: 0,
+					awayGames: 0,
+					starts: 0,
+					averageMatchRating: null,
+					matchesRated8Plus: 0,
+				}),
+			],
+		});
+
+		const { POST } = await import("../../app/api/top-players-stats/route");
+		const req = new Request("http://localhost/api/top-players-stats", {
+			method: "POST",
+			body: JSON.stringify({ filters: {}, statType: "appearances", limit: 25 }),
+		});
+		const res = await POST(req as any);
+		expect(res.status).toBe(200);
+		const json = await res.json();
+		expect(json.players).toHaveLength(2);
+		expect(json.players[0].rank).toBe(1);
+		expect(json.players[1].rank).toBe(2);
+	});
+
+	it("returns highlightPlayer when selected player is outside limit", async () => {
+		const { neo4jService } = mocked();
+		neo4jService.connect.mockResolvedValue(true);
+
+		const basePlayer = {
+			goals: 0,
+			assists: 0,
+			cleanSheets: 0,
+			mom: 0,
+			penaltiesScored: 0,
+			saves: 0,
+			yellowCards: 0,
+			redCards: 0,
+			fantasyPoints: 0,
+			goalInvolvements: 0,
+			minutes: 0,
+			ownGoals: 0,
+			conceded: 0,
+			penaltiesMissed: 0,
+			penaltiesConceded: 0,
+			penaltiesSaved: 0,
+			distance: 0,
+			homeGames: 0,
+			awayGames: 0,
+			starts: 0,
+			averageMatchRating: null,
+			matchesRated8Plus: 0,
+		};
+
+		neo4jService.runQuery.mockImplementation(async (query: string) => {
+			if (query.includes("LIMIT 25") || query.includes("LIMIT 5")) {
+				return {
+					records: [
+						fakeRecord({ playerName: "Top Player", appearances: 50, ...basePlayer }),
+					],
+				};
+			}
+			if (query.includes("sortValue")) {
+				return {
+					records: [
+						fakeRecord({ playerName: "Top Player", sortValue: 50, appearances: 50 }),
+						fakeRecord({ playerName: "Outside Player", sortValue: 5, appearances: 5 }),
+					],
+				};
+			}
+			if (query.includes("$highlightPlayerName")) {
+				return {
+					records: [fakeRecord({ playerName: "Outside Player", appearances: 5, ...basePlayer })],
+				};
+			}
+			return { records: [] };
+		});
+
+		const { POST } = await import("../../app/api/top-players-stats/route");
+		const req = new Request("http://localhost/api/top-players-stats", {
+			method: "POST",
+			body: JSON.stringify({
+				filters: {},
+				statType: "appearances",
+				limit: 25,
+				highlightPlayerName: "Outside Player",
+			}),
+		});
+		const res = await POST(req as any);
+		expect(res.status).toBe(200);
+		const json = await res.json();
+		expect(json.players).toHaveLength(1);
+		expect(json.highlightPlayer.player.playerName).toBe("Outside Player");
+		expect(json.highlightPlayer.rank).toBe(2);
+		expect(json.totalCount).toBe(2);
+	});
+
+	it("rejects invalid limit values", async () => {
+		const { neo4jService } = mocked();
+		neo4jService.connect.mockResolvedValue(true);
+		const { POST } = await import("../../app/api/top-players-stats/route");
+		const req = new Request("http://localhost/api/top-players-stats", {
+			method: "POST",
+			body: JSON.stringify({ filters: {}, statType: "appearances", limit: 9999 }),
+		});
+		const res = await POST(req as any);
+		expect(res.status).toBe(400);
+	});
 });

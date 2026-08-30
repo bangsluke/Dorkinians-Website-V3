@@ -24,47 +24,17 @@ import { UmamiEvents } from "@/lib/analytics/events";
 import { trackStatsStatSelected, trackTeamStatsTeamSelected } from "@/lib/analytics/statsTracking";
 import { trackEvent } from "@/lib/utils/trackEvent";
 import RecordingsSection from "@/components/stats/RecordingsSection";
+import TopPlayersTable from "@/components/stats/TopPlayersTable";
+import TopPlayersModal from "@/components/stats/TopPlayersModal";
+import {
+	getStatTypeLabel,
+	normalizeTopPlayer,
+	type TopPlayer,
+	type TopPlayersStatType,
+} from "@/lib/stats/topPlayersUtils";
 import type { RecordingFixture } from "@/lib/utils/recordingsDisplay";
 
-
-interface TopPlayer {
-	playerName: string;
-	appearances: number;
-	goals: number;
-	assists: number;
-	cleanSheets: number;
-	mom: number;
-	penaltiesScored: number;
-	saves: number;
-	yellowCards: number;
-	redCards: number;
-	fantasyPoints: number;
-	goalInvolvements: number;
-	homeGames: number;
-	awayGames: number;
-	minutes: number;
-	ownGoals: number;
-	conceded: number;
-	penaltiesMissed: number;
-	penaltiesConceded: number;
-	penaltiesSaved: number;
-	distance: number;
-	starts: number;
-	averageMatchRating: number | null;
-	matchesRated8Plus: number;
-	goalsPer90: number | null;
-	assistsPer90: number | null;
-	goalInvolvementsPer90: number | null;
-	ftpPer90: number | null;
-	cleanSheetsPer90: number | null;
-	concededPer90: number | null;
-	savesPer90: number | null;
-	cardsPer90: number | null;
-	momPer90: number | null;
-	currentFormEwma: number | null;
-}
-
-type StatType = "appearances" | "starts" | "goals" | "assists" | "cleanSheets" | "mom" | "saves" | "yellowCards" | "redCards" | "penaltiesScored" | "fantasyPoints" | "goalInvolvements" | "minutes" | "ownGoals" | "conceded" | "penaltiesMissed" | "penaltiesConceded" | "penaltiesSaved" | "distance" | "avgMatchRating" | "matchesRated8Plus" | "goalsPer90" | "assistsPer90" | "goalInvolvementsPer90" | "ftpPer90" | "cleanSheetsPer90" | "concededPer90" | "savesPer90" | "cardsPer90" | "momPer90" | "bestCurrentForm";
+type StatType = TopPlayersStatType;
 
 function StatRow({ stat, value, teamData }: { stat: any; value: any; teamData: TeamData }) {
 	const [showTooltip, setShowTooltip] = useState(false);
@@ -431,6 +401,7 @@ export default function TeamStats() {
 	});
 	const [topPlayers, setTopPlayers] = useState<TopPlayer[]>([]);
 	const [isLoadingTopPlayers, setIsLoadingTopPlayers] = useState(false);
+	const [isTopPlayersModalOpen, setIsTopPlayersModalOpen] = useState(false);
 
 	// State for view mode toggle - initialize from localStorage
 	const [isDataTableMode, setIsDataTableMode] = useState<boolean>(() => {
@@ -699,24 +670,7 @@ export default function TeamStats() {
 				
 				log("info", `[TeamStats] Received ${data.players?.length || 0} players for statType: ${selectedStatType}`, data.players);
 				const raw = (data.players || []) as Partial<TopPlayer>[];
-				setTopPlayers(
-					raw.map((p) => ({
-						...(p as TopPlayer),
-						starts: typeof p.starts === "number" ? p.starts : 0,
-						averageMatchRating: p.averageMatchRating ?? null,
-						matchesRated8Plus: typeof p.matchesRated8Plus === "number" ? p.matchesRated8Plus : 0,
-						goalsPer90: typeof p.goalsPer90 === "number" ? p.goalsPer90 : null,
-						assistsPer90: typeof p.assistsPer90 === "number" ? p.assistsPer90 : null,
-						goalInvolvementsPer90: typeof p.goalInvolvementsPer90 === "number" ? p.goalInvolvementsPer90 : null,
-						ftpPer90: typeof p.ftpPer90 === "number" ? p.ftpPer90 : null,
-						cleanSheetsPer90: typeof p.cleanSheetsPer90 === "number" ? p.cleanSheetsPer90 : null,
-						concededPer90: typeof p.concededPer90 === "number" ? p.concededPer90 : null,
-						savesPer90: typeof p.savesPer90 === "number" ? p.savesPer90 : null,
-						cardsPer90: typeof p.cardsPer90 === "number" ? p.cardsPer90 : null,
-						momPer90: typeof p.momPer90 === "number" ? p.momPer90 : null,
-						currentFormEwma: typeof p.currentFormEwma === "number" ? p.currentFormEwma : null,
-					}))
-				);
+				setTopPlayers(raw.map((p) => normalizeTopPlayer(p)));
 			} catch (error) {
 				log("error", "[TeamStats] Error fetching top players:", error);
 				// Log PWA debug info on error
@@ -1002,253 +956,6 @@ export default function TeamStats() {
 	const handleTeamSelect = (team: string) => {
 		setSelectedTeam(team);
 		trackTeamStatsTeamSelected(team);
-	};
-
-	// Get stat value for a player based on stat type
-	const getStatValue = (player: TopPlayer, statType: StatType): number => {
-		switch (statType) {
-			case "appearances":
-				return player.appearances;
-			case "starts":
-				return player.starts;
-			case "goals":
-				return player.goals + player.penaltiesScored;
-			case "assists":
-				return player.assists;
-			case "cleanSheets":
-				return player.cleanSheets;
-			case "mom":
-				return player.mom;
-			case "saves":
-				return player.saves;
-			case "yellowCards":
-				return player.yellowCards;
-			case "redCards":
-				return player.redCards;
-			case "penaltiesScored":
-				return player.penaltiesScored;
-			case "fantasyPoints":
-				return Math.round(player.fantasyPoints);
-			case "goalInvolvements":
-				return player.goalInvolvements;
-			case "minutes":
-				return player.minutes;
-			case "ownGoals":
-				return player.ownGoals;
-			case "conceded":
-				return player.conceded;
-			case "penaltiesMissed":
-				return player.penaltiesMissed;
-			case "penaltiesConceded":
-				return player.penaltiesConceded;
-			case "penaltiesSaved":
-				return player.penaltiesSaved;
-			case "distance":
-				return player.distance;
-			case "avgMatchRating":
-				return player.averageMatchRating ?? 0;
-			case "matchesRated8Plus":
-				return player.matchesRated8Plus;
-			case "goalsPer90":
-				return player.goalsPer90 ?? 0;
-			case "assistsPer90":
-				return player.assistsPer90 ?? 0;
-			case "goalInvolvementsPer90":
-				return player.goalInvolvementsPer90 ?? 0;
-			case "ftpPer90":
-				return player.ftpPer90 ?? 0;
-			case "cleanSheetsPer90":
-				return player.cleanSheetsPer90 ?? 0;
-			case "concededPer90":
-				return player.concededPer90 ?? 0;
-			case "savesPer90":
-				return player.savesPer90 ?? 0;
-			case "cardsPer90":
-				return player.cardsPer90 ?? 0;
-			case "momPer90":
-				return player.momPer90 ?? 0;
-			case "bestCurrentForm":
-				return player.currentFormEwma ?? 0;
-			default:
-				return 0;
-		}
-	};
-
-	// Format player summary text based on stat type
-	const formatPlayerSummary = (player: TopPlayer, statType: StatType): string => {
-		const apps = `${player.appearances} ${player.appearances === 1 ? "App" : "Apps"}`;
-		
-		switch (statType) {
-			case "appearances":
-				const homeGamesText = `${player.homeGames} ${player.homeGames === 1 ? "Home Game" : "Home Games"}`;
-				const awayGamesText = `${player.awayGames} ${player.awayGames === 1 ? "Away Game" : "Away Games"}`;
-				return `${homeGamesText} and ${awayGamesText}`;
-			case "starts":
-				return `${player.starts} ${player.starts === 1 ? "start" : "starts"} in ${apps}`;
-			case "goals":
-				const totalGoals = player.goals + player.penaltiesScored;
-				const penaltyText = player.penaltiesScored > 0 ? ` (incl. ${player.penaltiesScored} ${player.penaltiesScored === 1 ? "penalty" : "penalties"})` : "";
-				return `${totalGoals} ${totalGoals === 1 ? "Goal" : "Goals"}${penaltyText} in ${apps}`;
-			case "assists":
-				return `${player.assists} ${player.assists === 1 ? "Assist" : "Assists"} in ${apps}`;
-			case "cleanSheets":
-				return `${player.cleanSheets} ${player.cleanSheets === 1 ? "Clean Sheet" : "Clean Sheets"} in ${apps}`;
-			case "mom":
-				return `${player.mom} ${player.mom === 1 ? "Man of the Match" : "Man of the Matches"} in ${apps}`;
-			case "saves":
-				return `${player.saves} ${player.saves === 1 ? "Save" : "Saves"} in ${apps}`;
-			case "yellowCards":
-				return `${player.yellowCards} ${player.yellowCards === 1 ? "Yellow Card" : "Yellow Cards"} in ${apps}`;
-			case "redCards":
-				return `${player.redCards} ${player.redCards === 1 ? "Red Card" : "Red Cards"} in ${apps}`;
-			case "penaltiesScored":
-				return `${player.penaltiesScored} ${player.penaltiesScored === 1 ? "Penalty Scored" : "Penalties Scored"} in ${apps}`;
-			case "fantasyPoints":
-				return `${Math.round(player.fantasyPoints)} ${Math.round(player.fantasyPoints) === 1 ? "Fantasy Point" : "Fantasy Points"} in ${apps}`;
-			case "goalInvolvements":
-				const totalGoalsForInvolvements = player.goals + player.penaltiesScored;
-				const penaltyTextGi =
-					player.penaltiesScored > 0
-						? ` (incl. ${player.penaltiesScored} ${player.penaltiesScored === 1 ? "penalty" : "penalties"})`
-						: "";
-				const goalsText = `${totalGoalsForInvolvements} ${totalGoalsForInvolvements === 1 ? "Goal" : "Goals"}${penaltyTextGi}`;
-				const assistsText = `${player.assists} ${player.assists === 1 ? "Assist" : "Assists"}`;
-				return `${goalsText} and ${assistsText} in ${apps}`;
-			case "minutes":
-				const formattedMinutes = player.minutes.toLocaleString();
-				return `${formattedMinutes} ${player.minutes === 1 ? "Minute" : "Minutes"} in ${apps}`;
-			case "ownGoals":
-				return `${player.ownGoals} ${player.ownGoals === 1 ? "Own Goal" : "Own Goals"} in ${apps}`;
-			case "conceded":
-				return `${player.conceded} ${player.conceded === 1 ? "Goal Conceded" : "Goals Conceded"} in ${apps}`;
-			case "penaltiesMissed":
-				return `${player.penaltiesMissed} ${player.penaltiesMissed === 1 ? "Penalty Missed" : "Penalties Missed"} in ${apps}`;
-			case "penaltiesConceded":
-				return `${player.penaltiesConceded} ${player.penaltiesConceded === 1 ? "Penalty Conceded" : "Penalties Conceded"} in ${apps}`;
-			case "penaltiesSaved":
-				return `${player.penaltiesSaved} ${player.penaltiesSaved === 1 ? "Penalty Saved" : "Penalties Saved"} in ${apps}`;
-			case "distance":
-				const roundedDistance = Math.round(player.distance * 10) / 10;
-				return `${roundedDistance} miles travelled to games in ${apps}`;
-			case "avgMatchRating":
-				const ar = player.averageMatchRating;
-				return ar != null ? `Average rating ${ar.toFixed(1)} in ${apps}` : apps;
-			case "matchesRated8Plus":
-				return `${player.matchesRated8Plus} ${player.matchesRated8Plus === 1 ? "game" : "games"} rated 8+ in ${apps}`;
-			case "goalsPer90":
-				return player.goalsPer90 != null ? `${player.goalsPer90.toFixed(2)} goals per 90 (${apps})` : `Needs 360+ minutes`;
-			case "assistsPer90":
-				return player.assistsPer90 != null ? `${player.assistsPer90.toFixed(2)} assists per 90 (${apps})` : `Needs 360+ minutes`;
-			case "goalInvolvementsPer90":
-				return player.goalInvolvementsPer90 != null ? `${player.goalInvolvementsPer90.toFixed(2)} GI per 90 (${apps})` : `Needs 360+ minutes`;
-			case "ftpPer90":
-				return player.ftpPer90 != null ? `${player.ftpPer90.toFixed(2)} FTP per 90 (${apps})` : `Needs 360+ minutes`;
-			case "cleanSheetsPer90":
-				return player.cleanSheetsPer90 != null ? `${player.cleanSheetsPer90.toFixed(2)} clean sheets per 90 (${apps})` : `Needs 360+ minutes`;
-			case "concededPer90":
-				return player.concededPer90 != null ? `${player.concededPer90.toFixed(2)} conceded per 90 (${apps})` : `Needs 360+ minutes`;
-			case "savesPer90":
-				return player.savesPer90 != null ? `${player.savesPer90.toFixed(2)} saves per 90 (${apps})` : `Needs 360+ minutes`;
-			case "cardsPer90":
-				return player.cardsPer90 != null ? `${player.cardsPer90.toFixed(2)} cards per 90 (${apps})` : `Needs 360+ minutes`;
-			case "momPer90":
-				return player.momPer90 != null ? `${player.momPer90.toFixed(2)} MoM per 90 (${apps})` : `Needs 360+ minutes`;
-			case "bestCurrentForm":
-				return player.currentFormEwma != null ? `Current form ${player.currentFormEwma.toFixed(1)} (${apps})` : apps;
-			default:
-				return apps;
-		}
-	};
-
-	// Get stat type display label
-	const getStatTypeLabel = (statType: StatType): string => {
-		switch (statType) {
-			case "appearances":
-				return "Appearances";
-			case "starts":
-				return "Starts";
-			case "goals":
-				return "Goals";
-			case "assists":
-				return "Assists";
-			case "cleanSheets":
-				return "Clean Sheets";
-			case "mom":
-				return "Man of the Matches";
-			case "saves":
-				return "Saves";
-			case "yellowCards":
-				return "Yellow Cards";
-			case "redCards":
-				return "Red Cards";
-			case "penaltiesScored":
-				return "Penalties Scored";
-			case "fantasyPoints":
-				return "Fantasy Points";
-			case "goalInvolvements":
-				return "Goal Involvements";
-			case "minutes":
-				return "Minutes Played";
-			case "ownGoals":
-				return "Own Goals";
-			case "conceded":
-				return "Goals Conceded";
-			case "penaltiesMissed":
-				return "Penalties Missed";
-			case "penaltiesConceded":
-				return "Penalties Conceded";
-			case "penaltiesSaved":
-				return "Penalties Saved";
-			case "distance":
-				return "Distance Travelled";
-			case "avgMatchRating":
-				return "Avg match rating";
-			case "matchesRated8Plus":
-				return "Matches rated 8+";
-			case "goalsPer90":
-				return "Goals per 90";
-			case "assistsPer90":
-				return "Assists per 90";
-			case "goalInvolvementsPer90":
-				return "Goal involvements per 90";
-			case "ftpPer90":
-				return "FTP per 90";
-			case "cleanSheetsPer90":
-				return "Clean sheets per 90";
-			case "concededPer90":
-				return "Conceded per 90";
-			case "savesPer90":
-				return "Saves per 90";
-			case "cardsPer90":
-				return "Cards per 90";
-			case "momPer90":
-				return "MoM per 90";
-			case "bestCurrentForm":
-				return "Best current form";
-			default:
-				return "Appearances";
-		}
-	};
-
-	// Format rank as ordinal (1st, 2nd, 3rd, etc.)
-	const formatRank = (rank: number): string => {
-		const lastDigit = rank % 10;
-		const lastTwoDigits = rank % 100;
-		
-		if (lastTwoDigits >= 11 && lastTwoDigits <= 13) {
-			return `${rank}th`;
-		}
-		
-		switch (lastDigit) {
-			case 1:
-				return `${rank}st`;
-			case 2:
-				return `${rank}nd`;
-			case 3:
-				return `${rank}rd`;
-			default:
-				return `${rank}th`;
-		}
 	};
 
 	// Prepare chart data (must be at top level for hooks)
@@ -2153,76 +1860,21 @@ export default function TeamStats() {
 										{isLoadingTopPlayers ? (
 											<TopPlayersTableSkeleton />
 										) : topPlayers.length > 0 ? (
-											<div className='overflow-x-auto'>
-												<table className='w-full text-white'>
-												<thead>
-													<tr className='border-b-2 border-dorkinians-yellow'>
-														<th className='text-left py-2 px-2 text-xs md:text-sm w-auto'>
-															<div className='flex items-center gap-2'>
-																<div className='w-10 md:w-12'></div>
-																<div>Player Name</div>
-															</div>
-														</th>
-														<th className='text-center py-2 px-2 text-xs md:text-sm w-20 md:w-24'>{getStatTypeLabel(selectedStatType)}</th>
-													</tr>
-												</thead>
-												<tbody>
-													{topPlayers.map((player, index) => {
-														const isLastPlayer = index === topPlayers.length - 1;
-														const statValue = getStatValue(player, selectedStatType);
-														let formattedStatValue: string | number;
-														if (selectedStatType === "minutes") {
-															formattedStatValue = statValue.toLocaleString();
-														} else if (selectedStatType === "distance") {
-															formattedStatValue = (Math.round(statValue * 10) / 10).toFixed(1);
-														} else if (selectedStatType === "avgMatchRating") {
-															formattedStatValue = player.averageMatchRating != null ? player.averageMatchRating.toFixed(1) : "-";
-														} else if (["goalsPer90", "assistsPer90", "goalInvolvementsPer90", "ftpPer90", "cleanSheetsPer90", "concededPer90", "savesPer90", "cardsPer90", "momPer90"].includes(selectedStatType)) {
-															const per90Value =
-																selectedStatType === "goalsPer90" ? player.goalsPer90 :
-																selectedStatType === "assistsPer90" ? player.assistsPer90 :
-																selectedStatType === "goalInvolvementsPer90" ? player.goalInvolvementsPer90 :
-																selectedStatType === "ftpPer90" ? player.ftpPer90 :
-																selectedStatType === "cleanSheetsPer90" ? player.cleanSheetsPer90 :
-																selectedStatType === "concededPer90" ? player.concededPer90 :
-																selectedStatType === "savesPer90" ? player.savesPer90 :
-																selectedStatType === "cardsPer90" ? player.cardsPer90 :
-																player.momPer90;
-															formattedStatValue = per90Value != null ? per90Value.toFixed(2) : "-";
-														} else if (selectedStatType === "bestCurrentForm") {
-															formattedStatValue = player.currentFormEwma != null ? player.currentFormEwma.toFixed(1) : "-";
-														} else {
-															formattedStatValue = statValue;
-														}
-														const summary = formatPlayerSummary(player, selectedStatType);
-														
-														return (
-															<tr
-																key={player.playerName}
-																className={`${isLastPlayer ? '' : 'border-b border-green-500'}`}
-																style={{
-																	background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05))',
-																}}>
-																<td className='py-2 px-2 align-top' colSpan={2}>
-																	<div className='flex flex-col'>
-																		<div className='flex items-center gap-2'>
-																			<div className='text-base md:text-lg font-semibold whitespace-nowrap w-10 md:w-12'>{formatRank(index + 1)}</div>
-																			<div className='text-base md:text-lg font-semibold flex-1'>{player.playerName}</div>
-																			<div className='text-base md:text-lg font-bold w-20 md:w-24 text-center'>{formattedStatValue}</div>
-																		</div>
-																		<div className='pt-1 pl-[3rem] md:pl-[3.5rem]'>
-																			<div className='text-[0.7rem] md:text-[0.8rem] text-gray-300 text-left'>
-																				{summary}
-																			</div>
-																		</div>
-																	</div>
-																</td>
-															</tr>
-														);
-													})}
-												</tbody>
-												</table>
-											</div>
+											<>
+												<TopPlayersTable
+													players={topPlayers}
+													statType={selectedStatType}
+													highlightPlayerName={selectedPlayer}
+												/>
+												{featureFlags.statsTopPlayersShowAll && (
+													<button
+														type='button'
+														className='mt-3 w-full text-center text-white underline text-sm hover:text-white/80 min-h-[44px]'
+														onClick={() => setIsTopPlayersModalOpen(true)}>
+														Show all
+													</button>
+												)}
+											</>
 										) : (
 											<div className='p-4'>
 												<p className='text-white text-xs md:text-sm text-center'>No players found</p>
@@ -2230,6 +1882,21 @@ export default function TeamStats() {
 										)}
 									</div>
 								</div>
+
+								{featureFlags.statsTopPlayersShowAll && apiFilters && (
+									<TopPlayersModal
+										isOpen={isTopPlayersModalOpen}
+										onClose={() => setIsTopPlayersModalOpen(false)}
+										statType={selectedStatType}
+										filters={apiFilters}
+										contextLabel={selectedTeam ? `${selectedTeam} — Team Stats` : "Team Stats"}
+										highlightPlayerName={selectedPlayer}
+										pageSource='team-stats'
+										cacheScopeKey={selectedTeam}
+										getCachedPageData={getCachedPageData}
+										setCachedPageData={setCachedPageData}
+									/>
+								)}
 
 								{/* Unique Player Stats Section */}
 								{isLoadingUniqueStats ? (
