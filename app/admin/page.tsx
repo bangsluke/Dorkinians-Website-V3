@@ -1,13 +1,13 @@
 "use client";
 
 import { useSession, signOut } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useAppRouter } from "@/lib/hooks/useAppRouter";
 import { useEffect } from "react";
 import AdminPanel from "@/components/admin/AdminPanel";
 
 export default function AdminPage() {
 	const { data: session, status } = useSession();
-	const router = useRouter();
+	const router = useAppRouter();
 
 	useEffect(() => {
 		if (status === "unauthenticated") {

@@ -11,6 +11,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { killJob as killJobUtil } from '@/lib/jobUtils';
+import { useToast } from '@/lib/hooks/useToast';
+import { HoverTooltip } from '@/components/ui/Tooltip';
 
 interface JobAnalysis {
   jobId: string;
@@ -71,8 +73,7 @@ const JobMonitoringDashboard: React.FC = () => {
   const [clearingDashboard, setClearingDashboard] = useState(false);
   
   // Toast notification state
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
+  const { showToast: showGlobalToast } = useToast();
 
   // Helper function to build API URLs with proper path handling
   const buildApiUrl = (path: string): string => {
@@ -128,15 +129,9 @@ const JobMonitoringDashboard: React.FC = () => {
     }
   };
 
-  // Toast notification function
+  // Toast notification function - delegates to the shared global toast system
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
-    setToastMessage(message);
-    setToastType(type);
-    
-    // Auto-hide toast after 3 seconds
-    setTimeout(() => {
-      setToastMessage(null);
-    }, 3000);
+    showGlobalToast(message, type);
   };
 
   // Fetch detailed job analysis
@@ -463,20 +458,21 @@ const JobMonitoringDashboard: React.FC = () => {
                 {currentJobs.map((job) => (
                   <tr key={job.jobId} className="hover:bg-gray-50">
                     <td className="px-3 py-2 text-xs font-mono text-gray-900">
-                      <button
-                        onClick={async () => {
-                          try {
-                            await navigator.clipboard.writeText(job.jobId);
-                            showToast('Job ID copied to clipboard!', 'success');
-                          } catch (err) {
-                            showToast('Failed to copy Job ID', 'error');
-                          }
-                        }}
-                        className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer truncate max-w-24 block"
-                        title={job.jobId}
-                      >
-                        {job.jobId.length > 12 ? `${job.jobId.substring(0, 12)}...` : job.jobId}
-                      </button>
+                      <HoverTooltip content={job.jobId}>
+                        <button
+                          onClick={async () => {
+                            try {
+                              await navigator.clipboard.writeText(job.jobId);
+                              showToast('Job ID copied to clipboard!', 'success');
+                            } catch (err) {
+                              showToast('Failed to copy Job ID', 'error');
+                            }
+                          }}
+                          className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer truncate max-w-24 block"
+                        >
+                          {job.jobId.length > 12 ? `${job.jobId.substring(0, 12)}...` : job.jobId}
+                        </button>
+                      </HoverTooltip>
                     </td>
                     <td className="px-3 py-2">
                       <span className={`text-xs font-medium ${getStatusColor(job.status)}`}>
@@ -494,14 +490,20 @@ const JobMonitoringDashboard: React.FC = () => {
                         <span className="text-xs text-gray-500 min-w-0">{job.progress || 0}%</span>
                       </div>
                     </td>
-                    <td className="px-3 py-2 text-xs text-gray-900 truncate" title={job.currentStep || 'N/A'}>
-                      {job.currentStep || 'N/A'}
+                    <td className="px-3 py-2 text-xs text-gray-900 truncate">
+                      <HoverTooltip content={job.currentStep || 'N/A'}>
+                        <span className="block truncate">{job.currentStep || 'N/A'}</span>
+                      </HoverTooltip>
                     </td>
-                    <td className="px-3 py-2 text-xs text-gray-900 truncate" title={job.startTime ? new Date(job.startTime).toLocaleString() : 'N/A'}>
-                      {job.startTime ? new Date(job.startTime).toLocaleTimeString() : 'N/A'}
+                    <td className="px-3 py-2 text-xs text-gray-900 truncate">
+                      <HoverTooltip content={job.startTime ? new Date(job.startTime).toLocaleString() : 'N/A'}>
+                        <span className="block truncate">{job.startTime ? new Date(job.startTime).toLocaleTimeString() : 'N/A'}</span>
+                      </HoverTooltip>
                     </td>
-                    <td className="px-3 py-2 text-xs text-gray-900 truncate" title={job.lastUpdate ? new Date(job.lastUpdate).toLocaleString() : 'N/A'}>
-                      {job.lastUpdate ? new Date(job.lastUpdate).toLocaleTimeString() : 'N/A'}
+                    <td className="px-3 py-2 text-xs text-gray-900 truncate">
+                      <HoverTooltip content={job.lastUpdate ? new Date(job.lastUpdate).toLocaleString() : 'N/A'}>
+                        <span className="block truncate">{job.lastUpdate ? new Date(job.lastUpdate).toLocaleTimeString() : 'N/A'}</span>
+                      </HoverTooltip>
                     </td>
                     <td className="px-3 py-2 text-xs text-gray-900">
                       {(job.status === 'running' || job.status === 'initializing') && (
@@ -539,20 +541,21 @@ const JobMonitoringDashboard: React.FC = () => {
             {currentJobs.map((job) => (
               <div key={job.jobId} className="p-4 border-b border-gray-200 last:border-b-0">
                 <div className="flex items-center justify-between mb-2">
-                  <button
-                    onClick={async () => {
-                      try {
-                        await navigator.clipboard.writeText(job.jobId);
-                        showToast('Job ID copied to clipboard!', 'success');
-                      } catch (err) {
-                        showToast('Failed to copy Job ID', 'error');
-                      }
-                    }}
-                    className="text-xs font-mono text-blue-600 hover:text-blue-800 hover:underline cursor-pointer truncate flex-1 mr-2 text-left"
-                    title={job.jobId}
-                  >
-                    {job.jobId.length > 12 ? `${job.jobId.substring(0, 12)}...` : job.jobId}
-                  </button>
+                  <HoverTooltip content={job.jobId}>
+                    <button
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(job.jobId);
+                          showToast('Job ID copied to clipboard!', 'success');
+                        } catch (err) {
+                          showToast('Failed to copy Job ID', 'error');
+                        }
+                      }}
+                      className="text-xs font-mono text-blue-600 hover:text-blue-800 hover:underline cursor-pointer truncate flex-1 mr-2 text-left"
+                    >
+                      {job.jobId.length > 12 ? `${job.jobId.substring(0, 12)}...` : job.jobId}
+                    </button>
+                  </HoverTooltip>
                   <span className={`text-xs font-medium px-2 py-1 rounded ${getStatusColor(job.status)}`}>
                     {job.status}
                   </span>
@@ -572,21 +575,21 @@ const JobMonitoringDashboard: React.FC = () => {
                   </div>
                   <div className="flex items-start">
                     <span className="text-xs text-gray-500 w-16">Step:</span>
-                    <span className="text-xs text-gray-900 flex-1 truncate" title={job.currentStep || 'N/A'}>
-                      {job.currentStep || 'N/A'}
-                    </span>
+                    <HoverTooltip content={job.currentStep || 'N/A'} className="flex-1 min-w-0">
+                      <span className="text-xs text-gray-900 block truncate">{job.currentStep || 'N/A'}</span>
+                    </HoverTooltip>
                   </div>
                   <div className="flex items-center">
                     <span className="text-xs text-gray-500 w-16">Started:</span>
-                    <span className="text-xs text-gray-900 flex-1 truncate" title={job.startTime ? new Date(job.startTime).toLocaleString() : 'N/A'}>
-                      {job.startTime ? new Date(job.startTime).toLocaleTimeString() : 'N/A'}
-                    </span>
+                    <HoverTooltip content={job.startTime ? new Date(job.startTime).toLocaleString() : 'N/A'} className="flex-1 min-w-0">
+                      <span className="text-xs text-gray-900 block truncate">{job.startTime ? new Date(job.startTime).toLocaleTimeString() : 'N/A'}</span>
+                    </HoverTooltip>
                   </div>
                   <div className="flex items-center">
                     <span className="text-xs text-gray-500 w-16">Updated:</span>
-                    <span className="text-xs text-gray-900 flex-1 truncate" title={job.lastUpdate ? new Date(job.lastUpdate).toLocaleString() : 'N/A'}>
-                      {job.lastUpdate ? new Date(job.lastUpdate).toLocaleTimeString() : 'N/A'}
-                    </span>
+                    <HoverTooltip content={job.lastUpdate ? new Date(job.lastUpdate).toLocaleString() : 'N/A'} className="flex-1 min-w-0">
+                      <span className="text-xs text-gray-900 block truncate">{job.lastUpdate ? new Date(job.lastUpdate).toLocaleTimeString() : 'N/A'}</span>
+                    </HoverTooltip>
                   </div>
                   {(job.status === 'running' || job.status === 'initializing') && (
                     <div className="flex items-center mt-2">
@@ -896,22 +899,6 @@ const JobMonitoringDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Toast Notification */}
-      {toastMessage && (
-        <div className={`fixed top-4 right-2 sm:right-4 z-50 p-3 sm:p-4 rounded-lg shadow-lg transition-all duration-300 max-w-[calc(100vw-1rem)] sm:max-w-md ${
-          toastType === 'success' ? 'bg-green-500 text-white' :
-          toastType === 'error' ? 'bg-red-500 text-white' :
-          'bg-blue-500 text-white'
-        }`}>
-          <div className="flex items-center gap-2">
-            <span>
-              {toastType === 'success' ? '✅' : 
-               toastType === 'error' ? '❌' : 'ℹ️'}
-            </span>
-            <span className="font-medium text-sm sm:text-base break-words">{toastMessage}</span>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

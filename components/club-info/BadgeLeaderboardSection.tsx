@@ -3,8 +3,7 @@
 import { useEffect, useState } from "react";
 import { useNavigationStore } from "@/lib/stores/navigation";
 import { cachedFetch, generatePageCacheKey } from "@/lib/utils/pageCache";
-import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
-import "react-loading-skeleton/dist/skeleton.css";
+import Skeleton from "react-loading-skeleton";
 import { appConfig } from "@/config/config";
 
 type Row = { playerName: string; totalBadges: number; highestBadgeTier: string | null };
@@ -60,10 +59,8 @@ export default function BadgeLeaderboardSection() {
 	if (appConfig.forceSkeletonView) {
 		return (
 			<div data-testid='badge-leaderboard-section'>
-				<SkeletonTheme baseColor='var(--skeleton-base)' highlightColor='var(--skeleton-highlight)'>
-					<Skeleton height={22} width='55%' className='mb-3' />
-					<Skeleton count={4} height={16} className='mb-2' />
-				</SkeletonTheme>
+				<Skeleton height={22} width='55%' className='mb-3' />
+				<Skeleton count={4} height={16} className='mb-2' />
 			</div>
 		);
 	}
@@ -71,10 +68,8 @@ export default function BadgeLeaderboardSection() {
 	if (loading) {
 		return (
 			<div data-testid='badge-leaderboard-section'>
-				<SkeletonTheme baseColor='var(--skeleton-base)' highlightColor='var(--skeleton-highlight)'>
-					<Skeleton height={22} width='55%' className='mb-3' />
-					<Skeleton count={5} height={14} className='mb-2' />
-				</SkeletonTheme>
+				<Skeleton height={22} width='55%' className='mb-3' />
+				<Skeleton count={5} height={14} className='mb-2' />
 			</div>
 		);
 	}
@@ -100,9 +95,9 @@ export default function BadgeLeaderboardSection() {
 					{mostBadges.length > 0 && (
 						<div>
 							<h4 className='text-base md:text-lg font-bold text-white mb-4'>Most Badges Earned</h4>
-							<div className='rounded-md border border-white/10 divide-y divide-white/10'>
+							<div className='rounded-lg border border-white/10 bg-white/[0.03] overflow-hidden divide-y divide-white/10'>
 								{mostBadges.map((r) => (
-									<div key={r.playerName} className='flex items-baseline justify-between gap-2 px-2 py-1.5'>
+									<div key={r.playerName} className='flex items-baseline justify-between gap-2 px-2 py-2.5 md:px-3 md:py-3'>
 										<button
 											type='button'
 											className='text-left text-[#E8C547] font-medium hover:underline min-w-0 shrink'
@@ -120,9 +115,9 @@ export default function BadgeLeaderboardSection() {
 					{mostDiamond.length > 0 && (
 						<div>
 							<h4 className='text-base md:text-lg font-bold text-white mb-4'>Most Diamond Badges</h4>
-							<div className='rounded-md border border-white/10 divide-y divide-white/10'>
+							<div className='rounded-lg border border-white/10 bg-white/[0.03] overflow-hidden divide-y divide-white/10'>
 								{mostDiamond.map((r) => (
-									<div key={`d-${r.playerName}`} className='flex items-baseline justify-between gap-2 px-2 py-1.5'>
+									<div key={`d-${r.playerName}`} className='flex items-baseline justify-between gap-2 px-2 py-2.5 md:px-3 md:py-3'>
 										<button
 											type='button'
 											className='text-left text-[#E8C547] font-medium hover:underline min-w-0 shrink'

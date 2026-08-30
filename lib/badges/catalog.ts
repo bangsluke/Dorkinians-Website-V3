@@ -69,7 +69,7 @@ export const BADGE_DEFINITIONS: Record<string, BadgeDefinition> = {
 		evaluate: (player) => Number(player.numberTeamsPlayedFor ?? 0) || 0,
 	},
 	veteran: {
-		name: "Veteran",
+		name: "Season Veteran",
 		category: "appearances",
 		description: "Accumulate seasons played for the club.",
 		tiers: {
@@ -79,6 +79,18 @@ export const BADGE_DEFINITIONS: Record<string, BadgeDefinition> = {
 			diamond: { threshold: 10, description: "Play for 10 seasons" },
 		},
 		evaluate: (player) => Number(player.numberSeasonsPlayedFor ?? 0) || 0,
+	},
+	vet_appearances: {
+		name: "Vet Appearances",
+		category: "appearances",
+		description: "Build appearances for the Vet XI.",
+		tiers: {
+			bronze: { threshold: 1, description: "Make 1 appearance for the Vet XI" },
+			silver: { threshold: 3, description: "Make 3 appearances for the Vet XI" },
+			gold: { threshold: 5, description: "Make 5 appearances for the Vet XI" },
+			diamond: { threshold: 10, description: "Make 10 appearances for the Vet XI" },
+		},
+		evaluate: (player) => Number(player.vetXiGames ?? 0) || 0,
 	},
 	goalkeeper_appearances: {
 		name: "Goalkeeper Appearances",

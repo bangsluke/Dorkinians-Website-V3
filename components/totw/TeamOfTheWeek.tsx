@@ -10,9 +10,9 @@ import { useNavigationStore } from "@/lib/stores/navigation";
 import { getCurrentSeasonFromStorage } from "@/lib/services/currentSeasonService";
 import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon, CheckIcon } from "@heroicons/react/20/solid";
-import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
-import "react-loading-skeleton/dist/skeleton.css";
+import Skeleton from "react-loading-skeleton";
 import { TOTWPitchSkeleton, TOTWPlayerDetailsSkeleton } from "@/components/skeletons";
+import { TooltipSurface } from "@/components/ui/Tooltip";
 import { appConfig } from "@/config/config";
 import { log } from "@/lib/utils/logger";
 import { cachedFetch, generatePageCacheKey } from "@/lib/utils/pageCache";
@@ -94,6 +94,7 @@ export default function TeamOfTheWeek() {
 	const [loadingPlayerDetails, setLoadingPlayerDetails] = useState(false);
 	const [isSharingTOTW, setIsSharingTOTW] = useState(false);
 	const [containerWidth, setContainerWidth] = useState(800);
+	const [isDesktopViewport, setIsDesktopViewport] = useState(false);
 	const [isAllTimeSelected, setIsAllTimeSelected] = useState(false);
 	const [isSeasonTOTWSelected, setIsSeasonTOTWSelected] = useState(false);
 
@@ -512,6 +513,16 @@ export default function TeamOfTheWeek() {
 		};
 	}, [totwData, loading]);
 
+	// Desktop (md+) name boxes need extra gap so four-across rows do not form a solid bar
+	useEffect(() => {
+		if (typeof window === "undefined") return;
+		const mq = window.matchMedia("(min-width: 768px)");
+		const apply = (): void => setIsDesktopViewport(mq.matches);
+		apply();
+		mq.addEventListener("change", apply);
+		return () => mq.removeEventListener("change", apply);
+	}, []);
+
 	// Handle player click
 	const handlePlayerClick = async (playerName: string) => {
 		if (!selectedSeason || !playerName) return;
@@ -898,8 +909,8 @@ export default function TeamOfTheWeek() {
 		const minWidth = 55; // Minimum width in pixels
 
 		rowData.forEach((data, rowY) => {
-			// Use smaller gap for 4-player rows to maximize box width
-			const gapBetweenBoxes = data.playerCount === 4 ? 1 : 2;
+			// Four-across rows used a 1px gap that reads as a solid bar on desktop; keep a visible pitch gap there
+			const gapBetweenBoxes = data.playerCount === 4 ? (isDesktopViewport ? 8 : 1) : 2;
 			
 			// Get players in this row with their positions
 			const rowPlayersWithPositions = playersInFormation
@@ -936,6 +947,10 @@ export default function TeamOfTheWeek() {
 					boxWidth = Math.min(boxWidth, maxBoxWidth);
 				}
 				
+				if (isDesktopViewport) {
+					boxWidth = Math.max(minWidth, boxWidth - 8);
+				}
+
 				dimensions.set(rowY, {
 					width: boxWidth,
 					height: baseHeight,
@@ -986,12 +1001,11 @@ export default function TeamOfTheWeek() {
 				let boxWidth;
 				if (data.playerCount === 4) {
 					// For 4-player rows, use the full available width from the row
-					// Use 92% of the calculated width to ensure small gaps remain
-					const widerBoxWidth = maxBoxWidthFromRow * 0.92;
-					// Also consider using more of the spacing if it's larger
-					const widerFromSpacing = maxBoxWidthFromSpacing * 1.05;
-					// Use the larger of the two to maximize width, then reduce by 5px
-					boxWidth = Math.max(minWidth, Math.max(widerBoxWidth, widerFromSpacing) - 5);
+					// Desktop: slightly narrower so adjacent boxes leave visible pitch between them
+					const widerBoxWidth = maxBoxWidthFromRow * (isDesktopViewport ? 0.86 : 0.92);
+					const widerFromSpacing = maxBoxWidthFromSpacing * (isDesktopViewport ? 1 : 1.05);
+					const widthTrim = isDesktopViewport ? 10 : 5;
+					boxWidth = Math.max(minWidth, Math.max(widerBoxWidth, widerFromSpacing) - widthTrim);
 				} else if (data.playerCount === 5) {
 					// For 5-player rows, use the smaller of the two and add 14px
 					boxWidth = Math.max(minWidth, Math.min(maxBoxWidthFromRow, maxBoxWidthFromSpacing) + 14);
@@ -999,7 +1013,11 @@ export default function TeamOfTheWeek() {
 					// Use the smaller of the two for other row sizes
 					boxWidth = Math.max(minWidth, Math.min(maxBoxWidthFromRow, maxBoxWidthFromSpacing));
 				}
-				
+
+				if (isDesktopViewport && data.playerCount !== 4) {
+					boxWidth = Math.max(minWidth, boxWidth - 8);
+				}
+
 				dimensions.set(rowY, {
 					width: boxWidth,
 					height: baseHeight,
@@ -1008,7 +1026,7 @@ export default function TeamOfTheWeek() {
 		});
 
 		return dimensions;
-	}, [formation, playersInFormation, containerWidth]);
+	}, [formation, playersInFormation, containerWidth, isDesktopViewport]);
 
 	return (
 		<div className='flex flex-col px-[11.2px] md:px-[16.8px] pt-2 md:pt-4 pb-4 md:pb-6 relative md:max-w-2xl md:mx-auto lg:max-w-6xl w-full'>
@@ -1016,7 +1034,6 @@ export default function TeamOfTheWeek() {
 			<div className='text-center mb-3 flex items-center justify-center gap-2'>
 				<h1 
 					className='text-xl md:text-2xl font-bold text-dorkinians-yellow'
-					title='Select a week filter to begin reviewing past teams of the week. Or click on a player to see more details.'
 				>
 					{loading ? "Team of the Week" : isAllTimeSelected ? "Team of All Time" : isSeasonTOTWSelected ? "Team of the Season" : "Team of the Week"}
 				</h1>
@@ -1038,10 +1055,10 @@ export default function TeamOfTheWeek() {
 						<path strokeLinecap='round' strokeLinejoin='round' d='m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z' />
 					</svg>
 					{showInfoTooltip && (
-						<div className='absolute top-full right-0 mt-2 px-3 py-2 text-xs text-white rounded-lg shadow-lg w-64 text-center z-50 pointer-events-none' style={{ backgroundColor: '#0f0f0f' }}>
+						<TooltipSurface className='absolute top-full right-0 mt-2 w-64 text-center z-50 pointer-events-none'>
 							Select a week filter to begin reviewing past teams of the week. Or click on a player to see more details.
-							<div className='absolute bottom-full right-4 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent' style={{ borderBottomColor: '#0f0f0f' }}></div>
-						</div>
+							<div className='absolute bottom-full right-4 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent' style={{ borderBottomColor: 'var(--tooltip-bg)' }}></div>
+						</TooltipSurface>
 					)}
 				</button>
 			</div>
@@ -1098,9 +1115,7 @@ export default function TeamOfTheWeek() {
 										{isAllTimeSelected ? (
 											"Team of the Season"
 										) : weeks.length === 0 ? (
-											<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-												<Skeleton height={16} width={100} />
-											</SkeletonTheme>
+											<Skeleton height={16} width={100} />
 										) : selectedWeek === 0 ? (
 											"Team of the Season"
 										) : selectedWeek ? (
@@ -1117,9 +1132,7 @@ export default function TeamOfTheWeek() {
 									<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full max-w-[min(100vw-1rem,22rem)] overflow-auto dark-dropdown py-1 text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none text-[0.65rem] md:text-sm'>
 										{weeks.length === 0 ? (
 											<Listbox.Option value={0} className='relative cursor-default select-none dark-dropdown-option py-2 pl-3 pr-9 text-white'>
-												<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-													<Skeleton height={16} width={100} />
-												</SkeletonTheme>
+												<Skeleton height={16} width={100} />
 											</Listbox.Option>
 										) : (
 											weeks.map((week) => (
@@ -1150,30 +1163,28 @@ export default function TeamOfTheWeek() {
 			{/* Summary Statistics and Pitch Visualization */}
 			{(loading || !totwData || appConfig.forceSkeletonView) ? (
 				<div data-testid="loading-skeleton">
-					<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-						<div className='lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(220px,320px)] lg:gap-6 lg:items-start'>
-							<div className='min-w-0'>
-								<TOTWPitchSkeleton />
+					<div className='lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(220px,320px)] lg:gap-6 lg:items-start'>
+						<div className='min-w-0'>
+							<TOTWPitchSkeleton />
+						</div>
+						<div className='hidden lg:block mb-6 lg:mb-0 min-w-0 mt-2 lg:mt-0'>
+							<div className='mb-2'>
+								<Skeleton height={16} width={128} />
 							</div>
-							<div className='hidden lg:block mb-6 lg:mb-0 min-w-0 mt-2 lg:mt-0'>
-								<div className='mb-2'>
-									<Skeleton height={16} width={128} />
-								</div>
-								<div className='grid grid-cols-2 gap-2'>
-									{Array.from({ length: 10 }).map((_, index) => (
-										<div
-											key={`totw-previous-week-skeleton-${index}`}
-											className='rounded-md border border-white/20 bg-white/5 px-1 py-1.5 text-center'
-										>
-											<Skeleton height={10} width={26} className='mx-auto mb-1' />
-											<Skeleton height={20} width={34} className='mx-auto mb-1' />
-											<Skeleton height={9} width={52} className='mx-auto' />
-										</div>
-									))}
-								</div>
+							<div className='grid grid-cols-2 gap-2'>
+								{Array.from({ length: 10 }).map((_, index) => (
+									<div
+										key={`totw-previous-week-skeleton-${index}`}
+										className='rounded-md border border-white/20 bg-white/5 px-1 py-1.5 text-center'
+									>
+										<Skeleton height={10} width={26} className='mx-auto mb-1' />
+										<Skeleton height={20} width={34} className='mx-auto mb-1' />
+										<Skeleton height={9} width={52} className='mx-auto' />
+									</div>
+								))}
 							</div>
 						</div>
-					</SkeletonTheme>
+					</div>
 				</div>
 			) : (
 				<div
@@ -1381,9 +1392,7 @@ export default function TeamOfTheWeek() {
 			{/* Loading Overlay */}
 			{loadingPlayerDetails && (
 				<div data-testid="loading-skeleton">
-					<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-						<TOTWPlayerDetailsSkeleton />
-					</SkeletonTheme>
+					<TOTWPlayerDetailsSkeleton />
 				</div>
 			)}
 

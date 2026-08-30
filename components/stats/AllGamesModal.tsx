@@ -4,12 +4,13 @@ import { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { XMarkIcon, ChevronDownIcon, ChevronRightIcon, FunnelIcon } from "@heroicons/react/24/outline";
 import { useMemo } from "react";
-import { SkeletonTheme } from "react-loading-skeleton";
-import "react-loading-skeleton/dist/skeleton.css";
+import FullscreenModalContent from "@/components/modals/FullscreenModalContent";
 import ModalWrapper from "@/components/modals/ModalWrapper";
 import { useNavigationStore } from "@/lib/stores/navigation";
 import { getActiveFilterCount } from "@/lib/utils/filterUtils";
 import { matchRatingCircleClass } from "@/lib/utils/matchRatingDisplay";
+import Skeleton from "react-loading-skeleton";
+import { HoverTooltip } from "@/components/ui/Tooltip";
 
 interface AllGamesModalProps {
 	isOpen: boolean;
@@ -317,25 +318,26 @@ export default function AllGamesModal({
 			modalClassName="fixed inset-0 h-screen w-screen z-[10000] shadow-xl"
 			ariaLabel={`All Games - ${playerDisplayName}`}
 		>
-			<div className="h-full flex flex-col" style={{ backgroundColor: "#0f0f0f" }}>
+			<FullscreenModalContent>
 				{/* Header */}
 				<div className="flex items-center justify-between p-4 border-b border-white/20">
 					<h2 className="text-lg font-semibold text-white">All Games - {playerDisplayName}</h2>
 					<div className="flex items-center gap-1">
-						<button
-							type="button"
-							onClick={openFilterSidebar}
-							className="relative min-w-[44px] min-h-[44px] p-2 rounded-full hover:bg-white/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
-							aria-label="Open filters"
-							title="Open filters"
-						>
+						<HoverTooltip content="Open filters">
+							<button
+								type="button"
+								onClick={openFilterSidebar}
+								className="relative min-w-[44px] min-h-[44px] p-2 rounded-full hover:bg-white/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
+								aria-label="Open filters"
+							>
 							<FunnelIcon className="w-6 h-6 text-white" />
 							{activeFilterCount > 0 && (
 								<span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 flex items-center justify-center bg-dorkinians-yellow text-black text-xs font-bold rounded-full">
 									{activeFilterCount > 99 ? "99+" : activeFilterCount}
 								</span>
 							)}
-						</button>
+							</button>
+						</HoverTooltip>
 						<button
 							onClick={onClose}
 							className="min-w-[44px] min-h-[44px] p-2 rounded-full hover:bg-white/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
@@ -352,13 +354,11 @@ export default function AllGamesModal({
 					style={{ WebkitOverflowScrolling: "touch" }}
 				>
 					{seasonsLoading && (
-						<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-							<div className="space-y-2">
-								{[1, 2, 3].map((i) => (
-									<div key={i} className="h-14 rounded-lg bg-white/10" />
-								))}
-							</div>
-						</SkeletonTheme>
+						<div className="space-y-2">
+							{[1, 2, 3].map((i) => (
+								<Skeleton key={i} height={56} className="rounded-lg" />
+							))}
+						</div>
 					)}
 
 					{seasonsError && (
@@ -418,7 +418,7 @@ export default function AllGamesModal({
 												{gamesLoading && (
 													<div className="space-y-2">
 														{[1, 2, 3].map((i) => (
-															<div key={i} className="h-24 rounded-lg bg-white/10 animate-pulse" />
+															<Skeleton key={i} height={96} className="rounded-lg" />
 														))}
 													</div>
 												)}
@@ -441,12 +441,13 @@ export default function AllGamesModal({
 																>
 																	<div className="absolute top-4 right-4 flex flex-wrap justify-end gap-2 items-center max-w-[55%]">
 																		{game.matchRating != null && !Number.isNaN(Number(game.matchRating)) && (
-																			<span
-																				className={`px-2 py-1 rounded text-xs font-semibold ${matchRatingCircleClass(Number(game.matchRating))}`}
-																				title="Automated match rating (1–10)"
-																			>
-																				{Number(game.matchRating).toFixed(1)}
-																			</span>
+																			<HoverTooltip content="Automated match rating (1–10)">
+																				<span
+																					className={`px-2 py-1 rounded text-xs font-semibold ${matchRatingCircleClass(Number(game.matchRating))}`}
+																				>
+																					{Number(game.matchRating).toFixed(1)}
+																				</span>
+																			</HoverTooltip>
 																		)}
 																		{game.compType && (
 																			<span
@@ -604,7 +605,7 @@ export default function AllGamesModal({
 						Close
 					</button>
 				</div>
-			</div>
+			</FullscreenModalContent>
 		</ModalWrapper>
 	);
 

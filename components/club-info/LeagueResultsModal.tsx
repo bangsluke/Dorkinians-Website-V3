@@ -3,9 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { XMarkIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
-import { SkeletonTheme } from "react-loading-skeleton";
-import "react-loading-skeleton/dist/skeleton.css";
 import { FixturesListSkeleton } from "@/components/skeletons";
+import FullscreenModalContent from "@/components/modals/FullscreenModalContent";
 import ModalWrapper from "@/components/modals/ModalWrapper";
 import FixtureExpandedDetails, { type FixtureLineupPlayer } from "./FixtureExpandedDetails";
 import VeoWatchMatchButtons from "./VeoWatchMatchButtons";
@@ -169,7 +168,7 @@ export default function LeagueResultsModal({ isOpen, onClose, teamKey, teamDispl
 			backdropClassName='fixed inset-0 bg-black/50 z-[9999]'
 			modalClassName='fixed inset-0 h-screen w-screen z-[10000] shadow-xl'
 			ariaLabel={`${teamDisplayName} - ${formatSeason(season)} league results`}>
-			<div className='h-full flex flex-col' style={{ backgroundColor: "#0f0f0f" }}>
+			<FullscreenModalContent>
 				{/* Header */}
 				<div className='flex items-center justify-between p-4 border-b border-white/20'>
 					<h2 className='text-lg font-semibold text-white'>
@@ -185,11 +184,9 @@ export default function LeagueResultsModal({ isOpen, onClose, teamKey, teamDispl
 
 				{/* Scrollable content - narrow centered column on large screens */}
 				<div className='flex-1 overflow-y-auto p-4' style={{ WebkitOverflowScrolling: "touch" }}>
-					<div className='w-full max-w-xl md:max-w-lg lg:max-w-xl mx-auto space-y-4'>
+					<div className='space-y-4'>
 					{loading && (
-						<SkeletonTheme baseColor='var(--skeleton-base)' highlightColor='var(--skeleton-highlight)'>
-							<FixturesListSkeleton />
-						</SkeletonTheme>
+						<FixturesListSkeleton />
 					)}
 
 					{error && <div className='p-4 bg-red-900/30 border border-red-500 rounded-lg text-red-200 text-center'>{error}</div>}
@@ -301,7 +298,7 @@ export default function LeagueResultsModal({ isOpen, onClose, teamKey, teamDispl
 						Close
 					</button>
 				</div>
-			</div>
+			</FullscreenModalContent>
 		</ModalWrapper>
 	);
 

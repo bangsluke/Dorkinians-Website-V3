@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { HoverTooltip } from "@/components/ui/Tooltip";
 
 interface UnansweredQuestion {
 	timestamp: string;
@@ -187,17 +188,19 @@ export default function UnansweredQuestionsPage() {
 												</p>
 											</div>
 										</div>
-										<button
-											onClick={() => clearSingleQuestion(item.timestamp)}
-											disabled={deletingQuestionTimestamp === item.timestamp}
-											className={`px-2 py-1 rounded text-xs font-semibold text-white transition-colors flex-shrink-0 ${
-												deletingQuestionTimestamp === item.timestamp
-													? "bg-gray-400 cursor-not-allowed"
-													: "bg-red-600 hover:bg-red-700"
-											}`}
-											title='Delete this question'>
-											{deletingQuestionTimestamp === item.timestamp ? "⏳" : "🗑️"}
-										</button>
+										<HoverTooltip content='Delete this question'>
+											<button
+												onClick={() => clearSingleQuestion(item.timestamp)}
+												disabled={deletingQuestionTimestamp === item.timestamp}
+												className={`px-2 py-1 rounded text-xs font-semibold text-white transition-colors flex-shrink-0 ${
+													deletingQuestionTimestamp === item.timestamp
+														? "bg-gray-400 cursor-not-allowed"
+														: "bg-red-600 hover:bg-red-700"
+												}`}
+												aria-label='Delete this question'>
+												{deletingQuestionTimestamp === item.timestamp ? "⏳" : "🗑️"}
+											</button>
+										</HoverTooltip>
 									</div>
 								</div>
 							))}

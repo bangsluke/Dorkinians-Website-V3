@@ -116,6 +116,10 @@
 	/* Delays */
 	--delay-tooltip-mouse: 300ms;
 	--delay-tooltip-touch: 500ms;
+	
+	/* Tooltip Appearance */
+	--tooltip-bg: rgba(0, 0, 0, 0.88);
+	--tooltip-border: rgba(255, 255, 255, 0.15);
 }
 
 @layer base {

@@ -22,9 +22,8 @@ import LazyWhenVisible from "@/components/perf/LazyWhenVisible";
 // import SharePreviewModal from "@/components/stats/SharePreviewModal";
 // import { generateShareImage, shareImage, performIOSShare, performNonIOSShare, getAvailableVisualizations } from "@/lib/utils/shareUtils";
 import { safeLocalStorageGet, safeLocalStorageSet } from "@/lib/utils/pwaDebug";
-import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
-import "react-loading-skeleton/dist/skeleton.css";
-import { ChartSkeleton, TableSkeleton, StatCardSkeleton, AwardsListSkeleton, DataTableSkeleton, MapSkeleton } from "@/components/skeletons";
+import Skeleton from "react-loading-skeleton";
+import { ChartSkeleton, TableSkeleton, StatCardSkeleton, AwardsListSkeleton, DataTableSkeleton, MapSkeleton, ScatterChartSkeleton, PieChartSkeleton } from "@/components/skeletons";
 import { log } from "@/lib/utils/logger";
 import { UmamiEvents } from "@/lib/analytics/events";
 import { trackStatsStatSelected } from "@/lib/analytics/statsTracking";
@@ -32,6 +31,8 @@ import { trackEvent } from "@/lib/utils/trackEvent";
 import Button from "@/components/ui/Button";
 import { calculateFTPBreakdown } from "@/lib/utils/fantasyPoints";
 import { ErrorState, EmptyState } from "@/components/ui/StateComponents";
+import WeekDateTooltip from "@/components/ui/WeekDateTooltip";
+import { TooltipSurface, TooltipArrow, HoverTooltip } from "@/components/ui/Tooltip";
 import { useToast } from "@/lib/hooks/useToast";
 import AllGamesModal from "@/components/stats/AllGamesModal";
 import PlayerRecentFormBoxes, { type PlayerFormRecentMatch } from "@/components/stats/PlayerRecentFormBoxes";
@@ -51,7 +52,7 @@ const OppositionMap = dynamic(() => import("@/components/maps/OppositionMap"), {
 });
 const OppositionPerformanceScatter = dynamic(
 	() => import("@/components/stats/OppositionPerformanceScatter"),
-	{ ssr: false, loading: () => <ChartSkeleton /> },
+	{ ssr: false, loading: () => <ScatterChartSkeleton /> },
 );
 const FormComposedChart = dynamic(() => import("./player-stats/FormComposedChart"), {
 	ssr: false,
@@ -67,7 +68,7 @@ const TeamPerformanceChart = dynamic(() => import("./player-stats/TeamPerformanc
 });
 const MatchResultsPieChart = dynamic(() => import("./player-stats/MatchResultsPieChart"), {
 	ssr: false,
-	loading: () => <ChartSkeleton noContainer />,
+	loading: () => <PieChartSkeleton noContainer />,
 });
 const MonthlyPerformanceChart = dynamic(() => import("./player-stats/MonthlyPerformanceChart"), {
 	ssr: false,
@@ -98,46 +99,6 @@ function formatFormWeekLabel(value: string | null | undefined): string {
 		return `${seasonWeek[1]} Week ${seasonWeek[2]}`;
 	}
 	return label;
-}
-
-// Page-specific skeleton components (Player Stats only)
-function PositionalStatsSkeleton() {
-	return (
-		<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-			<Skeleton height={20} width="40%" className="mb-2" />
-			<div className='w-full relative' style={{ height: '200px', overflow: 'hidden' }}>
-				{/* Pitch outline */}
-				<Skeleton height="100%" className="rounded" />
-				{/* Position sections */}
-				<div className='absolute inset-0 flex'>
-					<Skeleton height="100%" width="33.33%" className="opacity-50" />
-					<Skeleton height="100%" width="33.33%" className="opacity-50" />
-					<Skeleton height="100%" width="33.33%" className="opacity-50" />
-				</div>
-			</div>
-		</div>
-	);
-}
-
-function PenaltyStatsSkeleton() {
-	return (
-		<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-			<Skeleton height={20} width="40%" className="mb-2" />
-			<div className='w-full relative' style={{ height: '200px', overflow: 'hidden' }}>
-				<Skeleton height="100%" className="rounded" />
-				{/* Goal and penalty circles */}
-				<div className='absolute inset-0'>
-					<Skeleton circle height={40} width={40} style={{ position: 'absolute', top: '30%', left: '35%' }} />
-					<Skeleton circle height={40} width={40} style={{ position: 'absolute', top: '30%', left: '55%' }} />
-					<Skeleton circle height={40} width={40} style={{ position: 'absolute', top: '20%', left: '70%' }} />
-					<Skeleton circle height={40} width={40} style={{ position: 'absolute', top: '60%', left: '30%' }} />
-				</div>
-			</div>
-			<div className='mt-2'>
-				<TableSkeleton rows={4} />
-			</div>
-		</div>
-	);
 }
 
 // Page-specific skeleton components (keep in this file)
@@ -179,14 +140,14 @@ function StreakStatTile({
 			<p className='text-white/85 text-[11px] md:text-xs leading-tight'>{label}</p>
 			<p className='text-white/45 text-[10px] leading-tight w-full'>Season best: {seasonBest}</p>
 			<p className='text-white/45 text-[10px] leading-tight w-full'>All-time best: {allTimeBest}</p>
-			<div className='pointer-events-none absolute left-1/2 bottom-full z-40 mb-2 hidden w-[17rem] -translate-x-1/2 rounded-md bg-black/95 p-2 text-left text-[11px] text-white shadow-xl ring-1 ring-white/15 group-hover:block group-focus-within:block'>
-				<p className='text-white/95 leading-snug'>{tip}</p>
-				<div className='mt-2 pt-2 border-t border-white/20 space-y-1 text-white/90'>
+			<TooltipSurface className='pointer-events-none absolute left-1/2 bottom-full z-40 mb-2 hidden w-[17rem] -translate-x-1/2 text-left group-hover:block group-focus-within:block'>
+				<p className='text-white/90 leading-snug'>{tip}</p>
+				<div className='mt-2 pt-2 border-t border-white/20 space-y-1 text-white/80'>
 					<p>{currentLine}</p>
 					<p>{seasonBestLine}</p>
 					<p>{allTimeBestLine}</p>
 				</div>
-			</div>
+			</TooltipSurface>
 		</div>
 	);
 }
@@ -435,21 +396,16 @@ function StatRow({
 				</td>
 			</tr>
 			{showTooltip && tooltipPosition && typeof document !== 'undefined' && createPortal(
-				<div 
+				<TooltipSurface
 					ref={tooltipRef}
-					className='fixed z-[9999] px-3 py-2 text-sm text-white rounded-lg shadow-lg w-64 text-center pointer-events-none' 
-					style={{ 
-						backgroundColor: '#0f0f0f',
+					className='fixed z-[9999] w-64 text-center pointer-events-none'
+					style={{
 						top: `${tooltipPosition.top}px`,
 						left: `${tooltipPosition.left}px`
 					}}>
-					{tooltipPosition.placement === 'above' ? (
-						<div className='absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent mt-1' style={{ borderTopColor: '#0f0f0f' }}></div>
-					) : (
-						<div className='absolute bottom-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent mb-1' style={{ borderBottomColor: '#0f0f0f' }}></div>
-					)}
+					<TooltipArrow placement={tooltipPosition.placement === 'above' ? 'above' : 'below'} />
 					{showPer90ThresholdMessage ? "Min. 360 minutes required" : stat.description}
-				</div>,
+				</TooltipSurface>,
 				document.body
 			)}
 		</>
@@ -552,7 +508,17 @@ function formatStreakCountLabel(count: number, singular: string, plural: string)
 
 // Penalty Stats Visualization Component
 function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltyShootoutScored, penaltyShootoutMissed, penaltyShootoutSaved }: { scored: number; missed: number; saved: number; conceded: number; penaltyShootoutScored: number; penaltyShootoutMissed: number; penaltyShootoutSaved: number }) {
-	
+	const [isDesktopViewport, setIsDesktopViewport] = useState(false);
+
+	useEffect(() => {
+		if (typeof window === "undefined") return;
+		const mq = window.matchMedia("(min-width: 768px)");
+		const apply = () => setIsDesktopViewport(mq.matches);
+		apply();
+		mq.addEventListener("change", apply);
+		return () => mq.removeEventListener("change", apply);
+	}, []);
+
 	// Calculate sizes (max size 120px, min size 30px) - increased by 50%
 	const maxValue = Math.max(scored, missed, saved, conceded, penaltyShootoutScored, penaltyShootoutMissed, penaltyShootoutSaved, 1);
 	const scoredSize = Math.max(30, Math.min(120, (scored / maxValue) * 120));
@@ -573,6 +539,8 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 	// Center positions
 	const goalCenterX = goalX + goalWidth / 2;
 	const goalCenterY = goalY + goalHeight / 2;
+	// Scored/saved circles sit 50px lower on desktop so they clear the heading
+	const scoredSavedY = goalCenterY - 80 + (isDesktopViewport ? 50 : 0);
 	
 	// Penalty box dimensions (semi-circle in front of goal)
 	const penaltyBoxRadius = 60;
@@ -600,20 +568,20 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 				
 				<svg width='100%' height='300' viewBox='0 0 500 300' preserveAspectRatio='xMidYMid meet' className='relative z-10'>
 					
-					{/* Green circle - Scored (left side of center line, moved up more and separated further) */}
+					{/* Green circle - Scored (left of centre; 50px lower on desktop) */}
 					{scored > 0 && (
 						<g>
 							{/* Larger invisible hit area */}
 							<circle
 								cx={goalCenterX - 65}
-								cy={goalCenterY - 80}
+								cy={scoredSavedY}
 								r={scoredSize / 2 + 15}
 								fill='transparent'
 								cursor='pointer'
 							/>
 							<circle
 								cx={goalCenterX - 65}
-								cy={goalCenterY - 80}
+								cy={scoredSavedY}
 								r={scoredSize / 2}
 								fill='#22c55e'
 								cursor='pointer'
@@ -627,7 +595,7 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 							/>
 							<text
 								x={goalCenterX - 65}
-								y={goalCenterY - 80}
+								y={scoredSavedY}
 								textAnchor='middle'
 								dominantBaseline='middle'
 								fill='#ffffff'
@@ -641,20 +609,20 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 						</g>
 					)}
 					
-					{/* Blue circle - Saved (right side of center line, moved up more and separated further) */}
+					{/* Blue circle - Saved (right of centre; 50px lower on desktop) */}
 					{saved > 0 && (
 						<g>
 							{/* Larger invisible hit area */}
 							<circle
 								cx={goalCenterX + 60}
-								cy={goalCenterY - 80}
+								cy={scoredSavedY}
 								r={savedSize / 2 + 15}
 								fill='transparent'
 								cursor='pointer'
 							/>
 							<circle
 								cx={goalCenterX + 60}
-								cy={goalCenterY - 80}
+								cy={scoredSavedY}
 								r={savedSize / 2}
 								fill='#60a5fa'
 								cursor='pointer'
@@ -668,7 +636,7 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 							/>
 							<text
 								x={goalCenterX + 60}
-								y={goalCenterY - 80}
+								y={scoredSavedY}
 								textAnchor='middle'
 								dominantBaseline='middle'
 								fill='#ffffff'
@@ -682,20 +650,20 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 						</g>
 					)}
 					
-					{/* Dark blue circle - Penalty Shootout Saved (same position as Saved but 20px left) */}
+					{/* Dark blue circle - Penalty Shootout Saved (same Y as Saved, 20px left) */}
 					{penaltyShootoutSaved > 0 && (
 						<g>
 							{/* Larger invisible hit area */}
 							<circle
 								cx={goalCenterX + 20}
-								cy={goalCenterY - 80}
+								cy={scoredSavedY}
 								r={penaltyShootoutSavedSize / 2 + 15}
 								fill='transparent'
 								cursor='pointer'
 							/>
 							<circle
 								cx={goalCenterX + 20}
-								cy={goalCenterY - 80}
+								cy={scoredSavedY}
 								r={penaltyShootoutSavedSize / 2}
 								fill='#1e40af'
 								cursor='pointer'
@@ -709,7 +677,7 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 							/>
 							<text
 								x={goalCenterX + 20}
-								y={goalCenterY - 80}
+								y={scoredSavedY}
 								textAnchor='middle'
 								dominantBaseline='middle'
 								fill='#ffffff'
@@ -848,20 +816,20 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 						</g>
 					)}
 					
-					{/* Dark green circle - Penalty Shootout Scored (same vertical position as Scored, 40px more to the left) */}
+					{/* Dark green circle - Penalty Shootout Scored (same Y as Scored, 40px further left) */}
 					{penaltyShootoutScored > 0 && (
 						<g>
 							{/* Larger invisible hit area */}
 							<circle
 								cx={goalCenterX - 110}
-								cy={goalCenterY - 80}
+								cy={scoredSavedY}
 								r={penaltyShootoutScoredSize / 2 + 15}
 								fill='transparent'
 								cursor='pointer'
 							/>
 							<circle
 								cx={goalCenterX - 110}
-								cy={goalCenterY - 80}
+								cy={scoredSavedY}
 								r={penaltyShootoutScoredSize / 2}
 								fill='#15803d'
 								cursor='pointer'
@@ -875,7 +843,7 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 							/>
 							<text
 								x={goalCenterX - 110}
-								y={goalCenterY - 80}
+								y={scoredSavedY}
 								textAnchor='middle'
 								dominantBaseline='middle'
 								fill='#ffffff'
@@ -984,9 +952,7 @@ function FantasyPointsSection({
 
 	if (isLoading) {
 		return (
-			<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-				<FantasyPointsSkeleton />
-			</SkeletonTheme>
+			<FantasyPointsSkeleton />
 		);
 	}
 
@@ -2008,6 +1974,11 @@ export default function PlayerStats() {
 		return liveStreaks?.tooltipMeta ?? null;
 	}, [liveStreaks]);
 
+	const formPeakFixtureDate = useMemo(() => {
+		if (!formSummary?.formPeakWeek) return null;
+		return formData.find((point) => point.week === formSummary.formPeakWeek)?.date ?? null;
+	}, [formData, formSummary?.formPeakWeek]);
+
 	// Debug log for position counts (must be before early returns)
 	useEffect(() => {
 		if (playerData && selectedPlayer) {
@@ -2743,12 +2714,14 @@ export default function PlayerStats() {
 				<div className='text-center'>
 					<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-2 md:mb-4' data-testid="stats-page-heading">Stats</h2>
 					<p className='text-white text-sm md:text-base mb-4'>Select a player to display data here</p>
-					<button
-						onClick={handleEditClick}
-						className='flex items-center justify-center mx-auto w-8 h-8 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors'
-						title='Select a player'>
-						<PenOnPaperIcon className='h-4 w-4 md:h-5 md:w-5' />
-					</button>
+					<HoverTooltip content='Select a player'>
+						<button
+							onClick={handleEditClick}
+							className='flex items-center justify-center mx-auto w-8 h-8 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors'
+							aria-label='Select a player'>
+							<PenOnPaperIcon className='h-4 w-4 md:h-5 md:w-5' />
+						</button>
+					</HoverTooltip>
 				</div>
 			</div>
 		);
@@ -2757,62 +2730,62 @@ export default function PlayerStats() {
 	if (isLoadingPlayerData || appConfig.forceSkeletonView) {
 		return (
 			<div data-testid="loading-skeleton">
-				<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-					<div className='h-full flex flex-col'>
-					<div className='flex-shrink-0 p-2 md:p-4'>
-						<div className='flex items-center justify-center mb-2 md:mb-4 space-x-2 md:space-x-3'>
-							<h2
-								className='text-xl md:text-2xl font-semibold text-dorkinians-yellow text-center'
-								data-testid='stats-page-heading'>
-								Stats - {selectedPlayer}
-							</h2>
+				<div className='h-full flex flex-col'>
+				<div className='flex-shrink-0 p-2 md:p-4'>
+					<div className='flex items-center justify-center mb-2 md:mb-4 space-x-2 md:space-x-3'>
+						<h2
+							className='text-xl md:text-2xl font-semibold text-dorkinians-yellow text-center'
+							data-testid='stats-page-heading'>
+							Stats - {selectedPlayer}
+						</h2>
+						<HoverTooltip content='Edit player selection'>
 							<button
 								type='button'
 								data-testid='home-edit-player-button'
 								onClick={handleEditClick}
 								className='p-1.5 md:p-2 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors shrink-0'
-								title='Edit player selection'>
+								aria-label='Edit player selection'>
 								<PenOnPaperIcon className='h-4 w-4 md:h-5 md:w-5' />
 							</button>
-						</div>
-						<div className='flex justify-center mb-2 md:mb-4'>
-							<button
-								onClick={() => {
-									const next = !isDataTableMode;
-									setIsDataTableMode(next);
-								}}
-								className='text-white underline hover:text-white/80 text-sm md:text-base cursor-pointer'>
-								{isDataTableMode ? "Switch to data visualisation" : "Switch to data table"}
-							</button>
-						</div>
-						<FilterPills playerFilters={playerFilters} filterData={filterData} currentStatsSubPage={currentStatsSubPage} />
+						</HoverTooltip>
 					</div>
-					<div className='flex-1 px-2 md:px-4 pb-4 min-h-0 overflow-y-auto space-y-4 md:space-y-0 player-stats-masonry'>
-						<div className='player-stats-kpi-form-group flex flex-col gap-4 md:gap-0 md:break-inside-avoid md:mb-4'>
-							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:mb-4'>
-								<div className='flex items-center justify-between gap-2 mb-3'>
-									<Skeleton height={22} width="45%" className='max-w-[220px]' />
-									<Skeleton height={32} width={112} />
-								</div>
-								<StatCardSkeleton count={9} variant='embedded' />
+					<div className='flex justify-center mb-2 md:mb-4'>
+						<button
+							onClick={() => {
+								const next = !isDataTableMode;
+								setIsDataTableMode(next);
+							}}
+							className='text-white underline hover:text-white/80 text-sm md:text-base cursor-pointer'>
+							{isDataTableMode ? "Switch to data visualisation" : "Switch to data table"}
+						</button>
+					</div>
+					<FilterPills playerFilters={playerFilters} filterData={filterData} currentStatsSubPage={currentStatsSubPage} />
+				</div>
+				<div className='flex-1 px-2 md:px-4 pb-4 min-h-0 overflow-y-auto space-y-4 md:space-y-0 player-stats-masonry'>
+					<div className='player-stats-kpi-form-group flex flex-col gap-4 md:gap-0 md:break-inside-avoid md:mb-4'>
+						<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:mb-4'>
+							<div className='flex items-center justify-between gap-2 mb-3'>
+								<Skeleton height={22} width="45%" className='max-w-[220px]' />
+								<Skeleton height={32} width={112} />
 							</div>
-							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-								<Skeleton height={20} width={56} className='mb-2' />
-								<ChartSkeleton noContainer />
-							</div>
+							<StatCardSkeleton count={9} variant='embedded' />
 						</div>
-						<div className='md:break-inside-avoid md:mb-4'>
-							<ChartSkeleton />
+						<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+							<Skeleton height={20} width={56} className='mb-2' />
+							<ChartSkeleton noContainer />
 						</div>
-						<div className='md:break-inside-avoid md:mb-4'>
-							<ChartSkeleton />
-						</div>
-						<div className='md:break-inside-avoid md:mb-4'>
-							<ChartSkeleton />
-						</div>
+					</div>
+					<div className='md:break-inside-avoid md:mb-4'>
+						<ChartSkeleton />
+					</div>
+					<div className='md:break-inside-avoid md:mb-4'>
+						<ChartSkeleton />
+					</div>
+					<div className='md:break-inside-avoid md:mb-4'>
+						<ChartSkeleton />
 					</div>
 				</div>
-				</SkeletonTheme>
+			</div>
 			</div>
 		);
 	}
@@ -3169,13 +3142,6 @@ export default function PlayerStats() {
 	// 	setIsShareModalOpen(true);
 	// };
 
-	const tooltipStyle = {
-		backgroundColor: 'rgb(14, 17, 15)',
-		border: '1px solid rgba(249, 237, 50, 0.3)',
-		borderRadius: '8px',
-		color: '#fff',
-	};
-
 	// Custom tooltip formatter for seasonal chart
 	const seasonalTooltip = ({ active, payload, label }: any) => {
 		if (active && payload && payload.length) {
@@ -3186,12 +3152,12 @@ export default function PlayerStats() {
 				displayValue = `${Number(displayValue).toFixed(1)} miles`;
 			}
 			return (
-				<div style={tooltipStyle} className='px-3 py-2'>
-					<p className='text-white text-sm'>{displayLabel}</p>
-					<p className='text-white text-sm'>
-						<span className='font-semibold'>Value</span>: {displayValue}
+				<TooltipSurface>
+					<p className='mb-1 font-medium text-white/90'>{displayLabel}</p>
+					<p className='text-white/80'>
+						<span className='font-medium text-white/60'>Value:</span> {displayValue}
 					</p>
-				</div>
+				</TooltipSurface>
 			);
 		}
 		return null;
@@ -3209,12 +3175,12 @@ export default function PlayerStats() {
 				displayValue = Math.round(Number(displayValue));
 			}
 			return (
-				<div style={tooltipStyle} className='px-3 py-2'>
-					<p className='text-white text-sm'>{displayLabel}</p>
-					<p className='text-white text-sm'>
-						<span className='font-semibold'>Value</span>: {displayValue}
+				<TooltipSurface>
+					<p className='mb-1 font-medium text-white/90'>{displayLabel}</p>
+					<p className='text-white/80'>
+						<span className='font-medium text-white/60'>Value:</span> {displayValue}
 					</p>
-				</div>
+				</TooltipSurface>
 			);
 		}
 		return null;
@@ -3226,12 +3192,12 @@ export default function PlayerStats() {
 			const displayLabel = label || payload[0].name || payload[0].payload?.name || '';
 			const displayValue = payload[0].value || 0;
 			return (
-				<div style={tooltipStyle} className='px-3 py-2'>
-					<p className='text-white text-sm'>{displayLabel}</p>
-					<p className='text-white text-sm'>
-						<span className='font-semibold'>Value</span>: {displayValue}
+				<TooltipSurface>
+					<p className='mb-1 font-medium text-white/90'>{displayLabel}</p>
+					<p className='text-white/80'>
+						<span className='font-medium text-white/60'>Value:</span> {displayValue}
 					</p>
-				</div>
+				</TooltipSurface>
 			);
 		}
 		return null;
@@ -3249,13 +3215,13 @@ export default function PlayerStats() {
 					<span className='inline-flex items-center justify-center w-4 h-4 text-[10px] rounded-full border border-white/40 text-white/80 cursor-help'>
 						i
 					</span>
-					<div className='pointer-events-none absolute left-0 top-6 z-20 hidden w-72 rounded-md bg-black/90 p-2 text-[11px] text-white shadow-lg group-hover:block'>
+					<TooltipSurface className='pointer-events-none absolute left-0 top-6 z-20 hidden w-72 group-hover:block'>
 						Each point is your match rating for that game (with fantasy-points fallback when needed). The yellow line is current form (5-match Exponentially Weighted Moving Average (EWMA)) and the green line is the longer baseline (15-match EWMA). Grey dots are the raw rating for each match.
-					</div>
+					</TooltipSurface>
 				</div>
 			</div>
 			{isLoadingFormData ? (
-				<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+				<>
 					<Skeleton height={48} className='rounded mb-3' />
 					<Skeleton height={220} className='rounded mb-3' />
 					<div className='grid grid-cols-2 md:grid-cols-3 gap-2'>
@@ -3263,7 +3229,7 @@ export default function PlayerStats() {
 						<Skeleton height={64} className='rounded' />
 						<Skeleton height={64} className='rounded col-span-2 md:col-span-1' />
 					</div>
-				</SkeletonTheme>
+				</>
 			) : formData.length > 0 ? (
 				<>
 					{recentFormMatches.length > 0 ? <PlayerRecentFormBoxes matchesNewestFirst={recentFormMatches} /> : null}
@@ -3327,9 +3293,14 @@ export default function PlayerStats() {
 									}}>
 									<p className='text-white/75 text-xs'>Peak form</p>
 									<p className='font-semibold text-sm md:text-base' style={{ color: band?.color ?? "rgba(255,255,255,0.95)" }}>
-										{formSummary?.formPeak != null
-											? `${formSummary.formPeak.toFixed(1)} (${formatFormWeekLabel(formSummary.formPeakWeek)})`
-											: "-"}
+										<WeekDateTooltip
+											seasonWeek={formSummary?.formPeakWeek}
+											fixtureDate={formPeakFixtureDate}
+											className='cursor-help'>
+											{formSummary?.formPeak != null
+												? `${formSummary.formPeak.toFixed(1)} (${formatFormWeekLabel(formSummary.formPeakWeek)})`
+												: "-"}
+										</WeekDateTooltip>
 									</p>
 								</div>
 							);
@@ -3377,9 +3348,7 @@ export default function PlayerStats() {
 								</div>
 							</div>
 							{isLoadingPlayerData ? (
-								<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-									<StatCardSkeleton count={9} variant='embedded' />
-								</SkeletonTheme>
+								<StatCardSkeleton count={9} variant='embedded' />
 							) : (
 								<div className='grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4'>
 									{keyPerformanceData.map((item, index) => {
@@ -3521,9 +3490,7 @@ export default function PlayerStats() {
 				{allSeasonsSelected ? (
 					<>
 						{isLoadingSeasonalStats ? (
-							<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-								<ChartSkeleton noContainer />
-							</SkeletonTheme>
+							<ChartSkeleton noContainer />
 						) : seasonalChartData.length > 0 ? (
 							<LazyWhenVisible rootMargin="120px" className="min-h-[240px]" fallback={<ChartSkeleton noContainer />}>
 								<SeasonalPerformanceChart
@@ -3590,9 +3557,7 @@ export default function PlayerStats() {
 				{allTeamsSelected ? (
 					<>
 						{isLoadingTeamStats ? (
-							<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-								<ChartSkeleton noContainer />
-							</SkeletonTheme>
+							<ChartSkeleton noContainer />
 						) : teamChartData.length > 0 ? (
 							<LazyWhenVisible rootMargin="120px" className="min-h-[240px]" fallback={<ChartSkeleton noContainer />}>
 								<TeamPerformanceChart data={teamChartData} tooltipContent={teamTooltip} />
@@ -3651,7 +3616,7 @@ export default function PlayerStats() {
 					<div id='match-results' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 						<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Match Results</h3>
 						<p className='text-white text-sm mb-2 text-center'>Points per game: {pointsPerGameFormatted}</p>
-						<LazyWhenVisible rootMargin="120px" className="min-h-[220px] -my-2" fallback={<ChartSkeleton noContainer />}>
+						<LazyWhenVisible rootMargin="120px" className="min-h-[220px] -my-2" fallback={<PieChartSkeleton noContainer />}>
 							<MatchResultsPieChart data={pieChartData} tooltipContent={customTooltip} />
 						</LazyWhenVisible>
 					</div>
@@ -3687,18 +3652,16 @@ export default function PlayerStats() {
 
 			{/* Game Details Section */}
 			{isLoadingGameDetails ? (
-				<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-					<div id='game-details' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
-						<Skeleton height={20} width="40%" className="mb-4" />
-						<TableSkeleton rows={3} />
-						<TableSkeleton rows={2} />
-						<div className='space-y-2'>
-							<Skeleton height={16} width="60%" />
-							<Skeleton height={16} width="65%" />
-							<Skeleton height={16} width="55%" />
-						</div>
+				<div id='game-details' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
+					<Skeleton height={20} width="40%" className="mb-4" />
+					<TableSkeleton rows={3} />
+					<TableSkeleton rows={2} />
+					<div className='space-y-2'>
+						<Skeleton height={16} width="60%" />
+						<Skeleton height={16} width="65%" />
+						<Skeleton height={16} width="55%" />
 					</div>
-				</SkeletonTheme>
+				</div>
 			) : gameDetails && (
 				<div id='game-details' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 					<h3 className='text-white font-semibold text-sm md:text-base mb-4'>Game Details</h3>
@@ -3857,9 +3820,7 @@ export default function PlayerStats() {
 					</div>
 				</div>
 				{isLoadingMonthlyStats ? (
-					<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-						<ChartSkeleton noContainer />
-					</SkeletonTheme>
+					<ChartSkeleton noContainer />
 				) : monthlyChartData.length > 0 ? (
 					<LazyWhenVisible rootMargin="120px" className="min-h-[240px]" fallback={<ChartSkeleton noContainer />}>
 						<MonthlyPerformanceChart data={monthlyChartData} tooltipContent={seasonalTooltip} />
@@ -3884,10 +3845,10 @@ export default function PlayerStats() {
 										className='inline-flex items-center justify-center w-4 h-4 text-[10px] rounded-full border border-white/40 text-white/80 cursor-help outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow/80'>
 										i
 									</span>
-									<div className='pointer-events-none absolute left-0 top-6 z-20 hidden w-[min(100vw-2rem,22rem)] rounded-md bg-black/90 p-2 text-[11px] text-white shadow-lg group-hover:block group-focus-within:block'>
-										Win rate in games where you and each teammate both played (minimum five shared games). &quot;Most improved&quot; ranks by how much
-										higher your win rate is with that teammate versus your games without them.
-									</div>
+									<TooltipSurface className='pointer-events-none absolute left-0 top-6 z-20 hidden w-[min(100vw-2rem,22rem)] group-hover:block group-focus-within:block'>
+										Win rate in games where you and each teammate both played (minimum five shared games). The delta shows how your win
+										rate with that teammate compares to your games without them.
+									</TooltipSurface>
 								</div>
 							</div>
 							{partnershipList.length > 0 ? (
@@ -3897,12 +3858,6 @@ export default function PlayerStats() {
 										onClick={() => setPartnershipSortMode("bestWinRate")}
 										className={`px-2 py-1 text-[10px] md:text-xs whitespace-nowrap ${partnershipSortMode === "bestWinRate" ? "bg-dorkinians-yellow text-black font-semibold" : "bg-transparent text-white"}`}>
 										Best win rate
-									</button>
-									<button
-										type='button'
-										onClick={() => setPartnershipSortMode("mostImprovedWinRate")}
-										className={`px-2 py-1 text-[10px] md:text-xs text-center leading-tight border-l border-white/20 ${partnershipSortMode === "mostImprovedWinRate" ? "bg-dorkinians-yellow text-black font-semibold" : "bg-transparent text-white"}`}>
-										Most improved win rate
 									</button>
 									<button
 										type='button'
@@ -3917,33 +3872,33 @@ export default function PlayerStats() {
 							<p className='text-white/60 text-xs'>
 								No partnership data yet. Run a full seed so graph insights (Feature 7) can populate this section.
 							</p>
-						) : partnershipListDisplay.length === 0 && partnershipSortMode === "mostImprovedWinRate" ? (
-							<p className='text-white/60 text-xs'>
-								Most improved needs per-partner lift data. Apply filters (live recalculation) or re-run graph insights (Feature 7) after
-								seeding.
-							</p>
 						) : (
 							<ul className='space-y-2'>
-								{partnershipListDisplay.map((p) => {
+								{partnershipListDisplay.map((p, index) => {
 									const deltaPct = p.lift != null && !Number.isNaN(p.lift) ? Math.round(p.lift * 10) / 10 : null;
 									const deltaClass =
 										deltaPct != null ? (deltaPct < 0 ? "text-red-400" : deltaPct > 0 ? "text-dorkinians-green-text" : "text-white/50") : "";
 									const deltaLabel =
 										deltaPct != null ? `${deltaPct > 0 ? "+" : ""}${deltaPct.toFixed(1)}% vs without them` : null;
 									return (
-										<li key={p.name} className='flex flex-wrap items-baseline justify-between gap-2 bg-white/5 rounded-md px-3 py-2'>
-											<div className='min-w-0'>
-												<button
-													type='button'
-													onClick={() => {
-														selectPlayer(p.name, "picker");
-														setMainPage("stats");
-														setStatsSubPage("player-stats");
-													}}
-													className='text-[#E8C547] text-xs md:text-sm font-medium hover:underline text-left'>
-													{p.name}
-												</button>
-												{deltaLabel ? <p className={`text-[10px] mt-0.5 ${deltaClass}`}>{deltaLabel}</p> : null}
+										<li key={p.name} className='flex flex-wrap items-baseline justify-between gap-2 bg-white/5 rounded-md px-3 py-2 md:py-1'>
+											<div className='min-w-0 flex flex-col md:flex-row md:items-baseline md:gap-2'>
+												<div className='flex items-baseline gap-1.5 min-w-0'>
+													<span className='text-white/50 tabular-nums shrink-0 text-xs md:text-sm'>{index + 1}.</span>
+													<button
+														type='button'
+														onClick={() => {
+															selectPlayer(p.name, "picker");
+															setMainPage("stats");
+															setStatsSubPage("player-stats");
+														}}
+														className='text-[#E8C547] text-xs md:text-sm font-medium hover:underline text-left truncate'>
+														{p.name}
+													</button>
+												</div>
+												{deltaLabel ? (
+													<span className={`text-[10px] md:text-[11px] shrink-0 ${deltaClass}`}>{deltaLabel}</span>
+												) : null}
 											</div>
 											<p className='text-white text-xs md:text-sm font-semibold tabular-nums shrink-0'>
 												{Math.round(p.winRate * 10) / 10}% · {Math.round(p.matches)} games
@@ -4249,13 +4204,13 @@ export default function PlayerStats() {
 								className='inline-flex items-center justify-center w-4 h-4 text-[10px] rounded-full border border-white/40 text-white/80 cursor-help outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow/80'>
 								i
 							</span>
-							<div className='pointer-events-none absolute left-0 top-6 z-20 hidden w-72 rounded-md bg-black/90 p-2 text-[11px] text-white shadow-lg group-hover:block group-focus-within:block'>
+							<TooltipSurface className='pointer-events-none absolute left-0 top-6 z-20 hidden w-72 group-hover:block group-focus-within:block'>
 								Streaks are tracked week-by-week using seasonWeek references. Appearance streaks increase for every match you play across any XI
 								(including multiple matches in one week), and only break when your most-played team for that season plays in that week and you do not
 								appear for any team. For all other streak types (scoring, assists, clean sheets, etc.), weeks you do not play are skipped (they do not
 								break the streak); if you play, the streak increments only when you satisfy that streak condition for that match. Streaks carry across
 								seasons, use your most-recent team as the tie-break for &quot;most-played team,&quot; and are recalculated if fixture statuses change.
-							</div>
+							</TooltipSurface>
 						</div>
 					</div>
 					{(() => {
@@ -4418,9 +4373,7 @@ export default function PlayerStats() {
 			<div id='captaincies-awards-and-achievements' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 				<h3 className='text-white font-semibold text-sm md:text-base mb-4'>Captaincies, Awards and Achievements</h3>
 				{isLoadingAwards || isLoadingCaptainHistory || isLoadingAwardHistory || isLoadingBadges ? (
-					<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-						<AwardsListSkeleton />
-					</SkeletonTheme>
+					<AwardsListSkeleton />
 				) : (
 					<div className='space-y-4'>
 						{/* Captains Section */}
@@ -4617,14 +4570,16 @@ export default function PlayerStats() {
 							data-testid='stats-page-heading'>
 							Stats - {selectedPlayer}
 						</h2>
-						<button
-							type='button'
-							data-testid='home-edit-player-button'
-							onClick={handleEditClick}
-							className='p-1.5 md:p-2 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors shrink-0'
-							title='Edit player selection'>
-							<PenOnPaperIcon className='h-4 w-4 md:h-5 md:w-5' />
-						</button>
+						<HoverTooltip content='Edit player selection'>
+							<button
+								type='button'
+								data-testid='home-edit-player-button'
+								onClick={handleEditClick}
+								className='p-1.5 md:p-2 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors shrink-0'
+								aria-label='Edit player selection'>
+								<PenOnPaperIcon className='h-4 w-4 md:h-5 md:w-5' />
+							</button>
+						</HoverTooltip>
 					</div>
 				</div>
 				<div className='flex justify-center mb-2 md:mb-4'>
@@ -4649,9 +4604,7 @@ export default function PlayerStats() {
 				{isDataTableMode && (
 					isLoadingPlayerData ? (
 						<div data-testid="loading-skeleton">
-							<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-								<DataTableSkeleton />
-							</SkeletonTheme>
+							<DataTableSkeleton />
 						</div>
 					) : (
 						dataTableContent

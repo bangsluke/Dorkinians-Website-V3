@@ -12,7 +12,9 @@ import {
 	XAxis,
 	YAxis,
 } from "recharts";
+import { TooltipSurface } from "@/components/ui/Tooltip";
 import { formYAxisFromData } from "@/lib/stats/formYAxis";
+import { formatSaturdayForSeasonWeek } from "@/lib/utils/weekNumDates";
 
 export type FormChartPoint = {
 	week: string;
@@ -37,13 +39,13 @@ function FormTooltip({
 	if (!active || !payload?.length) return null;
 	const row = payload[0]?.payload;
 	if (!row) return null;
+	const saturdayLabel = formatSaturdayForSeasonWeek(row.week, row.date);
 	const yellowLabel: CSSProperties = { color: FORM_YELLOW };
 	const greenLabel: CSSProperties = { color: FORM_GREEN };
 	return (
-		<div
-			className='rounded-lg border border-white/15 px-3 py-2 text-xs shadow-lg'
-			style={{ background: "rgba(0,0,0,0.88)" }}>
+		<TooltipSurface>
 			<p className='mb-1 font-medium text-white/90'>{label}</p>
+			{saturdayLabel ? <p className='mb-1 text-white/70'>{saturdayLabel}</p> : null}
 			<p className='text-white/80'>
 				<span className='text-white/60'>Rating:</span> {Number.isFinite(row.rawScore) ? row.rawScore.toFixed(1) : "-"}
 			</p>
@@ -59,7 +61,7 @@ function FormTooltip({
 				</span>{" "}
 				{Number.isFinite(row.ewmaBaseline) ? row.ewmaBaseline.toFixed(1) : "-"}
 			</p>
-		</div>
+		</TooltipSurface>
 	);
 }
 

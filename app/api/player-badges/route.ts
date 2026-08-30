@@ -60,6 +60,10 @@ export function isFirstXiLabel(value: string): boolean {
 	return normalized === "1s" || normalized === "1st xi" || normalized === "1st";
 }
 
+export function isVetXiLabel(value: string): boolean {
+	return value.trim().toLowerCase() === "vet xi";
+}
+
 function normalizeNameForCompare(value: string): string {
 	return value.trim().toLowerCase();
 }
@@ -154,6 +158,7 @@ export async function GET(request: NextRequest) {
 		let penaltyShootoutWins = 0;
 		let veoLinkedGames = 0;
 		let firstXiGames = 0;
+		let vetXiGames = 0;
 		let derbyWinsReigations = 0;
 		let betrayalWinsDorkinians = 0;
 		let gkAppearances = 0;
@@ -206,6 +211,7 @@ export async function GET(request: NextRequest) {
 
 			if (str(row.get("veoLink")).trim() !== "") veoLinkedGames += 1;
 			if (isFirstXiLabel(str(row.get("team")))) firstXiGames += 1;
+			if (isVetXiLabel(str(row.get("team")))) vetXiGames += 1;
 			const classCode = str(row.get("classCode")).trim().toUpperCase();
 			const conceded = num(row.get("conceded"));
 			if (classCode === "GK") {
@@ -268,6 +274,7 @@ export async function GET(request: NextRequest) {
 			penaltyShootoutWins,
 			veoLinkedGames,
 			firstXiGames,
+			vetXiGames,
 			derbyWinsReigations,
 			betrayalWinsDorkinians,
 			gkAppearances,
@@ -418,6 +425,7 @@ export async function GET(request: NextRequest) {
 				sum(CASE WHEN f.result = "W" AND toLower(coalesce(f.opposition, "")) CONTAINS "dorkinian" THEN 1 ELSE 0 END) AS betrayalWinsDorkinians,
 				sum(CASE WHEN trim(coalesce(f.veoLink, "")) <> "" THEN 1 ELSE 0 END) AS veoLinkedGames,
 				sum(CASE WHEN toLower(trim(coalesce(md.team, ""))) IN ['1s', '1st xi', '1st'] THEN 1 ELSE 0 END) AS firstXiGames,
+				sum(CASE WHEN toLower(trim(coalesce(md.team, ""))) = 'vet xi' THEN 1 ELSE 0 END) AS vetXiGames,
 				sum(CASE WHEN toUpper(trim(coalesce(md.class, ""))) = "GK" THEN 1 ELSE 0 END) AS gkAppearances,
 				sum(CASE WHEN toUpper(trim(coalesce(md.class, ""))) = "DEF" THEN 1 ELSE 0 END) AS defAppearances,
 				sum(CASE WHEN toUpper(trim(coalesce(md.class, ""))) = "MID" THEN 1 ELSE 0 END) AS midAppearances,
@@ -440,6 +448,7 @@ export async function GET(request: NextRequest) {
 				betrayalWinsDorkinians,
 				veoLinkedGames,
 				firstXiGames,
+				vetXiGames,
 				gkAppearances,
 				defAppearances,
 				midAppearances,
@@ -478,6 +487,7 @@ export async function GET(request: NextRequest) {
 					betrayalWinsDorkinians: num(row.get("betrayalWinsDorkinians")),
 					veoLinkedGames: num(row.get("veoLinkedGames")),
 					firstXiGames: num(row.get("firstXiGames")),
+					vetXiGames: num(row.get("vetXiGames")),
 					gkAppearances: num(row.get("gkAppearances")),
 					defAppearances: num(row.get("defAppearances")),
 					midAppearances: num(row.get("midAppearances")),

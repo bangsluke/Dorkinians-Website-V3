@@ -3,8 +3,6 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { XMarkIcon } from "@heroicons/react/24/outline";
-import { SkeletonTheme } from "react-loading-skeleton";
-import "react-loading-skeleton/dist/skeleton.css";
 import { HistoryPopupSkeleton } from "@/components/skeletons";
 import ModalWrapper from "@/components/modals/ModalWrapper";
 
@@ -87,9 +85,7 @@ export default function AwardHistoryPopup({ playerName, onClose }: AwardHistoryP
 						WebkitOverflowScrolling: "touch",
 					}}>
 					{loading && (
-						<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-							<HistoryPopupSkeleton />
-						</SkeletonTheme>
+						<HistoryPopupSkeleton />
 					)}
 
 					{!loading && history.length > 0 && (

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
 import VeoWatchMatchButtons from "@/components/club-info/VeoWatchMatchButtons";
+import { HoverTooltip } from "@/components/ui/Tooltip";
 import { getCurrentSeasonFromStorage } from "@/lib/services/currentSeasonService";
 import type { RecordingFixture } from "@/lib/utils/recordingsDisplay";
 import {
@@ -91,51 +92,53 @@ export default function RecordingsSection({
 
 	return (
 		<div id={id} className='relative bg-white/10 backdrop-blur-sm rounded-lg p-2 pt-3 md:p-4 md:break-inside-avoid md:mb-4'>
-			<div className='absolute right-3 top-2.5 md:right-4 md:top-3.5'>
-				{/* eslint-disable-next-line @next/next/no-img-element -- static brand SVG from public */}
-				<img src='/icons/veo.svg' alt='Veo' className='h-5 w-auto opacity-90 brightness-0 invert md:h-6' />
-			</div>
-			<h3 className='text-white font-semibold text-sm md:text-base mb-2 pr-14'>
-				{title} ({total})
-			</h3>
-			{enableSeasonFilter && seasonOptions.length > 0 && selectedSeasonOption ? (
-				<div className='mb-3 w-full max-w-xs'>
-					<Listbox value={selectedSeason} onChange={setSelectedSeason}>
-						<div className='relative'>
-							<Listbox.Button
-								aria-label='Filter recordings by season'
-								data-testid={`${testIdPrefix}-season-filter`}
-								className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-xs md:text-sm'
-							>
-								<span className='block truncate text-white'>
-									{formatRecordingSeasonOptionLabel(selectedSeasonOption)}
-								</span>
-								<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
-									<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
-								</span>
-							</Listbox.Button>
-							<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-xs md:text-sm shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
-								{seasonOptions.map((option) => (
-									<Listbox.Option
-										key={option.season}
-										className={({ active }) =>
-											`relative cursor-default select-none dark-dropdown-option ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
-										}
-										value={option.season}
-									>
-										{({ selected }) => (
-											<span className={`block truncate py-1 px-2 ${selected ? "font-medium" : "font-normal"}`}>
-												{formatRecordingSeasonOptionLabel(option)}
-											</span>
-										)}
-									</Listbox.Option>
-								))}
-							</Listbox.Options>
-						</div>
-					</Listbox>
+			<div className='flex items-center justify-between mb-2 gap-2'>
+				<div className='flex items-center gap-2 flex-shrink-0 min-w-0'>
+					{/* eslint-disable-next-line @next/next/no-img-element -- static brand SVG from public */}
+					<img src='/icons/veo.svg' alt='Veo' className='h-5 w-auto opacity-90 brightness-0 invert md:h-6 shrink-0' />
+					<h3 className='text-white font-semibold text-sm md:text-base truncate'>
+						{title} ({total})
+					</h3>
 				</div>
-			) : null}
-			<p className='text-white/70 text-xs md:text-sm mb-3 pr-14'>{subtitle}</p>
+				{enableSeasonFilter && seasonOptions.length > 0 && selectedSeasonOption ? (
+					<div className='flex-1 max-w-[45%]'>
+						<Listbox value={selectedSeason} onChange={setSelectedSeason}>
+							<div className='relative'>
+								<Listbox.Button
+									aria-label='Filter recordings by season'
+									data-testid={`${testIdPrefix}-season-filter`}
+									className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-xs md:text-sm'
+								>
+									<span className='block truncate text-white'>
+										{formatRecordingSeasonOptionLabel(selectedSeasonOption)}
+									</span>
+									<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
+										<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
+									</span>
+								</Listbox.Button>
+								<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-xs md:text-sm shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
+									{seasonOptions.map((option) => (
+										<Listbox.Option
+											key={option.season}
+											className={({ active }) =>
+												`relative cursor-default select-none dark-dropdown-option ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
+											}
+											value={option.season}
+										>
+											{({ selected }) => (
+												<span className={`block truncate py-1 px-2 ${selected ? "font-medium" : "font-normal"}`}>
+													{formatRecordingSeasonOptionLabel(option)}
+												</span>
+											)}
+										</Listbox.Option>
+									))}
+								</Listbox.Options>
+							</div>
+						</Listbox>
+					</div>
+				) : null}
+			</div>
+			<p className='text-white/70 text-xs md:text-sm mb-3'>{subtitle}</p>
 			<div className='w-full overflow-x-auto'>
 				<table className='w-full max-w-full table-fixed text-white text-[10px] sm:text-xs md:text-sm'>
 					<colgroup>
@@ -198,12 +201,12 @@ export default function RecordingsSection({
 									<span className='hidden sm:inline'>{formatRecordingDateDesktop(fx.date)}</span>
 								</td>
 								{teamColumn ? (
-									<td
-										className='py-1.5 pl-1 pr-0.5 align-middle sm:py-2 sm:px-2'
-										title={fx.team || ""}>
-										<div className='max-w-[4rem] truncate text-[9px] font-normal leading-tight sm:max-w-none sm:text-xs'>
-											{fx.team || "-"}
-										</div>
+									<td className='py-1.5 pl-1 pr-0.5 align-middle sm:py-2 sm:px-2'>
+										<HoverTooltip content={fx.team || undefined} className='block min-w-0'>
+											<div className='max-w-[4rem] truncate text-[9px] font-normal leading-tight sm:max-w-none sm:text-xs'>
+												{fx.team || "-"}
+											</div>
+										</HoverTooltip>
 									</td>
 								) : null}
 								<td colSpan={2} className='py-1.5 pl-1.5 pr-0 align-middle sm:hidden'>
@@ -211,36 +214,41 @@ export default function RecordingsSection({
 										Location {recordingLocLabelDesktop(fx.homeOrAway)}, competition {recordingCompLabelDesktop(fx.compType)}
 									</span>
 									<div className='flex flex-nowrap items-center justify-start gap-px'>
-										<span
-											className={`shrink-0 rounded px-1 py-0.5 text-[9px] font-medium leading-none ${recordingLocBadgeClass(fx.homeOrAway)}`}
-											title={fx.homeOrAway || ""}>
-											{recordingLocLabelMobile(fx.homeOrAway)}
-										</span>
-										<span
-											className={`shrink-0 rounded px-1 py-0.5 text-[9px] font-medium leading-none ${recordingCompBadgeClass(fx.compType)}`}
-											title={fx.compType || ""}>
-											{recordingCompLabelMobile(fx.compType)}
-										</span>
+										<HoverTooltip content={fx.homeOrAway || undefined}>
+											<span
+												className={`shrink-0 rounded px-1 py-0.5 text-[9px] font-medium leading-none ${recordingLocBadgeClass(fx.homeOrAway)}`}>
+												{recordingLocLabelMobile(fx.homeOrAway)}
+											</span>
+										</HoverTooltip>
+										<HoverTooltip content={fx.compType || undefined}>
+											<span
+												className={`shrink-0 rounded px-1 py-0.5 text-[9px] font-medium leading-none ${recordingCompBadgeClass(fx.compType)}`}>
+												{recordingCompLabelMobile(fx.compType)}
+											</span>
+										</HoverTooltip>
 									</div>
 								</td>
 								<td className='hidden py-1.5 px-1 sm:table-cell sm:py-2 sm:px-2'>
-									<span
-										className={`inline-block max-w-full rounded px-1.5 py-0.5 text-[9px] sm:text-xs font-medium ${recordingLocBadgeClass(fx.homeOrAway)}`}
-										title={fx.homeOrAway || ""}>
-										{recordingLocLabelDesktop(fx.homeOrAway)}
-									</span>
+									<HoverTooltip content={fx.homeOrAway || undefined}>
+										<span
+											className={`inline-block max-w-full rounded px-1.5 py-0.5 text-[9px] sm:text-xs font-medium ${recordingLocBadgeClass(fx.homeOrAway)}`}>
+											{recordingLocLabelDesktop(fx.homeOrAway)}
+										</span>
+									</HoverTooltip>
 								</td>
 								<td className='hidden py-1.5 px-1 sm:table-cell sm:py-2 sm:px-2'>
-									<span
-										className={`inline-block max-w-full rounded px-1.5 py-0.5 text-[9px] sm:text-xs font-medium ${recordingCompBadgeClass(fx.compType)}`}
-										title={fx.compType || ""}>
-										{recordingCompLabelDesktop(fx.compType)}
-									</span>
+									<HoverTooltip content={fx.compType || undefined}>
+										<span
+											className={`inline-block max-w-full rounded px-1.5 py-0.5 text-[9px] sm:text-xs font-medium ${recordingCompBadgeClass(fx.compType)}`}>
+											{recordingCompLabelDesktop(fx.compType)}
+										</span>
+									</HoverTooltip>
 								</td>
 								<td
-									className={`min-w-0 max-w-none py-1.5 align-middle sm:py-2 sm:px-2 ${teamColumn ? "px-0.5 text-[9px] font-normal sm:text-xs" : "px-1"}`}
-									title={fx.opposition || ""}>
-									<div className='truncate'>{fx.opposition || "-"}</div>
+									className={`min-w-0 max-w-none py-1.5 align-middle sm:py-2 sm:px-2 ${teamColumn ? "px-0.5 text-[9px] font-normal sm:text-xs" : "px-1"}`}>
+									<HoverTooltip content={fx.opposition || undefined} className='block min-w-0'>
+										<div className='truncate'>{fx.opposition || "-"}</div>
+									</HoverTooltip>
 								</td>
 								<td
 									className={`whitespace-nowrap py-1.5 px-0.5 align-middle font-mono tabular-nums sm:py-2 sm:px-2 ${teamColumn ? "max-sm:text-[9px]" : ""}`}>

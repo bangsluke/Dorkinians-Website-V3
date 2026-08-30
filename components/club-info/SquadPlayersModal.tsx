@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import { LoadingState, ErrorState, EmptyState } from "@/components/ui/StateComponents";
 import { useToast } from "@/lib/hooks/useToast";
+import FullscreenModalContent from "@/components/modals/FullscreenModalContent";
 import ModalWrapper from "@/components/modals/ModalWrapper";
 
 export type SquadAchievementType = "league" | "cup";
@@ -123,7 +124,7 @@ export default function SquadPlayersModal({
 			backdropClassName="fixed inset-0 bg-black/50 z-[9999]"
 			modalClassName="fixed inset-0 h-screen w-screen z-[10000] shadow-xl"
 			ariaLabel={`${teamDisplayName} - ${formatSeason(season)} squad players`}>
-			<div className="h-full flex flex-col" style={{ backgroundColor: "#0f0f0f" }}>
+			<FullscreenModalContent>
 				<div className="flex items-center justify-between p-4 border-b border-white/20">
 					<div>
 						<h2 className="text-lg font-semibold text-white">
@@ -201,7 +202,7 @@ export default function SquadPlayersModal({
 						Close
 					</button>
 				</div>
-			</div>
+			</FullscreenModalContent>
 		</ModalWrapper>
 	);
 

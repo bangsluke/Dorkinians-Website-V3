@@ -4,8 +4,7 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
-import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
-import "react-loading-skeleton/dist/skeleton.css";
+import Skeleton from "react-loading-skeleton";
 import { MilestonesTableSkeleton } from "@/components/skeletons";
 import { appConfig, featureFlags } from "@/config/config";
 import SquadPlayersModal from "./SquadPlayersModal";
@@ -354,10 +353,8 @@ export default function ClubInformation() {
 										className='w-[120px] h-[120px] md:w-[160px] md:h-[160px] object-contain opacity-30'
 									/>
 								</div>
-								<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-									<Skeleton height={20} width={120} className='mb-2' />
-									<Skeleton height={20} width={100} />
-								</SkeletonTheme>
+								<Skeleton height={20} width={120} className='mb-2' />
+								<Skeleton height={20} width={100} />
 							</div>
 						))}
 					</div>
@@ -383,9 +380,7 @@ export default function ClubInformation() {
 				<div className='mb-4'>
 					{loading ? (
 						<div className='w-[60%] md:w-full md:max-w-xs mx-auto'>
-							<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-								<Skeleton height={40} className='rounded-md' />
-							</SkeletonTheme>
+							<Skeleton height={40} className='rounded-md' />
 						</div>
 					) : (
 						<Listbox value={selectedFilter} onChange={setSelectedFilter}>
@@ -425,9 +420,7 @@ export default function ClubInformation() {
 				<div className='mb-8'>
 					<h4 className='text-base md:text-lg font-bold text-white mb-4'>Milestones Achieved</h4>
 				{(loading || appConfig.forceSkeletonView) ? (
-					<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-						<MilestonesTableSkeleton />
-					</SkeletonTheme>
+					<MilestonesTableSkeleton />
 				) : filteredAchieved.length > 0 ? (
 					<div className='overflow-x-auto overflow-y-auto max-h-96'>
 						<table className='w-full text-white'>
@@ -467,9 +460,7 @@ export default function ClubInformation() {
 				<div className='mb-8'>
 					<h4 className='text-base md:text-lg font-bold text-white mb-4'>Nearing Milestones</h4>
 				{(loading || appConfig.forceSkeletonView) ? (
-					<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-						<MilestonesTableSkeleton />
-					</SkeletonTheme>
+					<MilestonesTableSkeleton />
 				) : filteredNearing.length > 0 ? (
 					<div className='overflow-x-auto overflow-y-auto max-h-96'>
 						<table className='w-full text-white'>
@@ -507,7 +498,7 @@ export default function ClubInformation() {
 					</div>
 				</div>
 
-				<div className='min-w-0 space-y-8 mt-8 lg:mt-0'>
+				<div className='min-w-0 space-y-8 mt-8 lg:mt-0 w-full md:max-w-2xl md:mx-auto px-2 md:px-4'>
 					{featureFlags.achievementBadges ? <BadgeLeaderboardSection /> : null}
 					{featureFlags.clubInfoRecords ? <RecordsSection /> : null}
 				</div>
