@@ -5,6 +5,7 @@ import { HomeIcon, ChartBarIcon, TrophyIcon, InformationCircleIcon } from "@hero
 import { useNavigationStore, type MainPage } from "@/lib/stores/navigation";
 import { log } from "@/lib/utils/logger";
 import { usePathname } from "next/navigation";
+import { useAppRouter } from "@/lib/hooks/useAppRouter";
 
 const navigationItems = [
 	{ id: "home" as MainPage, icon: HomeIcon, label: "Home" },
@@ -16,6 +17,7 @@ const navigationItems = [
 export default function FooterNavigation() {
 	const { currentMainPage, setMainPage } = useNavigationStore();
 	const pathname = usePathname();
+	const router = useAppRouter();
 	const isProfileRoute = pathname?.startsWith("/profile/") ?? false;
 
 	// Hide footer navigation on settings page
@@ -45,8 +47,8 @@ export default function FooterNavigation() {
 								onClick={() => {
 									log("info", "🔘 [FooterNavigation] Button clicked:", item.id);
 									setMainPage(item.id);
-									if (typeof window !== "undefined" && window.location.pathname !== "/") {
-										window.location.href = "/";
+									if (pathname !== "/") {
+										router.push("/");
 									}
 								}}
 								aria-label={`Navigate to ${item.label}`}

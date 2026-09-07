@@ -1,9 +1,8 @@
 "use client";
 
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { SkeletonTheme } from "react-loading-skeleton";
-import "react-loading-skeleton/dist/skeleton.css";
 import { ScatterChartSkeleton } from "@/components/skeletons";
+import { TooltipSurface } from "@/components/ui/Tooltip";
 
 interface OppositionPerformanceData {
 	name: string;
@@ -19,36 +18,29 @@ interface OppositionPerformanceScatterProps {
 	isLoading?: boolean;
 }
 
-const tooltipStyle = {
-	backgroundColor: 'rgba(0, 0, 0, 0.8)',
-	border: '1px solid rgba(249, 237, 50, 0.3)',
-	borderRadius: '8px',
-	color: '#fff',
-};
-
 // Custom tooltip for scatter plot
 const scatterTooltip = ({ active, payload }: any) => {
 	if (active && payload && payload.length) {
 		const data = payload[0].payload as OppositionPerformanceData;
 		return (
-			<div style={tooltipStyle} className='px-3 py-2'>
-				<p className='text-white text-sm font-semibold mb-1'>{data.name}</p>
-				<p className='text-white text-xs'>
-					<span className='font-semibold'>Goals/App:</span> {data.goalsPerApp.toFixed(1)}
+			<TooltipSurface>
+				<p className='mb-1 font-medium text-white/90'>{data.name}</p>
+				<p className='text-white/80'>
+					<span className='font-medium text-white/60'>Goals/App:</span> {data.goalsPerApp.toFixed(1)}
 				</p>
-				<p className='text-white text-xs'>
-					<span className='font-semibold'>Assists/App:</span> {data.assistsPerApp.toFixed(1)}
+				<p className='text-white/80'>
+					<span className='font-medium text-white/60'>Assists/App:</span> {data.assistsPerApp.toFixed(1)}
 				</p>
-				<p className='text-white text-xs'>
-					<span className='font-semibold'>Total Goals:</span> {data.goals}
+				<p className='text-white/80'>
+					<span className='font-medium text-white/60'>Total Goals:</span> {data.goals}
 				</p>
-				<p className='text-white text-xs'>
-					<span className='font-semibold'>Total Assists:</span> {data.assists}
+				<p className='text-white/80'>
+					<span className='font-medium text-white/60'>Total Assists:</span> {data.assists}
 				</p>
-				<p className='text-white text-xs'>
-					<span className='font-semibold'>Appearances:</span> {data.appearances}
+				<p className='text-white/80'>
+					<span className='font-medium text-white/60'>Appearances:</span> {data.appearances}
 				</p>
-			</div>
+			</TooltipSurface>
 		);
 	}
 	return null;
@@ -57,9 +49,7 @@ const scatterTooltip = ({ active, payload }: any) => {
 export default function OppositionPerformanceScatter({ data, isLoading }: OppositionPerformanceScatterProps) {
 	if (isLoading) {
 		return (
-			<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-				<ScatterChartSkeleton />
-			</SkeletonTheme>
+			<ScatterChartSkeleton />
 		);
 	}
 

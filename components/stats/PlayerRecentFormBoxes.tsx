@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { buildMatchRatingBreakdown, type MatchRatingDetail } from "@/lib/utils/matchRatingBreakdown";
 import { matchRatingCircleStyle } from "@/lib/utils/matchRatingDisplay";
+import { TooltipSurface, TooltipArrow } from "@/components/ui/Tooltip";
 
 export type PlayerFormRecentMatch = {
 	fixtureId: string;
@@ -269,42 +270,26 @@ export default function PlayerRecentFormBoxes({ matchesNewestFirst }: Props) {
 			</div>
 			{showTooltip !== null && active && tooltipPosition && typeof document !== "undefined" && document.body
 				? createPortal(
-						<div
+						<TooltipSurface
 							ref={tooltipRef}
-							className='fixed z-[9999] px-3 py-2 text-xs text-white rounded-lg shadow-lg w-[280px] text-left pointer-events-none'
+							className='fixed z-[9999] w-[280px] text-left pointer-events-none'
 							style={{
-								backgroundColor: "#0f0f0f",
 								top: `${tooltipPosition.top}px`,
 								left: `${tooltipPosition.left}px`,
 							}}
 							data-testid='player-recent-form-tooltip'
 						>
-							{tooltipPosition.placement === "above" ? (
-								<div
-									className='absolute top-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent mt-1'
-									style={{
-										borderTopColor: "#0f0f0f",
-										left: `${tooltipPosition.arrowLeft}px`,
-										transform: "translateX(-50%)",
-									}}
-								/>
-							) : (
-								<div
-									className='absolute bottom-full w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent mb-1'
-									style={{
-										borderBottomColor: "#0f0f0f",
-										left: `${tooltipPosition.arrowLeft}px`,
-										transform: "translateX(-50%)",
-									}}
-								/>
-							)}
-							<div className='font-semibold mb-1 text-center'>{active.opposition || "Unknown"}</div>
-							<div className='text-[11px] text-white/80 mb-1 text-center'>{formatDate(active.date)}</div>
-							<div className='text-[11px] text-white/80 mb-2 text-center'>
+							<TooltipArrow
+								placement={tooltipPosition.placement === "above" ? "above" : "below"}
+								offsetLeft={tooltipPosition.arrowLeft}
+							/>
+							<div className='mb-1 text-center font-medium text-white/90'>{active.opposition || "Unknown"}</div>
+							<div className='mb-1 text-center text-white/80'>{formatDate(active.date)}</div>
+							<div className='mb-2 text-center text-white/80'>
 								{active.homeOrAway} · {active.compType || "-"} · {active.result} · {active.goalsScored}-{active.goalsConceded}
 							</div>
-							<div className='text-[11px] text-dorkinians-yellow/90 mb-1 font-medium'>Match rating breakdown</div>
-							<ul className='text-[10px] text-white/85 space-y-0.5 font-mono'>
+							<div className='mb-1 font-medium text-dorkinians-yellow/90'>Match rating breakdown</div>
+							<ul className='space-y-0.5 font-mono text-white/80'>
 								{activeBreakdown?.lines.map((line, i) => (
 									<li key={i} className='flex justify-between gap-2'>
 										<span className='truncate'>{line.label}</span>
@@ -315,8 +300,8 @@ export default function PlayerRecentFormBoxes({ matchesNewestFirst }: Props) {
 									</li>
 								))}
 							</ul>
-							{storedVsComputed ? <p className='text-[10px] text-white/60 mt-1'>{storedVsComputed}</p> : null}
-						</div>,
+							{storedVsComputed ? <p className='mt-1 text-white/60'>{storedVsComputed}</p> : null}
+						</TooltipSurface>,
 						document.body
 				  )
 				: null}

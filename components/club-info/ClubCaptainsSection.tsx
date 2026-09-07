@@ -7,8 +7,7 @@ import CaptainHistoryPopup from "./CaptainHistoryPopup";
 import { getCurrentSeasonFromStorage } from "@/lib/services/currentSeasonService";
 import { useNavigationStore } from "@/lib/stores/navigation";
 import { cachedFetch, generatePageCacheKey } from "@/lib/utils/pageCache";
-import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
-import "react-loading-skeleton/dist/skeleton.css";
+import Skeleton from "react-loading-skeleton";
 import { CaptainsTableSkeleton } from "@/components/skeletons";
 import { appConfig } from "@/config/config";
 import { UmamiEvents } from "@/lib/analytics/events";
@@ -142,9 +141,7 @@ export default function ClubCaptainsSection({ embedded = false }: { embedded?: b
 				<div className='mb-6'>
 					{loading || seasons.length === 0 ? (
 						<div className='w-full max-w-[14rem] mx-auto'>
-							<SkeletonTheme baseColor='var(--skeleton-base)' highlightColor='var(--skeleton-highlight)'>
-								<Skeleton height={48} className='rounded-md' />
-							</SkeletonTheme>
+							<Skeleton height={48} className='rounded-md' />
 						</div>
 					) : (
 						<Listbox
@@ -188,9 +185,7 @@ export default function ClubCaptainsSection({ embedded = false }: { embedded?: b
 
 			<div className={embedded ? "px-0 pb-0" : "flex-1 overflow-y-auto px-6 pb-6 min-h-0"} style={{ WebkitOverflowScrolling: "touch" }}>
 				{(loading || appConfig.forceSkeletonView) && (
-					<SkeletonTheme baseColor='var(--skeleton-base)' highlightColor='var(--skeleton-highlight)'>
-						<CaptainsTableSkeleton />
-					</SkeletonTheme>
+					<CaptainsTableSkeleton />
 				)}
 
 				{!loading && !appConfig.forceSkeletonView && captainsData.filter((item) => item.captain).length > 0 && (

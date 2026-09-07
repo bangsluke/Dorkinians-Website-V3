@@ -1,10 +1,13 @@
 import Skeleton from "react-loading-skeleton";
 
-export default function SankeyChartSkeleton() {
-	return (
-		<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-			<Skeleton height={20} width="40%" className="mb-2" />
-			<div className='chart-container' style={{ touchAction: 'pan-y', height: '320px', position: 'relative' }}>
+interface SankeyChartSkeletonProps {
+	/** Omit the card wrapper and title when rendering inside an existing titled container. */
+	noContainer?: boolean;
+}
+
+export default function SankeyChartSkeleton({ noContainer = false }: SankeyChartSkeletonProps) {
+	const chart = (
+		<div className='chart-container' style={{ touchAction: 'pan-y', height: '320px', position: 'relative' }}>
 				<div className='absolute inset-0 flex items-center'>
 					{/* Left node (Players) */}
 					<div className='absolute left-4 top-1/2 -translate-y-1/2'>
@@ -54,8 +57,18 @@ export default function SankeyChartSkeleton() {
 							);
 						})}
 					</svg>
-				</div>
 			</div>
+		</div>
+	);
+
+	if (noContainer) {
+		return chart;
+	}
+
+	return (
+		<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+			<Skeleton height={20} width="40%" className="mb-2" />
+			{chart}
 		</div>
 	);
 }

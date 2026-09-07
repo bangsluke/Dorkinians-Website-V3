@@ -3,8 +3,11 @@
 import SidebarNavigation from "@/components/layout/SidebarNavigation";
 import Header from "@/components/layout/Header";
 import FooterNavigation from "@/components/layout/FooterNavigation";
+import { useAppRouter } from "@/lib/hooks/useAppRouter";
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
+	const router = useAppRouter();
+
 	const handleSettingsClick = () => {
 		// This is already on the settings page, so do nothing or navigate back
 		if (typeof window !== "undefined") {
@@ -14,8 +17,8 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
 			} else {
 				localStorage.setItem("dorkinians-current-main-page", "home");
 			}
-			window.location.href = "/";
 		}
+		router.push("/");
 	};
 
 	const handleFilterClick = () => {

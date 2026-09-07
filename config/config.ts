@@ -37,6 +37,7 @@ export type FeatureFlags = {
 	clubStatsClubRecordings: boolean;
 	clubInfoRecords: boolean;
 	leagueInfoLatestResult: boolean;
+	statsTopPlayersShowAll: boolean;
 };
 
 /** Full UI — used for Jest and as the develop-branch default. */
@@ -63,6 +64,7 @@ const featureFlagsAllEnabled: FeatureFlags = {
 	clubStatsClubRecordings: true,
 	clubInfoRecords: true,
 	leagueInfoLatestResult: true,
+	statsTopPlayersShowAll: true,
 };
 
 /** Conservative defaults for production (main) deploys. */
@@ -89,6 +91,7 @@ const featureFlagsProductionDefault: FeatureFlags = {
 	clubStatsClubRecordings: false,
 	clubInfoRecords: false,
 	leagueInfoLatestResult: false,
+	statsTopPlayersShowAll: false,
 };
 
 export const featureFlagPresets = {

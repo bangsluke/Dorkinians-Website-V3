@@ -15,6 +15,7 @@ function prefetchHeavyChunks() {
 	void import("@/components/stats/StatsNavigationMenu");
 	void import("@/components/chatbot/ChatbotInterface");
 	void import("@/components/home/SeasonWrappedBanner");
+	void import("@/components/profile/PlayerProfileView");
 }
 
 export default function DynamicChunksPrefetch() {

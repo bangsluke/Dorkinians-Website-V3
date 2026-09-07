@@ -7,6 +7,7 @@ import { ChevronUpDownIcon, CheckIcon } from "@heroicons/react/20/solid";
 import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 import { useNavigationStore } from "@/lib/stores/navigation";
 import PenOnPaperIcon from "@/components/icons/PenOnPaperIcon";
+import { HoverTooltip } from "@/components/ui/Tooltip";
 import { log } from "@/lib/utils/logger";
 
 interface Player {
@@ -224,13 +225,15 @@ export default function PlayerSelection({ onPlayerSelect, onEditClick, onClearPl
 				className='text-center'>
 				<div className='flex items-center justify-center space-x-2 md:space-x-3'>
 					<h2 className='text-xl md:text-2xl font-semibold text-white'>{selectedPlayer}</h2>
-					<button
-						data-testid="player-selection-edit-button"
-						onClick={onEditClick}
-						className='p-1.5 md:p-2 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors'
-						title='Edit player selection'>
-						<PenOnPaperIcon className='h-4 w-4 md:h-5 md:w-5' />
-					</button>
+					<HoverTooltip content='Edit player selection'>
+						<button
+							data-testid="player-selection-edit-button"
+							onClick={onEditClick}
+							className='p-1.5 md:p-2 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors'
+							aria-label='Edit player selection'>
+							<PenOnPaperIcon className='h-4 w-4 md:h-5 md:w-5' />
+						</button>
+					</HoverTooltip>
 				</div>
 			</motion.div>
 		);
@@ -254,11 +257,12 @@ export default function PlayerSelection({ onPlayerSelect, onEditClick, onClearPl
 							if (player) handlePlayerSelect(player);
 						}}>
 						<div className='relative'>
-							<Listbox.Button
-								data-testid="player-selection-button"
-								onClick={handleDropdownOpen}
-								className='relative w-full cursor-default dark-dropdown py-3 pl-10 pr-10 text-left shadow-md hover:bg-yellow-400/10 hover:border-yellow-400/30 border border-transparent transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-sm md:text-base'
-								title="Type to search and select a player">
+							<HoverTooltip content="Type to search and select a player">
+								<Listbox.Button
+									data-testid="player-selection-button"
+									onClick={handleDropdownOpen}
+									className='relative w-full cursor-default dark-dropdown py-3 pl-10 pr-10 text-left shadow-md hover:bg-yellow-400/10 hover:border-yellow-400/30 border border-transparent transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-sm md:text-base'
+									aria-label="Type to search and select a player">
 								<span className='pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3'>
 									<MagnifyingGlassIcon className='h-5 w-5 text-yellow-300' aria-hidden='true' />
 								</span>
@@ -269,6 +273,7 @@ export default function PlayerSelection({ onPlayerSelect, onEditClick, onClearPl
 									<ChevronUpDownIcon className='h-5 w-5 text-yellow-300' aria-hidden='true' />
 								</span>
 							</Listbox.Button>
+							</HoverTooltip>
 							<Listbox.Options
 								className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-sm md:text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'
 								onKeyDown={(e) => {

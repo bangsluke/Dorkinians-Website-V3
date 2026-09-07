@@ -17,11 +17,13 @@ import Image from "next/image";
 import { log } from "@/lib/utils/logger";
 import Button from "@/components/ui/Button";
 import { useState, useEffect, useMemo, useRef, useSyncExternalStore } from "react";
-import { getPlayerProfileHref } from "@/lib/profile/slug";
 import { featureFlags } from "@/config/config";
+import { useProfileNavigation } from "@/lib/hooks/useProfileNavigation";
 import { isDevelopBranchDeploy } from "@/lib/utils/isDevelopBranchDeploy";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
+import { useAppRouter } from "@/lib/hooks/useAppRouter";
 import { scheduleProfileIntroBursts, shouldRunProfileIntro } from "@/lib/utils/profileNavIntro";
+import { HoverTooltip } from "@/components/ui/Tooltip";
 
 const emptySubscribe = () => () => {};
 
@@ -104,7 +106,7 @@ export default function SidebarNavigation({
 		isPlayerSelected,
 	} = useNavigationStore();
 	const pathname = usePathname();
-	const router = useRouter();
+	const router = useAppRouter();
 	const [showTooltip, setShowTooltip] = useState(false);
 	const [showFilterTooltip, setShowFilterTooltip] = useState(false);
 	const [showProfileTooltip, setShowProfileTooltip] = useState(false);
@@ -429,9 +431,11 @@ export default function SidebarNavigation({
 		return false;
 	};
 
+	const { isPending: isProfileNavPending, navigateToProfile } = useProfileNavigation(selectedPlayer);
+
 	const handleProfileClick = () => {
 		if (!selectedPlayer) return;
-		router.push(getPlayerProfileHref(selectedPlayer));
+		navigateToProfile(selectedPlayer);
 	};
 
 	const profileRingAttention = profileIntroPulse || showProfileTooltip;
@@ -447,13 +451,13 @@ export default function SidebarNavigation({
 				{/* Header Section */}
 				<div className='flex flex-col items-center px-4 py-4 border-b border-white/10'>
 					{/* Club Logo */}
-					<motion.button
-						whileHover={{ scale: 1.05 }}
-						whileTap={{ scale: 0.95 }}
-						onClick={handleLogoClick}
-						title='Click to return to homepage'
-						aria-label='Return to homepage'
-						className='flex flex-col items-center space-y-2.5 mb-3 p-0 bg-transparent border-none h-auto w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'>
+					<HoverTooltip content='Click to return to homepage'>
+						<motion.button
+							whileHover={{ scale: 1.05 }}
+							whileTap={{ scale: 0.95 }}
+							onClick={handleLogoClick}
+							aria-label='Return to homepage'
+							className='flex flex-col items-center space-y-2.5 mb-3 p-0 bg-transparent border-none h-auto w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'>
 						<div className='w-16 h-16 flex items-center justify-center'>
 							<Image src='/icons/icon-96x96.png' alt='Dorkinians FC Logo' width={64} height={64} loading='eager' className='rounded-full' />
 						</div>
@@ -465,15 +469,15 @@ export default function SidebarNavigation({
 								Dev
 							</span>
 						) : null}
-					</motion.button>
-
-					{/* Action Icons */}
+						</motion.button>
+					</HoverTooltip>
 					<div className='flex items-center justify-center gap-1 w-full'>
 						{/* Burger Menu Icon - only show on stats pages */}
 						{showMenuIcon && onMenuClick && (
 							<div className='relative'>
-								<motion.button
-									data-testid='nav-sidebar-menu'
+								<HoverTooltip content={showTooltip ? undefined : "Open stats navigation"}>
+									<motion.button
+										data-testid='nav-sidebar-menu'
 									onClick={() => {
 										setShowTooltip(false);
 										localStorage.setItem("stats-nav-menu-tooltip-seen", "true");
@@ -499,10 +503,10 @@ export default function SidebarNavigation({
 										if (showTooltip || menuIntroPulseDone) return;
 										persistMenuIntroPulseDone();
 									}}
-									title={showTooltip ? "Click to navigate sections" : "Open stats navigation"}
-									aria-label='Open stats navigation'>
-									<Bars3Icon className={`w-7 h-7 ${showTooltip ? "text-dorkinians-yellow" : "text-[var(--color-text-primary)]"}`} />
-								</motion.button>
+										aria-label='Open stats navigation'>
+										<Bars3Icon className={`w-7 h-7 ${showTooltip ? "text-dorkinians-yellow" : "text-[var(--color-text-primary)]"}`} />
+									</motion.button>
+								</HoverTooltip>
 								{/* Tooltip */}
 								{showTooltip && (
 									<motion.div
@@ -519,8 +523,9 @@ export default function SidebarNavigation({
 						{/* Filter Icon - only show on stats pages */}
 						{showFilterIcon && onFilterClick && (
 							<div className='relative'>
-								<motion.button
-									data-testid='nav-sidebar-filter'
+								<HoverTooltip content={showFilterTooltip ? undefined : "Open filters"}>
+									<motion.button
+										data-testid='nav-sidebar-filter'
 									onClick={() => {
 										setShowFilterTooltip(false);
 										onFilterClick();
@@ -533,16 +538,15 @@ export default function SidebarNavigation({
 									initial={showFilterTooltip ? { scale: 1 } : {}}
 									animate={showFilterTooltip ? { scale: [1, 1.15, 1] } : {}}
 									transition={showFilterTooltip ? { duration: 0.6, repeat: Infinity } : {}}
-									title={showFilterTooltip ? "Click to open filters" : "Open filters"}
-									aria-label='Open filters'>
-									<FunnelIcon className={`w-7 h-7 ${showFilterTooltip ? "text-dorkinians-yellow" : "text-[var(--color-text-primary)]"}`} />
-									{/* Active filter count badge */}
-									{activeFilterCount > 0 && (
-										<span className='absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 flex items-center justify-center bg-dorkinians-yellow text-black text-xs font-bold rounded-full'>
-											{activeFilterCount > 99 ? "99+" : activeFilterCount}
-										</span>
-									)}
-								</motion.button>
+										aria-label='Open filters'>
+										<FunnelIcon className={`w-7 h-7 ${showFilterTooltip ? "text-dorkinians-yellow" : "text-[var(--color-text-primary)]"}`} />
+										{activeFilterCount > 0 && (
+											<span className='absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 flex items-center justify-center bg-dorkinians-yellow text-black text-xs font-bold rounded-full'>
+												{activeFilterCount > 99 ? "99+" : activeFilterCount}
+											</span>
+										)}
+									</motion.button>
+								</HoverTooltip>
 								{/* Filter Tooltip */}
 								{showFilterTooltip && (
 									<motion.div
@@ -559,12 +563,14 @@ export default function SidebarNavigation({
 						{/* Settings Icon */}
 						{showProfileIcon && (
 							<div className='relative'>
-								<motion.button
-									data-testid='nav-sidebar-profile'
+								<HoverTooltip content={showProfileTooltip ? undefined : "Open player profile"}>
+									<motion.button
+										data-testid='nav-sidebar-profile'
 									onClick={() => {
 										dismissProfileTooltip();
 										handleProfileClick();
 									}}
+									disabled={isProfileNavPending}
 									className={`p-2 rounded-full transition-all duration-200 flex items-center justify-center ${
 										isProfileRoute
 											? "ring-[3px] ring-dorkinians-yellow ring-offset-2 ring-offset-[var(--color-bg)] bg-dorkinians-yellow/20"
@@ -574,12 +580,12 @@ export default function SidebarNavigation({
 											? "ring-[3px] ring-dorkinians-yellow ring-offset-2 ring-offset-[var(--color-bg)] shadow-[0_0_22px_rgba(232,197,71,0.9)] scale-105"
 											: ""
 									}`}
-									whileHover={{ scale: 1.1 }}
-									whileTap={{ scale: 0.9 }}
-									title='Open player profile'
-									aria-label='Open player profile'>
-									<UserCircleIcon className={`w-7 h-7 ${isProfileRoute ? "text-dorkinians-yellow-text" : "text-[var(--color-text-primary)]"}`} />
-								</motion.button>
+									whileHover={isProfileNavPending ? undefined : { scale: 1.1 }}
+									whileTap={isProfileNavPending ? undefined : { scale: 0.9 }}
+										aria-label='Open player profile'>
+										<UserCircleIcon className={`w-7 h-7 ${isProfileRoute ? "text-dorkinians-yellow-text" : "text-[var(--color-text-primary)]"}`} />
+									</motion.button>
+								</HoverTooltip>
 								{showProfileTooltip && (
 									<motion.div
 										initial={{ opacity: 0, y: -10 }}
@@ -594,22 +600,23 @@ export default function SidebarNavigation({
 						)}
 
 						{/* Settings Icon */}
-						<motion.button
-							data-testid='nav-sidebar-settings'
+						<HoverTooltip content={isSettingsPage ? "Close settings" : "Open settings"}>
+							<motion.button
+								data-testid='nav-sidebar-settings'
 							onClick={onSettingsClick}
 							className={`p-2 rounded-full transition-colors flex items-center justify-center ${
 								isSettingsPage ? "bg-[var(--color-secondary)]/20 hover:bg-[var(--color-secondary)]/30" : "hover:bg-[var(--color-surface)]"
 							}`}
 							whileHover={{ scale: 1.1 }}
 							whileTap={{ scale: 0.9 }}
-							title={isSettingsPage ? "Close settings" : "Open settings"}
-							aria-label={isSettingsPage ? "Close settings" : "Open settings"}>
-							{isSettingsPage ? (
-								<XMarkIcon className='w-7 h-7 text-dorkinians-yellow-text' />
-							) : (
-								<Cog6ToothIcon className='w-7 h-7 text-[var(--color-text-primary)]' />
-							)}
-						</motion.button>
+								aria-label={isSettingsPage ? "Close settings" : "Open settings"}>
+								{isSettingsPage ? (
+									<XMarkIcon className='w-7 h-7 text-dorkinians-yellow-text' />
+								) : (
+									<Cog6ToothIcon className='w-7 h-7 text-[var(--color-text-primary)]' />
+								)}
+							</motion.button>
+						</HoverTooltip>
 					</div>
 				</div>
 
@@ -661,7 +668,7 @@ export default function SidebarNavigation({
 								{hasSubPages && (
 									<div className='pl-4 space-y-0.5'>
 										{item.subPages.map((subPage) => {
-											const isSubActive = isSubPageActive(item.id, subPage.id) && !isSettingsPage;
+											const isSubActive = isSubPageActive(item.id, subPage.id) && !isSettingsPage && !isProfileRoute;
 											return (
 												<motion.div key={subPage.id} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
 													<button

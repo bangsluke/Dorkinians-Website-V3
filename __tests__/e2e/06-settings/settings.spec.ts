@@ -263,4 +263,10 @@ test.describe("Settings Page Tests", () => {
 		await page.goto("/settings", { waitUntil: "domcontentloaded" });
 		await expect(page.getByText(/Version\s+\d+\.\d+\.\d+/i)).toBeVisible({ timeout: 15000 });
 	});
+
+	test("6.15. the shared toast region is mounted on settings, not only on home", async ({ page }) => {
+		await page.goto("/settings", { waitUntil: "domcontentloaded" });
+		await expect(page.getByTestId("settings-heading")).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId("toast-container")).toBeAttached({ timeout: 10000 });
+	});
 });

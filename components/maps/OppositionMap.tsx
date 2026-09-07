@@ -3,8 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Loader } from "@googlemaps/js-api-loader";
 import { MarkerClusterer } from "@googlemaps/markerclusterer";
-import { SkeletonTheme } from "react-loading-skeleton";
-import "react-loading-skeleton/dist/skeleton.css";
 import { MapSkeleton } from "@/components/skeletons";
 
 interface OppositionLocation {
@@ -245,9 +243,7 @@ function OppositionMapComponent({ oppositions, isLoading }: OppositionMapProps) 
 
 	if (isLoading) {
 		return (
-			<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-				<MapSkeleton />
-			</SkeletonTheme>
+			<MapSkeleton />
 		);
 	}
 

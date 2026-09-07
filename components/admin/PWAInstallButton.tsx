@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useSyncExternalStore } from "react";
+import FullscreenModalContent from "@/components/modals/FullscreenModalContent";
 import { motion, AnimatePresence } from "framer-motion";
 import { DevicePhoneMobileIcon, XMarkIcon } from "@heroicons/react/24/outline";
 
@@ -227,7 +228,7 @@ export default function PWAInstallButton() {
 							animate={{ opacity: 1 }}
 							exit={{ opacity: 0 }}
 							transition={{ type: "spring", stiffness: 300, damping: 30 }}>
-							<div className='h-full flex flex-col'>
+							<FullscreenModalContent backgroundColor="transparent">
 								<div className='flex items-center justify-between p-4 border-b border-white/20'>
 									<h2 className='text-lg font-semibold text-white'>Add to Home Screen</h2>
 									<button
@@ -293,7 +294,7 @@ export default function PWAInstallButton() {
 										Got it!
 									</button>
 								</div>
-							</div>
+							</FullscreenModalContent>
 						</motion.div>
 					</>
 				</AnimatePresence>
@@ -317,7 +318,7 @@ export default function PWAInstallButton() {
 							animate={{ opacity: 1 }}
 							exit={{ opacity: 0 }}
 							transition={{ type: "spring", stiffness: 300, damping: 30 }}>
-							<div className='h-full flex flex-col'>
+							<FullscreenModalContent backgroundColor="transparent">
 								<div className='flex items-center justify-between p-4 border-b border-white/20'>
 									<h2 className='text-lg font-semibold text-white'>Add to Home Screen</h2>
 									<button
@@ -389,7 +390,7 @@ export default function PWAInstallButton() {
 										Got it!
 									</button>
 								</div>
-							</div>
+							</FullscreenModalContent>
 						</motion.div>
 					</>
 				</AnimatePresence>

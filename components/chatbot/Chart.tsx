@@ -2,6 +2,7 @@
 
 import { ChatbotResponse } from "@/lib/services/chatbotService";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import { TooltipSurface } from "@/components/ui/Tooltip";
 
 interface ChartProps {
 	visualization: ChatbotResponse["visualization"];
@@ -18,13 +19,13 @@ function CustomTooltip({
 }) {
 	if (active && payload && payload.length) {
 		return (
-			<div className='bg-gray-800 border border-yellow-400/30 rounded-lg p-2 shadow-lg'>
-				<p className='text-yellow-300 font-semibold'>{payload[0].payload?.name}</p>
-				<p className='text-white'>
-					<span className='text-yellow-400'>{tooltipLabel}: </span>
+			<TooltipSurface>
+				<p className='mb-1 font-medium text-white/90'>{payload[0].payload?.name}</p>
+				<p className='text-white/80'>
+					<span className='font-medium text-white/60'>{tooltipLabel}: </span>
 					{payload[0].value}
 				</p>
-			</div>
+			</TooltipSurface>
 		);
 	}
 	return null;

@@ -8,7 +8,7 @@ import FooterNavigation from "@/components/layout/FooterNavigation";
 import SidebarNavigation from "@/components/layout/SidebarNavigation";
 import dynamic from "next/dynamic";
 import { wrapDynamicImport } from "@/lib/utils/chunkLoadRetry";
-import ClearChunkRetryFlag from "@/components/system/ClearChunkRetryFlag";
+import { useAppRouter } from "@/lib/hooks/useAppRouter";
 
 // Dynamically import sidebar/menu components - only load when opened
 const FilterSidebar = dynamic(() => wrapDynamicImport(() => import("@/components/filters/FilterSidebar")), {
@@ -27,33 +27,35 @@ const ChatbotInterface = dynamic(() => wrapDynamicImport(() => import("@/compone
 
 import PlayerSelection from "@/components/PlayerSelection";
 import { LoadingState } from "@/components/ui/StateComponents";
+import { PageShellSkeleton } from "@/components/skeletons";
 
 // Dynamically import page containers to reduce initial bundle size
 // These are only loaded when their respective pages are accessed
 const StatsContainer = dynamic(() => wrapDynamicImport(() => import("@/components/stats/StatsContainer")), {
-	loading: () => <LoadingState message="Loading stats..." />,
+	loading: () => <PageShellSkeleton />,
 	ssr: false,
 });
 
 const TOTWContainer = dynamic(() => wrapDynamicImport(() => import("@/components/totw/TOTWContainer")), {
-	loading: () => <LoadingState message="Loading Team of the Week..." />,
+	loading: () => <PageShellSkeleton cards={2} />,
 	ssr: false,
 });
 
 const ClubInfoContainer = dynamic(() => wrapDynamicImport(() => import("@/components/club-info/ClubInfoContainer")), {
-	loading: () => <LoadingState message="Loading club information..." />,
+	loading: () => <PageShellSkeleton />,
 	ssr: false,
 });
 
 const Settings = dynamic(() => wrapDynamicImport(() => import("@/components/pages/Settings")), {
-	loading: () => <LoadingState message="Loading settings..." />,
+	loading: () => <PageShellSkeleton showSubPageDots={false} showFilters={false} cards={4} />,
 	ssr: false,
 });
 
 import UpdateToast from "@/components/admin/UpdateToast";
+import { HoverTooltip } from "@/components/ui/Tooltip";
 import DevClearStorageFAB from "@/components/admin/DevClearStorageFAB";
-import ToastContainer from "@/components/ui/ToastContainer";
 import Neo4jPreWarm from "@/components/Neo4jPreWarm";
+import ClearChunkRetryFlag from "@/components/system/ClearChunkRetryFlag";
 import { useToast } from "@/lib/hooks/useToast";
 import { initializeCurrentSeason, getCurrentSeasonFromStorage } from "@/lib/services/currentSeasonService";
 import { preloadCaptainsData } from "@/lib/services/captainsPreloadService";
@@ -137,6 +139,7 @@ export default function HomePage() {
 		isAllGamesModalOpen,
 		loadFilterData,
 	} = useNavigationStore();
+	const router = useAppRouter();
 
 	const [chatbotRevealReady, setChatbotRevealReady] = useState(true);
 	const [showUpdateToast, setShowUpdateToast] = useState(true);
@@ -146,7 +149,7 @@ export default function HomePage() {
 		getRecentPlayersServerSnapshot
 	);
 	const [showStatsMenu, setShowStatsMenu] = useState(false);
-	const { toasts, dismissToast, showSuccess, showInfo, showWarning } = useToast();
+	const { dismissToast, showSuccess, showInfo, showWarning } = useToast();
 
 	const showChatbot =
 		currentMainPage === "home" &&
@@ -239,7 +242,7 @@ export default function HomePage() {
 		if (typeof window !== "undefined") {
 			localStorage.setItem("dorkinians-previous-main-page", currentMainPage);
 		}
-		window.location.href = "/settings";
+		router.push("/settings");
 	};
 
 	const handleFilterClick = () => {
@@ -340,11 +343,12 @@ export default function HomePage() {
 										className='text-center mb-4'>
 										<div className='flex items-center justify-center space-x-2 md:space-x-3'>
 											<h2 className='text-xl md:text-2xl font-semibold text-dorkinians-yellow'>{selectedPlayer}</h2>
-											<button
-												data-testid="home-edit-player-button"
-												onClick={handleEditClick}
-												className='p-1.5 md:p-2 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors'
-												title='Edit player selection'>
+											<HoverTooltip content='Edit player selection'>
+												<button
+													data-testid="home-edit-player-button"
+													onClick={handleEditClick}
+													className='p-1.5 md:p-2 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors'
+													aria-label='Edit player selection'>
 												<svg className='h-4 w-4 md:h-5 md:w-5' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
 													<path
 														strokeLinecap='round'
@@ -354,6 +358,7 @@ export default function HomePage() {
 													/>
 												</svg>
 											</button>
+											</HoverTooltip>
 										</div>
 									</motion.div>
 								)}
@@ -467,7 +472,7 @@ export default function HomePage() {
 				<FooterNavigation />
 
 				{/* Filter Sidebar */}
-				<FilterSidebar isOpen={isFilterSidebarOpen} onClose={closeFilterSidebar} onSuccess={showSuccess} renderAboveAllGamesModal={isAllGamesModalOpen} />
+				<FilterSidebar isOpen={isFilterSidebarOpen} onClose={closeFilterSidebar} renderAboveAllGamesModal={isAllGamesModalOpen} />
 				
 				{/* Stats Navigation Menu */}
 				<StatsNavigationMenu isOpen={showStatsMenu} onClose={() => setShowStatsMenu(false)} />
@@ -475,9 +480,6 @@ export default function HomePage() {
 
 			{/* Update Toast */}
 			{showUpdateToast && <UpdateToast onClose={() => setShowUpdateToast(false)} />}
-
-			{/* Toast Notifications */}
-			<ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
 			{/* Development Clear Storage FAB */}
 			<DevClearStorageFAB />

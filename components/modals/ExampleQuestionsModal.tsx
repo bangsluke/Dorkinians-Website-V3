@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useRef } from "react";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import { allExampleQuestions } from "@/config/config";
+import FullscreenModalContent from "./FullscreenModalContent";
 import ModalWrapper from "./ModalWrapper";
 
 interface ExampleQuestionsModalProps {
@@ -34,11 +35,8 @@ export default function ExampleQuestionsModal({ isOpen, onClose, onSelectQuestio
 			modalClassName="fixed inset-0 h-screen w-screen z-[10000] shadow-xl"
 			ariaLabel="Example Questions"
 			initialFocusRef={firstQuestionRef}>
-			<div 
-				className='h-full flex flex-col'
-				style={{ backgroundColor: '#0f0f0f' }}>
-				<div className='h-full flex flex-col'>
-					{/* Header */}
+			<FullscreenModalContent>
+				{/* Header */}
 					<div className='flex items-center justify-between p-4 border-b border-[var(--color-border)]'>
 						<div className='flex items-center space-x-3 flex-1 justify-center'>
 							<div className='p-2 rounded-full bg-dorkinians-yellow/20'>
@@ -91,8 +89,7 @@ export default function ExampleQuestionsModal({ isOpen, onClose, onSelectQuestio
 							Close
 						</button>
 					</div>
-				</div>
-			</div>
+			</FullscreenModalContent>
 		</ModalWrapper>
 	);
 

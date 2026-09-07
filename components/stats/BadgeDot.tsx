@@ -1,5 +1,7 @@
 "use client";
 
+import { HoverTooltip } from "@/components/ui/Tooltip";
+
 export function tierSurfaceClass(tier: string): string {
 	switch (tier) {
 		case "diamond":
@@ -41,9 +43,8 @@ export default function BadgeDot({
 					? "text-[9px]"
 					: "text-[10px]";
 	const a11y = ariaLabelProp ?? title;
-	return (
+	const dot = (
 		<span
-			title={title || undefined}
 			role='img'
 			aria-label={a11y}
 			className={`inline-flex items-center justify-center rounded-full ring-2 ring-white/40 shadow-sm ${dim} ${tierSurfaceClass(tier)} ${className}`}>
@@ -55,4 +56,10 @@ export default function BadgeDot({
 			) : null}
 		</span>
 	);
+
+	if (!title) {
+		return dot;
+	}
+
+	return <HoverTooltip content={title}>{dot}</HoverTooltip>;
 }

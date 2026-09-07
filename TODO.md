@@ -101,7 +101,7 @@ Goal: Confirm shipped features still behave correctly. You are **checking local 
 5. If there is a **restart** / go-to-start control, use it.  
    - [x] Playback returns to the first slide and continues sensibly.  
 6. Open **Share**.  
-   - [x]] Share image / modal appears without errors.  
+   - [x] Share image / modal appears without errors.  
    - [x] Copy-link / share text includes a sensible season line **and** the wrapped URL (clipboard should get something like season text + `…/wrapped/…`).  
 7. Swipe or use next/prev if available.  
    - [x] Slides change without blanking the page.  

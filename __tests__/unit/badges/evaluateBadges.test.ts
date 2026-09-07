@@ -106,4 +106,12 @@ describe("badge threshold evaluation", () => {
 		};
 		expect(tierForBadge(player, "clean_season")).toBe("silver");
 	});
+
+	it("awards Vet Appearances tiers from vet XI game counts", () => {
+		expect(tierForBadge({ vetXiGames: 0 }, "vet_appearances")).toBeNull();
+		expect(tierForBadge({ vetXiGames: 1 }, "vet_appearances")).toBe("bronze");
+		expect(tierForBadge({ vetXiGames: 3 }, "vet_appearances")).toBe("silver");
+		expect(tierForBadge({ vetXiGames: 5 }, "vet_appearances")).toBe("gold");
+		expect(tierForBadge({ vetXiGames: 10 }, "vet_appearances")).toBe("diamond");
+	});
 });

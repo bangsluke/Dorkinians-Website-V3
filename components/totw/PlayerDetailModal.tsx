@@ -3,6 +3,7 @@
 import { MatchDetail } from "@/types";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import { createPortal } from "react-dom";
+import FullscreenModalContent from "@/components/modals/FullscreenModalContent";
 import ModalWrapper from "@/components/modals/ModalWrapper";
 import { matchRatingCircleClass } from "@/lib/utils/matchRatingDisplay";
 
@@ -267,9 +268,7 @@ export default function PlayerDetailModal({ playerName, matchDetails, aggregated
 			backdropClassName="fixed inset-0 bg-black/50 z-[9999]"
 			modalClassName="fixed inset-0 h-screen w-screen z-[10000] shadow-xl"
 			ariaLabel={`${playerName} player details`}>
-			<div 
-				className='h-full flex flex-col'
-				style={{ backgroundColor: '#0f0f0f' }}>
+			<FullscreenModalContent>
 				{/* Header with Close button */}
 				<div className='flex-shrink-0 flex justify-between items-center p-4 border-b border-white/20'>
 					<h2 className='text-2xl font-bold text-white uppercase flex-1 text-center'>{playerName}</h2>
@@ -448,7 +447,7 @@ export default function PlayerDetailModal({ playerName, matchDetails, aggregated
 						Close
 					</button>
 				</div>
-			</div>
+			</FullscreenModalContent>
 		</ModalWrapper>
 	);
 

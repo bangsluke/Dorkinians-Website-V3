@@ -21,7 +21,7 @@ import FeedbackModal from "@/components/modals/FeedbackModal";
 import DataPrivacyModal from "@/components/modals/DataPrivacyModal";
 import { UmamiEvents } from "@/lib/analytics/events";
 import { trackEvent } from "@/lib/utils/trackEvent";
-import { useRouter } from "next/navigation";
+import { useAppRouter } from "@/lib/hooks/useAppRouter";
 
 // Dynamically import PWA components to avoid SSR issues
 // [COMMENTED OUT: Check for Updates Section] - UpdateToast import disabled as it's only used for manual check on Settings page
@@ -76,7 +76,7 @@ interface SiteDetails {
 }
 
 export default function SettingsPage() {
-	const router = useRouter();
+	const router = useAppRouter();
 	const { setMainPage, setStatsSubPage, setTOTWSubPage, setClubInfoSubPage } = useNavigationStore();
 	// [COMMENTED OUT: Check for Updates Section] - State variables for manual update check functionality
 	// const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);

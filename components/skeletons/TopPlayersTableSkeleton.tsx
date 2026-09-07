@@ -13,7 +13,7 @@ export default function TopPlayersTableSkeleton() {
 						<tr className='border-b-2 border-dorkinians-yellow'>
 							<th className='text-left py-2 px-2 text-xs md:text-sm w-auto'>
 								<div className='flex items-center gap-2'>
-									<div className='w-10 md:w-12'></div>
+									<div className='w-14 md:w-16'></div>
 									<Skeleton height={14} width={80} />
 								</div>
 							</th>
@@ -28,8 +28,8 @@ export default function TopPlayersTableSkeleton() {
 								<td className='py-2 px-2 align-top' colSpan={2}>
 									<div className='flex flex-col'>
 										<div className='flex items-center gap-2'>
-											<div className='w-10 md:w-12'>
-												<Skeleton height={20} width={30} />
+											<div className='w-14 md:w-16'>
+												<Skeleton height={20} width={44} />
 											</div>
 											<div className='flex-1'>
 												<Skeleton height={20} width="70%" />
@@ -38,7 +38,7 @@ export default function TopPlayersTableSkeleton() {
 												<Skeleton height={20} width={50} />
 											</div>
 										</div>
-										<div className='pt-1 pl-[3rem] md:pl-[3.5rem]'>
+										<div className='pt-1 pl-16 md:pl-[4.5rem]'>
 											<Skeleton height={12} width="60%" />
 										</div>
 									</div>

@@ -13,6 +13,7 @@ import {
 } from "@/lib/badges/badgeTooltip";
 import { tierRank } from "@/lib/badges/evaluate";
 import BadgeDot from "@/components/stats/BadgeDot";
+import { TooltipSurface } from "@/components/ui/Tooltip";
 
 export type EarnedBadgeRow = {
 	badgeId: string;
@@ -123,11 +124,9 @@ function MilestoneHoverShell({
 			className={`group relative outline-none ${className ?? ""} ${isSmallScreen ? "cursor-pointer" : ""}`}>
 			{children}
 			{!isSmallScreen ? (
-				<div
-					className='pointer-events-none absolute bottom-full left-1/2 z-30 mb-1 hidden w-[min(20rem,calc(100vw-2rem))] -translate-x-1/2 rounded-md bg-black/90 p-3 shadow-lg group-hover:block group-focus-visible:block'
-					role='tooltip'>
+				<TooltipSurface className='pointer-events-none absolute bottom-full left-1/2 z-30 mb-1 hidden w-[min(20rem,calc(100vw-2rem))] -translate-x-1/2 group-hover:block group-focus-visible:block'>
 					<TooltipLineBlock lines={lines} />
-				</div>
+				</TooltipSurface>
 			) : null}
 			<span className='sr-only'>{tipString}</span>
 		</div>

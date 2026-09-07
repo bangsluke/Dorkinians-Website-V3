@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { XMarkIcon, BugAntIcon, LightBulbIcon } from "@heroicons/react/24/outline";
 import { appConfig } from "@/config/config";
 import Input, { Textarea } from "@/components/ui/Input";
+import FullscreenModalContent from "./FullscreenModalContent";
 import ModalWrapper from "./ModalWrapper";
 import { useNavigationStore } from "@/lib/stores/navigation";
 import { UmamiEvents } from "@/lib/analytics/events";
@@ -133,9 +134,7 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
 			modalClassName="fixed inset-0 h-screen w-screen z-[10000] shadow-xl"
 			ariaLabel={feedbackType === "bug" ? "Report a Bug" : "Request a Feature"}
 			initialFocusRef={nameInputRef}>
-			<div 
-				className='flex flex-col h-full'
-				style={{ backgroundColor: 'rgb(14, 17, 15)' }}>
+			<FullscreenModalContent backgroundColor="rgb(14, 17, 15)">
 				{/* Header */}
 				<div className='flex-shrink-0 flex justify-between items-center p-4 border-b border-[var(--color-border)]'>
 					<div className='flex items-center space-x-3 flex-1 justify-center'>
@@ -262,7 +261,7 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
 						Close
 					</button>
 				</div>
-			</div>
+			</FullscreenModalContent>
 		</ModalWrapper>
 	);
 

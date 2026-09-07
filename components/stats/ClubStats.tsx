@@ -17,54 +17,53 @@ import { safeLocalStorageGet, safeLocalStorageSet } from "@/lib/utils/pwaDebug";
 import { UmamiEvents } from "@/lib/analytics/events";
 import { trackStatsStatSelected } from "@/lib/analytics/statsTracking";
 import { trackEvent } from "@/lib/utils/trackEvent";
-import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
-import "react-loading-skeleton/dist/skeleton.css";
-import { StatCardSkeleton, ChartSkeleton, TopPlayersTableSkeleton, RadarChartSkeleton, GameDetailsTableSkeleton, DataTableSkeleton } from "@/components/skeletons";
+import Skeleton from "react-loading-skeleton";
+import { StatCardSkeleton, ChartSkeleton, TopPlayersTableSkeleton, RadarChartSkeleton, GameDetailsTableSkeleton, DataTableSkeleton, SankeyChartSkeleton } from "@/components/skeletons";
+import { TooltipSurface, TooltipArrow, FloatingTooltipTrigger } from "@/components/ui/Tooltip";
 import { log } from "@/lib/utils/logger";
 import LazyWhenVisible from "@/components/perf/LazyWhenVisible";
 import RecordingsSection from "@/components/stats/RecordingsSection";
+import TopPlayersTable from "@/components/stats/TopPlayersTable";
+import TopPlayersModal from "@/components/stats/TopPlayersModal";
+import {
+	getStatTypeLabel,
+	normalizeTopPlayer,
+	type TopPlayer,
+	type TopPlayersStatType,
+} from "@/lib/stats/topPlayersUtils";
 import type { RecordingFixture } from "@/lib/utils/recordingsDisplay";
 
 // Dynamically import ResponsiveSankey to reduce initial bundle size (151 KB -> only loads when needed)
 const ResponsiveSankey = dynamic(
 	() => import("@nivo/sankey").then((mod) => mod.ResponsiveSankey),
 	{
-		loading: () => (
-			<div className='flex min-h-[320px] items-center justify-center rounded-lg bg-white/5'>
-				<p className='text-sm text-white/45'>Loading…</p>
-			</div>
-		),
+		loading: () => <SankeyChartSkeleton noContainer />,
 		ssr: false,
 	}
 );
 import Button from "@/components/ui/Button";
 
-
-interface TopPlayer {
-	playerName: string;
-	appearances: number;
-	goals: number;
-	assists: number;
-	cleanSheets: number;
-	mom: number;
-	penaltiesScored: number;
-	saves: number;
-	yellowCards: number;
-	redCards: number;
-	fantasyPoints: number;
-	goalInvolvements: number;
-	homeGames: number;
-	awayGames: number;
-	minutes: number;
-	ownGoals: number;
-	conceded: number;
-	penaltiesMissed: number;
-	penaltiesConceded: number;
-	penaltiesSaved: number;
-	distance: number;
-}
-
-type StatType = "appearances" | "goals" | "assists" | "cleanSheets" | "mom" | "saves" | "yellowCards" | "redCards" | "penaltiesScored" | "fantasyPoints" | "goalInvolvements" | "minutes" | "ownGoals" | "conceded" | "penaltiesMissed" | "penaltiesConceded" | "penaltiesSaved" | "distance";
+type StatType = Extract<
+	TopPlayersStatType,
+	| "appearances"
+	| "goals"
+	| "assists"
+	| "cleanSheets"
+	| "mom"
+	| "saves"
+	| "yellowCards"
+	| "redCards"
+	| "penaltiesScored"
+	| "fantasyPoints"
+	| "goalInvolvements"
+	| "minutes"
+	| "ownGoals"
+	| "conceded"
+	| "penaltiesMissed"
+	| "penaltiesConceded"
+	| "penaltiesSaved"
+	| "distance"
+>;
 
 function StatRow({ stat, value, teamData }: { stat: any; value: any; teamData: TeamData }) {
 	const [showTooltip, setShowTooltip] = useState(false);
@@ -263,21 +262,16 @@ function StatRow({ stat, value, teamData }: { stat: any; value: any; teamData: T
 				</td>
 			</tr>
 			{showTooltip && tooltipPosition && typeof document !== 'undefined' && createPortal(
-				<div 
+				<TooltipSurface
 					ref={tooltipRef}
-					className='fixed z-[9999] px-3 py-2 text-sm text-white rounded-lg shadow-lg w-64 text-center pointer-events-none' 
-					style={{ 
-						backgroundColor: '#0f0f0f',
+					className='fixed z-[9999] w-64 text-center pointer-events-none'
+					style={{
 						top: `${tooltipPosition.top}px`,
 						left: `${tooltipPosition.left}px`
 					}}>
-					{tooltipPosition.placement === 'above' ? (
-						<div className='absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent mt-1' style={{ borderTopColor: '#0f0f0f' }}></div>
-					) : (
-						<div className='absolute bottom-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent mb-1' style={{ borderBottomColor: '#0f0f0f' }}></div>
-					)}
+					<TooltipArrow placement={tooltipPosition.placement === 'above' ? 'above' : 'below'} />
 					{stat.description}
-				</div>,
+				</TooltipSurface>,
 				document.body
 			)}
 		</>
@@ -372,84 +366,6 @@ function formatStreakRange(startDate: string | null | undefined, endDate: string
 	return ` (${start || end})`;
 }
 
-function FloatingTooltipTrigger({
-	tooltip,
-	children,
-	className,
-}: {
-	tooltip: ReactNode;
-	children: ReactNode;
-	className: string;
-}) {
-	const [visible, setVisible] = useState(false);
-	const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
-	const triggerRef = useRef<HTMLDivElement>(null);
-	const tooltipRef = useRef<HTMLDivElement>(null);
-
-	const updatePosition = () => {
-		if (!triggerRef.current || typeof window === "undefined") return;
-		const triggerRect = triggerRef.current.getBoundingClientRect();
-		const tooltipWidth = tooltipRef.current?.offsetWidth ?? 320;
-		const tooltipHeight = tooltipRef.current?.offsetHeight ?? 120;
-		const margin = 8;
-		const gap = 8;
-		let left = triggerRect.left + triggerRect.width / 2 - tooltipWidth / 2;
-		left = Math.max(margin, Math.min(left, window.innerWidth - tooltipWidth - margin));
-		const aboveTop = triggerRect.top - tooltipHeight - gap;
-		const belowTop = triggerRect.bottom + gap;
-		const top = aboveTop >= margin ? aboveTop : belowTop;
-		setPosition({ top, left });
-	};
-
-	useEffect(() => {
-		if (!visible) return;
-		updatePosition();
-		const onViewportChange = () => updatePosition();
-		window.addEventListener("resize", onViewportChange);
-		window.addEventListener("scroll", onViewportChange, true);
-		return () => {
-			window.removeEventListener("resize", onViewportChange);
-			window.removeEventListener("scroll", onViewportChange, true);
-		};
-	}, [visible]);
-
-	return (
-		<>
-			<div
-				ref={triggerRef}
-				tabIndex={0}
-				className={className}
-				onMouseEnter={() => setVisible(true)}
-				onMouseLeave={() => setVisible(false)}
-				onFocus={() => setVisible(true)}
-				onBlur={() => setVisible(false)}
-			>
-				{children}
-			</div>
-			{visible &&
-				position &&
-				typeof document !== "undefined" &&
-				document.body &&
-				createPortal(
-					<div
-						ref={tooltipRef}
-						className='pointer-events-none rounded-md bg-black/95 p-2 text-left text-[11px] text-white shadow-xl ring-1 ring-white/15'
-						style={{
-							position: "fixed",
-							top: position.top,
-							left: position.left,
-							zIndex: 9999,
-							maxWidth: "min(20rem, calc(100vw - 16px))",
-						}}
-					>
-						{tooltip}
-					</div>,
-					document.body,
-				)}
-		</>
-	);
-}
-
 export default function ClubStats() {
 	const {
 		selectedPlayer,
@@ -484,6 +400,7 @@ export default function ClubStats() {
 	});
 	const [topPlayers, setTopPlayers] = useState<TopPlayer[]>([]);
 	const [isLoadingTopPlayers, setIsLoadingTopPlayers] = useState(false);
+	const [isTopPlayersModalOpen, setIsTopPlayersModalOpen] = useState(false);
 
 	// State for view mode toggle - initialize from localStorage
 	const [isDataTableMode, setIsDataTableMode] = useState<boolean>(() => {
@@ -721,7 +638,7 @@ export default function ClubStats() {
 					setCachedPageData,
 				});
 				log("info", `[ClubStats] Received ${data.players?.length || 0} players for statType: ${selectedStatType}`, data.players);
-				setTopPlayers(data.players || []);
+				setTopPlayers((data.players || []).map((p: Partial<TopPlayer>) => normalizeTopPlayer(p)));
 			} catch (error) {
 				log("error", "[ClubStats] Error fetching top players:", error);
 				setTopPlayers([]);
@@ -1072,174 +989,6 @@ export default function ClubStats() {
 		trackStatsStatSelected("club-stats", "club-top-players", statType);
 	};
 
-	// Get stat value for a player based on stat type
-	const getStatValue = (player: TopPlayer, statType: StatType): number => {
-		switch (statType) {
-			case "appearances":
-				return player.appearances;
-			case "goals":
-				return player.goals + player.penaltiesScored;
-			case "assists":
-				return player.assists;
-			case "cleanSheets":
-				return player.cleanSheets;
-			case "mom":
-				return player.mom;
-			case "saves":
-				return player.saves;
-			case "yellowCards":
-				return player.yellowCards;
-			case "redCards":
-				return player.redCards;
-			case "penaltiesScored":
-				return player.penaltiesScored;
-			case "fantasyPoints":
-				return Math.round(player.fantasyPoints);
-			case "goalInvolvements":
-				return player.goalInvolvements;
-			case "minutes":
-				return player.minutes;
-			case "ownGoals":
-				return player.ownGoals;
-			case "conceded":
-				return player.conceded;
-			case "penaltiesMissed":
-				return player.penaltiesMissed;
-			case "penaltiesConceded":
-				return player.penaltiesConceded;
-			case "penaltiesSaved":
-				return player.penaltiesSaved;
-			case "distance":
-				return player.distance;
-			default:
-				return 0;
-		}
-	};
-
-	// Format player summary text based on stat type
-	const formatPlayerSummary = (player: TopPlayer, statType: StatType): string => {
-		const apps = `${player.appearances} ${player.appearances === 1 ? "App" : "Apps"}`;
-		
-		switch (statType) {
-			case "appearances":
-				const homeGamesText = `${player.homeGames} ${player.homeGames === 1 ? "Home Game" : "Home Games"}`;
-				const awayGamesText = `${player.awayGames} ${player.awayGames === 1 ? "Away Game" : "Away Games"}`;
-				return `${homeGamesText} and ${awayGamesText}`;
-			case "goals":
-				const totalGoals = player.goals + player.penaltiesScored;
-				const penaltyText = player.penaltiesScored > 0 ? ` (incl. ${player.penaltiesScored} ${player.penaltiesScored === 1 ? "penalty" : "penalties"})` : "";
-				return `${totalGoals} ${totalGoals === 1 ? "Goal" : "Goals"}${penaltyText} in ${apps}`;
-			case "assists":
-				return `${player.assists} ${player.assists === 1 ? "Assist" : "Assists"} in ${apps}`;
-			case "cleanSheets":
-				return `${player.cleanSheets} ${player.cleanSheets === 1 ? "Clean Sheet" : "Clean Sheets"} in ${apps}`;
-			case "mom":
-				return `${player.mom} ${player.mom === 1 ? "Man of the Match" : "Man of the Matches"} in ${apps}`;
-			case "saves":
-				return `${player.saves} ${player.saves === 1 ? "Save" : "Saves"} in ${apps}`;
-			case "yellowCards":
-				return `${player.yellowCards} ${player.yellowCards === 1 ? "Yellow Card" : "Yellow Cards"} in ${apps}`;
-			case "redCards":
-				return `${player.redCards} ${player.redCards === 1 ? "Red Card" : "Red Cards"} in ${apps}`;
-			case "penaltiesScored":
-				return `${player.penaltiesScored} ${player.penaltiesScored === 1 ? "Penalty Scored" : "Penalties Scored"} in ${apps}`;
-			case "fantasyPoints":
-				return `${Math.round(player.fantasyPoints)} ${Math.round(player.fantasyPoints) === 1 ? "Fantasy Point" : "Fantasy Points"} in ${apps}`;
-			case "goalInvolvements":
-				const totalGoalsForInvolvements = player.goals + player.penaltiesScored;
-				const penaltyTextGi =
-					player.penaltiesScored > 0
-						? ` (incl. ${player.penaltiesScored} ${player.penaltiesScored === 1 ? "penalty" : "penalties"})`
-						: "";
-				const goalsText = `${totalGoalsForInvolvements} ${totalGoalsForInvolvements === 1 ? "Goal" : "Goals"}${penaltyTextGi}`;
-				const assistsText = `${player.assists} ${player.assists === 1 ? "Assist" : "Assists"}`;
-				return `${goalsText} and ${assistsText} in ${apps}`;
-			case "minutes":
-				const formattedMinutes = player.minutes.toLocaleString();
-				return `${formattedMinutes} ${player.minutes === 1 ? "Minute" : "Minutes"} in ${apps}`;
-			case "ownGoals":
-				return `${player.ownGoals} ${player.ownGoals === 1 ? "Own Goal" : "Own Goals"} in ${apps}`;
-			case "conceded":
-				return `${player.conceded} ${player.conceded === 1 ? "Goal Conceded" : "Goals Conceded"} in ${apps}`;
-			case "penaltiesMissed":
-				return `${player.penaltiesMissed} ${player.penaltiesMissed === 1 ? "Penalty Missed" : "Penalties Missed"} in ${apps}`;
-			case "penaltiesConceded":
-				return `${player.penaltiesConceded} ${player.penaltiesConceded === 1 ? "Penalty Conceded" : "Penalties Conceded"} in ${apps}`;
-			case "penaltiesSaved":
-				return `${player.penaltiesSaved} ${player.penaltiesSaved === 1 ? "Penalty Saved" : "Penalties Saved"} in ${apps}`;
-			case "distance":
-				const roundedDistance = Math.round(player.distance * 10) / 10;
-				return `${roundedDistance} miles travelled to games in ${apps}`;
-			default:
-				return apps;
-		}
-	};
-
-	// Get stat type display label
-	const getStatTypeLabel = (statType: StatType): string => {
-		switch (statType) {
-			case "appearances":
-				return "Appearances";
-			case "goals":
-				return "Goals";
-			case "assists":
-				return "Assists";
-			case "cleanSheets":
-				return "Clean Sheets";
-			case "mom":
-				return "Man of the Matches";
-			case "saves":
-				return "Saves";
-			case "yellowCards":
-				return "Yellow Cards";
-			case "redCards":
-				return "Red Cards";
-			case "penaltiesScored":
-				return "Penalties Scored";
-			case "fantasyPoints":
-				return "Fantasy Points";
-			case "goalInvolvements":
-				return "Goal Involvements";
-			case "minutes":
-				return "Minutes Played";
-			case "ownGoals":
-				return "Own Goals";
-			case "conceded":
-				return "Goals Conceded";
-			case "penaltiesMissed":
-				return "Penalties Missed";
-			case "penaltiesConceded":
-				return "Penalties Conceded";
-			case "penaltiesSaved":
-				return "Penalties Saved";
-			case "distance":
-				return "Distance Travelled";
-			default:
-				return "Appearances";
-		}
-	};
-
-	// Format rank as ordinal (1st, 2nd, 3rd, etc.)
-	const formatRank = (rank: number): string => {
-		const lastDigit = rank % 10;
-		const lastTwoDigits = rank % 100;
-		
-		if (lastTwoDigits >= 11 && lastTwoDigits <= 13) {
-			return `${rank}th`;
-		}
-		
-		switch (lastDigit) {
-			case 1:
-				return `${rank}st`;
-			case 2:
-				return `${rank}nd`;
-			case 3:
-				return `${rank}rd`;
-			default:
-				return `${rank}th`;
-		}
-	};
-
 	// Prepare chart data (must be at top level for hooks)
 	const goalsData = useMemo(() => {
 		if (!teamData) return [];
@@ -1275,13 +1024,6 @@ export default function ClubStats() {
 		];
 	}, [teamData]);
 
-	const tooltipStyle = {
-		backgroundColor: 'rgb(14, 17, 15)',
-		border: '1px solid rgba(249, 237, 50, 0.3)',
-		borderRadius: '8px',
-		color: '#fff',
-	};
-
 	// Custom tooltip formatter to capitalize "value" and show per game
 	const customTooltip = ({ active, payload, label }: any) => {
 		if (active && payload && payload.length) {
@@ -1294,23 +1036,23 @@ export default function ClubStats() {
 			const uniqueGoalscorers = uniquePlayerStats?.playersWhoScored || 0;
 			
 			return (
-				<div style={tooltipStyle} className='px-3 py-2'>
-					<p className='text-white text-sm'>{displayLabel}</p>
-					<p className='text-white text-sm'>
-						<span className='font-semibold'>Value</span>: {displayValue}
+				<TooltipSurface>
+					<p className='mb-1 font-medium text-white/90'>{displayLabel}</p>
+					<p className='text-white/80'>
+						<span className='font-medium text-white/60'>Value:</span> {displayValue}
 					</p>
-					<p className='text-white text-sm'>
-						<span className='font-semibold'>Per Game</span>: {perGame}
+					<p className='text-white/80'>
+						<span className='font-medium text-white/60'>Per Game:</span> {perGame}
 					</p>
-					<p className='text-white text-sm'>
-						<span className='font-semibold'>Games</span>: {gamesPlayed}
+					<p className='text-white/80'>
+						<span className='font-medium text-white/60'>Games:</span> {gamesPlayed}
 					</p>
 					{displayLabel === "Goals Scored" && uniqueGoalscorers > 0 && (
-						<p className='text-white text-sm'>
-							<span className='font-semibold'>Unique Goalscorers</span>: {uniqueGoalscorers}
+						<p className='text-white/80'>
+							<span className='font-medium text-white/60'>Unique Goalscorers:</span> {uniqueGoalscorers}
 						</p>
 					)}
-				</div>
+				</TooltipSurface>
 			);
 		}
 		return null;
@@ -1323,12 +1065,12 @@ export default function ClubStats() {
 			const displayValue = payload[0].value || 0;
 			const formattedValue = typeof displayValue === 'number' ? displayValue.toLocaleString('en-US') : displayValue;
 			return (
-				<div style={tooltipStyle} className='px-3 py-2'>
-					<p className='text-white text-sm'>{displayLabel}</p>
-					<p className='text-white text-sm'>
-						<span className='font-semibold'>Value</span>: {formattedValue}
+				<TooltipSurface>
+					<p className='mb-1 font-medium text-white/90'>{displayLabel}</p>
+					<p className='text-white/80'>
+						<span className='font-medium text-white/60'>Value:</span> {formattedValue}
 					</p>
-				</div>
+				</TooltipSurface>
 			);
 		}
 		return null;
@@ -1414,8 +1156,8 @@ export default function ClubStats() {
 		if (!tooltipContent) return null;
 
 		return (
-			<div style={tooltipStyle} className='px-3 py-2'>
-				<p className='text-white text-sm font-semibold mb-2'>{tooltipContent.category}</p>
+			<TooltipSurface>
+				<p className='mb-2 font-medium text-white/90'>{tooltipContent.category}</p>
 				{tooltipContent.entries.map(({ team, color, value }) => {
 					// Format distance values to 0 decimal places with comma separators
 					// Format Fantasy Points with comma separators
@@ -1426,12 +1168,12 @@ export default function ClubStats() {
 						displayValue = Math.round(value).toLocaleString('en-US');
 					}
 					return (
-						<p key={team} className='text-white text-sm' style={{ color: color }}>
+						<p key={team} style={{ color: color }}>
 							{team}: {displayValue}
 						</p>
 					);
 				})}
-			</div>
+			</TooltipSurface>
 		);
 	};
 
@@ -1449,9 +1191,9 @@ export default function ClubStats() {
 		if (active && payload && payload.length) {
 			const displayValue = payload[0].value || 0;
 			return (
-				<div style={tooltipStyle} className='px-3 py-2'>
-					<p className='text-white text-sm'>{displayValue} {displayValue === 1 ? 'player' : 'players'}</p>
-				</div>
+				<TooltipSurface>
+					<p className='text-white/90'>{displayValue} {displayValue === 1 ? 'player' : 'players'}</p>
+				</TooltipSurface>
 			);
 		}
 		return null;
@@ -1655,22 +1397,20 @@ export default function ClubStats() {
 
 			{(isLoadingTeamData || appConfig.forceSkeletonView) ? (
 				<div data-testid="loading-skeleton">
-					<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-						<div className='flex-1 px-2 md:px-4 pb-4 min-h-0 overflow-y-auto space-y-4 md:space-y-0 player-stats-masonry'>
-						<div className='md:break-inside-avoid md:mb-4'>
-							<StatCardSkeleton />
-						</div>
-						<div className='md:break-inside-avoid md:mb-4'>
-							<RadarChartSkeleton />
-						</div>
-						<div className='md:break-inside-avoid md:mb-4'>
-							<TopPlayersTableSkeleton />
-						</div>
-						<div className='md:break-inside-avoid md:mb-4'>
-							<ChartSkeleton />
-						</div>
+					<div className='flex-1 px-2 md:px-4 pb-4 min-h-0 overflow-y-auto space-y-4 md:space-y-0 player-stats-masonry'>
+					<div className='md:break-inside-avoid md:mb-4'>
+						<StatCardSkeleton />
 					</div>
-					</SkeletonTheme>
+					<div className='md:break-inside-avoid md:mb-4'>
+						<RadarChartSkeleton />
+					</div>
+					<div className='md:break-inside-avoid md:mb-4'>
+						<TopPlayersTableSkeleton />
+					</div>
+					<div className='md:break-inside-avoid md:mb-4'>
+						<ChartSkeleton />
+					</div>
+				</div>
 				</div>
 			) : !teamData ? (
 				<div className='flex-1 flex items-center justify-center p-4'>
@@ -1788,9 +1528,7 @@ export default function ClubStats() {
 
 								{/* Team Comparison Section */}
 					{!isDataTableMode && (isLoadingTeamComparison ? (
-						<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-							<RadarChartSkeleton />
-						</SkeletonTheme>
+						<RadarChartSkeleton />
 					) : !isLoadingTeamComparison && teamComparisonData.length > 0 && (
 						<div id='club-team-comparison' className='md:break-inside-avoid md:mb-4'>
 							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
@@ -1961,9 +1699,7 @@ export default function ClubStats() {
 												<label htmlFor='show-trend-checkbox-club' className='text-white text-xs md:text-sm cursor-pointer'>Show trend</label>
 											</div>
 											{(isLoadingSeasonalStats || appConfig.forceSkeletonView) ? (
-												<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-													<ChartSkeleton />
-												</SkeletonTheme>
+												<ChartSkeleton />
 											) : seasonalChartData.length > 0 ? (
 												<div className='chart-container' style={{ touchAction: 'pan-y' }}>
 													<ResponsiveContainer width='100%' height={240}>
@@ -2066,9 +1802,7 @@ export default function ClubStats() {
 
 								{/* Game Details Section */}
 								{isLoadingGameDetails ? (
-									<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-										<GameDetailsTableSkeleton />
-									</SkeletonTheme>
+									<GameDetailsTableSkeleton />
 								) : !isLoadingGameDetails && gameDetails && (
 									<div id='club-game-details' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-4'>Game Details</h3>
@@ -2473,115 +2207,76 @@ export default function ClubStats() {
 								{!isDataTableMode && (
 								<div id='club-top-players' className='flex-shrink-0 md:break-inside-avoid md:mb-4'>
 									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-										<h3 className='text-white font-semibold text-sm md:text-base mb-2' data-testid="club-top-players-heading">Top 5 {getStatTypeLabel(selectedStatType)}</h3>
-										<div className='mb-2'>
-											<Listbox value={selectedStatType} onChange={handleStatTypeSelect}>
-												<div className='relative'>
-													<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-xs md:text-sm'>
-														<span className='block truncate text-white'>
-															{getStatTypeLabel(selectedStatType)}
-														</span>
-													<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
-														<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
-													</span>
-												</Listbox.Button>
-												<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-xs md:text-sm shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
-													{([
-														"appearances",
-														"minutes",
-														"mom",
-														"goals",
-														"assists",
-														"goalInvolvements",
-														"fantasyPoints",
-														"cleanSheets",
-														"saves",
-														"yellowCards",
-														"redCards",
-														"penaltiesScored",
-														"penaltiesSaved",
-														"penaltiesConceded",
-														"penaltiesMissed",
-														"conceded",
-														"ownGoals",
-														"distance",
-													] as StatType[]).map((statType) => (
-														<Listbox.Option
-															key={statType}
-															className={({ active }) =>
-																`relative cursor-default select-none dark-dropdown-option ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
-															}
-															value={statType}>
-															{({ selected }) => (
-																<span className={`block truncate py-1 px-2 ${selected ? "font-medium" : "font-normal"}`}>
-																	{getStatTypeLabel(statType)}
-																</span>
-															)}
-														</Listbox.Option>
-													))}
-												</Listbox.Options>
-											</div>
+										<div className='flex items-center justify-between mb-2 gap-2'>
+											<h3 className='text-white font-semibold text-sm md:text-base flex-shrink-0' data-testid="club-top-players-heading">Top 5</h3>
+											<div className='flex-1 max-w-[45%]'>
+												<Listbox value={selectedStatType} onChange={handleStatTypeSelect}>
+													<div className='relative'>
+														<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-xs md:text-sm'>
+															<span className='block truncate text-white'>
+																{getStatTypeLabel(selectedStatType)}
+															</span>
+															<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
+																<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
+															</span>
+														</Listbox.Button>
+														<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-xs md:text-sm shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
+															{([
+																"appearances",
+																"minutes",
+																"mom",
+																"goals",
+																"assists",
+																"goalInvolvements",
+																"fantasyPoints",
+																"cleanSheets",
+																"saves",
+																"yellowCards",
+																"redCards",
+																"penaltiesScored",
+																"penaltiesSaved",
+																"penaltiesConceded",
+																"penaltiesMissed",
+																"conceded",
+																"ownGoals",
+																"distance",
+															] as StatType[]).map((statType) => (
+																<Listbox.Option
+																	key={statType}
+																	className={({ active }) =>
+																		`relative cursor-default select-none dark-dropdown-option ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
+																	}
+																	value={statType}>
+																	{({ selected }) => (
+																		<span className={`block truncate py-1 px-2 ${selected ? "font-medium" : "font-normal"}`}>
+																			{getStatTypeLabel(statType)}
+																		</span>
+																	)}
+																</Listbox.Option>
+															))}
+														</Listbox.Options>
+													</div>
 												</Listbox>
+											</div>
 										</div>
 										{isLoadingTopPlayers ? (
-											<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-												<TopPlayersTableSkeleton />
-											</SkeletonTheme>
+											<TopPlayersTableSkeleton />
 										) : topPlayers.length > 0 ? (
-											<div className='overflow-x-auto'>
-												<table className='w-full text-white'>
-												<thead>
-													<tr className='border-b-2 border-dorkinians-yellow'>
-														<th className='text-left py-2 px-2 text-xs md:text-sm w-auto'>
-															<div className='flex items-center gap-2'>
-																<div className='w-10 md:w-12'></div>
-																<div>Player Name</div>
-															</div>
-														</th>
-														<th className='text-center py-2 px-2 text-xs md:text-sm w-20 md:w-24'>{getStatTypeLabel(selectedStatType)}</th>
-													</tr>
-												</thead>
-												<tbody>
-													{topPlayers.map((player, index) => {
-														const isLastPlayer = index === topPlayers.length - 1;
-														const statValue = getStatValue(player, selectedStatType);
-														let formattedStatValue: string | number;
-														if (selectedStatType === "minutes") {
-															formattedStatValue = statValue.toLocaleString();
-														} else if (selectedStatType === "distance") {
-															formattedStatValue = (Math.round(statValue * 10) / 10).toFixed(1);
-														} else {
-															formattedStatValue = statValue;
-														}
-														const summary = formatPlayerSummary(player, selectedStatType);
-														
-														return (
-															<tr
-																key={player.playerName}
-																className={`${isLastPlayer ? '' : 'border-b border-green-500'}`}
-																style={{
-																	background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05))',
-																}}>
-																<td className='py-2 px-2 align-top' colSpan={2}>
-																	<div className='flex flex-col'>
-																		<div className='flex items-center gap-2'>
-																			<div className='text-base md:text-lg font-semibold whitespace-nowrap w-10 md:w-12'>{formatRank(index + 1)}</div>
-																			<div className='text-base md:text-lg font-semibold flex-1'>{player.playerName}</div>
-																			<div className='text-base md:text-lg font-bold w-20 md:w-24 text-center'>{formattedStatValue}</div>
-																		</div>
-																		<div className='pt-1 pl-[3rem] md:pl-[3.5rem]'>
-																			<div className='text-[0.7rem] md:text-[0.8rem] text-gray-300 text-left'>
-																				{summary}
-																			</div>
-																		</div>
-																	</div>
-																</td>
-															</tr>
-														);
-													})}
-												</tbody>
-												</table>
-											</div>
+											<>
+												<TopPlayersTable
+													players={topPlayers}
+													statType={selectedStatType}
+													highlightPlayerName={selectedPlayer}
+												/>
+												{featureFlags.statsTopPlayersShowAll && (
+													<button
+														type='button'
+														className='mt-3 w-full text-center text-white underline text-sm hover:text-white/80 min-h-[44px]'
+														onClick={() => setIsTopPlayersModalOpen(true)}>
+														Show all
+													</button>
+												)}
+											</>
 										) : (
 											<div className='p-4'>
 												<p className='text-white text-xs md:text-sm text-center'>No players found</p>
@@ -2591,15 +2286,24 @@ export default function ClubStats() {
 								</div>
 								)}
 
+								{featureFlags.statsTopPlayersShowAll && playerFilters && (
+									<TopPlayersModal
+										isOpen={isTopPlayersModalOpen}
+										onClose={() => setIsTopPlayersModalOpen(false)}
+										statType={selectedStatType}
+										filters={playerFilters}
+										contextLabel='Club Stats'
+										highlightPlayerName={selectedPlayer}
+										pageSource='club-stats'
+										getCachedPageData={getCachedPageData}
+										setCachedPageData={setCachedPageData}
+									/>
+								)}
+
 								{/* Player Distribution Section */}
 								{!isDataTableMode && (isLoadingPlayerDistribution ? (
 									<div id='club-player-distribution' className='md:mb-4 md:break-inside-avoid'>
-										<div className='min-h-[320px] rounded-lg bg-white/10 p-2 backdrop-blur-sm md:p-4'>
-											<h3 className='mb-2 text-sm font-semibold text-white md:text-base'>Player Distribution</h3>
-											<div className='flex min-h-[240px] items-center justify-center'>
-												<p className='text-sm text-white/45'>Loading…</p>
-											</div>
-										</div>
+										<SankeyChartSkeleton />
 									</div>
 								) : !isLoadingPlayerDistribution && sankeyData && sankeyData.nodes.length > 1 && sankeyData.links.length > 0 && (() => {
 									// Validate that all links reference existing nodes
@@ -2698,11 +2402,7 @@ export default function ClubStats() {
 											<LazyWhenVisible
 												rootMargin="120px"
 												className="chart-container min-h-[320px]"
-												fallback={
-													<div className='flex min-h-[320px] items-center justify-center rounded-lg bg-white/5'>
-														<p className='text-xs text-white/40'>Loading chart…</p>
-													</div>
-												}
+												fallback={<SankeyChartSkeleton noContainer />}
 											>
 												<div className="h-[320px]" style={{ touchAction: 'pan-y' }}>
 													<ResponsiveSankey
@@ -2741,14 +2441,12 @@ export default function ClubStats() {
 
 								{/* Player Tenure Section */}
 								{!isDataTableMode && (isLoadingPlayerTenure ? (
-									<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-										<div id='club-player-tenure' className='md:break-inside-avoid md:mb-4'>
-											<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-												<Skeleton height={20} width="40%" className="mb-2" />
-												<ChartSkeleton />
-											</div>
+									<div id='club-player-tenure' className='md:break-inside-avoid md:mb-4'>
+										<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+											<Skeleton height={20} width="40%" className="mb-2" />
+											<ChartSkeleton />
 										</div>
-									</SkeletonTheme>
+									</div>
 					) : !isLoadingPlayerTenure && tenureHistogramData.length > 0 && (
 						<div id='club-player-tenure' className='md:break-inside-avoid md:mb-4'>
 										<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
@@ -2772,46 +2470,46 @@ export default function ClubStats() {
 								{!isDataTableMode && (
 								<div id='club-stats-distribution' className='md:break-inside-avoid md:mb-4'>
 									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Stats Distribution</h3>
-										<div className='mb-2'>
-											<Listbox
-												value={selectedPositionStat}
-												onChange={(v) => {
-													setSelectedPositionStat(v);
-													trackStatsStatSelected("club-stats", "club-stats-distribution", v);
-												}}>
-												<div className='relative'>
-													<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-xs md:text-sm'>
-														<span className='block truncate text-white'>
-															{getPositionStatLabel(selectedPositionStat)}
-														</span>
-														<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
-															<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
-														</span>
-													</Listbox.Button>
-													<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-xs md:text-sm shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
-														{["goals", "assists", "appearances", "cleanSheets", "saves", "yellowCards", "redCards", "penaltiesScored", "fantasyPoints", "minutes", "mom"].map((statType) => (
-															<Listbox.Option
-																key={statType}
-																className={({ active }) =>
-																	`relative cursor-default select-none dark-dropdown-option ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
-																}
-																value={statType}>
-																{({ selected }) => (
-																	<span className={`block truncate py-1 px-2 ${selected ? "font-medium" : "font-normal"}`}>
-																		{getPositionStatLabel(statType)}
-																	</span>
-																)}
-															</Listbox.Option>
-														))}
-													</Listbox.Options>
-												</div>
-											</Listbox>
+										<div className='flex items-center justify-between mb-2 gap-2'>
+											<h3 className='text-white font-semibold text-sm md:text-base flex-shrink-0'>Stats Distribution</h3>
+											<div className='flex-1 max-w-[45%]'>
+												<Listbox
+													value={selectedPositionStat}
+													onChange={(v) => {
+														setSelectedPositionStat(v);
+														trackStatsStatSelected("club-stats", "club-stats-distribution", v);
+													}}>
+													<div className='relative'>
+														<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-xs md:text-sm'>
+															<span className='block truncate text-white'>
+																{getPositionStatLabel(selectedPositionStat)}
+															</span>
+															<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
+																<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
+															</span>
+														</Listbox.Button>
+														<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-xs md:text-sm shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
+															{["goals", "assists", "appearances", "cleanSheets", "saves", "yellowCards", "redCards", "penaltiesScored", "fantasyPoints", "minutes", "mom"].map((statType) => (
+																<Listbox.Option
+																	key={statType}
+																	className={({ active }) =>
+																		`relative cursor-default select-none dark-dropdown-option ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
+																	}
+																	value={statType}>
+																	{({ selected }) => (
+																		<span className={`block truncate py-1 px-2 ${selected ? "font-medium" : "font-normal"}`}>
+																			{getPositionStatLabel(statType)}
+																		</span>
+																	)}
+																</Listbox.Option>
+															))}
+														</Listbox.Options>
+													</div>
+												</Listbox>
+											</div>
 										</div>
 										{isLoadingPositionStats ? (
-											<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-												<ChartSkeleton />
-											</SkeletonTheme>
+											<ChartSkeleton />
 										) : positionStatsData.length > 0 ? (
 											<div className='chart-container' style={{ touchAction: 'pan-y' }}>
 												<ResponsiveContainer width='100%' height={300}>
@@ -2839,30 +2537,28 @@ export default function ClubStats() {
 
 								{/* Unique Player Stats Section */}
 								{isLoadingUniqueStats ? (
-									<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-										<div id='club-unique-player-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
-											<Skeleton height={20} width="40%" className="mb-2" />
-											<Skeleton height={16} width="60%" className="mb-3" />
-											<div className='overflow-x-auto'>
-												<table className='w-full text-white text-sm'>
-													<thead>
-														<tr className='border-b border-white/20'>
-															<th className='text-left py-2 px-2'><Skeleton height={16} width={80} /></th>
-															<th className='text-right py-2 px-2'><Skeleton height={16} width={100} className="ml-auto" /></th>
+									<div id='club-unique-player-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
+										<Skeleton height={20} width="40%" className="mb-2" />
+										<Skeleton height={16} width="60%" className="mb-3" />
+										<div className='overflow-x-auto'>
+											<table className='w-full text-white text-sm'>
+												<thead>
+													<tr className='border-b border-white/20'>
+														<th className='text-left py-2 px-2'><Skeleton height={16} width={80} /></th>
+														<th className='text-right py-2 px-2'><Skeleton height={16} width={100} className="ml-auto" /></th>
+													</tr>
+												</thead>
+												<tbody>
+													{[...Array(5)].map((_, i) => (
+														<tr key={i} className='border-b border-white/10'>
+															<td className='py-2 px-2'><Skeleton height={14} width="70%" /></td>
+															<td className='text-right py-2 px-2'><Skeleton height={14} width={30} className="ml-auto" /></td>
 														</tr>
-													</thead>
-													<tbody>
-														{[...Array(5)].map((_, i) => (
-															<tr key={i} className='border-b border-white/10'>
-																<td className='py-2 px-2'><Skeleton height={14} width="70%" /></td>
-																<td className='text-right py-2 px-2'><Skeleton height={14} width={30} className="ml-auto" /></td>
-															</tr>
-														))}
-													</tbody>
-												</table>
-											</div>
+													))}
+												</tbody>
+											</table>
 										</div>
-									</SkeletonTheme>
+									</div>
 								) : !isLoadingUniqueStats && uniquePlayerStats && (
 									<div id='club-unique-player-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Unique Player Stats</h3>
@@ -2958,6 +2654,7 @@ export default function ClubStats() {
 										fixtures={clubRecordings}
 										teamColumn={showClubRecordingsTeamColumn}
 										collapseAfter={10}
+										enableSeasonFilter
 										testIdPrefix='club-recording'
 									/>
 								)}
@@ -3106,9 +2803,7 @@ export default function ClubStats() {
 								{!isDataTableMode && chartContent}
 								{isDataTableMode && (
 									isLoadingTeamData ? (
-										<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-											<DataTableSkeleton />
-										</SkeletonTheme>
+										<DataTableSkeleton />
 									) : (
 										dataTableContent
 									)

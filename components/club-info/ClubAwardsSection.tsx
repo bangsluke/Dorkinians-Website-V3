@@ -7,8 +7,7 @@ import AwardHistoryPopup from "./AwardHistoryPopup";
 import { getCurrentSeasonFromStorage } from "@/lib/services/currentSeasonService";
 import { useNavigationStore } from "@/lib/stores/navigation";
 import { cachedFetch, generatePageCacheKey } from "@/lib/utils/pageCache";
-import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
-import "react-loading-skeleton/dist/skeleton.css";
+import Skeleton from "react-loading-skeleton";
 import { AwardsTableSkeleton } from "@/components/skeletons";
 import { appConfig } from "@/config/config";
 import { UmamiEvents } from "@/lib/analytics/events";
@@ -197,9 +196,7 @@ export default function ClubAwardsSection({ embedded = false }: { embedded?: boo
 				<div className='mb-6'>
 					{loading || seasons.length === 0 ? (
 						<div className='w-full max-w-[14rem] mx-auto'>
-							<SkeletonTheme baseColor='var(--skeleton-base)' highlightColor='var(--skeleton-highlight)'>
-								<Skeleton height={48} className='rounded-md' />
-							</SkeletonTheme>
+							<Skeleton height={48} className='rounded-md' />
 						</div>
 					) : (
 						<Listbox
@@ -243,9 +240,7 @@ export default function ClubAwardsSection({ embedded = false }: { embedded?: boo
 
 			<div className={embedded ? "px-0 pb-0" : "flex-1 overflow-y-auto px-6 pb-6 min-h-0"} style={{ WebkitOverflowScrolling: "touch" }}>
 				{(loading || appConfig.forceSkeletonView) && (
-					<SkeletonTheme baseColor='var(--skeleton-base)' highlightColor='var(--skeleton-highlight)'>
-						<AwardsTableSkeleton />
-					</SkeletonTheme>
+					<AwardsTableSkeleton />
 				)}
 
 				{!loading && !appConfig.forceSkeletonView && !isHistoricalAwards && awardsData.filter((item) => item.receiver).length > 0 && (
