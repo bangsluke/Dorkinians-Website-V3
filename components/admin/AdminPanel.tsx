@@ -12,6 +12,14 @@ import { useToast } from "@/lib/hooks/useToast";
 
 interface SiteDetails {
 	lastSeededStats: string | null;
+	lastSeedJobId?: string | null;
+	lastSeedTriggerSource?: string | null;
+	lastSeedOutcome?: string | null;
+	lastSeedFinishedAt?: string | null;
+	lastSeedFailureSummary?: string | null;
+	lastSeedFailureReason?: string | null;
+	blueGreenCutoverCompleted?: boolean | null;
+	verificationOverallPassed?: boolean | null;
 }
 
 interface SeedingResult {
@@ -1100,6 +1108,22 @@ export default function AdminPanel() {
 		}
 	};
 
+	const formatLastSeedAttempt = (details: SiteDetails) => {
+		const outcome = details.lastSeedOutcome;
+		if (!outcome) {
+			return null;
+		}
+		if (outcome === "success") {
+			const finished = details.lastSeedFinishedAt ? ` (${formatDate(details.lastSeedFinishedAt)})` : "";
+			return { tone: "success" as const, text: `Last seed attempt: Success${finished}` };
+		}
+		const reason =
+			details.lastSeedFailureReason ||
+			details.lastSeedFailureSummary ||
+			"seed attempt failed";
+		return { tone: "failure" as const, text: `Last seed attempt: Failure — ${reason}` };
+	};
+
 	return (
 		<div className='w-full min-h-screen p-2 sm:p-6 bg-white overflow-x-hidden py-4 px-4'>
 			<div className='mb-6 flex items-center justify-center gap-2'>
@@ -1159,6 +1183,18 @@ export default function AdminPanel() {
 					<p className='text-sm text-gray-600'>
 						Database last updated: <span className='font-semibold'>{formatDate(siteDetails.lastSeededStats || null)}</span>
 					</p>
+					{(() => {
+						const attempt = formatLastSeedAttempt(siteDetails);
+						if (!attempt) return null;
+						return (
+							<p
+								className={`mt-1 text-sm ${
+									attempt.tone === "success" ? "text-green-700" : "text-red-700"
+								}`}>
+								{attempt.text}
+							</p>
+						);
+					})()}
 				</div>
 			)}
 
