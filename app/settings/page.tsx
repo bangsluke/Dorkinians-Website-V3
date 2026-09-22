@@ -73,6 +73,10 @@ interface SiteDetails {
 	versionReleaseDetails: string | null;
 	updatesToCome: string | null;
 	statLimitations: string | null;
+	lastSeedOutcome?: string | null;
+	lastSeedFinishedAt?: string | null;
+	lastSeedFailureReason?: string | null;
+	lastSeedFailureSummary?: string | null;
 }
 
 export default function SettingsPage() {
@@ -242,6 +246,17 @@ export default function SettingsPage() {
 		} catch {
 			return dateString;
 		}
+	};
+
+	const formatLastSeedAttempt = (details: SiteDetails | null) => {
+		if (!details?.lastSeedOutcome) return null;
+		if (details.lastSeedOutcome === "success") {
+			const finished = details.lastSeedFinishedAt ? ` (${formatDate(details.lastSeedFinishedAt)})` : "";
+			return { tone: "success" as const, text: `Last seed attempt: Success${finished}` };
+		}
+		const reason =
+			details.lastSeedFailureReason || details.lastSeedFailureSummary || "seed attempt failed";
+		return { tone: "failure" as const, text: `Last seed attempt: Failure — ${reason}` };
 	};
 
 	// [COMMENTED OUT: Check for Updates Section] - Format last update date function (only used by manual check section)
@@ -603,6 +618,18 @@ export default function SettingsPage() {
 								<div className='flex-1'>
 									<h3 className='text-lg font-semibold text-white mb-1'>Database Last Updated</h3>
 									<p className='text-sm text-gray-300'>{formatDate(siteDetails?.lastSeededStats || null)}</p>
+									{(() => {
+										const attempt = formatLastSeedAttempt(siteDetails);
+										if (!attempt) return null;
+										return (
+											<p
+												className={`text-sm mt-1 ${
+													attempt.tone === "success" ? "text-green-300" : "text-red-300"
+												}`}>
+												{attempt.text}
+											</p>
+										);
+									})()}
 								</div>
 							</div>
 						</div>

@@ -30,6 +30,14 @@ Staleness is evaluated after each cron seeding attempt in the seeding service em
 - If the value is missing, unparseable, or older than **40 hours**, it includes `LIVE DATA STALE` in the completion/failure notification.
 - Trigger-side preflight now logs potential staleness for observability but does not send stale alerts before the run.
 
+### Cron HTTP success ≠ live refresh
+
+Cron-job.org calling `/.netlify/functions/trigger-seed` returns HTTP **200** as soon as Heroku accepts `POST /seed` with `status: "started"`. That does **not** mean live data was updated.
+
+- Admin **Database last updated** uses live `SiteDetail.lastSeededStats`, which advances only after a successful blue-green cutover.
+- After each attempt, `DorkiniansSeedingMeta` stores `lastSeedOutcome` / `lastSeedFailureReason` (surfaced on Admin and `/api/site-details`) so a green Cron + old admin date is explainable.
+- Optional daily monitor via Google Apps Script: see [APPS_SCRIPT_SEED_FRESHNESS_PROMPT.md](./APPS_SCRIPT_SEED_FRESHNESS_PROMPT.md) (warn if `lastSeededStats` is ≥ 3 days old).
+
 **Privacy:** Heroku `/health` JSON may include in-memory job IDs. If you want to avoid exposing that to a monitor’s logs, use a keyword rule on `"status":"healthy"` only and avoid storing full response bodies in the tool if it offers that option.
 
 ## 3. Monitor settings (typical)
