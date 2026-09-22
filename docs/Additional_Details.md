@@ -981,20 +981,24 @@ curl -X POST "https://your-site.netlify.app/.netlify/functions/trigger-seed?envi
 
 #### Expected Response
 
+Cron / Netlify only confirms the Heroku job was **accepted**. A successful Cron run does **not** mean live Neo4j data was refreshed.
+
 ```json
 {
 	"success": true,
-	"message": "Database seeding completed successfully",
+	"status": "started",
+	"message": "Database seeding started",
 	"environment": "production",
-	"timestamp": "2024-01-01T06:00:00.000Z",
-	"result": {
-		"success": true,
-		"exitCode": 0,
-		"nodesCreated": 1500,
-		"relationshipsCreated": 3000
-	}
+	"jobId": "seed_…",
+	"timestamp": "2026-09-22T05:00:00.000Z"
 }
 ```
+
+Operators should then check:
+
+1. Admin **Database last updated** (`SiteDetail.lastSeededStats`) — moves only after successful blue-green cutover.
+2. Admin **Last seed attempt** line (`DorkiniansSeedingMeta.lastSeedOutcome` / failure reason) — shows Success or Failure after each run.
+3. Failure email / Heroku `SEED_OUTCOME` log line for the returned `jobId`.
 
 > [Back to Table of Contents](#table-of-contents)
 
