@@ -37,6 +37,9 @@ Date: 2026-10-10
 | Player stats bootstrap | [`/api/player-stats-bootstrap`](../../app/api/player-stats-bootstrap/route.ts) aggregates player-data + seasonal/team + awards/captains; `selectPlayer` + PlayerStats consume it (fallback to old routes) |
 | Below-fold Stats defer | PlayerStats monthly/fantasy/game-details gated on `requestIdleCallback` |
 | Redis L2 harden | Bare-payload Redis store + flexible parse; filter-bootstrap cache-hit re-seeds `/api/players` |
+| Club badges | LazyWhenVisible `rootMargin=0` + idle fetch; API apiCache + Cache-Control |
+| Captains data | apiCache + public cache on `/api/captains/data`; idle-defer home preload |
+| Cleanup | Removed obsolete `netlify/functions/players.js` |
 
 ## Intentionally not done (larger / risk)
 

@@ -4,6 +4,8 @@ import { neo4jService } from "@/lib/neo4j";
 import { getCorsHeadersWithSecurity } from "@/lib/utils/securityHeaders";
 import { dataApiRateLimiter } from "@/lib/middleware/rateLimiter";
 import { logError } from "@/lib/utils/logger";
+import { apiCache, getCacheTTL } from "@/lib/utils/apiCache";
+import { PUBLIC_CACHE_MEDIUM, withNoStore, withPublicCache } from "@/lib/utils/publicCacheHeaders";
 
 const corsHeaders = getCorsHeadersWithSecurity();
 
@@ -34,9 +36,21 @@ export async function GET(request: NextRequest) {
 	}
 
 	try {
+		const cacheKey = apiCache.generateKey("/api/club-badge-leaderboard");
+		const cached = await apiCache.getAsync<{
+			mostBadges: unknown[];
+			mostDiamond: unknown[];
+		}>(cacheKey);
+		if (cached) {
+			return NextResponse.json(cached, { headers: withPublicCache(corsHeaders, PUBLIC_CACHE_MEDIUM) });
+		}
+
 		const connected = await neo4jService.connect();
 		if (!connected) {
-			return NextResponse.json({ error: "Database connection failed" }, { status: 500, headers: corsHeaders });
+			return NextResponse.json(
+				{ error: "Database connection failed" },
+				{ status: 500, headers: withNoStore(corsHeaders) },
+			);
 		}
 
 		const graphLabel = neo4jService.getGraphLabel();
@@ -77,18 +91,17 @@ export async function GET(request: NextRequest) {
 				count: num(rec.get("cnt")),
 			}));
 
-		return NextResponse.json(
-			{
-				mostBadges,
-				mostDiamond: mapTierRows(diamondRes.records),
-			},
-			{ headers: corsHeaders },
-		);
+		const payload = {
+			mostBadges,
+			mostDiamond: mapTierRows(diamondRes.records),
+		};
+		await apiCache.setAsync(cacheKey, payload, getCacheTTL("/api/club-badge-leaderboard"));
+		return NextResponse.json(payload, { headers: withPublicCache(corsHeaders, PUBLIC_CACHE_MEDIUM) });
 	} catch (error) {
 		logError("club-badge-leaderboard GET", error);
 		return NextResponse.json(
 			{ error: "Failed to load badge leaderboard", mostBadges: [], mostDiamond: [] },
-			{ status: 500, headers: corsHeaders },
+			{ status: 500, headers: withNoStore(corsHeaders) },
 		);
 	}
 }

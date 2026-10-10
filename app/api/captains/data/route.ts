@@ -3,6 +3,8 @@ import { neo4jService } from "@/lib/neo4j";
 import { getCorsHeadersWithSecurity } from "@/lib/utils/securityHeaders";
 import type { Record } from "neo4j-driver";
 import { log, logError } from "@/lib/utils/logger";
+import { apiCache, getCacheTTL } from "@/lib/utils/apiCache";
+import { PUBLIC_CACHE_MEDIUM, withNoStore, withPublicCache } from "@/lib/utils/publicCacheHeaders";
 
 // Security: Use validated CORS headers instead of wildcard
 const corsHeaders = getCorsHeadersWithSecurity(
@@ -19,13 +21,25 @@ export async function GET(request: NextRequest) {
 		const season = searchParams.get("season");
 
 		if (!season) {
-			return NextResponse.json({ error: "Season parameter is required" }, { status: 400, headers: corsHeaders });
+			return NextResponse.json(
+				{ error: "Season parameter is required" },
+				{ status: 400, headers: withNoStore(corsHeaders) },
+			);
+		}
+
+		const cacheKey = apiCache.generateKey("/api/captains/data", { season });
+		const cached = await apiCache.getAsync<{ captainsData: unknown[] }>(cacheKey);
+		if (cached) {
+			return NextResponse.json(cached, { headers: withPublicCache(corsHeaders, PUBLIC_CACHE_MEDIUM) });
 		}
 
 		// Connect to Neo4j
 		const connected = await neo4jService.connect();
 		if (!connected) {
-			return NextResponse.json({ error: "Database connection failed" }, { status: 500, headers: corsHeaders });
+			return NextResponse.json(
+				{ error: "Database connection failed" },
+				{ status: 500, headers: withNoStore(corsHeaders) },
+			);
 		}
 
 		const graphLabel = neo4jService.getGraphLabel();
@@ -167,10 +181,15 @@ export async function GET(request: NextRequest) {
 			return aIndex - bIndex;
 		});
 
-		return NextResponse.json({ captainsData }, { headers: corsHeaders });
+		const payload = { captainsData };
+		await apiCache.setAsync(cacheKey, payload, getCacheTTL("/api/captains/data"));
+		return NextResponse.json(payload, { headers: withPublicCache(corsHeaders, PUBLIC_CACHE_MEDIUM) });
 	} catch (error) {
 		logError("Error fetching captain data", error);
-		return NextResponse.json({ error: "Failed to fetch captain data" }, { status: 500, headers: corsHeaders });
+		return NextResponse.json(
+			{ error: "Failed to fetch captain data" },
+			{ status: 500, headers: withNoStore(corsHeaders) },
+		);
 	}
 }
 

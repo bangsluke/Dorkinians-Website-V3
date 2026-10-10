@@ -190,16 +190,34 @@ export default function HomePage() {
 		initializeFromStorage();
 		loadFilterData(); // Load filter data asynchronously
 
-		// Initialize currentSeason and preload captains data
+		// Initialize currentSeason; defer captains preload so filter-bootstrap / stats win the network
+		let cancelled = false;
+		let idleId: number | undefined;
+		let timeoutId: ReturnType<typeof setTimeout> | undefined;
 		const initAndPreload = async () => {
 			await initializeCurrentSeason();
-			// Preload captains data for current season asynchronously
+			if (cancelled) return;
 			const currentSeason = getCurrentSeasonFromStorage();
-			if (currentSeason) {
+			if (!currentSeason) return;
+			const run = (): void => {
 				void preloadCaptainsData(currentSeason);
+			};
+			if (typeof requestIdleCallback !== "undefined") {
+				idleId = requestIdleCallback(run, { timeout: 3000 });
+			} else {
+				timeoutId = setTimeout(run, 2000);
 			}
 		};
-		initAndPreload();
+		void initAndPreload();
+		return () => {
+			cancelled = true;
+			if (idleId !== undefined && typeof cancelIdleCallback !== "undefined") {
+				cancelIdleCallback(idleId);
+			}
+			if (timeoutId !== undefined) {
+				clearTimeout(timeoutId);
+			}
+		};
 	}, [initializeFromStorage, loadFilterData]);
 
 	// Persist recent players when selection changes (external store — no component setState)
