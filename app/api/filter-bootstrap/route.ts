@@ -28,6 +28,12 @@ export async function GET() {
 		const cached = await apiCache.getAsync<BootstrapPayload>(cacheKey);
 		// Require players field so pre-wave caches are rebuilt once
 		if (cached && Array.isArray(cached.players)) {
+			// Keep /api/players L2 warm even when bootstrap is served from cache
+			void apiCache.setAsync(
+				apiCache.generateKey("/api/players"),
+				{ players: cached.players },
+				getCacheTTL("/api/players"),
+			);
 			return NextResponse.json(cached, { headers: withPublicCache(corsHeaders, PUBLIC_CACHE_MEDIUM) });
 		}
 
