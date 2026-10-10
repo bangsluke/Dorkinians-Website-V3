@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-10T20:53:03.732Z",
+  "generatedAt": "2026-10-10T21:01:09.839Z",
   "baseURL": "https://dorkinians-website-v3.netlify.app",
   "playerSlug": "Luke-Bangs",
   "playerName": "Luke Bangs",
@@ -9,25 +9,25 @@
     {
       "id": "cold-home",
       "status": "ok",
-      "startedAt": "2026-10-10T20:52:39.254Z",
-      "finishedAt": "2026-10-10T20:52:45.194Z",
-      "durationMs": 5939,
+      "startedAt": "2026-10-10T21:00:42.689Z",
+      "finishedAt": "2026-10-10T21:00:50.308Z",
+      "durationMs": 7618,
       "clickToUsefulMs": null,
       "navigation": {
-        "ttfbMs": 3841,
-        "domContentLoadedMs": 4315,
-        "loadEventMs": 4458,
-        "fcpMs": 4420,
+        "ttfbMs": 5735,
+        "domContentLoadedMs": 5997,
+        "loadEventMs": 6275,
+        "fcpMs": 6128,
         "lcpMs": null
       },
       "api": {
-        "count": 1,
-        "uniquePaths": 1,
+        "count": 2,
+        "uniquePaths": 2,
         "duplicates": [],
         "slowest": [
           {
             "url": "/api/site-details",
-            "durationMs": 1108
+            "durationMs": 1138
           }
         ]
       },
@@ -39,31 +39,22 @@
     {
       "id": "warm-home",
       "status": "ok",
-      "startedAt": "2026-10-10T20:52:45.194Z",
-      "finishedAt": "2026-10-10T20:52:47.108Z",
-      "durationMs": 1915,
+      "startedAt": "2026-10-10T21:00:50.308Z",
+      "finishedAt": "2026-10-10T21:00:52.284Z",
+      "durationMs": 1976,
       "clickToUsefulMs": null,
       "navigation": {
-        "ttfbMs": 259,
-        "domContentLoadedMs": 301,
-        "loadEventMs": 336,
-        "fcpMs": 432,
+        "ttfbMs": 324,
+        "domContentLoadedMs": 372,
+        "loadEventMs": 435,
+        "fcpMs": 492,
         "lcpMs": null
       },
       "api": {
         "count": 3,
         "uniquePaths": 3,
         "duplicates": [],
-        "slowest": [
-          {
-            "url": "/api/captains/data?season=2026%2F27",
-            "durationMs": 929
-          },
-          {
-            "url": "/api/filter-bootstrap",
-            "durationMs": 686
-          }
-        ]
+        "slowest": []
       },
       "umamiRequests": 0,
       "notes": [
@@ -73,33 +64,25 @@
     {
       "id": "spa-stats",
       "status": "ok",
-      "startedAt": "2026-10-10T20:52:48.719Z",
-      "finishedAt": "2026-10-10T20:52:51.337Z",
-      "durationMs": 2618,
-      "clickToUsefulMs": 1098,
+      "startedAt": "2026-10-10T21:00:53.870Z",
+      "finishedAt": "2026-10-10T21:00:56.378Z",
+      "durationMs": 2508,
+      "clickToUsefulMs": 987,
       "navigation": {
-        "ttfbMs": 276,
-        "domContentLoadedMs": 321,
-        "loadEventMs": 616,
-        "fcpMs": 444,
+        "ttfbMs": 259,
+        "domContentLoadedMs": 281,
+        "loadEventMs": 1184,
+        "fcpMs": 496,
         "lcpMs": null
       },
       "api": {
-        "count": 7,
-        "uniquePaths": 7,
+        "count": 6,
+        "uniquePaths": 6,
         "duplicates": [],
         "slowest": [
           {
-            "url": "/api/player-monthly-stats",
-            "durationMs": 1529
-          },
-          {
-            "url": "/api/player-fantasy-breakdown",
-            "durationMs": 1491
-          },
-          {
-            "url": "/api/player-game-details",
-            "durationMs": 872
+            "url": "/api/player-opposition-performance?playerName=Luke%20Bangs",
+            "durationMs": 1009
           }
         ]
       },
@@ -108,15 +91,15 @@
     {
       "id": "spa-totw",
       "status": "ok",
-      "startedAt": "2026-10-10T20:52:51.337Z",
-      "finishedAt": "2026-10-10T20:52:54.638Z",
-      "durationMs": 3301,
-      "clickToUsefulMs": 1756,
+      "startedAt": "2026-10-10T21:00:56.378Z",
+      "finishedAt": "2026-10-10T21:00:59.641Z",
+      "durationMs": 3263,
+      "clickToUsefulMs": 1740,
       "navigation": {
-        "ttfbMs": 232,
-        "domContentLoadedMs": 300,
-        "loadEventMs": 372,
-        "fcpMs": 540,
+        "ttfbMs": 244,
+        "domContentLoadedMs": 307,
+        "loadEventMs": 383,
+        "fcpMs": 452,
         "lcpMs": null
       },
       "api": {
@@ -130,25 +113,29 @@
     {
       "id": "spa-club",
       "status": "ok",
-      "startedAt": "2026-10-10T20:52:54.638Z",
-      "finishedAt": "2026-10-10T20:52:57.056Z",
-      "durationMs": 2418,
-      "clickToUsefulMs": 896,
+      "startedAt": "2026-10-10T21:00:59.641Z",
+      "finishedAt": "2026-10-10T21:01:02.069Z",
+      "durationMs": 2428,
+      "clickToUsefulMs": 911,
       "navigation": {
-        "ttfbMs": 291,
-        "domContentLoadedMs": 322,
-        "loadEventMs": 411,
-        "fcpMs": 492,
+        "ttfbMs": 271,
+        "domContentLoadedMs": 308,
+        "loadEventMs": 370,
+        "fcpMs": 404,
         "lcpMs": null
       },
       "api": {
-        "count": 6,
-        "uniquePaths": 6,
+        "count": 4,
+        "uniquePaths": 4,
         "duplicates": [],
         "slowest": [
           {
+            "url": "/api/captains/data?season=2026%2F27",
+            "durationMs": 1243
+          },
+          {
             "url": "/api/club-badge-leaderboard",
-            "durationMs": 1107
+            "durationMs": 1233
           }
         ]
       },
@@ -157,15 +144,15 @@
     {
       "id": "route-profile",
       "status": "ok",
-      "startedAt": "2026-10-10T20:52:57.056Z",
-      "finishedAt": "2026-10-10T20:52:59.874Z",
-      "durationMs": 2818,
+      "startedAt": "2026-10-10T21:01:02.069Z",
+      "finishedAt": "2026-10-10T21:01:05.982Z",
+      "durationMs": 3913,
       "clickToUsefulMs": null,
       "navigation": {
-        "ttfbMs": 277,
-        "domContentLoadedMs": 1180,
-        "loadEventMs": 1183,
-        "fcpMs": 456,
+        "ttfbMs": 1357,
+        "domContentLoadedMs": 2324,
+        "loadEventMs": 2326,
+        "fcpMs": 1720,
         "lcpMs": null
       },
       "api": {
@@ -182,15 +169,15 @@
     {
       "id": "route-wrapped",
       "status": "ok",
-      "startedAt": "2026-10-10T20:52:59.874Z",
-      "finishedAt": "2026-10-10T20:53:03.732Z",
-      "durationMs": 3858,
+      "startedAt": "2026-10-10T21:01:05.982Z",
+      "finishedAt": "2026-10-10T21:01:09.839Z",
+      "durationMs": 3857,
       "clickToUsefulMs": null,
       "navigation": {
-        "ttfbMs": 264,
-        "domContentLoadedMs": 300,
-        "loadEventMs": 344,
-        "fcpMs": 552,
+        "ttfbMs": 290,
+        "domContentLoadedMs": 320,
+        "loadEventMs": 362,
+        "fcpMs": 524,
         "lcpMs": null
       },
       "api": {
@@ -200,14 +187,14 @@
         "slowest": [
           {
             "url": "/api/wrapped/Luke-Bangs?stage=initial",
-            "durationMs": 1528
+            "durationMs": 805
           }
         ]
       },
       "umamiRequests": 0,
       "notes": [
         "Navigated to /wrapped/Luke-Bangs",
-        "Marks: wrapped:first-slide-visible=1890ms, wrapped:logo-visible=1936ms"
+        "Marks: wrapped:first-slide-visible=1173ms, wrapped:logo-visible=1212ms"
       ]
     }
   ]

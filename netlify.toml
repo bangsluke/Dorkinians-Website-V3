@@ -79,10 +79,8 @@
   status = 200
 
 
-[[redirects]]
-  from = "/api/players"
-  to = "/.netlify/functions/players"
-  status = 200
+# /api/players is handled by Next.js App Router (app/api/players) with Cache-Control + apiCache.
+# Do not redirect to netlify/functions/players — that bypasses Redis/HTTP cache (always ~2s Neo4j).
 
 [[redirects]]
   from = "/api/trigger-seed"
