@@ -10,11 +10,32 @@ const logDebug = (message: string) => {
 	}
 };
 
+const DEFAULT_QUERY_TIMEOUT_MS = 25_000;
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+	return new Promise<T>((resolve, reject) => {
+		const timer = setTimeout(() => {
+			reject(new Error(`Neo4j ${label} timed out after ${timeoutMs}ms`));
+		}, timeoutMs);
+		promise.then(
+			(value) => {
+				clearTimeout(timer);
+				resolve(value);
+			},
+			(err) => {
+				clearTimeout(timer);
+				reject(err);
+			},
+		);
+	});
+}
+
 export class Neo4jService {
 	private driver: Driver | null = null;
 	private isConnected: boolean = false;
 	private connectPromise: Promise<boolean> | null = null;
 	private readonly GRAPH_LABEL = "dorkiniansWebsite";
+	private readonly queryTimeoutMs: number = Number(process.env.NEO4J_QUERY_TIMEOUT_MS) || DEFAULT_QUERY_TIMEOUT_MS;
 
 	async connect(): Promise<boolean> {
 		if (this.driver && this.isConnected) {
@@ -160,7 +181,7 @@ export class Neo4jService {
 			
 			const session = this.driver.session();
 			try {
-				const result = await session.run(query, params);
+				const result = await withTimeout(session.run(query, params), this.queryTimeoutMs, "executeQuery");
 				return result.records.map((record) => record.toObject());
 			} finally {
 				await session.close();
@@ -208,7 +229,7 @@ export class Neo4jService {
 			
 			const session = this.driver.session();
 			try {
-				const result = await session.run(query, params);
+				const result = await withTimeout(session.run(query, params), this.queryTimeoutMs, "runQuery");
 				return result;
 			} finally {
 				await session.close();

@@ -1522,7 +1522,31 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 				},
 			};
 
-			// Load all filter data in parallel (with cold-start / HTML-404 retries)
+			// Single bootstrap round-trip (falls back to legacy parallel GETs if needed)
+			const bootstrapResponse = await retryFetch("/api/filter-bootstrap", undefined, retryOptions);
+			if (bootstrapResponse.ok) {
+				const bootstrap = (await bootstrapResponse.json()) as {
+					seasons?: unknown[];
+					teams?: unknown[];
+					opposition?: unknown[];
+					oppositionClubs?: unknown[];
+					competitions?: unknown[];
+				};
+				set({
+					filterData: {
+						seasons: (bootstrap.seasons || []) as Array<{ season: string; startDate: string; endDate: string }>,
+						teams: (bootstrap.teams || []) as Array<{ name: string }>,
+						opposition: (bootstrap.opposition || []) as Array<{ name: string }>,
+						oppositionClubs: (bootstrap.oppositionClubs || []) as Array<{ shortTeamName: string }>,
+						competitions: (bootstrap.competitions || []) as Array<{ name: string; type: string }>,
+					},
+					isFilterDataLoaded: true,
+				});
+				return;
+			}
+
+			log("warn", `filter-bootstrap failed, falling back to parallel filter GETs: ${bootstrapResponse.status}`);
+
 			const [seasonsResponse, teamsResponse, oppositionResponse, oppositionClubsResponse, competitionsResponse] =
 				await Promise.all([
 					retryFetch("/api/seasons", undefined, retryOptions),
@@ -1541,7 +1565,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 			].find((response) => !response.ok);
 
 			if (failed) {
-				log("error", "Failed to load filter data:", failed.status, failed.statusText);
+				log("error", `Failed to load filter data: ${failed.status} ${failed.statusText}`);
 				notifyNeo4jColdStartStillFailing();
 				return;
 			}
@@ -2451,19 +2475,8 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 	// Page data cache actions
 	getCachedPageData: (pageKey: string) => {
 		const { pageDataCache } = get();
-		const cached = pageDataCache[pageKey];
-		if (cached && isCacheValid(cached)) {
-			return cached;
-		}
-		// Remove expired entry
-		if (cached && !isCacheValid(cached)) {
-			set({
-				pageDataCache: Object.fromEntries(
-					Object.entries(pageDataCache).filter(([key]) => key !== pageKey)
-				),
-			});
-		}
-		return null;
+		// Return stale entries too so cachedFetch can stale-while-revalidate
+		return pageDataCache[pageKey] ?? null;
 	},
 
 	setCachedPageData: (pageKey: string, data: any) => {

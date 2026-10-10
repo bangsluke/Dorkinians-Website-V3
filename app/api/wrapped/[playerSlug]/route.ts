@@ -12,6 +12,9 @@ import { featureFlags } from "@/config/config";
 
 const corsHeaders = getCorsHeadersWithSecurity();
 
+/** Allow longer Neo4j work on Netlify/serverless for staged wrapped loads. */
+export const maxDuration = 60;
+
 export async function OPTIONS() {
 	return new NextResponse(null, { status: 200, headers: corsHeaders });
 }

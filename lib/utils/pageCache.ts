@@ -72,7 +72,7 @@ export function isCacheValid(cachedData: CachedPageData | null): boolean {
 	return age < cachedData.ttl;
 }
 
-// Cached fetch helper function
+// Cached fetch helper function (stale-while-revalidate when entry exists but TTL expired)
 export async function cachedFetch<T = any>(
 	endpoint: string,
 	options: {
@@ -85,36 +85,45 @@ export async function cachedFetch<T = any>(
 	}
 ): Promise<T> {
 	const { method = "GET", body, headers, cacheKey, getCachedPageData, setCachedPageData } = options;
-	
-	// Check cache first
+
 	const cached = getCachedPageData(cacheKey);
-	if (cached) {
+	const cacheFresh = isCacheValid(cached);
+
+	const fetchFresh = async (): Promise<T> => {
+		const fetchOptions: RequestInit = {
+			method,
+			headers: {
+				"Content-Type": "application/json",
+				...headers,
+			},
+		};
+
+		if (body && method === "POST") {
+			fetchOptions.body = JSON.stringify(body);
+		}
+
+		const response = await fetch(endpoint, fetchOptions);
+
+		if (!response.ok) {
+			throw new Error(`HTTP error! status: ${response.status}`);
+		}
+
+		const data = await response.json();
+		setCachedPageData(cacheKey, data);
+		return data as T;
+	};
+
+	if (cached && cacheFresh) {
 		return cached.data as T;
 	}
-	
-	// Fetch fresh data
-	const fetchOptions: RequestInit = {
-		method,
-		headers: {
-			"Content-Type": "application/json",
-			...headers,
-		},
-	};
-	
-	if (body && method === "POST") {
-		fetchOptions.body = JSON.stringify(body);
+
+	// Serve stale immediately and refresh in background (Club Information pattern)
+	if (cached && !cacheFresh) {
+		void fetchFresh().catch(() => {
+			/* keep serving stale on background failure */
+		});
+		return cached.data as T;
 	}
-	
-	const response = await fetch(endpoint, fetchOptions);
-	
-	if (!response.ok) {
-		throw new Error(`HTTP error! status: ${response.status}`);
-	}
-	
-	const data = await response.json();
-	
-	// Cache the response
-	setCachedPageData(cacheKey, data);
-	
-	return data as T;
+
+	return fetchFresh();
 }

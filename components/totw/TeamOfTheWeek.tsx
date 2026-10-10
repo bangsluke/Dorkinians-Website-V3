@@ -145,74 +145,57 @@ export default function TeamOfTheWeek() {
 
 		const fetchSeasonsAndCurrentWeek = async () => {
 			try {
-				// Fetch seasons with caching
-				const seasonsCacheKey = generatePageCacheKey("totw", "team-of-the-week", "seasons", {});
-				const seasonsData = await cachedFetch("/api/totw/seasons", {
+				// One round-trip: seasons + weeks + current week-data (avoids seasons→weeks→week-data waterfall)
+				const bootstrapCacheKey = generatePageCacheKey("totw", "team-of-the-week", "current-week", {});
+				const bootstrap = await cachedFetch("/api/totw/current-week", {
 					method: "GET",
-					cacheKey: seasonsCacheKey,
+					cacheKey: bootstrapCacheKey,
 					getCachedPageData,
 					setCachedPageData,
 				});
-				
-				if (seasonsData.seasons) {
-					setSeasons(seasonsData.seasons);
-					// Use currentSeason from API, or fallback to localStorage, or first season (skip "All Time")
-					const seasonToUse = seasonsData.currentSeason || getCurrentSeasonFromStorage();
-					if (seasonToUse && seasonsData.seasons.includes(seasonToUse) && seasonToUse !== "All Time") {
-						setCurrentSeason(seasonToUse);
-						setSelectedSeason(seasonToUse);
-						
-						// Parallelize: Fetch weeks for current season immediately with caching
-						const weeksCacheKey = generatePageCacheKey("totw", "team-of-the-week", "weeks", { season: seasonToUse });
-						cachedFetch(`/api/totw/weeks?season=${encodeURIComponent(seasonToUse)}`, {
-							method: "GET",
-							cacheKey: weeksCacheKey,
-							getCachedPageData,
-							setCachedPageData,
-						})
-							.then(weeksData => {
-								if (weeksData?.weeks) {
-									const sortedWeeks = sortWeeksByDateLookup(weeksData.weeks);
-									// Skip week 0 (Team of the Season) for default selection
-									const regularWeeks = sortedWeeks.filter((w: Week) => w.week !== 0);
-									const weekToSelect = weeksData.latestGameweek ? Number(weeksData.latestGameweek) : 
-										(weeksData.currentWeek ?? (regularWeeks.length > 0 ? regularWeeks[regularWeeks.length - 1].week : null));
-									if (weekToSelect && weekToSelect !== 0) {
-										cacheTOTWWeeks(seasonToUse, sortedWeeks, weekToSelect, weeksData.latestGameweek);
-										// Pre-fetch current week data in background with caching
-										const weekDataCacheKey = generatePageCacheKey("totw", "team-of-the-week", "week-data", { 
-											season: seasonToUse, 
-											week: weekToSelect 
-										});
-										cachedFetch(`/api/totw/week-data?season=${encodeURIComponent(seasonToUse)}&week=${weekToSelect}`, {
-											method: "GET",
-											cacheKey: weekDataCacheKey,
-											getCachedPageData,
-											setCachedPageData,
-										})
-											.then(weekData => {
-												if (weekData?.totwData) {
-													cacheTOTWWeekData(seasonToUse, weekToSelect, weekData.totwData, weekData.players || []);
-												}
-											})
-											.catch(() => {});
-									}
-								}
-							})
-							.catch(() => {});
-					} else if (seasonsData.seasons.length > 0) {
-						// Skip "All Time" for default selection
-						const firstRegularSeason = seasonsData.seasons.find((s: string) => s !== "All Time");
-						if (firstRegularSeason) {
-							setSelectedSeason(firstRegularSeason);
-						} else {
-							setSelectedSeason(seasonsData.seasons[0]);
+
+				if (!bootstrap?.seasons) {
+					return;
+				}
+
+				setSeasons(bootstrap.seasons);
+				const seasonToUse =
+					bootstrap.currentSeason ||
+					getCurrentSeasonFromStorage() ||
+					bootstrap.seasons.find((s: string) => s !== "All Time") ||
+					bootstrap.seasons[0] ||
+					null;
+
+				cacheTOTWSeasons(bootstrap.seasons, bootstrap.currentSeason || getCurrentSeasonFromStorage() || null);
+
+				if (seasonToUse && seasonToUse !== "All Time") {
+					setCurrentSeason(seasonToUse);
+					setSelectedSeason(seasonToUse);
+
+					if (Array.isArray(bootstrap.weeks) && bootstrap.weeks.length > 0) {
+						const sortedWeeks = sortWeeksByDateLookup(bootstrap.weeks as Week[]);
+						const regularWeeks = sortedWeeks.filter((w) => w.week !== 0);
+						const weekToSelect =
+							bootstrap.currentWeek && bootstrap.currentWeek !== 0
+								? Number(bootstrap.currentWeek)
+								: regularWeeks.length > 0
+									? regularWeeks[regularWeeks.length - 1].week
+									: null;
+						if (weekToSelect != null) {
+							cacheTOTWWeeks(seasonToUse, sortedWeeks, weekToSelect, bootstrap.latestGameweek);
+							setWeeks(sortedWeeks);
+							setCurrentWeek(weekToSelect);
+							setSelectedWeek(weekToSelect);
+							if (bootstrap.weekData) {
+								cacheTOTWWeekData(seasonToUse, weekToSelect, bootstrap.weekData, bootstrap.players || []);
+							}
 						}
 					}
-					cacheTOTWSeasons(seasonsData.seasons, seasonsData.currentSeason || getCurrentSeasonFromStorage() || null);
+				} else if (bootstrap.seasons.length > 0) {
+					setSelectedSeason(seasonToUse || bootstrap.seasons[0]);
 				}
 			} catch (error) {
-				console.error("Error fetching seasons:", error);
+				console.error("Error fetching TOTW current week bootstrap:", error);
 			}
 		};
 		fetchSeasonsAndCurrentWeek();
