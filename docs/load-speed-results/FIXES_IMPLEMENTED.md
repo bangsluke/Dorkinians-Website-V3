@@ -23,9 +23,18 @@ Date: 2026-10-10
 - Production Track B **cannot** prove these endpoints until Netlify deploy (new routes 404 on live until then)
 - After deploy: `WEBSITE_URL=https://dorkinians-website-v3.netlify.app npm run test:e2e:load-speed` and compare to [POST_DEPLOY_SUMMARY.md](./POST_DEPLOY_SUMMARY.md)
 
+## Follow-up wave (autonomous)
+
+| Area | Change |
+|------|--------|
+| Upstash L2 cache | `apiCache.getAsync` / `setAsync` via [`redisClient.ts`](../../lib/utils/redisClient.ts); hot GET routes write through memory + Redis (fail-open) |
+| League N+1 | [`/api/league-latest-results`](../../app/api/league-latest-results/route.ts); Club Info uses one batched fetch |
+| Club stats | Defer 8× team comparison until `requestIdleCallback` |
+| Player stats | Stage critical seasonal/team fetches before map/form |
+| Tailwind | Pin `3.4.19` + npm override (blocks Dependabot major bump) |
+
 ## Intentionally not done (larger / risk)
 
 - Full RSC homepage with SSR domain data
-- Upstash Redis as shared API cache (still rate-limit only)
-- Batch league-latest-result / 8× team-data-filtered endpoints (separate API design)
+- Batch `team-data-filtered` into one Neo4j/API call (deferred comparison only for now)
 - Netlify `images.unoptimized` flip (needs image pipeline check)

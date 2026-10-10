@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
 		const { searchParams } = new URL(request.url);
 		const search = searchParams.get("search");
 		const cacheKey = apiCache.generateKey("/api/opposition", { search: search?.trim() || "" });
-		const cached = apiCache.get<{ opposition: { name: string }[] }>(cacheKey);
+		const cached = await apiCache.getAsync<{ opposition: { name: string }[] }>(cacheKey);
 		if (cached) {
 			return NextResponse.json(cached, { headers: withPublicCache(corsHeaders) });
 		}
@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
 		}));
 
 		const payload = { opposition };
-		apiCache.set(cacheKey, payload, getCacheTTL("/api/opposition"));
+		await apiCache.setAsync(cacheKey, payload, getCacheTTL("/api/opposition"));
 		return NextResponse.json(payload, { headers: withPublicCache(corsHeaders) });
 	} catch (error) {
 		logError("Error fetching opposition", error);

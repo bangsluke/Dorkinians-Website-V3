@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
 		}
 
 		const cacheKey = apiCache.generateKey("/api/totw/weeks", { season });
-		const cached = apiCache.get<Record<string, unknown>>(cacheKey);
+		const cached = await apiCache.getAsync<Record<string, unknown>>(cacheKey);
 		if (cached) {
 			return NextResponse.json(cached, { headers: withPublicCache(corsHeaders) });
 		}
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
 
 		if (season === "All Time") {
 			const empty = { weeks: [], currentWeek: null, latestGameweek: null, latestGameweekDate: null };
-			apiCache.set(cacheKey, empty, getCacheTTL("/api/totw/weeks"));
+			await apiCache.setAsync(cacheKey, empty, getCacheTTL("/api/totw/weeks"));
 			return NextResponse.json(empty, { headers: withPublicCache(corsHeaders) });
 		}
 
@@ -118,7 +118,7 @@ export async function GET(request: NextRequest) {
 		}
 
 		const payload = { weeks, currentWeek, latestGameweek, latestGameweekDate };
-		apiCache.set(cacheKey, payload, getCacheTTL("/api/totw/weeks"));
+		await apiCache.setAsync(cacheKey, payload, getCacheTTL("/api/totw/weeks"));
 		return NextResponse.json(payload, { headers: withPublicCache(corsHeaders) });
 	} catch (error) {
 		console.error("Error fetching weeks:", error);
