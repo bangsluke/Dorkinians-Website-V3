@@ -2312,8 +2312,35 @@ export default function PlayerStats() {
 		fetchAllAboveFoldData();
 	}, [selectedPlayer, allSeasonsSelected, allTeamsSelected, playerFilters, hasUnsavedFilters, isFilterSidebarOpen]);
 
-	// Priority 3: Below fold - Parallelized data fetching for filter-dependent content
-	// Fetch monthly stats, fantasy breakdown, and game details in parallel
+	// Defer below-fold trio until idle so bootstrap / above-fold win the network
+	const [belowFoldFetchEnabled, setBelowFoldFetchEnabled] = useState(false);
+	useEffect(() => {
+		if (!selectedPlayer || hasUnsavedFilters || isFilterSidebarOpen) {
+			setBelowFoldFetchEnabled(false);
+			return;
+		}
+		setBelowFoldFetchEnabled(false);
+		let idleId: number | undefined;
+		let timeoutId: ReturnType<typeof setTimeout> | undefined;
+		const enable = (): void => {
+			setBelowFoldFetchEnabled(true);
+		};
+		if (typeof requestIdleCallback !== "undefined") {
+			idleId = requestIdleCallback(enable, { timeout: 2500 });
+		} else {
+			timeoutId = setTimeout(enable, 1500);
+		}
+		return () => {
+			if (idleId !== undefined && typeof cancelIdleCallback !== "undefined") {
+				cancelIdleCallback(idleId);
+			}
+			if (timeoutId !== undefined) {
+				clearTimeout(timeoutId);
+			}
+		};
+	}, [selectedPlayer, playerFilters, hasUnsavedFilters, isFilterSidebarOpen]);
+
+	// Priority 3: Below fold - monthly / fantasy / game-details (idle-gated)
 	useEffect(() => {
 		if (!selectedPlayer) {
 			setMonthlyStats([]);
@@ -2324,10 +2351,10 @@ export default function PlayerStats() {
 		if (appConfig.forceSkeletonView) {
 			return;
 		}
-		if (hasUnsavedFilters || isFilterSidebarOpen) return; // Skip API calls while editing filters or sidebar is open
+		if (hasUnsavedFilters || isFilterSidebarOpen) return;
+		if (!belowFoldFetchEnabled) return;
 
 		const fetchAllBelowFoldData = async () => {
-			// Set loading states
 			setIsLoadingMonthlyStats(true);
 			setIsLoadingFantasyBreakdown(true);
 			setIsLoadingGameDetails(true);
@@ -2338,9 +2365,7 @@ export default function PlayerStats() {
 					filters: playerFilters,
 				};
 
-				// Execute all filter-dependent fetches in parallel
 				await Promise.all([
-					// Monthly stats
 					cachedFetch("/api/player-monthly-stats", {
 						method: "POST",
 						body: params,
@@ -2356,7 +2381,6 @@ export default function PlayerStats() {
 						})
 						.finally(() => setIsLoadingMonthlyStats(false)),
 
-					// Fantasy breakdown
 					cachedFetch("/api/player-fantasy-breakdown", {
 						method: "POST",
 						body: params,
@@ -2372,7 +2396,6 @@ export default function PlayerStats() {
 						})
 						.finally(() => setIsLoadingFantasyBreakdown(false)),
 
-					// Game details
 					cachedFetch("/api/player-game-details", {
 						method: "POST",
 						body: params,
@@ -2395,7 +2418,7 @@ export default function PlayerStats() {
 		};
 
 		fetchAllBelowFoldData();
-	}, [selectedPlayer, playerFilters, hasUnsavedFilters, isFilterSidebarOpen]);
+	}, [belowFoldFetchEnabled, selectedPlayer, playerFilters, hasUnsavedFilters, isFilterSidebarOpen]);
 
 	// Player recordings (Veo) for fixtures this player played in
 	useEffect(() => {
