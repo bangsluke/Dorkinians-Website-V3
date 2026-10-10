@@ -34,6 +34,7 @@ Date: 2026-10-10
 | Tailwind | Pin `3.4.19` + npm override (blocks Dependabot major bump) |
 | Players bootstrap | `/api/filter-bootstrap` includes players + write-through to `/api/players` cache; client `seedPlayersList`; PlayerSelection waits for bootstrap |
 | Club Info staging | LazyWhenVisible for badges/records; idle-defer milestones |
+| Player stats bootstrap | [`/api/player-stats-bootstrap`](../../app/api/player-stats-bootstrap/route.ts) aggregates player-data + seasonal/team + awards/captains; `selectPlayer` + PlayerStats consume it (fallback to old routes) |
 
 ## Intentionally not done (larger / risk)
 
