@@ -1,6 +1,6 @@
 # Agent load-speed report
 
-Generated: 2026-10-10T21:14:10.308Z
+Generated: 2026-10-10T21:26:56.985Z
 
 Base URL: `https://dorkinians-website-v3.netlify.app`
 
@@ -14,13 +14,13 @@ Player: `Luke Bangs` (slug `Luke-Bangs`)
 
 | ID | Status | Duration (ms) | TTFB (ms) | FCP (ms) | LCP (ms) | `/api/*` count | Click→useful (ms) | Umami reqs |
 |----|--------|---------------|-----------|----------|----------|----------------|-------------------|------------|
-| cold-home | ok | 7352 | 4900 | 5728 | — | 3 | — | 0 |
-| warm-home | ok | 1897 | 247 | 392 | — | 3 | — | 0 |
-| spa-stats | ok | 2421 | 279 | 412 | — | 3 | 899 | 0 |
-| spa-totw | ok | 3184 | 229 | 424 | — | 5 | 1662 | 0 |
-| spa-club | ok | 2565 | 431 | 540 | — | 5 | 1042 | 0 |
-| route-profile | ok | 3696 | 721 | 1908 | — | 0 | — | 0 |
-| route-wrapped | ok | 4042 | 319 | 648 | — | 1 | — | 0 |
+| cold-home | ok | 7195 | 4914 | 5692 | — | 2 | — | 0 |
+| warm-home | ok | 2049 | 385 | 524 | — | 3 | — | 0 |
+| spa-stats | ok | 2492 | 336 | 484 | — | 3 | 964 | 0 |
+| spa-totw | ok | 8414 | 3253 | 3512 | — | 4 | 6894 | 0 |
+| spa-club | ok | 2868 | 675 | 776 | — | 6 | 1349 | 0 |
+| route-profile | ok | 3161 | 582 | 1408 | — | 0 | — | 0 |
+| route-wrapped | ok | 3916 | 309 | 492 | — | 1 | — | 0 |
 
 ## Slow APIs (>500ms) and notes
 
@@ -28,7 +28,7 @@ Player: `Luke Bangs` (slug `Luke-Bangs`)
 
 | API | Duration (ms) |
 |-----|---------------|
-| `/api/site-details` | 1104 |
+| `/api/site-details` | 1074 |
 
 - Cache disabled via CDP Network.setCacheDisabled
 
@@ -40,19 +40,19 @@ No `/api/*` resources over 500ms recorded in Resource Timing.
 
 ### spa-stats (`ok`)
 
-| API | Duration (ms) |
-|-----|---------------|
-| `/api/captains/data?season=2026%2F27` | 1046 |
+No `/api/*` resources over 500ms recorded in Resource Timing.
 
 ### spa-totw (`ok`)
 
-No `/api/*` resources over 500ms recorded in Resource Timing.
+| API | Duration (ms) |
+|-----|---------------|
+| `/api/totw/current-week` | 2748 |
 
 ### spa-club (`ok`)
 
 | API | Duration (ms) |
 |-----|---------------|
-| `/api/club-badge-leaderboard` | 989 |
+| `/api/milestones` | 943 |
 
 ### route-profile (`ok`)
 
@@ -64,10 +64,10 @@ No `/api/*` resources over 500ms recorded in Resource Timing.
 
 | API | Duration (ms) |
 |-----|---------------|
-| `/api/wrapped/Luke-Bangs?stage=initial` | 1454 |
+| `/api/wrapped/Luke-Bangs?stage=initial` | 1964 |
 
 - Navigated to /wrapped/Luke-Bangs
-- Marks: wrapped:first-slide-visible=2161ms, wrapped:logo-visible=2192ms
+- Marks: wrapped:first-slide-visible=2349ms, wrapped:logo-visible=2382ms
 
 ## How to merge with manual Track A
 
