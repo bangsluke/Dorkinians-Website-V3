@@ -32,6 +32,8 @@ Date: 2026-10-10
 | Club stats | Defer 8× team comparison until `requestIdleCallback` |
 | Player stats | Stage critical seasonal/team fetches before map/form |
 | Tailwind | Pin `3.4.19` + npm override (blocks Dependabot major bump) |
+| Players bootstrap | `/api/filter-bootstrap` includes players + write-through to `/api/players` cache; client `seedPlayersList`; PlayerSelection waits for bootstrap |
+| Club Info staging | LazyWhenVisible for badges/records; idle-defer milestones |
 
 ## Intentionally not done (larger / risk)
 
