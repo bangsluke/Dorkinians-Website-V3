@@ -10,6 +10,7 @@ import { appConfig, featureFlags } from "@/config/config";
 import SquadPlayersModal from "./SquadPlayersModal";
 import RecordsSection from "./RecordsSection";
 import BadgeLeaderboardSection from "./BadgeLeaderboardSection";
+import LazyWhenVisible from "@/components/perf/LazyWhenVisible";
 import { log } from "@/lib/utils/logger";
 
 interface MilestoneEntry {
@@ -296,8 +297,25 @@ export default function ClubInformation() {
 			}
 		};
 
-		// Always fetch fresh data in background (stale-while-revalidate)
-		fetchMilestones();
+		// Defer milestones until idle so club-achievements wins the first network slot
+		let idleId: number | undefined;
+		let timeoutId: ReturnType<typeof setTimeout> | undefined;
+		const schedule = (): void => {
+			void fetchMilestones();
+		};
+		if (typeof requestIdleCallback !== "undefined") {
+			idleId = requestIdleCallback(schedule, { timeout: 2000 });
+		} else {
+			timeoutId = setTimeout(schedule, 800);
+		}
+		return () => {
+			if (idleId !== undefined && typeof cancelIdleCallback !== "undefined") {
+				cancelIdleCallback(idleId);
+			}
+			if (timeoutId !== undefined) {
+				clearTimeout(timeoutId);
+			}
+		};
 	}, []);
 
 	// Filter milestones based on selected filter
@@ -499,8 +517,16 @@ export default function ClubInformation() {
 				</div>
 
 				<div className='min-w-0 space-y-8 mt-8 lg:mt-0 w-full md:max-w-2xl md:mx-auto px-2 md:px-4'>
-					{featureFlags.achievementBadges ? <BadgeLeaderboardSection /> : null}
-					{featureFlags.clubInfoRecords ? <RecordsSection /> : null}
+					{featureFlags.achievementBadges ? (
+						<LazyWhenVisible rootMargin='200px' className='min-h-[180px]'>
+							<BadgeLeaderboardSection />
+						</LazyWhenVisible>
+					) : null}
+					{featureFlags.clubInfoRecords ? (
+						<LazyWhenVisible rootMargin='200px' className='min-h-[180px]'>
+							<RecordsSection />
+						</LazyWhenVisible>
+					) : null}
 				</div>
 			</div>
 		</div>

@@ -29,4 +29,13 @@ describe("fetchPlayersList", () => {
 		expect(b).toEqual([{ playerName: "Luke Bangs" }]);
 		expect(global.fetch).toHaveBeenCalledTimes(1);
 	});
+
+	it("serves seedPlayersList without hitting the network", async () => {
+		global.fetch = jest.fn() as unknown as typeof fetch;
+		const { seedPlayersList, fetchPlayersList } = await import("@/lib/utils/playersListCache");
+		seedPlayersList([{ playerName: "Seeded Player", mostPlayedForTeam: "1st XI" }]);
+		const players = await fetchPlayersList();
+		expect(players).toEqual([{ playerName: "Seeded Player", mostPlayedForTeam: "1st XI" }]);
+		expect(global.fetch).not.toHaveBeenCalled();
+	});
 });

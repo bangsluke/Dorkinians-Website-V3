@@ -1531,7 +1531,12 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 					opposition?: unknown[];
 					oppositionClubs?: unknown[];
 					competitions?: unknown[];
+					players?: Array<{ playerName: string; mostPlayedForTeam?: string }>;
 				};
+				if (Array.isArray(bootstrap.players) && bootstrap.players.length > 0) {
+					const { seedPlayersList } = await import("@/lib/utils/playersListCache");
+					seedPlayersList(bootstrap.players);
+				}
 				set({
 					filterData: {
 						seasons: (bootstrap.seasons || []) as Array<{ season: string; startDate: string; endDate: string }>,
