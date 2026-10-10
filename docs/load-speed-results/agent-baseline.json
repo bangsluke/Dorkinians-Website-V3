@@ -1,0 +1,273 @@
+{
+  "generatedAt": "2026-10-10T17:31:10.994Z",
+  "baseURL": "https://dorkinians-website-v3.netlify.app",
+  "playerSlug": "Luke-Bangs",
+  "playerName": "Luke Bangs",
+  "projectName": "chromium",
+  "umamiAnalyticsFlagExpectedOff": true,
+  "scenarios": [
+    {
+      "id": "cold-home",
+      "status": "ok",
+      "startedAt": "2026-10-10T17:30:43.753Z",
+      "finishedAt": "2026-10-10T17:30:48.009Z",
+      "durationMs": 4254,
+      "clickToUsefulMs": null,
+      "navigation": {
+        "ttfbMs": 2168,
+        "domContentLoadedMs": 2617,
+        "loadEventMs": 3126,
+        "fcpMs": 2700,
+        "lcpMs": null
+      },
+      "api": {
+        "count": 4,
+        "uniquePaths": 4,
+        "duplicates": [],
+        "slowest": [
+          {
+            "url": "/api/teams",
+            "durationMs": 983
+          },
+          {
+            "url": "/api/opposition",
+            "durationMs": 953
+          }
+        ]
+      },
+      "umamiRequests": 1,
+      "notes": [
+        "Cache disabled via CDP Network.setCacheDisabled"
+      ]
+    },
+    {
+      "id": "warm-home",
+      "status": "ok",
+      "startedAt": "2026-10-10T17:30:48.009Z",
+      "finishedAt": "2026-10-10T17:30:50.030Z",
+      "durationMs": 2021,
+      "clickToUsefulMs": null,
+      "navigation": {
+        "ttfbMs": 318,
+        "domContentLoadedMs": 387,
+        "loadEventMs": 462,
+        "fcpMs": 500,
+        "lcpMs": null
+      },
+      "api": {
+        "count": 7,
+        "uniquePaths": 7,
+        "duplicates": [],
+        "slowest": []
+      },
+      "umamiRequests": 1,
+      "notes": [
+        "Cache enabled; soft reload"
+      ]
+    },
+    {
+      "id": "spa-stats",
+      "status": "ok",
+      "startedAt": "2026-10-10T17:30:51.859Z",
+      "finishedAt": "2026-10-10T17:30:54.591Z",
+      "durationMs": 2732,
+      "clickToUsefulMs": 1195,
+      "navigation": {
+        "ttfbMs": 443,
+        "domContentLoadedMs": 489,
+        "loadEventMs": 1002,
+        "fcpMs": 668,
+        "lcpMs": null
+      },
+      "api": {
+        "count": 8,
+        "uniquePaths": 8,
+        "duplicates": [],
+        "slowest": [
+          {
+            "url": "/api/captains/data?season=2026%2F27",
+            "durationMs": 1470
+          },
+          {
+            "url": "/api/opposition-clubs",
+            "durationMs": 644
+          },
+          {
+            "url": "/api/teams",
+            "durationMs": 643
+          },
+          {
+            "url": "/api/competitions",
+            "durationMs": 555
+          }
+        ]
+      },
+      "umamiRequests": 2
+    },
+    {
+      "id": "spa-totw",
+      "status": "ok",
+      "startedAt": "2026-10-10T17:30:54.591Z",
+      "finishedAt": "2026-10-10T17:31:00.485Z",
+      "durationMs": 5894,
+      "clickToUsefulMs": 4377,
+      "navigation": {
+        "ttfbMs": 532,
+        "domContentLoadedMs": 657,
+        "loadEventMs": 985,
+        "fcpMs": 1092,
+        "lcpMs": null
+      },
+      "api": {
+        "count": 16,
+        "uniquePaths": 13,
+        "duplicates": [
+          "/api/totw/weeks?season=2026%2F27",
+          "/api/totw/week-data?season=2026%2F27&week=40"
+        ],
+        "slowest": [
+          {
+            "url": "/api/player-data?playerName=Luke%20Bangs",
+            "durationMs": 2742
+          },
+          {
+            "url": "/api/players",
+            "durationMs": 2618
+          },
+          {
+            "url": "/api/totw/week-data?season=2026%2F27&week=40",
+            "durationMs": 1236
+          },
+          {
+            "url": "/api/totw/weeks?season=2026%2F27",
+            "durationMs": 1121
+          },
+          {
+            "url": "/api/totw/seasons",
+            "durationMs": 1007
+          },
+          {
+            "url": "/api/totw/week-data?season=2026%2F27&week=40",
+            "durationMs": 740
+          },
+          {
+            "url": "/api/totw/week-data?season=2026%2F27&week=40",
+            "durationMs": 725
+          },
+          {
+            "url": "/api/captains/data?season=2026%2F27",
+            "durationMs": 627
+          }
+        ]
+      },
+      "umamiRequests": 2
+    },
+    {
+      "id": "spa-club",
+      "status": "ok",
+      "startedAt": "2026-10-10T17:31:00.485Z",
+      "finishedAt": "2026-10-10T17:31:03.411Z",
+      "durationMs": 2926,
+      "clickToUsefulMs": 1408,
+      "navigation": {
+        "ttfbMs": 533,
+        "domContentLoadedMs": 663,
+        "loadEventMs": 970,
+        "fcpMs": 684,
+        "lcpMs": null
+      },
+      "api": {
+        "count": 11,
+        "uniquePaths": 11,
+        "duplicates": [],
+        "slowest": [
+          {
+            "url": "/api/club-badge-leaderboard",
+            "durationMs": 1201
+          },
+          {
+            "url": "/api/milestones",
+            "durationMs": 944
+          },
+          {
+            "url": "/api/opposition-clubs",
+            "durationMs": 739
+          },
+          {
+            "url": "/api/opposition",
+            "durationMs": 738
+          },
+          {
+            "url": "/api/teams",
+            "durationMs": 624
+          },
+          {
+            "url": "/api/captains/data?season=2026%2F27",
+            "durationMs": 572
+          },
+          {
+            "url": "/api/competitions",
+            "durationMs": 526
+          }
+        ]
+      },
+      "umamiRequests": 3
+    },
+    {
+      "id": "route-profile",
+      "status": "ok",
+      "startedAt": "2026-10-10T17:31:03.411Z",
+      "finishedAt": "2026-10-10T17:31:06.625Z",
+      "durationMs": 3214,
+      "clickToUsefulMs": null,
+      "navigation": {
+        "ttfbMs": 342,
+        "domContentLoadedMs": 1586,
+        "loadEventMs": 2487,
+        "fcpMs": 1060,
+        "lcpMs": null
+      },
+      "api": {
+        "count": 1,
+        "uniquePaths": 1,
+        "duplicates": [],
+        "slowest": []
+      },
+      "umamiRequests": 2,
+      "notes": [
+        "Navigated to /profile/Luke-Bangs with cache disabled"
+      ]
+    },
+    {
+      "id": "route-wrapped",
+      "status": "ok",
+      "startedAt": "2026-10-10T17:31:06.625Z",
+      "finishedAt": "2026-10-10T17:31:10.994Z",
+      "durationMs": 4369,
+      "clickToUsefulMs": null,
+      "navigation": {
+        "ttfbMs": 557,
+        "domContentLoadedMs": 810,
+        "loadEventMs": 1250,
+        "fcpMs": 1056,
+        "lcpMs": null
+      },
+      "api": {
+        "count": 2,
+        "uniquePaths": 2,
+        "duplicates": [],
+        "slowest": [
+          {
+            "url": "/api/wrapped/Luke-Bangs?stage=initial",
+            "durationMs": 1911
+          }
+        ]
+      },
+      "umamiRequests": 2,
+      "notes": [
+        "Navigated to /wrapped/Luke-Bangs",
+        "No wrapped:* performance marks observed yet"
+      ]
+    }
+  ]
+}

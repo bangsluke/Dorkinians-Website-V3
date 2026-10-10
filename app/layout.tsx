@@ -18,6 +18,7 @@ import SkeletonProvider from "@/components/providers/SkeletonProvider";
 import { validateEnv } from "@/lib/config/envValidation";
 import { isDevelopBranchDeploy } from "@/lib/utils/isDevelopBranchDeploy";
 import { logError } from "@/lib/utils/logger";
+import { featureFlags } from "@/config/config";
 
 // Validate environment variables at app startup
 if (process.env.NODE_ENV !== "development") {
@@ -275,10 +276,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 					<DynamicChunksPrefetch />
 					<PWAUpdateNotification />
 					<WebVitals />
-					{umamiScriptUrl && umamiWebsiteId && (
+					{featureFlags.umamiAnalytics && umamiScriptUrl && umamiWebsiteId && (
 						<Script async defer data-website-id={umamiWebsiteId} src={umamiScriptUrl} strategy='lazyOnload' nonce={nonce} />
 					)}
-					<UmamiAnalytics />
+					{featureFlags.umamiAnalytics ? <UmamiAnalytics /> : null}
 					{/* End of body: avoids blocking parse of children; same sanitizer as before (head was parse-blocking) */}
 					{/* suppressHydrationWarning: server may render nonce="" when x-csp-nonce is absent; dev/client can differ (see Next hydration docs). */}
 					<script
