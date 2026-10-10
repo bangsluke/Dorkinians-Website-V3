@@ -1,45 +1,33 @@
 # Post-fix Track B comparison
 
 **URL:** `https://dorkinians-website-v3.netlify.app`  
-**Latest Track B:** 2026-10-10T20:53:03Z (wave 4 — player-stats-bootstrap)  
-**Prior:** Wave 3 20:38Z · Wave 2 20:26Z · Wave 1 20:09Z · Baseline 19:17Z
+**Latest Track B:** 2026-10-10T21:01:09Z (wave 5 — below-fold defer + Redis harden)  
+**Prior:** Wave 4 20:53Z
 
-## Smoke (wave 4)
+## Smoke (wave 5)
 
 | Check | Result |
 |-------|--------|
-| `/api/player-stats-bootstrap?playerName=Luke%20Bangs` | **200**; seasonal=10, team=6, captains=2, awards=3, playerData ok |
-| Bootstrap cold → warm | **5101 ms → 91 ms** (shared cache working) |
+| `filter-bootstrap` | ~859 ms, 651 players |
+| `GET /api/players` after bootstrap | Still **~2.2–3.3 s** every hit; `Cache-Control: no-cache` |
+| `GET /api/teams` (control) | 1214 ms → **58 ms** (`public,max-age=3600`) |
+| `player-stats-bootstrap` warm | **101 ms** |
 
-## Track B key metrics
+**Root cause for players:** `netlify.toml` redirected `/api/players` → `/.netlify/functions/players` (uncached Neo4j function). Redirect **removed in repo** — needs redeploy to take effect.
 
-| Scenario | Metric | Baseline | Wave 2 best | Wave 3 | **Wave 4** |
-|----------|--------|----------|-------------|--------|------------|
-| cold-home | TTFB / FCP | 9139 / 9528 | 3367 / 3972 | 4768 / 5308 | 3841 / 4420 |
-| warm-home | TTFB / FCP | 2915 / 3040 | 505 / 632 | **288 / 432** | 259 / 432 |
-| spa-stats | click→useful | 1236 | **939** | 1134 | 1098 |
-| spa-totw | click→useful | 14972 | **1137** | 1829 | 1756 |
-| spa-club | click→useful | 1415 | 1215 | 1409 | **896** |
-| route-wrapped | `stage=initial` | ~30s fail | **531** | 1496 | 1528 |
+## Track B (wave 5)
 
-## Wave 4 interpretation
+| Scenario | click→useful / key | Slow APIs |
+|----------|-------------------|-----------|
+| spa-stats | **987 ms** | Only `player-opposition-performance` (~1s) — **monthly/fantasy/game-details gone** |
+| spa-club | **911 ms** | badges + captains/data |
+| spa-totw | 1740 ms | none &gt;500 ms |
+| warm-home | FCP 492 | none &gt;500 ms |
+| wrapped | stage-initial 805 ms; first-slide ~1.2 s | |
 
-**Bootstrap succeeded (API shape)**  
-spa-stats slow list is now **below-fold only**: `player-monthly-stats`, `player-fantasy-breakdown`, `player-game-details`.  
-Gone from the hot path: `player-data`, awards/captains histories, seasonal/team as separate SPA calls (bundled into bootstrap earlier via `selectPlayer`).
+## Verdict
 
-**Click→useful barely moved (~1.1s)**  
-Audit waits on the Stats **heading**, not chart data — so bootstrap improves data readiness / network contention more than that metric.
-
-**Club best run yet** (~0.9s); badge leaderboard still ~1.1s when near fold.  
-**TOTW** no APIs &gt;500ms this run; click→useful variance remains.  
-**Wrapped** still ~1.5s initial (healthy vs old 30s fail).
-
-## Remaining hotspots (evidence-ranked)
-
-1. PlayerStats **below-fold** trio (monthly / fantasy / game-details) — fire on mount; idle/LazyWhenVisible them  
-2. Cold bootstrap **~5s** — still N parallel Neo4j handlers under one HTTP; real Cypher merge is the next big Stats win  
-3. `/api/players` direct still slow when not seeded (write-through bug)  
-4. Club badge leaderboard  
-5. Cold-home `/api/site-details`  
-6. **Not now (per Luke):** home RSC, Netlify image optimization  
+| Item | Status |
+|------|--------|
+| #1 Below-fold Stats defer | **Success** |
+| #2 `/api/players` Redis/HTTP cache | **Blocked by Netlify redirect** — fix staged (remove redirect); redeploy required |
