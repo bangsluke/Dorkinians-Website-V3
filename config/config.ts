@@ -38,6 +38,8 @@ export type FeatureFlags = {
 	clubInfoRecords: boolean;
 	leagueInfoLatestResult: boolean;
 	statsTopPlayersShowAll: boolean;
+	/** Third-party Umami script + analytics component. Off until analytics is intentionally re-enabled. */
+	umamiAnalytics: boolean;
 };
 
 /** Full UI — used for Jest and as the develop-branch default. */
@@ -65,6 +67,7 @@ const featureFlagsAllEnabled: FeatureFlags = {
 	clubInfoRecords: true,
 	leagueInfoLatestResult: true,
 	statsTopPlayersShowAll: true,
+	umamiAnalytics: false,
 };
 
 /** Conservative defaults for production (main) deploys. */
@@ -92,6 +95,7 @@ const featureFlagsProductionDefault: FeatureFlags = {
 	clubInfoRecords: false,
 	leagueInfoLatestResult: false,
 	statsTopPlayersShowAll: false,
+	umamiAnalytics: false,
 };
 
 export const featureFlagPresets = {
