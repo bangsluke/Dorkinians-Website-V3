@@ -14,7 +14,7 @@ export async function OPTIONS() {
 export async function GET(_request: NextRequest) {
 	try {
 		const cacheKey = apiCache.generateKey("/api/players");
-		const cached = apiCache.get<{ players: { playerName: string; mostPlayedForTeam: string }[] }>(cacheKey);
+		const cached = await apiCache.getAsync<{ players: { playerName: string; mostPlayedForTeam: string }[] }>(cacheKey);
 		if (cached) {
 			return NextResponse.json(cached, { headers: withPublicCache(corsHeaders) });
 		}
@@ -42,7 +42,7 @@ export async function GET(_request: NextRequest) {
 			.filter((player: { playerName: string }) => player.playerName && player.playerName.trim() !== "");
 
 		const payload = { players };
-		apiCache.set(cacheKey, payload, getCacheTTL("/api/players"));
+		await apiCache.setAsync(cacheKey, payload, getCacheTTL("/api/players"));
 		return NextResponse.json(payload, { headers: withPublicCache(corsHeaders) });
 	} catch {
 		return NextResponse.json({ error: "Failed to fetch players" }, { status: 500, headers: withNoStore(corsHeaders) });

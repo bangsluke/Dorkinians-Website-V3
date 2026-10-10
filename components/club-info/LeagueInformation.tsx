@@ -268,32 +268,35 @@ export default function LeagueInformation() {
 		const fetchLatestResults = async () => {
 			setLoadingLatestResults(true);
 			try {
-				const entries = await Promise.all(
-					teamKeys.map(async (teamKey) => {
-						try {
-							const cacheKey = generatePageCacheKey("club-info", "league-information", "league-latest-result", {
-								teamKey,
-								season: selectedSeason,
-							});
-							const data = await cachedFetch(
-								`/api/league-latest-result?team=${encodeURIComponent(teamKey)}&season=${encodeURIComponent(selectedSeason)}`,
-								{
-									method: "GET",
-									cacheKey,
-									getCachedPageData,
-									setCachedPageData,
-								},
-							);
-							return [teamKey, { fixture: data.fixture || null, lineup: data.lineup || [] }] as const;
-						} catch (err) {
-							log("warn", `Could not load latest result for ${teamKey}`, err);
-							return [teamKey, { fixture: null, lineup: [] }] as const;
-						}
-					}),
+				const cacheKey = generatePageCacheKey("club-info", "league-information", "league-latest-results", {
+					teams: teamKeys.join(","),
+					season: selectedSeason,
+				});
+				const data = await cachedFetch(
+					`/api/league-latest-results?season=${encodeURIComponent(selectedSeason)}&teams=${encodeURIComponent(teamKeys.join(","))}`,
+					{
+						method: "GET",
+						cacheKey,
+						getCachedPageData,
+						setCachedPageData,
+					},
 				);
+				const results = (data?.results || {}) as Record<
+					string,
+					{ fixture: LatestResultFixture | null; lineup: FixtureLineupPlayer[] }
+				>;
+				const entries = teamKeys.map((teamKey) => {
+					const row = results[teamKey];
+					return [teamKey, { fixture: row?.fixture ?? null, lineup: row?.lineup ?? [] }] as const;
+				});
 
 				if (!cancelled) {
 					setLatestResultsByTeam(Object.fromEntries(entries));
+				}
+			} catch (err) {
+				log("warn", "Could not load batched latest league results", err);
+				if (!cancelled) {
+					setLatestResultsByTeam({});
 				}
 			} finally {
 				if (!cancelled) {

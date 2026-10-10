@@ -20,7 +20,7 @@ export async function OPTIONS() {
 export async function GET(request: Request) {
 	try {
 		const cacheKey = apiCache.generateKey("/api/totw/current-week");
-		const cached = apiCache.get<Record<string, unknown>>(cacheKey);
+		const cached = await apiCache.getAsync<Record<string, unknown>>(cacheKey);
 		if (cached) {
 			return NextResponse.json(cached, { headers: withPublicCache(corsHeaders) });
 		}
@@ -54,7 +54,7 @@ export async function GET(request: Request) {
 				weekData: null,
 				players: [],
 			};
-			apiCache.set(cacheKey, payload, getCacheTTL("/api/totw/current-week"));
+			await apiCache.setAsync(cacheKey, payload, getCacheTTL("/api/totw/current-week"));
 			return NextResponse.json(payload, { headers: withPublicCache(corsHeaders) });
 		}
 
@@ -104,7 +104,7 @@ export async function GET(request: Request) {
 			weekData,
 			players,
 		};
-		apiCache.set(cacheKey, payload, getCacheTTL("/api/totw/current-week"));
+		await apiCache.setAsync(cacheKey, payload, getCacheTTL("/api/totw/current-week"));
 		return NextResponse.json(payload, { headers: withPublicCache(corsHeaders) });
 	} catch (error) {
 		logError("Error building TOTW current-week payload", error);

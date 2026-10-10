@@ -1,6 +1,6 @@
 # Agent load-speed report
 
-Generated: 2026-10-10T19:17:02.586Z
+Generated: 2026-10-10T20:09:03.038Z
 
 Base URL: `https://dorkinians-website-v3.netlify.app`
 
@@ -8,19 +8,19 @@ Playwright project: `chromium`
 
 Player: `Luke Bangs` (slug `Luke-Bangs`)
 
-**Umami:** Post-deploy check **passed** — every scenario `umamiRequests: 0`. See also [POST_DEPLOY_SUMMARY.md](./POST_DEPLOY_SUMMARY.md).
+**Umami:** `featureFlags.umamiAnalytics` is **`false` in the repo**; layout gates the script. Production only stops loading Umami after that change is deployed. See `umamiRequests` per scenario (expect `0` post-deploy).
 
 ## Scenarios
 
 | ID | Status | Duration (ms) | TTFB (ms) | FCP (ms) | LCP (ms) | `/api/*` count | Click→useful (ms) | Umami reqs |
 |----|--------|---------------|-----------|----------|----------|----------------|-------------------|------------|
-| cold-home | ok | 11088 | 9139 | 9528 | — | 2 | — | 0 |
-| warm-home | ok | 4593 | 2915 | 3040 | — | 5 | — | 0 |
-| spa-stats | ok | 2761 | 518 | 764 | — | 5 | 1236 | 0 |
-| spa-totw | ok | 16500 | 622 | 880 | — | 12 | 14972 | 0 |
-| spa-club | ok | 2951 | 439 | 808 | — | 3 | 1415 | 0 |
-| route-profile | ok | 2781 | 702 | 1252 | — | 0 | — | 0 |
-| route-wrapped | ok | 6682 | 3052 | 3600 | — | 0 | — | 0 |
+| cold-home | ok | 8010 | 6104 | 6504 | — | 2 | — | 0 |
+| warm-home | ok | 2082 | 437 | 568 | — | 3 | — | 0 |
+| spa-stats | ok | 2662 | 248 | 456 | — | 10 | 1116 | 0 |
+| spa-totw | ok | 2699 | 248 | 568 | — | 4 | 1179 | 0 |
+| spa-club | ok | 2763 | 477 | 656 | — | 5 | 1251 | 0 |
+| route-profile | ok | 2675 | 933 | 1252 | — | 0 | — | 0 |
+| route-wrapped | ok | 4060 | 489 | 668 | — | 1 | — | 0 |
 
 ## Slow APIs (>500ms) and notes
 
@@ -32,11 +32,7 @@ No `/api/*` resources over 500ms recorded in Resource Timing.
 
 ### warm-home (`ok`)
 
-| API | Duration (ms) |
-|-----|---------------|
-| `/api/teams` | 1349 |
-| `/api/opposition` | 1200 |
-| `/api/opposition-clubs` | 1178 |
+No `/api/*` resources over 500ms recorded in Resource Timing.
 
 - Cache enabled; soft reload
 
@@ -44,32 +40,25 @@ No `/api/*` resources over 500ms recorded in Resource Timing.
 
 | API | Duration (ms) |
 |-----|---------------|
-| `/api/captains/player-history?playerName=Luke%20Bangs` | 976 |
-| `/api/captains/data?season=2026%2F27` | 686 |
-| `/api/opposition` | 647 |
+| `/api/player-seasonal-stats` | 1614 |
+| `/api/player-fantasy-breakdown` | 1361 |
+| `/api/awards/player-history?playerName=Luke%20Bangs` | 661 |
+| `/api/player-data?playerName=Luke%20Bangs` | 568 |
+| `/api/player-oppositions-map?playerName=Luke%20Bangs` | 568 |
+| `/api/player-opposition-performance?playerName=Luke%20Bangs` | 568 |
 
 ### spa-totw (`ok`)
 
 | API | Duration (ms) |
 |-----|---------------|
-| `/api/totw/weeks?season=2026%2F27` | 8318 |
-| `/api/players` | 6645 |
-| `/api/teams` | 5260 |
-| `/api/totw/seasons` | 5053 |
-| `/api/totw/weeks?season=2026%2F27` | 5012 |
-| `/api/opposition-clubs` | 4529 |
-| `/api/competitions` | 3546 |
-| `/api/totw/week-data?season=2026%2F27&week=40` | 2825 |
-
-Duplicates:
-
-- `/api/totw/weeks?season=2026%2F27`
+| `/api/captains/data?season=2026%2F27` | 1133 |
 
 ### spa-club (`ok`)
 
 | API | Duration (ms) |
 |-----|---------------|
-| `/api/competitions` | 1230 |
+| `/api/club-badge-leaderboard` | 1504 |
+| `/api/club-achievements` | 692 |
 
 ### route-profile (`ok`)
 
@@ -79,7 +68,9 @@ No `/api/*` resources over 500ms recorded in Resource Timing.
 
 ### route-wrapped (`ok`)
 
-No `/api/*` resources over 500ms recorded in Resource Timing.
+| API | Duration (ms) |
+|-----|---------------|
+| `/api/wrapped/Luke-Bangs?stage=initial` | 3424 |
 
 - Navigated to /wrapped/Luke-Bangs
 - No wrapped:* performance marks observed yet

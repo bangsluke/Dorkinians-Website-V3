@@ -17,7 +17,7 @@ export async function OPTIONS() {
 export async function GET(_request: NextRequest) {
 	try {
 		const cacheKey = apiCache.generateKey("/api/totw/seasons");
-		const cached = apiCache.get<Record<string, unknown>>(cacheKey);
+		const cached = await apiCache.getAsync<Record<string, unknown>>(cacheKey);
 		if (cached) {
 			return NextResponse.json(cached, { headers: withPublicCache(corsHeaders) });
 		}
@@ -71,7 +71,7 @@ export async function GET(_request: NextRequest) {
 		const latestGameweekDate = currentSeasonRecord ? String(currentSeasonRecord.get("latestGameweekDate") || "") : null;
 
 		const payload = { seasons, currentSeason, latestGameweek, latestGameweekDate };
-		apiCache.set(cacheKey, payload, getCacheTTL("/api/totw/seasons"));
+		await apiCache.setAsync(cacheKey, payload, getCacheTTL("/api/totw/seasons"));
 		return NextResponse.json(payload, { headers: withPublicCache(corsHeaders) });
 	} catch (error) {
 		console.error("Error fetching seasons:", error);

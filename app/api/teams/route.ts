@@ -17,7 +17,7 @@ export async function OPTIONS() {
 export async function GET(request: NextRequest) {
 	try {
 		const cacheKey = apiCache.generateKey("/api/teams");
-		const cached = apiCache.get<{ teams: { name: string }[] }>(cacheKey);
+		const cached = await apiCache.getAsync<{ teams: { name: string }[] }>(cacheKey);
 		if (cached) {
 			return NextResponse.json(cached, { headers: withPublicCache(corsHeaders) });
 		}
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
 		}));
 
 		const payload = { teams };
-		apiCache.set(cacheKey, payload, getCacheTTL("/api/teams"));
+		await apiCache.setAsync(cacheKey, payload, getCacheTTL("/api/teams"));
 		return NextResponse.json(payload, { headers: withPublicCache(corsHeaders) });
 	} catch (error) {
 		console.error("Error fetching teams:", error);

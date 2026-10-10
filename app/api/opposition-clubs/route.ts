@@ -15,7 +15,7 @@ export async function OPTIONS() {
 export async function GET(_request: NextRequest) {
 	try {
 		const cacheKey = apiCache.generateKey("/api/opposition-clubs");
-		const cached = apiCache.get<{ oppositionClubs: { shortTeamName: string }[] }>(cacheKey);
+		const cached = await apiCache.getAsync<{ oppositionClubs: { shortTeamName: string }[] }>(cacheKey);
 		if (cached) {
 			return NextResponse.json(cached, { headers: withPublicCache(corsHeaders) });
 		}
@@ -43,7 +43,7 @@ export async function GET(_request: NextRequest) {
 		}));
 
 		const payload = { oppositionClubs };
-		apiCache.set(cacheKey, payload, getCacheTTL("/api/opposition-clubs"));
+		await apiCache.setAsync(cacheKey, payload, getCacheTTL("/api/opposition-clubs"));
 		return NextResponse.json(payload, { headers: withPublicCache(corsHeaders) });
 	} catch (error) {
 		logError("Error fetching opposition clubs", error);

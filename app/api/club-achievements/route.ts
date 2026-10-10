@@ -58,7 +58,7 @@ function achievementSortKey(a: ClubAchievement, b: ClubAchievement): number {
 export async function GET(_request: NextRequest) {
 	try {
 		const cacheKey = apiCache.generateKey('/api/club-achievements');
-		const cached = apiCache.get<{ achievements: ClubAchievement[] }>(cacheKey);
+		const cached = await apiCache.getAsync<{ achievements: ClubAchievement[] }>(cacheKey);
 		if (cached) {
 			return NextResponse.json(cached, { headers: corsHeaders });
 		}
@@ -119,7 +119,7 @@ export async function GET(_request: NextRequest) {
 		const response = { achievements };
 
 		const ttl = getCacheTTL('/api/club-achievements');
-		apiCache.set(cacheKey, response, ttl);
+		await apiCache.setAsync(cacheKey, response, ttl);
 
 		return NextResponse.json(response, { headers: corsHeaders });
 	} catch (error) {
