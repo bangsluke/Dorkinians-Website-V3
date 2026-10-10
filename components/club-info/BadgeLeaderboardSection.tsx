@@ -25,7 +25,29 @@ export default function BadgeLeaderboardSection() {
 		setMainPage("stats");
 	};
 
+	// Extra idle gate after LazyWhenVisible mounts — avoids competing with club first paint
+	const [fetchEnabled, setFetchEnabled] = useState(false);
 	useEffect(() => {
+		let idleId: number | undefined;
+		let timeoutId: ReturnType<typeof setTimeout> | undefined;
+		const enable = (): void => setFetchEnabled(true);
+		if (typeof requestIdleCallback !== "undefined") {
+			idleId = requestIdleCallback(enable, { timeout: 2000 });
+		} else {
+			timeoutId = setTimeout(enable, 1200);
+		}
+		return () => {
+			if (idleId !== undefined && typeof cancelIdleCallback !== "undefined") {
+				cancelIdleCallback(idleId);
+			}
+			if (timeoutId !== undefined) {
+				clearTimeout(timeoutId);
+			}
+		};
+	}, []);
+
+	useEffect(() => {
+		if (!fetchEnabled) return;
 		let cancelled = false;
 		(async () => {
 			setLoading(true);
@@ -54,7 +76,7 @@ export default function BadgeLeaderboardSection() {
 		return () => {
 			cancelled = true;
 		};
-	}, [getCachedPageData, setCachedPageData]);
+	}, [fetchEnabled, getCachedPageData, setCachedPageData]);
 
 	if (appConfig.forceSkeletonView) {
 		return (

@@ -518,12 +518,12 @@ export default function ClubInformation() {
 
 				<div className='min-w-0 space-y-8 mt-8 lg:mt-0 w-full md:max-w-2xl md:mx-auto px-2 md:px-4'>
 					{featureFlags.achievementBadges ? (
-						<LazyWhenVisible rootMargin='200px' className='min-h-[180px]'>
+						<LazyWhenVisible rootMargin='0px' className='min-h-[180px]'>
 							<BadgeLeaderboardSection />
 						</LazyWhenVisible>
 					) : null}
 					{featureFlags.clubInfoRecords ? (
-						<LazyWhenVisible rootMargin='200px' className='min-h-[180px]'>
+						<LazyWhenVisible rootMargin='0px' className='min-h-[180px]'>
 							<RecordsSection />
 						</LazyWhenVisible>
 					) : null}
