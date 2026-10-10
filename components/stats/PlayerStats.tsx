@@ -2109,8 +2109,7 @@ export default function PlayerStats() {
 		{ value: "Penalties Saved", label: "Penalties Saved", statKey: "penaltiesSaved" },
 		{ value: "Distance Travelled", label: "Distance Travelled", statKey: "distance" },
 	], []);
-	// Priority 1 & 2: Parallelized data fetching for above-the-fold content
-	// Fetch seasonal stats, team stats, opposition map, and opposition performance in parallel
+	// Priority 1 & 2: Bootstrap (default filters) then secondary map/form
 	useEffect(() => {
 		if (!selectedPlayer) {
 			setSeasonalStats([]);
@@ -2129,7 +2128,6 @@ export default function PlayerStats() {
 		if (hasUnsavedFilters || isFilterSidebarOpen) return; // Skip API calls while editing filters or sidebar is open
 
 		const fetchAllAboveFoldData = async () => {
-			// Set loading states
 			setIsLoadingSeasonalStats(allSeasonsSelected);
 			setIsLoadingTeamStats(allTeamsSelected);
 			setIsLoadingOppositionMap(true);
@@ -2147,70 +2145,89 @@ export default function PlayerStats() {
 			}
 
 			try {
-				// Stage 1: critical above-fold stats (seasonal / team) — avoid contending with map/form Neo4j
-				const criticalPromises: Promise<void>[] = [];
+				const useBootstrapDefaults = allSeasonsSelected && allTeamsSelected;
+				let bootstrapApplied = false;
 
-				if (allSeasonsSelected) {
-					const cacheKey = generatePageCacheKey("stats", "player-stats", "player-seasonal-stats", {
-						playerName: selectedPlayer,
-						filters: playerFilters,
-					});
-					criticalPromises.push(
-						cachedFetch("/api/player-seasonal-stats", {
-							method: "POST",
-							body: {
-								playerName: selectedPlayer,
-								filters: playerFilters,
-							},
-							cacheKey,
-							getCachedPageData,
-							setCachedPageData,
-						})
-							.then((data) => {
-								setSeasonalStats(data.seasonalStats || []);
-							})
-							.catch((error) => {
-								log("error", "Error fetching seasonal stats:", error);
-							})
-							.finally(() => setIsLoadingSeasonalStats(false))
+				if (useBootstrapDefaults) {
+					const { fetchPlayerStatsBootstrap, getCachedPlayerStatsBootstrap } = await import(
+						"@/lib/utils/playerStatsBootstrapCache"
 					);
-				} else {
-					setSeasonalStats([]);
-					setIsLoadingSeasonalStats(false);
+					const bootstrap =
+						getCachedPlayerStatsBootstrap(selectedPlayer) || (await fetchPlayerStatsBootstrap(selectedPlayer));
+					if (bootstrap) {
+						setSeasonalStats(Array.isArray(bootstrap.seasonalStats) ? bootstrap.seasonalStats : []);
+						setTeamStats(Array.isArray(bootstrap.teamStats) ? bootstrap.teamStats : []);
+						setIsLoadingSeasonalStats(false);
+						setIsLoadingTeamStats(false);
+						bootstrapApplied = true;
+					}
 				}
 
-				if (allTeamsSelected) {
-					const cacheKey = generatePageCacheKey("stats", "player-stats", "player-team-stats", {
-						playerName: selectedPlayer,
-						filters: playerFilters,
-					});
-					criticalPromises.push(
-						cachedFetch("/api/player-team-stats", {
-							method: "POST",
-							body: {
-								playerName: selectedPlayer,
-								filters: playerFilters,
-							},
-							cacheKey,
-							getCachedPageData,
-							setCachedPageData,
-						})
-							.then((data) => {
-								setTeamStats(data.teamStats || []);
+				if (!bootstrapApplied) {
+					const criticalPromises: Promise<void>[] = [];
+
+					if (allSeasonsSelected) {
+						const cacheKey = generatePageCacheKey("stats", "player-stats", "player-seasonal-stats", {
+							playerName: selectedPlayer,
+							filters: playerFilters,
+						});
+						criticalPromises.push(
+							cachedFetch("/api/player-seasonal-stats", {
+								method: "POST",
+								body: {
+									playerName: selectedPlayer,
+									filters: playerFilters,
+								},
+								cacheKey,
+								getCachedPageData,
+								setCachedPageData,
 							})
-							.catch((error) => {
-								log("error", "Error fetching team stats:", error);
+								.then((data) => {
+									setSeasonalStats(data.seasonalStats || []);
+								})
+								.catch((error) => {
+									log("error", "Error fetching seasonal stats:", error);
+								})
+								.finally(() => setIsLoadingSeasonalStats(false)),
+						);
+					} else {
+						setSeasonalStats([]);
+						setIsLoadingSeasonalStats(false);
+					}
+
+					if (allTeamsSelected) {
+						const cacheKey = generatePageCacheKey("stats", "player-stats", "player-team-stats", {
+							playerName: selectedPlayer,
+							filters: playerFilters,
+						});
+						criticalPromises.push(
+							cachedFetch("/api/player-team-stats", {
+								method: "POST",
+								body: {
+									playerName: selectedPlayer,
+									filters: playerFilters,
+								},
+								cacheKey,
+								getCachedPageData,
+								setCachedPageData,
 							})
-							.finally(() => setIsLoadingTeamStats(false))
-					);
-				} else {
-					setTeamStats([]);
-					setIsLoadingTeamStats(false);
+								.then((data) => {
+									setTeamStats(data.teamStats || []);
+								})
+								.catch((error) => {
+									log("error", "Error fetching team stats:", error);
+								})
+								.finally(() => setIsLoadingTeamStats(false)),
+						);
+					} else {
+						setTeamStats([]);
+						setIsLoadingTeamStats(false);
+					}
+
+					await Promise.all(criticalPromises);
 				}
 
-				await Promise.all(criticalPromises);
-
-				// Stage 2: secondary above-fold (map / performance / form)
+				// Secondary above-fold (map / performance / form) — still deferred after critical
 				const secondaryPromises: Promise<void>[] = [];
 
 				const oppositionMapCacheKey = generatePageCacheKey("stats", "player-stats", "player-oppositions-map", {
@@ -2230,7 +2247,7 @@ export default function PlayerStats() {
 							log("error", "Error fetching opposition map data:", error);
 							setOppositionMapData([]);
 						})
-						.finally(() => setIsLoadingOppositionMap(false))
+						.finally(() => setIsLoadingOppositionMap(false)),
 				);
 
 				const oppositionPerfCacheKey = generatePageCacheKey("stats", "player-stats", "player-opposition-performance", {
@@ -2250,7 +2267,7 @@ export default function PlayerStats() {
 							log("error", "Error fetching opposition performance data:", error);
 							setOppositionPerformanceData([]);
 						})
-						.finally(() => setIsLoadingOppositionPerformance(false))
+						.finally(() => setIsLoadingOppositionPerformance(false)),
 				);
 
 				if (featureFlags.playerStatsForm) {
@@ -2282,7 +2299,7 @@ export default function PlayerStats() {
 								setGoldenCrosses([]);
 								setRecentFormMatches([]);
 							})
-							.finally(() => setIsLoadingFormData(false))
+							.finally(() => setIsLoadingFormData(false)),
 					);
 				}
 
@@ -2483,58 +2500,82 @@ export default function PlayerStats() {
 
 			try {
 				const playerParams = { playerName: selectedPlayer };
-				const parallel: Promise<unknown>[] = [
-					// Awards data
-					cachedFetch(`/api/player-awards?playerName=${encodeURIComponent(selectedPlayer)}`, {
-						method: "GET",
-						cacheKey: generatePageCacheKey("stats", "player-stats", "player-awards", playerParams),
-						getCachedPageData,
-						setCachedPageData,
-					})
-						.then((data) => {
-							setAwardsData(data);
-						})
-						.catch((error) => {
-							log("error", "Error fetching awards:", error);
-						})
-						.finally(() => setIsLoadingAwards(false)),
+				const { fetchPlayerStatsBootstrap, getCachedPlayerStatsBootstrap } = await import(
+					"@/lib/utils/playerStatsBootstrapCache"
+				);
+				const bootstrap =
+					getCachedPlayerStatsBootstrap(selectedPlayer) || (await fetchPlayerStatsBootstrap(selectedPlayer));
 
-					// Captain history
-					cachedFetch(`/api/captains/player-history?playerName=${encodeURIComponent(selectedPlayer)}`, {
-						method: "GET",
-						cacheKey: generatePageCacheKey("stats", "player-stats", "captain-history", playerParams),
-						getCachedPageData,
-						setCachedPageData,
-					})
-						.then((data) => {
-							setCaptainHistory(data.captaincies || []);
-							setTotalCaptaincies(data.totalCaptaincies || 0);
-						})
-						.catch((error) => {
-							log("error", "Error fetching captain history:", error);
-							setCaptainHistory([]);
-							setTotalCaptaincies(0);
-						})
-						.finally(() => setIsLoadingCaptainHistory(false)),
+				if (bootstrap) {
+					setAwardsData(bootstrap.playerAwards);
+					setCaptainHistory(
+						Array.isArray(bootstrap.captaincies)
+							? (bootstrap.captaincies as Array<{ season: string; team: string }>)
+							: [],
+					);
+					setTotalCaptaincies(bootstrap.totalCaptaincies || 0);
+					setAwardHistory(
+						Array.isArray(bootstrap.awards)
+							? (bootstrap.awards as Array<{ season: string; awardName: string }>)
+							: [],
+					);
+					setTotalAwards(bootstrap.totalAwards || 0);
+					setIsLoadingAwards(false);
+					setIsLoadingCaptainHistory(false);
+					setIsLoadingAwardHistory(false);
+				}
 
-					// Award history
-					cachedFetch(`/api/awards/player-history?playerName=${encodeURIComponent(selectedPlayer)}`, {
-						method: "GET",
-						cacheKey: generatePageCacheKey("stats", "player-stats", "award-history", playerParams),
-						getCachedPageData,
-						setCachedPageData,
-					})
-						.then((data) => {
-							setAwardHistory(data.awards || []);
-							setTotalAwards(data.totalAwards || 0);
+				const parallel: Promise<unknown>[] = [];
+
+				if (!bootstrap) {
+					parallel.push(
+						cachedFetch(`/api/player-awards?playerName=${encodeURIComponent(selectedPlayer)}`, {
+							method: "GET",
+							cacheKey: generatePageCacheKey("stats", "player-stats", "player-awards", playerParams),
+							getCachedPageData,
+							setCachedPageData,
 						})
-						.catch((error) => {
-							log("error", "Error fetching award history:", error);
-							setAwardHistory([]);
-							setTotalAwards(0);
+							.then((data) => {
+								setAwardsData(data);
+							})
+							.catch((error) => {
+								log("error", "Error fetching awards:", error);
+							})
+							.finally(() => setIsLoadingAwards(false)),
+						cachedFetch(`/api/captains/player-history?playerName=${encodeURIComponent(selectedPlayer)}`, {
+							method: "GET",
+							cacheKey: generatePageCacheKey("stats", "player-stats", "captain-history", playerParams),
+							getCachedPageData,
+							setCachedPageData,
 						})
-						.finally(() => setIsLoadingAwardHistory(false)),
-				];
+							.then((data) => {
+								setCaptainHistory(data.captaincies || []);
+								setTotalCaptaincies(data.totalCaptaincies || 0);
+							})
+							.catch((error) => {
+								log("error", "Error fetching captain history:", error);
+								setCaptainHistory([]);
+								setTotalCaptaincies(0);
+							})
+							.finally(() => setIsLoadingCaptainHistory(false)),
+						cachedFetch(`/api/awards/player-history?playerName=${encodeURIComponent(selectedPlayer)}`, {
+							method: "GET",
+							cacheKey: generatePageCacheKey("stats", "player-stats", "award-history", playerParams),
+							getCachedPageData,
+							setCachedPageData,
+						})
+							.then((data) => {
+								setAwardHistory(data.awards || []);
+								setTotalAwards(data.totalAwards || 0);
+							})
+							.catch((error) => {
+								log("error", "Error fetching award history:", error);
+								setAwardHistory([]);
+								setTotalAwards(0);
+							})
+							.finally(() => setIsLoadingAwardHistory(false)),
+					);
+				}
 
 				if (featureFlags.achievementBadges) {
 					parallel.push(

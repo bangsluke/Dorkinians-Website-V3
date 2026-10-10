@@ -951,6 +951,22 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 		set({ isLoadingPlayerData: true });
 
 		try {
+			// Prefer stats bootstrap (one round-trip: player-data + seasonal/team + awards/captains)
+			const { fetchPlayerStatsBootstrap } = await import("@/lib/utils/playerStatsBootstrapCache");
+			const bootstrap = await fetchPlayerStatsBootstrap(playerName);
+			if (bootstrap?.playerData) {
+				const currentDate = new Date().toISOString().split("T")[0];
+				const cachedData: CachedPlayerData = {
+					playerData: bootstrap.playerData as CachedPlayerData["playerData"],
+					selectedDate: currentDate,
+				};
+				if (typeof window !== "undefined") {
+					localStorage.setItem("dorkinians-cached-player-data", JSON.stringify(cachedData));
+				}
+				set({ cachedPlayerData: cachedData });
+				return;
+			}
+
 			const response = await retryFetch(
 				`/api/player-data?playerName=${encodeURIComponent(playerName)}`,
 				undefined,
