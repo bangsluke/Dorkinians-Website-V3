@@ -1,12 +1,16 @@
-// In-memory API response cache with TTL support
+import { getRedisClient } from "@/lib/utils/redisClient";
+
+// In-memory API response cache with TTL support (+ optional Upstash L2)
 interface CachedResponse<T> {
 	data: T;
 	timestamp: number;
 	ttl: number;
 }
 
+const REDIS_KEY_PREFIX = "apiCache:v1:";
+
 class APICache {
-	private cache: Map<string, CachedResponse<any>>;
+	private cache: Map<string, CachedResponse<unknown>>;
 	private readonly defaultTTL: number;
 
 	constructor(defaultTTL: number = 5 * 60 * 1000) {
@@ -16,12 +20,12 @@ class APICache {
 	}
 
 	// Generate cache key from endpoint and params
-	generateKey(endpoint: string, params?: Record<string, any>): string {
+	generateKey(endpoint: string, params?: Record<string, unknown>): string {
 		const paramsStr = params ? JSON.stringify(params) : "";
 		return `${endpoint}:${paramsStr}`;
 	}
 
-	// Get cached response if not expired
+	// Get cached response if not expired (in-process only)
 	get<T>(key: string): T | null {
 		const cached = this.cache.get(key);
 		if (!cached) return null;
@@ -35,13 +39,70 @@ class APICache {
 		return cached.data as T;
 	}
 
-	// Set cache with optional custom TTL
+	// Set cache with optional custom TTL (in-process only)
 	set<T>(key: string, data: T, ttl?: number): void {
 		this.cache.set(key, {
 			data,
 			timestamp: Date.now(),
 			ttl: ttl || this.defaultTTL,
 		});
+	}
+
+	/**
+	 * L1 memory then L2 Upstash. Fail-open if Redis is unavailable.
+	 */
+	async getAsync<T>(key: string): Promise<T | null> {
+		const local = this.get<T>(key);
+		if (local !== null) {
+			return local;
+		}
+
+		const redis = getRedisClient();
+		if (!redis) {
+			return null;
+		}
+
+		try {
+			const remote = await redis.get<CachedResponse<T>>(REDIS_KEY_PREFIX + key);
+			if (!remote || typeof remote !== "object") {
+				return null;
+			}
+			if (typeof remote.timestamp !== "number" || typeof remote.ttl !== "number") {
+				return null;
+			}
+			if (Date.now() - remote.timestamp > remote.ttl) {
+				return null;
+			}
+			this.set(key, remote.data, remote.ttl - (Date.now() - remote.timestamp));
+			return remote.data;
+		} catch {
+			return null;
+		}
+	}
+
+	/**
+	 * Write L1 + L2. Fail-open if Redis is unavailable.
+	 */
+	async setAsync<T>(key: string, data: T, ttl?: number): Promise<void> {
+		const resolvedTtl = ttl || this.defaultTTL;
+		this.set(key, data, resolvedTtl);
+
+		const redis = getRedisClient();
+		if (!redis) {
+			return;
+		}
+
+		const payload: CachedResponse<T> = {
+			data,
+			timestamp: Date.now(),
+			ttl: resolvedTtl,
+		};
+		const exSeconds = Math.max(1, Math.ceil(resolvedTtl / 1000));
+		try {
+			await redis.set(REDIS_KEY_PREFIX + key, payload, { ex: exSeconds });
+		} catch {
+			// fail open — memory cache still holds the value
+		}
 	}
 
 	// Clear expired entries (should be called periodically)
@@ -83,6 +144,7 @@ export const CACHE_TTLS: Record<string, number> = {
 	"/api/seasons": 60 * 60 * 1000, // 1 hour
 	"/api/league-tables": 5 * 60 * 1000, // 5 minutes (current season can move)
 	"/api/filter-bootstrap": 5 * 60 * 1000, // 5 minutes
+	"/api/league-latest-results": 5 * 60 * 1000, // 5 minutes
 
 	// Dynamic data - shorter TTL
 	"/api/player-seasonal-stats": 5 * 60 * 1000, // 5 minutes
@@ -99,14 +161,14 @@ export function getCacheTTL(endpoint: string): number {
 	if (CACHE_TTLS[endpoint]) {
 		return CACHE_TTLS[endpoint];
 	}
-	
+
 	// Check pattern matches
 	for (const [pattern, ttl] of Object.entries(CACHE_TTLS)) {
 		if (endpoint.startsWith(pattern)) {
 			return ttl;
 		}
 	}
-	
+
 	// Default TTL
 	return 5 * 60 * 1000; // 5 minutes
 }

@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
 	try {
 		// Check cache first
 		const cacheKey = apiCache.generateKey("/api/milestones");
-		const cached = apiCache.get<{
+		const cached = await apiCache.getAsync<{
 			achieved: MilestoneEntry[];
 			nearing: MilestoneEntry[];
 			closestToMilestone: MilestoneEntry[];
@@ -389,7 +389,7 @@ export async function GET(request: NextRequest) {
 
 		// Cache the response
 		const ttl = getCacheTTL("/api/milestones");
-		apiCache.set(cacheKey, response, ttl);
+		await apiCache.setAsync(cacheKey, response, ttl);
 
 		return NextResponse.json(response, { headers: corsHeaders });
 	} catch (error) {

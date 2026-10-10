@@ -24,7 +24,7 @@ export async function OPTIONS() {
 export async function GET() {
 	try {
 		const cacheKey = apiCache.generateKey("/api/filter-bootstrap");
-		const cached = apiCache.get<BootstrapPayload>(cacheKey);
+		const cached = await apiCache.getAsync<BootstrapPayload>(cacheKey);
 		if (cached) {
 			return NextResponse.json(cached, { headers: withPublicCache(corsHeaders, PUBLIC_CACHE_MEDIUM) });
 		}
@@ -108,7 +108,7 @@ export async function GET() {
 			})),
 		};
 
-		apiCache.set(cacheKey, payload, getCacheTTL("/api/filter-bootstrap"));
+		await apiCache.setAsync(cacheKey, payload, getCacheTTL("/api/filter-bootstrap"));
 		return NextResponse.json(payload, { headers: withPublicCache(corsHeaders, PUBLIC_CACHE_MEDIUM) });
 	} catch (error) {
 		logError("Error building filter bootstrap", error);

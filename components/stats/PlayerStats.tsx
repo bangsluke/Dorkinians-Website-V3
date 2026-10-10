@@ -2147,16 +2147,15 @@ export default function PlayerStats() {
 			}
 
 			try {
-				// Build parallel fetch promises
-				const fetchPromises: Promise<void>[] = [];
+				// Stage 1: critical above-fold stats (seasonal / team) — avoid contending with map/form Neo4j
+				const criticalPromises: Promise<void>[] = [];
 
-				// Seasonal stats (conditional)
 				if (allSeasonsSelected) {
 					const cacheKey = generatePageCacheKey("stats", "player-stats", "player-seasonal-stats", {
 						playerName: selectedPlayer,
 						filters: playerFilters,
 					});
-					fetchPromises.push(
+					criticalPromises.push(
 						cachedFetch("/api/player-seasonal-stats", {
 							method: "POST",
 							body: {
@@ -2180,13 +2179,12 @@ export default function PlayerStats() {
 					setIsLoadingSeasonalStats(false);
 				}
 
-				// Team stats (conditional)
 				if (allTeamsSelected) {
 					const cacheKey = generatePageCacheKey("stats", "player-stats", "player-team-stats", {
 						playerName: selectedPlayer,
 						filters: playerFilters,
 					});
-					fetchPromises.push(
+					criticalPromises.push(
 						cachedFetch("/api/player-team-stats", {
 							method: "POST",
 							body: {
@@ -2210,11 +2208,15 @@ export default function PlayerStats() {
 					setIsLoadingTeamStats(false);
 				}
 
-				// Opposition map (always fetch)
+				await Promise.all(criticalPromises);
+
+				// Stage 2: secondary above-fold (map / performance / form)
+				const secondaryPromises: Promise<void>[] = [];
+
 				const oppositionMapCacheKey = generatePageCacheKey("stats", "player-stats", "player-oppositions-map", {
 					playerName: selectedPlayer,
 				});
-				fetchPromises.push(
+				secondaryPromises.push(
 					cachedFetch(`/api/player-oppositions-map?playerName=${encodeURIComponent(selectedPlayer)}`, {
 						method: "GET",
 						cacheKey: oppositionMapCacheKey,
@@ -2231,11 +2233,10 @@ export default function PlayerStats() {
 						.finally(() => setIsLoadingOppositionMap(false))
 				);
 
-				// Opposition performance (always fetch)
 				const oppositionPerfCacheKey = generatePageCacheKey("stats", "player-stats", "player-opposition-performance", {
 					playerName: selectedPlayer,
 				});
-				fetchPromises.push(
+				secondaryPromises.push(
 					cachedFetch(`/api/player-opposition-performance?playerName=${encodeURIComponent(selectedPlayer)}`, {
 						method: "GET",
 						cacheKey: oppositionPerfCacheKey,
@@ -2252,13 +2253,12 @@ export default function PlayerStats() {
 						.finally(() => setIsLoadingOppositionPerformance(false))
 				);
 
-				// Form curve data (feature-flagged)
 				if (featureFlags.playerStatsForm) {
 					const playerFormCacheKey = generatePageCacheKey("stats", "player-stats", "player-form", {
 						playerName: selectedPlayer,
 						filters: playerFilters,
 					});
-					fetchPromises.push(
+					secondaryPromises.push(
 						cachedFetch("/api/player-form", {
 							method: "POST",
 							body: {
@@ -2286,8 +2286,7 @@ export default function PlayerStats() {
 					);
 				}
 
-				// Execute all fetches in parallel
-				await Promise.all(fetchPromises);
+				await Promise.all(secondaryPromises);
 			} catch (error) {
 				log("error", "Error in parallel data fetching:", error);
 			}

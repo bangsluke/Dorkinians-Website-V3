@@ -430,6 +430,8 @@ export default function ClubStats() {
 	// Team comparison state
 	const [teamComparisonData, setTeamComparisonData] = useState<any[]>([]);
 	const [isLoadingTeamComparison, setIsLoadingTeamComparison] = useState(false);
+	/** Defer 8× team-data-filtered until idle so key club stats win the network. */
+	const [teamComparisonFetchEnabled, setTeamComparisonFetchEnabled] = useState(false);
 	const [visibleTeams, setVisibleTeams] = useState<Set<string>>(new Set());
 	const [clickedCategory, setClickedCategory] = useState<string | null>(null);
 
@@ -552,11 +554,38 @@ export default function ClubStats() {
 		fetchTeamData();
 	}, [filtersKey, playerFilters, hasUnsavedFilters, isFilterSidebarOpen]);
 
-	// Priority 1: Above fold on mobile - Team Comparison section
-	// Fetch team comparison data
+	// Enable team comparison fetch after idle so Whole Club key stats are not starved.
 	useEffect(() => {
 		if (!playerFilters) return;
-		if (hasUnsavedFilters || isFilterSidebarOpen) return; // Skip API calls while editing filters or sidebar is open
+		if (hasUnsavedFilters || isFilterSidebarOpen) {
+			setTeamComparisonFetchEnabled(false);
+			return;
+		}
+		setTeamComparisonFetchEnabled(false);
+		let idleId: number | undefined;
+		let timeoutId: ReturnType<typeof setTimeout> | undefined;
+		const enable = (): void => {
+			setTeamComparisonFetchEnabled(true);
+		};
+		if (typeof requestIdleCallback !== "undefined") {
+			idleId = requestIdleCallback(enable, { timeout: 2500 });
+		} else {
+			timeoutId = setTimeout(enable, 1500);
+		}
+		return () => {
+			if (idleId !== undefined && typeof cancelIdleCallback !== "undefined") {
+				cancelIdleCallback(idleId);
+			}
+			if (timeoutId !== undefined) {
+				clearTimeout(timeoutId);
+			}
+		};
+	}, [filtersKey, playerFilters, hasUnsavedFilters, isFilterSidebarOpen]);
+
+	// Priority 1 (deferred): Team Comparison — 8 parallel team-data-filtered calls
+	useEffect(() => {
+		if (!playerFilters || !teamComparisonFetchEnabled) return;
+		if (hasUnsavedFilters || isFilterSidebarOpen) return;
 
 		const fetchTeamComparison = async () => {
 			setIsLoadingTeamComparison(true);
@@ -609,7 +638,7 @@ export default function ClubStats() {
 		};
 
 		fetchTeamComparison();
-	}, [filtersKey, playerFilters, hasUnsavedFilters, isFilterSidebarOpen]);
+	}, [teamComparisonFetchEnabled, filtersKey, playerFilters, hasUnsavedFilters, isFilterSidebarOpen]);
 
 	// Priority 2: Above fold on desktop - Top Players section
 	// Fetch top players when filters or stat type changes
