@@ -14,6 +14,7 @@ type BootstrapPayload = {
 	opposition: { name: string }[];
 	oppositionClubs: { shortTeamName: string }[];
 	competitions: { name: string; type: string }[];
+	players: { playerName: string; mostPlayedForTeam: string }[];
 };
 
 export async function OPTIONS() {
@@ -25,7 +26,8 @@ export async function GET() {
 	try {
 		const cacheKey = apiCache.generateKey("/api/filter-bootstrap");
 		const cached = await apiCache.getAsync<BootstrapPayload>(cacheKey);
-		if (cached) {
+		// Require players field so pre-wave caches are rebuilt once
+		if (cached && Array.isArray(cached.players)) {
 			return NextResponse.json(cached, { headers: withPublicCache(corsHeaders, PUBLIC_CACHE_MEDIUM) });
 		}
 
@@ -36,9 +38,10 @@ export async function GET() {
 
 		const graphLabel = neo4jService.getGraphLabel();
 
-		const [seasonsResult, teamsResult, oppositionResult, oppositionClubsResult, competitionsResult] = await Promise.all([
-			neo4jService.runQuery(
-				`
+		const [seasonsResult, teamsResult, oppositionResult, oppositionClubsResult, competitionsResult, playersResult] =
+			await Promise.all([
+				neo4jService.runQuery(
+					`
 				MATCH (f:Fixture {graphLabel: $graphLabel})
 				WHERE f.season IS NOT NULL AND f.season <> ''
 				WITH DISTINCT f.season as seasonName,
@@ -47,49 +50,65 @@ export async function GET() {
 				RETURN seasonName, seasonStartDate, seasonEndDate
 				ORDER BY seasonStartDate DESC
 				`,
-				{ graphLabel },
-			),
-			neo4jService.runQuery(
-				`
+					{ graphLabel },
+				),
+				neo4jService.runQuery(
+					`
 				MATCH (f:Fixture {graphLabel: $graphLabel})
 				WHERE f.team IS NOT NULL AND f.team <> ''
 				WITH DISTINCT f.team as teamName
 				RETURN teamName
 				ORDER BY teamName
 				`,
-				{ graphLabel },
-			),
-			neo4jService.runQuery(
-				`
+					{ graphLabel },
+				),
+				neo4jService.runQuery(
+					`
 				MATCH (f:Fixture {graphLabel: $graphLabel})
 				WHERE f.opposition IS NOT NULL AND f.opposition <> ''
 				WITH DISTINCT f.opposition as oppositionName
 				RETURN oppositionName
 				ORDER BY oppositionName
 				`,
-				{ graphLabel },
-			),
-			neo4jService.runQuery(
-				`
+					{ graphLabel },
+				),
+				neo4jService.runQuery(
+					`
 				MATCH (od:OppositionDetails {graphLabel: $graphLabel})
 				WHERE od.shortTeamName IS NOT NULL AND od.shortTeamName <> ''
 				WITH DISTINCT od.shortTeamName as shortTeamName
 				RETURN shortTeamName
 				ORDER BY shortTeamName
 				`,
-				{ graphLabel },
-			),
-			neo4jService.runQuery(
-				`
+					{ graphLabel },
+				),
+				neo4jService.runQuery(
+					`
 				MATCH (f:Fixture {graphLabel: $graphLabel})
 				WHERE f.competition IS NOT NULL AND f.competition <> ''
 				WITH DISTINCT f.competition as competitionName, f.compType as compType
 				RETURN competitionName, compType
 				ORDER BY competitionName
 				`,
-				{ graphLabel },
-			),
-		]);
+					{ graphLabel },
+				),
+				neo4jService.runQuery(
+					`
+				MATCH (p:Player {graphLabel: $graphLabel})
+				WHERE p.allowOnSite = true
+				RETURN p.playerName as playerName, p.mostPlayedForTeam as mostPlayedForTeam
+				ORDER BY p.playerName
+				`,
+					{ graphLabel },
+				),
+			]);
+
+		const players = playersResult.records
+			.map((r: Record) => ({
+				playerName: String(r.get("playerName") || ""),
+				mostPlayedForTeam: String(r.get("mostPlayedForTeam") || ""),
+			}))
+			.filter((p) => p.playerName && p.playerName.trim() !== "");
 
 		const payload: BootstrapPayload = {
 			seasons: seasonsResult.records.map((r: Record) => ({
@@ -106,9 +125,14 @@ export async function GET() {
 				name: String(r.get("competitionName") || ""),
 				type: String(r.get("compType") || ""),
 			})),
+			players,
 		};
 
-		await apiCache.setAsync(cacheKey, payload, getCacheTTL("/api/filter-bootstrap"));
+		// Write-through so GET /api/players is warm for any other callers
+		await Promise.all([
+			apiCache.setAsync(cacheKey, payload, getCacheTTL("/api/filter-bootstrap")),
+			apiCache.setAsync(apiCache.generateKey("/api/players"), { players }, getCacheTTL("/api/players")),
+		]);
 		return NextResponse.json(payload, { headers: withPublicCache(corsHeaders, PUBLIC_CACHE_MEDIUM) });
 	} catch (error) {
 		logError("Error building filter bootstrap", error);

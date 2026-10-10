@@ -32,27 +32,51 @@ export default function PlayerSelection({ onPlayerSelect, onEditClick, onClearPl
 	const [playersLoaded, setPlayersLoaded] = useState(false);
 	const inputRef = useRef<HTMLInputElement>(null);
 
-	// Load all players on component mount
-	useEffect(() => {
-		const fetchAllPlayers = async () => {
-			if (playersLoaded) return; // Don't fetch if already loaded
+	const isFilterDataLoaded = useNavigationStore((s) => s.isFilterDataLoaded);
 
+	// Prefer players seeded by filter-bootstrap; fall back to /api/players after a short wait
+	useEffect(() => {
+		if (playersLoaded) return;
+
+		let cancelled = false;
+		let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+		const fetchAllPlayers = async () => {
 			setIsLoadingPlayers(true);
 			try {
 				const { fetchPlayersList } = await import("@/lib/utils/playersListCache");
 				const players = await fetchPlayersList();
+				if (cancelled) return;
 				setAllPlayers((players || []) as Player[]);
 				setPlayersLoaded(true);
 			} catch (error) {
-				log("error", "Error fetching players:", error);
-				setAllPlayers([]);
+				if (!cancelled) {
+					log("error", "Error fetching players:", error);
+					setAllPlayers([]);
+				}
 			} finally {
-				setIsLoadingPlayers(false);
+				if (!cancelled) {
+					setIsLoadingPlayers(false);
+				}
 			}
 		};
 
-		fetchAllPlayers();
-	}, [playersLoaded]);
+		if (isFilterDataLoaded) {
+			void fetchAllPlayers();
+		} else {
+			// Give bootstrap a head start so seedPlayersList can populate the shared cache
+			timeoutId = setTimeout(() => {
+				void fetchAllPlayers();
+			}, 400);
+		}
+
+		return () => {
+			cancelled = true;
+			if (timeoutId !== undefined) {
+				clearTimeout(timeoutId);
+			}
+		};
+	}, [playersLoaded, isFilterDataLoaded]);
 
 	// Client-side filtering function
 	const getFilteredPlayers = () => {
