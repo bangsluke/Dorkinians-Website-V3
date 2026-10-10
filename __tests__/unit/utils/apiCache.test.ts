@@ -1,4 +1,4 @@
-import { apiCache } from "@/lib/utils/apiCache";
+import { apiCache, normalizeRedisCacheValue } from "@/lib/utils/apiCache";
 import { resetRedisClientForTests } from "@/lib/utils/redisClient";
 
 describe("apiCache distributed helpers", () => {
@@ -25,5 +25,25 @@ describe("apiCache distributed helpers", () => {
 		const key = apiCache.generateKey("/api/players");
 		await apiCache.setAsync(key, { players: [] }, 60_000);
 		expect(apiCache.get(key)).toEqual({ players: [] });
+	});
+});
+
+describe("normalizeRedisCacheValue", () => {
+	test("accepts bare payload", () => {
+		expect(normalizeRedisCacheValue<{ players: string[] }>({ players: ["A"] })).toEqual({ players: ["A"] });
+	});
+
+	test("accepts legacy envelope", () => {
+		const env = { data: { players: ["A"] }, timestamp: Date.now(), ttl: 60_000 };
+		expect(normalizeRedisCacheValue<{ players: string[] }>(env)).toEqual({ players: ["A"] });
+	});
+
+	test("accepts JSON string bare payload", () => {
+		expect(normalizeRedisCacheValue<{ n: number }>(JSON.stringify({ n: 1 }))).toEqual({ n: 1 });
+	});
+
+	test("rejects expired envelope", () => {
+		const env = { data: { x: 1 }, timestamp: Date.now() - 10_000, ttl: 1_000 };
+		expect(normalizeRedisCacheValue(env)).toBeNull();
 	});
 });

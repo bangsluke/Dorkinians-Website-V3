@@ -9,6 +9,34 @@ interface CachedResponse<T> {
 
 const REDIS_KEY_PREFIX = "apiCache:v1:";
 
+/**
+ * Upstash may return: bare payload, legacy {data,timestamp,ttl} envelope, or a JSON string.
+ */
+export function normalizeRedisCacheValue<T>(remote: unknown): T | null {
+	let value: unknown = remote;
+	if (typeof remote === "string") {
+		try {
+			value = JSON.parse(remote) as unknown;
+		} catch {
+			return null;
+		}
+	}
+	if (value === null || value === undefined) {
+		return null;
+	}
+	if (typeof value === "object" && value !== null && "data" in value && "timestamp" in value && "ttl" in value) {
+		const env = value as CachedResponse<T>;
+		if (typeof env.timestamp !== "number" || typeof env.ttl !== "number") {
+			return null;
+		}
+		if (Date.now() - env.timestamp > env.ttl) {
+			return null;
+		}
+		return env.data;
+	}
+	return value as T;
+}
+
 class APICache {
 	private cache: Map<string, CachedResponse<unknown>>;
 	private readonly defaultTTL: number;
@@ -63,25 +91,21 @@ class APICache {
 		}
 
 		try {
-			const remote = await redis.get<CachedResponse<T>>(REDIS_KEY_PREFIX + key);
-			if (!remote || typeof remote !== "object") {
+			const remote = await redis.get(REDIS_KEY_PREFIX + key);
+			const data = normalizeRedisCacheValue<T>(remote);
+			if (data === null) {
 				return null;
 			}
-			if (typeof remote.timestamp !== "number" || typeof remote.ttl !== "number") {
-				return null;
-			}
-			if (Date.now() - remote.timestamp > remote.ttl) {
-				return null;
-			}
-			this.set(key, remote.data, remote.ttl - (Date.now() - remote.timestamp));
-			return remote.data;
+			// L1 uses configured default; Redis EX is the cross-instance expiry source of truth
+			this.set(key, data, this.defaultTTL);
+			return data;
 		} catch {
 			return null;
 		}
 	}
 
 	/**
-	 * Write L1 + L2. Fail-open if Redis is unavailable.
+	 * Write L1 + L2. Stores bare payload in Redis (EX = TTL). Fail-open if Redis is unavailable.
 	 */
 	async setAsync<T>(key: string, data: T, ttl?: number): Promise<void> {
 		const resolvedTtl = ttl || this.defaultTTL;
@@ -92,14 +116,10 @@ class APICache {
 			return;
 		}
 
-		const payload: CachedResponse<T> = {
-			data,
-			timestamp: Date.now(),
-			ttl: resolvedTtl,
-		};
 		const exSeconds = Math.max(1, Math.ceil(resolvedTtl / 1000));
 		try {
-			await redis.set(REDIS_KEY_PREFIX + key, payload, { ex: exSeconds });
+			// Bare payload — avoids envelope parse failures; large lists (e.g. players) serialize cleanly
+			await redis.set(REDIS_KEY_PREFIX + key, data, { ex: exSeconds });
 		} catch {
 			// fail open — memory cache still holds the value
 		}

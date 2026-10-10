@@ -35,6 +35,8 @@ Date: 2026-10-10
 | Players bootstrap | `/api/filter-bootstrap` includes players + write-through to `/api/players` cache; client `seedPlayersList`; PlayerSelection waits for bootstrap |
 | Club Info staging | LazyWhenVisible for badges/records; idle-defer milestones |
 | Player stats bootstrap | [`/api/player-stats-bootstrap`](../../app/api/player-stats-bootstrap/route.ts) aggregates player-data + seasonal/team + awards/captains; `selectPlayer` + PlayerStats consume it (fallback to old routes) |
+| Below-fold Stats defer | PlayerStats monthly/fantasy/game-details gated on `requestIdleCallback` |
+| Redis L2 harden | Bare-payload Redis store + flexible parse; filter-bootstrap cache-hit re-seeds `/api/players` |
 
 ## Intentionally not done (larger / risk)
 
