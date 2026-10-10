@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neo4jService } from "@/lib/neo4j";
 import { Record } from "neo4j-driver";
+import { apiCache, getCacheTTL } from "@/lib/utils/apiCache";
+import { withNoStore, withPublicCache } from "@/lib/utils/publicCacheHeaders";
 
 const corsHeaders = {
 	"Access-Control-Allow-Origin": "*",
@@ -14,13 +16,17 @@ export async function OPTIONS() {
 
 export async function GET(request: NextRequest) {
 	try {
-		// Connect to Neo4j
-		const connected = await neo4jService.connect();
-		if (!connected) {
-			return NextResponse.json({ error: "Database connection failed" }, { status: 500, headers: corsHeaders });
+		const cacheKey = apiCache.generateKey("/api/teams");
+		const cached = apiCache.get<{ teams: { name: string }[] }>(cacheKey);
+		if (cached) {
+			return NextResponse.json(cached, { headers: withPublicCache(corsHeaders) });
 		}
 
-		// Fetch all teams from Fixture data
+		const connected = await neo4jService.connect();
+		if (!connected) {
+			return NextResponse.json({ error: "Database connection failed" }, { status: 500, headers: withNoStore(corsHeaders) });
+		}
+
 		const query = `
 			MATCH (f:Fixture {graphLabel: $graphLabel})
 			WHERE f.team IS NOT NULL AND f.team <> ''
@@ -36,9 +42,11 @@ export async function GET(request: NextRequest) {
 			name: String(record.get("teamName") || ""),
 		}));
 
-		return NextResponse.json({ teams }, { headers: corsHeaders });
+		const payload = { teams };
+		apiCache.set(cacheKey, payload, getCacheTTL("/api/teams"));
+		return NextResponse.json(payload, { headers: withPublicCache(corsHeaders) });
 	} catch (error) {
 		console.error("Error fetching teams:", error);
-		return NextResponse.json({ error: "Failed to fetch teams" }, { status: 500, headers: corsHeaders });
+		return NextResponse.json({ error: "Failed to fetch teams" }, { status: 500, headers: withNoStore(corsHeaders) });
 	}
 }

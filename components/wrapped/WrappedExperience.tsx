@@ -279,7 +279,16 @@ export default function WrappedExperience({ playerSlug }: { playerSlug: string }
 			try {
 				const q = seasonQ ? `?season=${encodeURIComponent(seasonQ)}` : "";
 				if (featureFlags.wrappedStagedLoad) {
-					const initialRes = await fetch(`/api/wrapped/${encodeURIComponent(playerSlug)}${q}${q ? "&" : "?"}stage=initial`);
+					const initialUrl = `/api/wrapped/${encodeURIComponent(playerSlug)}${q}${q ? "&" : "?"}stage=initial`;
+					let initialRes = await fetch(initialUrl, {
+						signal: typeof AbortSignal !== "undefined" && "timeout" in AbortSignal ? AbortSignal.timeout(45_000) : undefined,
+					}).catch(() => null);
+					if (!initialRes || !initialRes.ok) {
+						// One retry after cold-start / timeout
+						initialRes = await fetch(initialUrl, {
+							signal: typeof AbortSignal !== "undefined" && "timeout" in AbortSignal ? AbortSignal.timeout(45_000) : undefined,
+						});
+					}
 					const initialJson = await initialRes.json();
 					if (!initialRes.ok) {
 						throw new Error(initialJson?.error || "Could not load wrapped");

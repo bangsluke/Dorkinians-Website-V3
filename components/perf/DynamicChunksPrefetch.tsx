@@ -18,8 +18,18 @@ function prefetchHeavyChunks() {
 	void import("@/components/profile/PlayerProfileView");
 }
 
+function shouldSkipPrefetch(): boolean {
+	if (typeof navigator === "undefined") return false;
+	const conn = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
+	if (conn?.saveData) return true;
+	const effectiveType = conn?.effectiveType;
+	return effectiveType === "slow-2g" || effectiveType === "2g";
+}
+
 export default function DynamicChunksPrefetch() {
 	useEffect(() => {
+		if (shouldSkipPrefetch()) return;
+
 		let cancelled = false;
 		const run = () => {
 			if (!cancelled) prefetchHeavyChunks();
@@ -31,7 +41,7 @@ export default function DynamicChunksPrefetch() {
 				window.cancelIdleCallback(id);
 			};
 		}
-		const t = window.setTimeout(run, 1);
+		const t = window.setTimeout(run, 2000);
 		return () => {
 			cancelled = true;
 			window.clearTimeout(t);

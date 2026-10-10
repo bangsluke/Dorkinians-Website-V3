@@ -39,15 +39,10 @@ export default function PlayerSelection({ onPlayerSelect, onEditClick, onClearPl
 
 			setIsLoadingPlayers(true);
 			try {
-				const response = await fetch("/api/players");
-				if (response.ok) {
-					const data = await response.json();
-					setAllPlayers(data.players || []);
-					setPlayersLoaded(true);
-				} else {
-					log("error", "Failed to fetch players:", response.statusText);
-					setAllPlayers([]);
-				}
+				const { fetchPlayersList } = await import("@/lib/utils/playersListCache");
+				const players = await fetchPlayersList();
+				setAllPlayers((players || []) as Player[]);
+				setPlayersLoaded(true);
 			} catch (error) {
 				log("error", "Error fetching players:", error);
 				setAllPlayers([]);

@@ -134,11 +134,11 @@ Record against **mobile throttling** in Lighthouse / DevTools (Slow 4G or Lighth
 
 Do this **before** trusting either track’s numbers for a fix decision.
 
-- [ ] Open [load-speed-results/AGENT_REPORT.md](./load-speed-results/AGENT_REPORT.md) (or run Track B: `WEBSITE_URL=https://dorkinians-website-v3.netlify.app npm run test:e2e:load-speed`)
-- [ ] Note agent date, base URL, and per-scenario status
-- [ ] Confirm agent reported `umamiRequests: 0` after a deploy that includes `umamiAnalytics: false` (pre-deploy production may still load Umami from old HTML)
-- [ ] Optional: PageSpeed Insights on `https://dorkinians-website-v3.netlify.app/` — paste scores into Table A notes
-- [ ] Table A is for optional PSI / notes only (Umami field vitals retired)
+- [x] Open [load-speed-results/AGENT_REPORT.md](./load-speed-results/AGENT_REPORT.md) (or run Track B: `WEBSITE_URL=https://dorkinians-website-v3.netlify.app npm run test:e2e:load-speed`)
+- [x] Note agent date, base URL, and per-scenario status
+- [x] Confirm agent reported `umamiRequests: 0` after a deploy that includes `umamiAnalytics: false` (pre-deploy production may still load Umami from old HTML)
+- [x] Optional: PageSpeed Insights on `https://dorkinians-website-v3.netlify.app/` — paste scores into Table A notes (API 429; used Lighthouse instead)
+- [x] Table A is for optional PSI / notes only (Umami field vitals retired) — filled 2026-10-10
 
 [Back to Table of Contents](#table-of-contents)
 
@@ -333,50 +333,52 @@ After each fix batch:
 
 | Source | Score / metric | Value | Notes |
 |--------|----------------|-------|-------|
-| PageSpeed Insights (mobile) | Performance | | N/A if skipped |
-| PageSpeed Insights | LCP / INP / CLS | | |
-| Agent report date | — | | Link [AGENT_REPORT.md](./load-speed-results/AGENT_REPORT.md) |
-| Umami field vitals | — | N/A | Retired; `umamiAnalytics` flag off |
+| PageSpeed Insights (mobile) | Performance | N/A | API quota exceeded (429) |
+| Agent Lighthouse (mobile median) | Performance / LCP / TTFB | 67 / 3268 ms / 638 ms | See [lighthouse-summary.json](./load-speed-results/lighthouse-summary.json) |
+| Agent report date | — | 2026-10-10T19:17:02Z | [AGENT_REPORT.md](./load-speed-results/AGENT_REPORT.md) |
+| Umami on production | Requests | **0** | Post-deploy confirmed (Playwright + CDP) |
 
-Date recorded: _______________
+Date recorded: 2026-10-10 (agent-led)
 
 ### Table B — Lab homepage
 
+Lighthouse mobile ×3 on `/` (agent). Track B Playwright cold/warm in parentheses where noted.
+
 | Run | Cold LCP | Cold TTFB | Cold first useful (s) | Cold `/api/*` count | Warm LCP | Warm first useful (s) |
 |-----|----------|-----------|------------------------|---------------------|----------|------------------------|
-| 1 | | | | | | |
-| 2 | | | | | | |
-| 3 | | | | | | |
-| **Median** | | | | | | |
+| 1 | 3268 ms | 291 ms | — | — | — | — |
+| 2 | 3267 ms | 638 ms | — | — | — | — |
+| 3 | 3805 ms | 3377 ms | — | — | — | — |
+| **Median** | **3268 ms** | **638 ms** | Track B cold FCP ~9.5s (desktop Chromium, unthrottled API-heavy) | Track B cold: 2 (Resource Timing undercount) / CDP home: 8 | Track B warm FCP ~3.0s | Track B warm duration ~4.6s |
 
-Slowest cold `/api/*` (name + ms):
+Slowest cold `/api/*` (CDP home spot-check, name + ms):
 
-1. _______________
-2. _______________
-3. _______________
-4. _______________
-5. _______________
+1. `/api/opposition-clubs` — 4680
+2. `/api/players` — 4202
+3. `/api/opposition` — 4127
+4. `/api/teams` — 3067
+5. `/api/competitions` — 2475
 
 ### Table D — Subsequent SPA tabs
 
 | Tab | Click → useful (s) | `/api/*` count | Longest API (name + ms) | Chains / duplicates noted |
 |-----|--------------------|----------------|-------------------------|---------------------------|
-| Stats (player) | | | | |
-| TOTW | | | | |
-| Club Info / leagues | | | | |
+| Stats (player) | Track B 1.2s (with player); CDP ~15s (no player / empty state) | Track B 5 | captains/player-history 976 (Track B) | Depends on player selection |
+| TOTW | Track B **14.97s**; CDP ~instant (warm) | Track B 12 | `/api/totw/weeks` **8318** | Duplicate `/api/totw/weeks` |
+| Club Info / leagues | Track B 1.4s; CDP ~instant (warm) | Track B 3 | `/api/competitions` 1230 | — |
 
 ### Table E — App Router routes
 
 | Route | Cold LCP / useful | Warm | Marks / notes |
 |-------|-------------------|------|---------------|
-| `/profile/[slug]` | | | |
-| `/wrapped/[slug]` | | | logo / first-slide / deferred |
+| `/profile/Luke-Bangs` | Lighthouse LCP 2934 ms (score 54); Track B FCP 1252 ms | CDP TTFB 573 / FCP 664 | CLS 0.272 on Lighthouse (above 0.1 target) |
+| `/wrapped/Luke-Bangs` | Lighthouse LCP 2615 ms (score 75) | Track B FCP 3600 ms | Flaky: CDP saw **Could not load wrapped** + ~30s `stage=initial`; Lighthouse run succeeded later |
 
 ### Table F — Bundle
 
 | Chunk / route group | Approx size | Notes |
 |---------------------|-------------|-------|
-| | | |
+| — | — | Skipped this pass (`npm run analyze` not run) |
 | | | |
 | | | |
 | | | |

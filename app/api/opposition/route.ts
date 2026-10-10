@@ -3,6 +3,8 @@ import { neo4jService } from "@/lib/neo4j";
 import { getCorsHeadersWithSecurity } from "@/lib/utils/securityHeaders";
 import { logError } from "@/lib/utils/logger";
 import type { Record } from "neo4j-driver";
+import { apiCache, getCacheTTL } from "@/lib/utils/apiCache";
+import { withNoStore, withPublicCache } from "@/lib/utils/publicCacheHeaders";
 
 const corsHeaders = getCorsHeadersWithSecurity();
 
@@ -14,11 +16,15 @@ export async function GET(request: NextRequest) {
 	try {
 		const { searchParams } = new URL(request.url);
 		const search = searchParams.get("search");
+		const cacheKey = apiCache.generateKey("/api/opposition", { search: search?.trim() || "" });
+		const cached = apiCache.get<{ opposition: { name: string }[] }>(cacheKey);
+		if (cached) {
+			return NextResponse.json(cached, { headers: withPublicCache(corsHeaders) });
+		}
 
-		// Connect to Neo4j
 		const connected = await neo4jService.connect();
 		if (!connected) {
-			return NextResponse.json({ error: "Database connection failed" }, { status: 500, headers: corsHeaders });
+			return NextResponse.json({ error: "Database connection failed" }, { status: 500, headers: withNoStore(corsHeaders) });
 		}
 
 		// Fetch opposition teams with optional search
@@ -46,9 +52,11 @@ export async function GET(request: NextRequest) {
 			name: String(record.get("oppositionName") || ""),
 		}));
 
-		return NextResponse.json({ opposition }, { headers: corsHeaders });
+		const payload = { opposition };
+		apiCache.set(cacheKey, payload, getCacheTTL("/api/opposition"));
+		return NextResponse.json(payload, { headers: withPublicCache(corsHeaders) });
 	} catch (error) {
 		logError("Error fetching opposition", error);
-		return NextResponse.json({ error: "Failed to fetch opposition" }, { status: 500, headers: corsHeaders });
+		return NextResponse.json({ error: "Failed to fetch opposition" }, { status: 500, headers: withNoStore(corsHeaders) });
 	}
 }
