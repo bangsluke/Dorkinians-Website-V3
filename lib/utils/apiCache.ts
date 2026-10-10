@@ -166,6 +166,8 @@ export const CACHE_TTLS: Record<string, number> = {
 	"/api/filter-bootstrap": 5 * 60 * 1000, // 5 minutes
 	"/api/league-latest-results": 5 * 60 * 1000, // 5 minutes
 	"/api/player-stats-bootstrap": 5 * 60 * 1000, // 5 minutes
+	"/api/captains/data": 60 * 60 * 1000, // 1 hour (season roster changes rarely)
+	"/api/club-badge-leaderboard": 60 * 60 * 1000, // 1 hour
 
 	// Dynamic data - shorter TTL
 	"/api/player-seasonal-stats": 5 * 60 * 1000, // 5 minutes
