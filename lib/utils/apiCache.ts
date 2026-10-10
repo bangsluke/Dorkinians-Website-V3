@@ -76,13 +76,21 @@ export const CACHE_TTLS: Record<string, number> = {
 	"/api/club-achievements": 24 * 60 * 60 * 1000, // 24 hours
 	"/api/milestones": 60 * 60 * 1000, // 1 hour
 	"/api/players": 60 * 60 * 1000, // 1 hour
-	
+	"/api/teams": 60 * 60 * 1000, // 1 hour
+	"/api/opposition": 60 * 60 * 1000, // 1 hour
+	"/api/opposition-clubs": 60 * 60 * 1000, // 1 hour
+	"/api/competitions": 60 * 60 * 1000, // 1 hour
+	"/api/seasons": 60 * 60 * 1000, // 1 hour
+	"/api/league-tables": 5 * 60 * 1000, // 5 minutes (current season can move)
+	"/api/filter-bootstrap": 5 * 60 * 1000, // 5 minutes
+
 	// Dynamic data - shorter TTL
 	"/api/player-seasonal-stats": 5 * 60 * 1000, // 5 minutes
 	"/api/player-team-stats": 5 * 60 * 1000, // 5 minutes
 	"/api/player-monthly-stats": 5 * 60 * 1000, // 5 minutes
 	"/api/player-fantasy-breakdown": 5 * 60 * 1000, // 5 minutes
 	"/api/totw/week-data": 60 * 60 * 1000, // 1 hour
+	"/api/totw/current-week": 60 * 60 * 1000, // 1 hour
 };
 
 // Get TTL for endpoint

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neo4jService } from "@/lib/neo4j";
 import { Record } from "neo4j-driver";
+import { apiCache, getCacheTTL } from "@/lib/utils/apiCache";
+import { withNoStore, withPublicCache } from "@/lib/utils/publicCacheHeaders";
 
 const corsHeaders = {
 	"Access-Control-Allow-Origin": "*",
@@ -18,20 +20,26 @@ export async function GET(request: NextRequest) {
 		const season = searchParams.get("season");
 
 		if (!season) {
-			return NextResponse.json({ error: "Season parameter is required" }, { status: 400, headers: corsHeaders });
+			return NextResponse.json({ error: "Season parameter is required" }, { status: 400, headers: withNoStore(corsHeaders) });
 		}
 
-		// Connect to Neo4j
+		const cacheKey = apiCache.generateKey("/api/totw/weeks", { season });
+		const cached = apiCache.get<Record<string, unknown>>(cacheKey);
+		if (cached) {
+			return NextResponse.json(cached, { headers: withPublicCache(corsHeaders) });
+		}
+
 		const connected = await neo4jService.connect();
 		if (!connected) {
-			return NextResponse.json({ error: "Database connection failed" }, { status: 500, headers: corsHeaders });
+			return NextResponse.json({ error: "Database connection failed" }, { status: 500, headers: withNoStore(corsHeaders) });
 		}
 
 		const graphLabel = neo4jService.getGraphLabel();
 
-		// If "All Time" is selected, return empty weeks array
 		if (season === "All Time") {
-			return NextResponse.json({ weeks: [], currentWeek: null, latestGameweek: null, latestGameweekDate: null }, { headers: corsHeaders });
+			const empty = { weeks: [], currentWeek: null, latestGameweek: null, latestGameweekDate: null };
+			apiCache.set(cacheKey, empty, getCacheTTL("/api/totw/weeks"));
+			return NextResponse.json(empty, { headers: withPublicCache(corsHeaders) });
 		}
 
 		// Fetch weeks for the selected season
@@ -109,10 +117,12 @@ export async function GET(request: NextRequest) {
 			console.log(`[API] No weeks found for season: ${season}`);
 		}
 
-		return NextResponse.json({ weeks, currentWeek, latestGameweek, latestGameweekDate }, { headers: corsHeaders });
+		const payload = { weeks, currentWeek, latestGameweek, latestGameweekDate };
+		apiCache.set(cacheKey, payload, getCacheTTL("/api/totw/weeks"));
+		return NextResponse.json(payload, { headers: withPublicCache(corsHeaders) });
 	} catch (error) {
 		console.error("Error fetching weeks:", error);
-		return NextResponse.json({ error: "Failed to fetch weeks" }, { status: 500, headers: corsHeaders });
+		return NextResponse.json({ error: "Failed to fetch weeks" }, { status: 500, headers: withNoStore(corsHeaders) });
 	}
 }
 

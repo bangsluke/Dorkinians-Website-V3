@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neo4jService } from "@/lib/neo4j";
 import { Record } from "neo4j-driver";
+import { apiCache, getCacheTTL } from "@/lib/utils/apiCache";
+import { withNoStore, withPublicCache } from "@/lib/utils/publicCacheHeaders";
 
 const corsHeaders = {
 	"Access-Control-Allow-Origin": "*",
@@ -12,12 +14,17 @@ export async function OPTIONS() {
 	return new NextResponse(null, { status: 200, headers: corsHeaders });
 }
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
 	try {
-		// Connect to Neo4j
+		const cacheKey = apiCache.generateKey("/api/totw/seasons");
+		const cached = apiCache.get<Record<string, unknown>>(cacheKey);
+		if (cached) {
+			return NextResponse.json(cached, { headers: withPublicCache(corsHeaders) });
+		}
+
 		const connected = await neo4jService.connect();
 		if (!connected) {
-			return NextResponse.json({ error: "Database connection failed" }, { status: 500, headers: corsHeaders });
+			return NextResponse.json({ error: "Database connection failed" }, { status: 500, headers: withNoStore(corsHeaders) });
 		}
 
 		const graphLabel = neo4jService.getGraphLabel();
@@ -63,10 +70,12 @@ export async function GET(request: NextRequest) {
 		const latestGameweek = currentSeasonRecord ? String(currentSeasonRecord.get("latestGameweek") || "") : null;
 		const latestGameweekDate = currentSeasonRecord ? String(currentSeasonRecord.get("latestGameweekDate") || "") : null;
 
-		return NextResponse.json({ seasons, currentSeason, latestGameweek, latestGameweekDate }, { headers: corsHeaders });
+		const payload = { seasons, currentSeason, latestGameweek, latestGameweekDate };
+		apiCache.set(cacheKey, payload, getCacheTTL("/api/totw/seasons"));
+		return NextResponse.json(payload, { headers: withPublicCache(corsHeaders) });
 	} catch (error) {
 		console.error("Error fetching seasons:", error);
-		return NextResponse.json({ error: "Failed to fetch seasons" }, { status: 500, headers: corsHeaders });
+		return NextResponse.json({ error: "Failed to fetch seasons" }, { status: 500, headers: withNoStore(corsHeaders) });
 	}
 }
 

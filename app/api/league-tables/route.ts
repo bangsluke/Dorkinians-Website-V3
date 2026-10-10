@@ -5,12 +5,15 @@ import {
 	getCurrentSeasonDataFromNeo4j,
 	getTeamSeasonData,
 } from '@/lib/services/leagueTableService';
+import { PUBLIC_CACHE_MEDIUM, withNoStore, withPublicCache } from '@/lib/utils/publicCacheHeaders';
 
 const corsHeaders = {
 	'Access-Control-Allow-Origin': '*',
 	'Access-Control-Allow-Methods': 'GET, OPTIONS',
 	'Access-Control-Allow-Headers': 'Content-Type',
 };
+
+const publicHeaders = withPublicCache(corsHeaders, PUBLIC_CACHE_MEDIUM);
 
 export async function OPTIONS() {
 	return NextResponse.json({}, { headers: corsHeaders });
@@ -35,7 +38,7 @@ export async function GET(request: NextRequest) {
 				}
 			}
 
-			return NextResponse.json({ seasons }, { headers: corsHeaders });
+			return NextResponse.json({ seasons }, { headers: publicHeaders });
 		}
 
 		// Get specific team/season data
@@ -44,10 +47,10 @@ export async function GET(request: NextRequest) {
 			if (!teamData) {
 				return NextResponse.json(
 					{ error: `No league table data found for ${team} in ${season}` },
-					{ status: 404, headers: corsHeaders },
+					{ status: 404, headers: withNoStore(corsHeaders) },
 				);
 			}
-			return NextResponse.json({ team, season, data: teamData }, { headers: corsHeaders });
+			return NextResponse.json({ team, season, data: teamData }, { headers: publicHeaders });
 		}
 
 		// Get all teams for a season
@@ -71,11 +74,11 @@ export async function GET(request: NextRequest) {
 			if (!seasonData) {
 				return NextResponse.json(
 					{ error: `No league table data found for season ${season}` },
-					{ status: 404, headers: corsHeaders },
+					{ status: 404, headers: withNoStore(corsHeaders) },
 				);
 			}
 
-			return NextResponse.json({ season, data: seasonData }, { headers: corsHeaders });
+			return NextResponse.json({ season, data: seasonData }, { headers: publicHeaders });
 		}
 
 		// Get current season (default)
@@ -83,16 +86,16 @@ export async function GET(request: NextRequest) {
 		if (!currentSeasonData) {
 			return NextResponse.json(
 				{ error: 'No current season league table data available' },
-				{ status: 404, headers: corsHeaders },
+				{ status: 404, headers: withNoStore(corsHeaders) },
 			);
 		}
 
-		return NextResponse.json({ season: currentSeasonData.season, data: currentSeasonData }, { headers: corsHeaders });
+		return NextResponse.json({ season: currentSeasonData.season, data: currentSeasonData }, { headers: publicHeaders });
 	} catch (error) {
 		console.error('Error fetching league tables:', error);
 		return NextResponse.json(
 			{ error: 'Failed to fetch league table data' },
-			{ status: 500, headers: corsHeaders },
+			{ status: 500, headers: withNoStore(corsHeaders) },
 		);
 	}
 }

@@ -848,8 +848,10 @@ export async function computeWrappedInitialData(options: {
 		return metadata;
 	}
 	const { graphLabel, seasonsAvailable, seasonNorm, seasonHyphen, seasonLabel } = metadata.data;
-	const seasonAgg = await neo4jService.runQuery(
-		`
+	const queryParams = { graphLabel, playerName, seasonNorm, seasonHyphen };
+	const [seasonAgg, dominantRes, posRes] = await Promise.all([
+		neo4jService.runQuery(
+			`
 		MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
 		MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
 		MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
@@ -862,15 +864,10 @@ export async function computeWrappedInitialData(options: {
 			sum(coalesce(md.minutes, 0)) AS minutes,
 			sum(CASE WHEN coalesce(md.started, false) THEN 1 ELSE 0 END) AS starts
 		`,
-		{ graphLabel, playerName, seasonNorm, seasonHyphen },
-	);
-	const s0 = seasonAgg.records[0];
-	const totalMatches = Math.round(toNumber(s0?.get("apps")));
-	if (totalMatches === 0) {
-		return { error: "No appearances in this season", status: 404 };
-	}
-	const dominantRes = await neo4jService.runQuery(
-		`
+			queryParams,
+		),
+		neo4jService.runQuery(
+			`
 		MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
 		MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
 		MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
@@ -883,13 +880,10 @@ export async function computeWrappedInitialData(options: {
 		ORDER BY apps DESC, mins DESC, team ASC
 		LIMIT 1
 		`,
-		{ graphLabel, playerName, seasonNorm, seasonHyphen },
-	);
-	const domRec = dominantRes.records[0];
-	const wrappedDominantTeam = domRec?.get("team") != null ? String(domRec.get("team")).trim() : "";
-
-	const posRes = await neo4jService.runQuery(
-		`
+			queryParams,
+		),
+		neo4jService.runQuery(
+			`
 		MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
 		MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
 		MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
@@ -899,8 +893,16 @@ export async function computeWrappedInitialData(options: {
 		ORDER BY c DESC
 		LIMIT 1
 		`,
-		{ graphLabel, playerName, seasonNorm, seasonHyphen },
-	);
+			queryParams,
+		),
+	]);
+	const s0 = seasonAgg.records[0];
+	const totalMatches = Math.round(toNumber(s0?.get("apps")));
+	if (totalMatches === 0) {
+		return { error: "No appearances in this season", status: 404 };
+	}
+	const domRec = dominantRes.records[0];
+	const wrappedDominantTeam = domRec?.get("team") != null ? String(domRec.get("team")).trim() : "";
 	const rawCls = posRes.records[0]?.get("cls");
 	const mostPlayedPosition = formatWrappedPositionClass(rawCls != null ? String(rawCls) : "");
 

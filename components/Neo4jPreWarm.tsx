@@ -17,9 +17,9 @@ export default function Neo4jPreWarm({ enabled = true }: Neo4jPreWarmProps) {
 			try {
 				// Call a lightweight API endpoint that will trigger Neo4j connection
 				// This endpoint should be fast and not require authentication
-				await fetch("/api/players", {
+				// Prefer /api/health so we do not duplicate the heavy /api/players list fetch
+				await fetch("/api/health", {
 					method: "GET",
-					// Use low priority to not block other requests
 					priority: "low",
 				} as RequestInit).catch(() => {
 					// Silently fail - this is just a pre-warm attempt

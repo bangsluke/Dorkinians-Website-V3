@@ -727,14 +727,9 @@ export default function Comparison() {
 
 			setIsLoadingPlayers(true);
 			try {
-				const cacheKey = generatePageCacheKey("stats", "comparison", "players", {});
-				const data = await cachedFetch("/api/players", {
-					method: "GET",
-					cacheKey,
-					getCachedPageData,
-					setCachedPageData,
-				});
-				setAllPlayers(data.players || []);
+				const { fetchPlayersList } = await import("@/lib/utils/playersListCache");
+				const players = await fetchPlayersList();
+				setAllPlayers((players || []) as Player[]);
 				setPlayersLoaded(true);
 			} catch (error) {
 				console.error("Error fetching players:", error);
@@ -745,7 +740,7 @@ export default function Comparison() {
 		};
 
 		fetchAllPlayers();
-	}, [playersLoaded, getCachedPageData, setCachedPageData]);
+	}, [playersLoaded]);
 
 	useEffect(() => {
 		if (!hasHydratedComparisonPrefs) return;

@@ -418,7 +418,7 @@ export default function PlayerProfileView({
 	}, [featureFlags.seasonWrapped, openWrappedHref, router]);
 
 	return (
-		<div className='h-full px-4 py-6 md:px-8 md:py-8' data-testid='player-profile-page'>
+		<div className='h-full min-h-[70vh] px-4 py-6 md:px-8 md:py-8' data-testid='player-profile-page'>
 			<div
 				className={`mx-auto w-full max-w-5xl space-y-4 ${showPastWrappedFooter ? "" : "pb-6 md:pb-8"}`}>
 				<div className='flex flex-col items-center justify-center text-center gap-2'>
