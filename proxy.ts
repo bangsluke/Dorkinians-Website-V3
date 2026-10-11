@@ -43,6 +43,9 @@ export function proxy(request: NextRequest) {
 	const unsafeEval = isDevelopment ? " 'unsafe-eval'" : '';
 	const isFullTimeEmbed = request.nextUrl.pathname === "/embeds/fulltime-table.html";
 	const fullTimeSources = isFullTimeEmbed ? " https://*.thefa.com" : "";
+	// Parent pages must allow connect-src to Full-Time: the service worker can
+	// intercept embed script fetches and those are checked against the top-level CSP.
+	const fullTimeConnect = " https://*.thefa.com";
 	// The Full-Time loader writes its table script while the page is parsing.
 	// strict-dynamic would ignore that host and the table would stay on "Data loading....".
 	const scriptSrc = isFullTimeEmbed
@@ -56,7 +59,7 @@ export function proxy(request: NextRequest) {
 		`style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com${fullTimeSources}`,
 		`font-src 'self' https://fonts.gstatic.com data:${fullTimeSources}`,
 		`img-src 'self' data: https://docs.google.com https://*.googleusercontent.com https://maps.googleapis.com https://maps.gstatic.com blob:${fullTimeSources}`,
-		`connect-src 'self' https://*.herokuapp.com https://*.netlify.app https://*.umami.is https://api-gateway.umami.dev https://*.databases.neo4j.io https://accounts.google.com https://oauth2.googleapis.com https://*.googleapis.com${fullTimeSources}`,
+		`connect-src 'self' https://*.herokuapp.com https://*.netlify.app https://*.umami.is https://api-gateway.umami.dev https://*.databases.neo4j.io https://accounts.google.com https://oauth2.googleapis.com https://*.googleapis.com${fullTimeConnect}`,
 		`frame-src 'self' https://docs.google.com https://accounts.google.com${fullTimeSources}`,
 		"object-src 'none'",
 		"base-uri 'self'",
