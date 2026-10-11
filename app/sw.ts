@@ -1,5 +1,5 @@
 import { defaultCache } from "@serwist/next/worker";
-import type { PrecacheEntry, SerwistGlobalConfig } from "serwist";
+import type { PrecacheEntry, RuntimeCaching, SerwistGlobalConfig } from "serwist";
 import {
 	CacheFirst,
 	ExpirationPlugin,
@@ -14,6 +14,37 @@ declare global {
 }
 
 declare const self: ServiceWorkerGlobalScope;
+
+function isFullTimeHost(hostname: string): boolean {
+	return hostname === "fulltime.thefa.com" || hostname.endsWith(".thefa.com");
+}
+
+/**
+ * Serwist's defaultCache matches all *.js and all cross-origin GETs.
+ * If those routes handle Full-Time, the SW fetch is judged against the
+ * parent page CSP (no thefa.com) and the league widgets stay on "Data loading....".
+ * Skip Full-Time hosts so the embed iframe loads them under its own CSP.
+ */
+function withoutFullTimeHosts(routes: RuntimeCaching[]): RuntimeCaching[] {
+	return routes.map((route) => {
+		const originalMatcher = route.matcher;
+		return {
+			...route,
+			matcher: (options) => {
+				if (isFullTimeHost(options.url.hostname)) {
+					return false;
+				}
+				if (typeof originalMatcher === "function") {
+					return originalMatcher(options);
+				}
+				if (originalMatcher instanceof RegExp) {
+					return originalMatcher.test(options.url.href) || originalMatcher.test(options.url.pathname);
+				}
+				return options.url.href.includes(originalMatcher) || options.url.pathname === originalMatcher;
+			},
+		};
+	});
+}
 
 const serwist = new Serwist({
 	precacheEntries: self.__SW_MANIFEST,
@@ -59,7 +90,7 @@ const serwist = new Serwist({
 				],
 			}),
 		},
-		...defaultCache,
+		...withoutFullTimeHosts(defaultCache),
 	],
 });
 
