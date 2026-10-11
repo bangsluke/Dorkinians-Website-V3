@@ -15,7 +15,7 @@ module.exports = {
 		"^@/(.*)$": "<rootDir>/$1",
 	},
 	setupFilesAfterEnv: ["<rootDir>/jest.setup.js"],
-	testPathIgnorePatterns: ["<rootDir>/.next/", "<rootDir>/node_modules/"],
+	testPathIgnorePatterns: ["<rootDir>/.next/", "<rootDir>/node_modules/", "<rootDir>/__tests__/e2e/"],
 	collectCoverageFrom: ["lib/**/*.ts", "components/**/*.tsx", "!**/*.d.ts", "!**/node_modules/**"],
 	coverageDirectory: "coverage",
 	coverageReporters: ["text", "lcov", "html"],
