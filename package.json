@@ -4,9 +4,9 @@
 	"description": "Dorkinians FC Statistics Website",
 	"private": true,
 	"scripts": {
-		"dev": "cross-env CONSOLE_LOG_LEVEL=info next dev",
-		"dev:debug": "cross-env CONSOLE_LOG_LEVEL=debug next dev",
-		"dev:quiet": "cross-env CONSOLE_LOG_LEVEL=error next dev",
+		"dev": "cross-env NODE_OPTIONS=--use-system-ca CONSOLE_LOG_LEVEL=info next dev",
+		"dev:debug": "cross-env NODE_OPTIONS=--use-system-ca CONSOLE_LOG_LEVEL=debug next dev",
+		"dev:quiet": "cross-env NODE_OPTIONS=--use-system-ca CONSOLE_LOG_LEVEL=error next dev",
 		"build": "next build --webpack",
 		"start": "next start",
 		"lint": "eslint .",

@@ -1,8 +1,10 @@
 /**
- * Official Full-Time embed codes published on southernamateurleague.co.uk.
+ * Fallback Full-Time embed codes used when League Sources cannot be read
+ * or a team row does not yet have a digit Embed Code.
+ * Prefer the published League Sources "Embed Code" column for live values.
  * Each code is the division table widget, not the results or fixtures widget.
  */
-const FULL_TIME_LEAGUE_EMBED_CODES: Record<string, string> = {
+export const FALLBACK_FULL_TIME_LEAGUE_EMBED_CODES: Record<string, string> = {
 	"1s": "896241272",
 	"2s": "279911149",
 	"3s": "101303859",
@@ -13,9 +15,9 @@ const FULL_TIME_LEAGUE_EMBED_CODES: Record<string, string> = {
 };
 
 export function getFullTimeLeagueEmbedCode(teamKey: string): string | undefined {
-	return FULL_TIME_LEAGUE_EMBED_CODES[teamKey];
+	return FALLBACK_FULL_TIME_LEAGUE_EMBED_CODES[teamKey];
 }
 
 export function getFullTimeLeagueTeamKeys(): string[] {
-	return Object.keys(FULL_TIME_LEAGUE_EMBED_CODES);
+	return Object.keys(FALLBACK_FULL_TIME_LEAGUE_EMBED_CODES);
 }

@@ -113,6 +113,7 @@ export default function LeagueInformation() {
 		Record<string, { fixture: LatestResultFixture | null; lineup: FixtureLineupPlayer[] }>
 	>({});
 	const [loadingLatestResults, setLoadingLatestResults] = useState(false);
+	const [fullTimeEmbedCodes, setFullTimeEmbedCodes] = useState<Record<string, string>>({});
 
 	// Fetch available seasons on mount
 	useEffect(() => {
@@ -127,6 +128,21 @@ export default function LeagueInformation() {
 				});
 				const currentSeason = (await initializeCurrentSeason()) || calculateCurrentSeason();
 				const seasonsList = includeCurrentSeason(data.seasons || [], currentSeason);
+
+				try {
+					const embedCacheKey = generatePageCacheKey("club-info", "league-information", "embed-codes", {});
+					const embedData = await cachedFetch("/api/league-embed-codes", {
+						method: "GET",
+						cacheKey: embedCacheKey,
+						getCachedPageData,
+						setCachedPageData,
+					});
+					if (embedData?.codes && typeof embedData.codes === "object") {
+						setFullTimeEmbedCodes(embedData.codes as Record<string, string>);
+					}
+				} catch (embedError) {
+					console.warn("League embed codes unavailable, using fallback map:", embedError);
+				}
 				if (seasonsList.length > 0) {
 					// Add 2019-20 season if it doesn't exist
 					if (!seasonsList.includes("2019-20")) {
@@ -275,8 +291,7 @@ export default function LeagueInformation() {
 		}
 
 		const teamKeys = Object.keys(leagueData.teams || {});
-		const hasStoredRows = teamKeys.some((teamKey) => (leagueData.teams[teamKey]?.table?.length || 0) > 0);
-		if (teamKeys.length === 0 || !hasStoredRows) {
+		if (teamKeys.length === 0) {
 			setLatestResultsByTeam({});
 			setLoadingLatestResults(false);
 			return;
@@ -1716,7 +1731,9 @@ export default function LeagueInformation() {
 								const viewingLiveSeason = storedCurrentSeason
 									? formatSeason(selectedSeason || "") === storedCurrentSeason
 									: selectedSeason === seasons[0];
-								const fullTimeEmbedCode = viewingLiveSeason ? getFullTimeLeagueEmbedCode(teamKey) : undefined;
+								const fullTimeEmbedCode = viewingLiveSeason
+									? fullTimeEmbedCodes[teamKey] || getFullTimeLeagueEmbedCode(teamKey)
+									: undefined;
 
 								const latestResultCard = featureFlags.leagueInfoLatestResult ? (
 									<div
