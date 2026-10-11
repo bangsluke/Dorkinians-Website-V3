@@ -4,10 +4,13 @@ import { useState, useEffect, useRef } from "react";
 import { Fragment } from "react";
 import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
-import { getCurrentSeasonFromStorage } from "@/lib/services/currentSeasonService";
+import { getCurrentSeasonFromStorage, initializeCurrentSeason } from "@/lib/services/currentSeasonService";
 import { useNavigationStore } from "@/lib/stores/navigation";
 import { cachedFetch, generatePageCacheKey } from "@/lib/utils/pageCache";
 import LeagueResultsModal from "./LeagueResultsModal";
+import FullTimeLeagueTable from "./FullTimeLeagueTable";
+import { getFullTimeLeagueEmbedCode, getFullTimeLeagueTeamKeys } from "@/lib/config/fullTimeLeagueEmbeds";
+import { calculateCurrentSeason, includeCurrentSeason } from "@/lib/utils/leagueSeasonList";
 import FixtureExpandedDetails, { type FixtureLineupPlayer } from "./FixtureExpandedDetails";
 import VeoWatchMatchButtons from "./VeoWatchMatchButtons";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LabelList } from "recharts";
@@ -58,6 +61,14 @@ interface Goalscorer {
 	goals: number;
 }
 
+function emptyLiveSeasonTables(season: string): SeasonLeagueData {
+	const teams: SeasonLeagueData["teams"] = {};
+	for (const teamKey of getFullTimeLeagueTeamKeys()) {
+		teams[teamKey] = { division: "", url: "", table: [] };
+	}
+	return { season: season.replace("-", "/"), teams };
+}
+
 interface LatestResultFixture {
 	fixtureId: string;
 	date: string;
@@ -102,6 +113,7 @@ export default function LeagueInformation() {
 		Record<string, { fixture: LatestResultFixture | null; lineup: FixtureLineupPlayer[] }>
 	>({});
 	const [loadingLatestResults, setLoadingLatestResults] = useState(false);
+	const [fullTimeEmbedCodes, setFullTimeEmbedCodes] = useState<Record<string, string>>({});
 
 	// Fetch available seasons on mount
 	useEffect(() => {
@@ -114,7 +126,23 @@ export default function LeagueInformation() {
 					getCachedPageData,
 					setCachedPageData,
 				});
-				const seasonsList = data.seasons || [];
+				const currentSeason = (await initializeCurrentSeason()) || calculateCurrentSeason();
+				const seasonsList = includeCurrentSeason(data.seasons || [], currentSeason);
+
+				try {
+					const embedCacheKey = generatePageCacheKey("club-info", "league-information", "embed-codes", {});
+					const embedData = await cachedFetch("/api/league-embed-codes", {
+						method: "GET",
+						cacheKey: embedCacheKey,
+						getCachedPageData,
+						setCachedPageData,
+					});
+					if (embedData?.codes && typeof embedData.codes === "object") {
+						setFullTimeEmbedCodes(embedData.codes as Record<string, string>);
+					}
+				} catch (embedError) {
+					console.warn("League embed codes unavailable, using fallback map:", embedError);
+				}
 				if (seasonsList.length > 0) {
 					// Add 2019-20 season if it doesn't exist
 					if (!seasonsList.includes("2019-20")) {
@@ -123,28 +151,27 @@ export default function LeagueInformation() {
 					}
 					setSeasons(seasonsList);
 
-					// Load selected season from localStorage if available
+					const currentKey = currentSeason.replace("/", "-");
 					if (typeof window !== "undefined") {
 						const savedSeason = localStorage.getItem("dorkinians-league-info-selected-season");
-						if (savedSeason && (seasonsList.includes(savedSeason) || savedSeason === "my-seasons" || savedSeason === "season-progress")) {
-							if (savedSeason === "my-seasons") {
-								setIsMySeasonsMode(true);
-								setSelectedSeason("my-seasons");
-							} else if (savedSeason === "season-progress") {
-								setIsSeasonProgressMode(true);
-								setSelectedSeason("season-progress");
-							} else {
-								setIsMySeasonsMode(false);
-								setIsSeasonProgressMode(false);
-								setSelectedSeason(savedSeason);
-							}
+						if (savedSeason === "my-seasons") {
+							setIsMySeasonsMode(true);
+							setSelectedSeason("my-seasons");
+						} else if (savedSeason === "season-progress") {
+							setIsSeasonProgressMode(true);
+							setSelectedSeason("season-progress");
+						} else if (seasonsList.includes(currentKey)) {
+							setIsMySeasonsMode(false);
+							setIsSeasonProgressMode(false);
+							setSelectedSeason(currentKey);
+							localStorage.setItem("dorkinians-league-info-selected-season", currentKey);
 						} else if (seasonsList.length > 0) {
-							// Select first season (most recent) by default if no saved selection
 							setSelectedSeason(seasonsList[0]);
 							localStorage.setItem("dorkinians-league-info-selected-season", seasonsList[0]);
 						}
+					} else if (seasonsList.includes(currentKey)) {
+						setSelectedSeason(currentKey);
 					} else if (seasonsList.length > 0) {
-						// Select first season (most recent) by default
 						setSelectedSeason(seasonsList[0]);
 					}
 				} else {
@@ -231,9 +258,15 @@ export default function LeagueInformation() {
 					setCachedPageData,
 				});
 				setLeagueData(data.data);
-			} catch (err: any) {
-				console.error("Error fetching league data:", err);
-				setError(err?.error || "Error loading league table data");
+			} catch (err: unknown) {
+				if (isCurrentSeason(selectedSeason)) {
+					setLeagueData(emptyLiveSeasonTables(selectedSeason));
+					setError(null);
+				} else {
+					console.error("Error fetching league data:", err);
+					const message = err instanceof Error ? err.message : "Error loading league table data";
+					setError(message);
+				}
 			} finally {
 				setLoading(false);
 			}
@@ -260,6 +293,7 @@ export default function LeagueInformation() {
 		const teamKeys = Object.keys(leagueData.teams || {});
 		if (teamKeys.length === 0) {
 			setLatestResultsByTeam({});
+			setLoadingLatestResults(false);
 			return;
 		}
 
@@ -535,11 +569,8 @@ export default function LeagueInformation() {
 	// Check if selected season is the current season
 	const isCurrentSeason = (selectedSeason: string | null): boolean => {
 		if (!selectedSeason) return false;
-		const currentSeason = getCurrentSeasonFromStorage();
-		if (!currentSeason) return false;
-		// Normalize formats: API returns "YYYY-YY", currentSeason is "YYYY/YY"
-		const normalizedSelected = formatSeason(selectedSeason);
-		return normalizedSelected === currentSeason;
+		const currentSeason = (getCurrentSeasonFromStorage() || calculateCurrentSeason()).replace("-", "/");
+		return formatSeason(selectedSeason) === currentSeason;
 	};
 
 	// Get team display name
@@ -1696,6 +1727,14 @@ export default function LeagueInformation() {
 									return false;
 								};
 
+								const storedCurrentSeason = getCurrentSeasonFromStorage();
+								const viewingLiveSeason = storedCurrentSeason
+									? formatSeason(selectedSeason || "") === storedCurrentSeason
+									: selectedSeason === seasons[0];
+								const fullTimeEmbedCode = viewingLiveSeason
+									? fullTimeEmbedCodes[teamKey] || getFullTimeLeagueEmbedCode(teamKey)
+									: undefined;
+
 								const latestResultCard = featureFlags.leagueInfoLatestResult ? (
 									<div
 										className={
@@ -1767,7 +1806,7 @@ export default function LeagueInformation() {
 													<span className='ml-2 text-base text-gray-300 font-normal'>{teamData.division}</span>
 												)}
 											</h3>
-											{hasTableData ? (
+											{hasTableData || fullTimeEmbedCode ? (
 												<div
 													className={
 														featureFlags.leagueInfoLatestResult
@@ -1775,6 +1814,10 @@ export default function LeagueInformation() {
 															: "min-w-0"
 													}>
 													<div className='min-w-0'>
+														{fullTimeEmbedCode ? (
+															<FullTimeLeagueTable teamKey={teamKey} title={teamDisplayName} code={fullTimeEmbedCode} />
+														) : (
+															<>
 														{currentSeason && teamData.lastUpdated && (
 															<div className='text-center text-sm text-gray-400 mb-2'>Last updated: {formatDate(teamData.lastUpdated)}</div>
 														)}
@@ -1826,6 +1869,8 @@ export default function LeagueInformation() {
 																</tbody>
 															</table>
 														</div>
+															</>
+														)}
 														{/* League Table Link and Show Results - under table column only */}
 														{((teamData.url && teamData.url.trim() !== "") || selectedSeason) && (
 															<div className='mt-4 text-center'>

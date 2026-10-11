@@ -75,6 +75,33 @@ export async function getAvailableSeasons(): Promise<string[]> {
 }
 
 /**
+ * Current season stored on SiteDetail, independent of saved league-table files.
+ */
+export async function getConfiguredCurrentSeason(): Promise<string | null> {
+	try {
+		const connected = await neo4jService.connect();
+		if (!connected) {
+			return null;
+		}
+
+		const graphLabel = neo4jService.getGraphLabel();
+		const result = await neo4jService.runQuery(
+			`
+			MATCH (sd:SiteDetail {graphLabel: $graphLabel})
+			RETURN sd.currentSeason AS currentSeason
+			LIMIT 1
+			`,
+			{ graphLabel }
+		);
+		const value = result.records[0]?.get('currentSeason');
+		return typeof value === 'string' && value.trim() ? value.trim() : null;
+	} catch (error) {
+		console.error('Error fetching configured current season:', error);
+		return null;
+	}
+}
+
+/**
  * Get league table data for a specific season from JSON file
  * Handles both "2017/18" and "2017-18" formats (files are named with hyphens)
  */
