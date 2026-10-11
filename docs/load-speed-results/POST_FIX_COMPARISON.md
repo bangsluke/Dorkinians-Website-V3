@@ -1,34 +1,30 @@
 # Post-fix Track B comparison
 
 **URL:** `https://dorkinians-website-v3.netlify.app`  
-**Latest Track B:** 2026-10-10T21:14:10Z (wave 6 — players via Next.js)  
-**Original baseline:** 19:17Z
+**Latest Track B:** 2026-10-10T21:26:56Z (wave 7 — captains/badge cache + defer)  
+**Handoff:** [NEXT_AGENT_HANDOFF.md](./NEXT_AGENT_HANDOFF.md)
 
-## Smoke — players cache fixed ✅
+## Smoke (wave 7) ✅
 
-| Check | Before redirect fix | Wave 6 |
-|-------|---------------------|--------|
-| `/api/players` Cache-Control | `no-cache` (Netlify fn) | **`public,max-age=3600`** |
-| `/api/players` after bootstrap | ~2.2–3.3 s every hit | **291 → ~100 ms** |
-| `/api/teams` control | — | 355 → 74 ms |
+| Endpoint | Cold-ish → warm |
+|----------|-----------------|
+| captains/data | 757 → **56 ms** |
+| club-badge-leaderboard | 1840 → **47 ms** |
+| players | 395 → **82 ms** |
+| filter-bootstrap | 1216 → **149 ms** |
 
-## Track B wave 6 vs baseline
+## Track B highlights
 
-| Scenario | Metric | Baseline | Wave 6 |
-|----------|--------|----------|--------|
-| warm-home | FCP | 3040 | **392** |
-| spa-stats | click→useful | 1236 | **899** |
-| spa-totw | click→useful | 14972 | **1662** |
-| spa-club | click→useful | 1415 | **1042** |
-| wrapped | stage=initial | ~30s fail | **1454** (marks ~2.2s) |
-| cold-home | FCP | 9528 | 5728 (cold-start variance) |
+| Scenario | Result |
+|----------|--------|
+| spa-stats | **964 ms** click→useful; no slow APIs |
+| spa-club | badges/captains no longer the slow call; **milestones** ~943 ms remains |
+| spa-totw | outlier **6.9s** this run (current-week cold); prior healthy ~1–2s |
+| cold-home | site-details still ~1.1s |
 
-spa-stats/totw: no `/api/players` in slow lists. Club badge still ~1s.
+## Next (for following agent)
 
-## Remaining hotspots (for next steps)
-
-1. Club badge leaderboard (~1s on spa-club)
-2. `captains/data` on stats (~1s) — season-wide, not player bootstrap
-3. Cold-home `site-details` (~1.1s) + cold TTFB variance
-4. Wrapped cold ~1.5s (acceptable vs old failure)
-5. Parked: home RSC, image optimization, deep Cypher merge of stats bootstrap
+1. Cache site-details  
+2. Defer/cache milestones on club  
+3. TOTW current-week cold variance  
+4. Audit other Netlify API redirects  

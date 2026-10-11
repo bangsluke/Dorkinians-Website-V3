@@ -3,8 +3,11 @@ import {
 	getAvailableSeasons,
 	getSeasonDataFromJSON,
 	getCurrentSeasonDataFromNeo4j,
+	getConfiguredCurrentSeason,
 	getTeamSeasonData,
 } from '@/lib/services/leagueTableService';
+import { getFullTimeLeagueTeamKeys } from '@/lib/config/fullTimeLeagueEmbeds';
+import { calculateCurrentSeason, includeCurrentSeason } from '@/lib/utils/leagueSeasonList';
 import { PUBLIC_CACHE_MEDIUM, withNoStore, withPublicCache } from '@/lib/utils/publicCacheHeaders';
 
 const corsHeaders = {
@@ -27,16 +30,15 @@ export async function GET(request: NextRequest) {
 
 		// Get list of available seasons
 		if (!season && !team) {
-			const seasons = await getAvailableSeasons();
-			
-			// Also check Neo4j for current season
-			const currentSeasonData = await getCurrentSeasonDataFromNeo4j();
-			if (currentSeasonData && currentSeasonData.season) {
-				const seasonKey = currentSeasonData.season.replace('/', '-');
-				if (!seasons.includes(seasonKey)) {
-					seasons.unshift(seasonKey); // Add current season at the beginning
-				}
-			}
+			const savedSeasons = await getAvailableSeasons();
+			const [currentSeasonData, configuredCurrentSeason] = await Promise.all([
+				getCurrentSeasonDataFromNeo4j(),
+				getConfiguredCurrentSeason(),
+			]);
+			const seasons = includeCurrentSeason(
+				includeCurrentSeason(savedSeasons, currentSeasonData?.season),
+				configuredCurrentSeason || calculateCurrentSeason(),
+			);
 
 			return NextResponse.json({ seasons }, { headers: publicHeaders });
 		}
@@ -72,6 +74,18 @@ export async function GET(request: NextRequest) {
 			}
 
 			if (!seasonData) {
+				const configuredCurrentSeason = await getConfiguredCurrentSeason();
+				const currentKey = (configuredCurrentSeason || calculateCurrentSeason()).replace('/', '-');
+				if (seasonNormalized === currentKey) {
+					const teams = Object.fromEntries(
+						getFullTimeLeagueTeamKeys().map((teamKey) => [teamKey, { division: '', url: '', table: [] }]),
+					);
+					return NextResponse.json(
+						{ season, data: { season: seasonOriginal, teams } },
+						{ headers: publicHeaders },
+					);
+				}
+
 				return NextResponse.json(
 					{ error: `No league table data found for season ${season}` },
 					{ status: 404, headers: withNoStore(corsHeaders) },

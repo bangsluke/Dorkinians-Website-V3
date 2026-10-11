@@ -41,20 +41,27 @@ export function proxy(request: NextRequest) {
 
 	const isDevelopment = process.env.NODE_ENV === 'development';
 	const unsafeEval = isDevelopment ? " 'unsafe-eval'" : '';
+	const isFullTimeEmbed = request.nextUrl.pathname === "/embeds/fulltime-table.html";
+	const fullTimeSources = isFullTimeEmbed ? " https://*.thefa.com" : "";
+	// The Full-Time loader writes its table script while the page is parsing.
+	// strict-dynamic would ignore that host and the table would stay on "Data loading....".
+	const scriptSrc = isFullTimeEmbed
+		? "script-src 'self' 'unsafe-inline' https://*.thefa.com"
+		: `script-src 'self' 'strict-dynamic' 'nonce-${nonce}'${unsafeEval} ${scriptHashes} https://fonts.googleapis.com https://*.umami.is`;
 
 	const csp = [
 		"default-src 'self'",
-		`script-src 'self' 'strict-dynamic' 'nonce-${nonce}'${unsafeEval} ${scriptHashes} https://fonts.googleapis.com https://*.umami.is`,
-		`script-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.googleapis.com https://*.umami.is`,
-		"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com",
-		"font-src 'self' https://fonts.gstatic.com data:",
-		"img-src 'self' data: https://docs.google.com https://*.googleusercontent.com https://maps.googleapis.com https://maps.gstatic.com blob:",
-		"connect-src 'self' https://*.herokuapp.com https://*.netlify.app https://*.umami.is https://api-gateway.umami.dev https://*.databases.neo4j.io https://accounts.google.com https://oauth2.googleapis.com https://*.googleapis.com",
-		"frame-src 'self' https://docs.google.com https://accounts.google.com",
+		scriptSrc,
+		`script-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.googleapis.com https://*.umami.is${fullTimeSources}`,
+		`style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com${fullTimeSources}`,
+		`font-src 'self' https://fonts.gstatic.com data:${fullTimeSources}`,
+		`img-src 'self' data: https://docs.google.com https://*.googleusercontent.com https://maps.googleapis.com https://maps.gstatic.com blob:${fullTimeSources}`,
+		`connect-src 'self' https://*.herokuapp.com https://*.netlify.app https://*.umami.is https://api-gateway.umami.dev https://*.databases.neo4j.io https://accounts.google.com https://oauth2.googleapis.com https://*.googleapis.com${fullTimeSources}`,
+		`frame-src 'self' https://docs.google.com https://accounts.google.com${fullTimeSources}`,
 		"object-src 'none'",
 		"base-uri 'self'",
 		"form-action 'self'",
-		"frame-ancestors 'none'",
+		isFullTimeEmbed ? "frame-ancestors 'self'" : "frame-ancestors 'none'",
 		"upgrade-insecure-requests",
 	].join('; ');
 
@@ -72,6 +79,9 @@ export function proxy(request: NextRequest) {
 	});
 	response.headers.set('Content-Security-Policy', csp);
 	response.headers.set('x-csp-nonce', nonce);
+	if (isFullTimeEmbed) {
+		response.headers.set('X-Frame-Options', 'SAMEORIGIN');
+	}
 
 	const csrfToken = request.cookies.get('csrf-token')?.value || generateCsrfToken();
 	if (!request.cookies.get('csrf-token')) {
