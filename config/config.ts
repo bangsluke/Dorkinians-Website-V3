@@ -70,7 +70,11 @@ const featureFlagsAllEnabled: FeatureFlags = {
 	umamiAnalytics: false,
 };
 
-/** Conservative defaults for production (main) deploys. */
+/**
+ * Production (main) defaults — all user features on.
+ * Flag plumbing is retained so individual keys can be turned off again during later development.
+ * Keep `umamiAnalytics` false until analytics is intentionally re-enabled.
+ */
 const featureFlagsProductionDefault: FeatureFlags = {
 	playerProfile: true,
 	achievementBadges: true,
@@ -78,23 +82,23 @@ const featureFlagsProductionDefault: FeatureFlags = {
 	profileServerHeadline: true,
 	wrappedStagedLoad: true,
 	wrappedPriorityLogos: true,
-	playerStatsKeyPerformance: false,
-	playerStatsForm: false,
-	playerStatsStreaks: false,
-	playerStatsStartingImpact: false,
-	playerStatsPartnerships: false,
-	playerStatsImpact: false,
-	playerStatsPlayerRecordings: false,
-	playerStatsDataTablePer90: false,
-	teamStatsFormationsUsed: false,
-	teamStatsTeamRecordings: false,
-	teamStatsStreakAndForm: false,
-	teamStatsXiStreakCards: false,
-	clubStatsLongestActiveStreaks: false,
-	clubStatsClubRecordings: false,
-	clubInfoRecords: false,
-	leagueInfoLatestResult: false,
-	statsTopPlayersShowAll: false,
+	playerStatsKeyPerformance: true,
+	playerStatsForm: true,
+	playerStatsStreaks: true,
+	playerStatsStartingImpact: true,
+	playerStatsPartnerships: true,
+	playerStatsImpact: true,
+	playerStatsPlayerRecordings: true,
+	playerStatsDataTablePer90: true,
+	teamStatsFormationsUsed: true,
+	teamStatsTeamRecordings: true,
+	teamStatsStreakAndForm: true,
+	teamStatsXiStreakCards: true,
+	clubStatsLongestActiveStreaks: true,
+	clubStatsClubRecordings: true,
+	clubInfoRecords: true,
+	leagueInfoLatestResult: true,
+	statsTopPlayersShowAll: true,
 	umamiAnalytics: false,
 };
 

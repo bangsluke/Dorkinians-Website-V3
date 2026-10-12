@@ -293,6 +293,9 @@ export const STAT_TYPE_PSEUDONYMS = {
 		"longest apps streak",
 		"all.?time.*appearance streak",
 		"best appearance streak ever",
+		"highest appearance streak",
+		"highest all.?time appearance streak",
+		"all.?time appearance streak",
 	],
 	"All-Time Best Clean Sheet Streak": [
 		"longest clean sheet streak",

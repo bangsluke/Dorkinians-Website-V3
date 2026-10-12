@@ -228,18 +228,23 @@ function useFloatingTooltipPosition({
 	return position;
 }
 
+export type FloatingTooltipInteraction = "hover" | "press";
+
 /**
- * Hover/focus trigger that renders its tooltip in a portal, flipping above or below
- * the trigger depending on available viewport space.
+ * Hover/focus (or press-toggle) trigger that renders its tooltip in a portal,
+ * flipping above or below the trigger depending on available viewport space.
  */
 export function FloatingTooltipTrigger({
 	tooltip,
 	children,
 	className,
+	interaction = "hover",
 }: {
 	tooltip: ReactNode;
 	children: ReactNode;
 	className: string;
+	/** `hover` shows on hover/focus; `press` toggles on click/Enter/Space. */
+	interaction?: FloatingTooltipInteraction;
 }): React.JSX.Element {
 	const [visible, setVisible] = useState(false);
 	const triggerRef = useRef<HTMLDivElement>(null);
@@ -252,16 +257,54 @@ export function FloatingTooltipTrigger({
 		placement: "auto",
 	});
 
+	const isPress = interaction === "press";
+
+	useLayoutEffect(() => {
+		if (!isPress || !visible) return;
+
+		const onPointerDown = (event: PointerEvent) => {
+			const target = event.target;
+			if (!(target instanceof Node)) return;
+			if (triggerRef.current?.contains(target)) return;
+			setVisible(false);
+		};
+		const onKeyDown = (event: KeyboardEvent) => {
+			if (event.key === "Escape") setVisible(false);
+		};
+
+		document.addEventListener("pointerdown", onPointerDown, true);
+		document.addEventListener("keydown", onKeyDown);
+		return () => {
+			document.removeEventListener("pointerdown", onPointerDown, true);
+			document.removeEventListener("keydown", onKeyDown);
+		};
+	}, [isPress, visible]);
+
+	const toggle = () => setVisible((prev) => !prev);
+
 	return (
 		<>
 			<div
 				ref={triggerRef}
 				tabIndex={0}
+				role={isPress ? "button" : undefined}
+				aria-expanded={isPress ? visible : undefined}
 				className={className}
-				onMouseEnter={() => setVisible(true)}
-				onMouseLeave={() => setVisible(false)}
-				onFocus={() => setVisible(true)}
-				onBlur={() => setVisible(false)}>
+				onMouseEnter={isPress ? undefined : () => setVisible(true)}
+				onMouseLeave={isPress ? undefined : () => setVisible(false)}
+				onFocus={isPress ? undefined : () => setVisible(true)}
+				onBlur={isPress ? undefined : () => setVisible(false)}
+				onClick={isPress ? toggle : undefined}
+				onKeyDown={
+					isPress
+						? (event) => {
+								if (event.key === "Enter" || event.key === " ") {
+									event.preventDefault();
+									toggle();
+								}
+							}
+						: undefined
+				}>
 				{children}
 			</div>
 			{visible &&
@@ -320,6 +363,7 @@ export function HoverTooltip({
 }: HoverTooltipProps): React.JSX.Element {
 	const label = content?.trim();
 	const [visible, setVisible] = useState(false);
+	const suppressUntilLeaveRef = useRef(false);
 	const triggerRef = useRef<HTMLSpanElement>(null);
 	const tooltipRef = useRef<HTMLDivElement>(null);
 	const position = useFloatingTooltipPosition({
@@ -334,8 +378,19 @@ export function HoverTooltip({
 		return <>{children}</>;
 	}
 
-	const show = () => setVisible(true);
+	const show = () => {
+		if (suppressUntilLeaveRef.current) return;
+		setVisible(true);
+	};
 	const hide = () => setVisible(false);
+	const dismissUntilLeave = () => {
+		suppressUntilLeaveRef.current = true;
+		hide();
+	};
+	const clearSuppress = () => {
+		suppressUntilLeaveRef.current = false;
+		hide();
+	};
 
 	return (
 		<>
@@ -343,11 +398,14 @@ export function HoverTooltip({
 				ref={triggerRef}
 				className={cn("relative inline-flex max-w-full", className)}
 				onMouseEnter={show}
-				onMouseLeave={hide}
+				onMouseLeave={clearSuppress}
+				onPointerDown={dismissUntilLeave}
+				onClick={dismissUntilLeave}
 				onFocusCapture={show}
 				onBlurCapture={(event) => {
 					const next = event.relatedTarget;
 					if (!(next instanceof Node) || !event.currentTarget.contains(next)) {
+						suppressUntilLeaveRef.current = false;
 						hide();
 					}
 				}}>

@@ -95,9 +95,9 @@ This document summarizes every milestone badge currently used on the Player Prof
 These ideas can be built using fields already in Player/Match aggregates, without introducing a new data source.
 
 ### Appearances
-- **Century Starter:** total starts milestones from `starts` (e.g., 50/100/150/200).
 - **Ever Ready:** appearances-to-season consistency (`appearances / numberSeasonsPlayedFor` thresholds).
 - **Bench Utility:** high `subAppearances` milestones (10/25/50/100).
+- ~~**Century Starter:**~~ already shipped as `century_starter`.
 
 ### Goals
 - **Open Play Sniper:** milestones on open-play goals (`goals` only, separate from all-goals).
@@ -111,8 +111,8 @@ These ideas can be built using fields already in Player/Match aggregates, withou
 
 ### Defence
 - **Card-Free Career:** milestones for low discipline burden using `yellowCards + redCards` against appearances.
-- **GK Clean Sheet Specialist:** milestones on `gkCleanSheets`.
 - **Save Rate Hero:** milestones on `savesPer90` with minimum minutes.
+- ~~**GK Clean Sheet Specialist:**~~ already shipped as `gk_clean_sheet_specilaist`.
 
 ### Performance
 - **Form Floor:** badges for keeping `formBaseline` high (e.g., 7.0/7.5/8.0/8.5).

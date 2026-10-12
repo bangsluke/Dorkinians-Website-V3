@@ -7,7 +7,8 @@ interface CachedResponse<T> {
 	ttl: number;
 }
 
-const REDIS_KEY_PREFIX = "apiCache:v1:";
+/** Bump when cached payload semantics change (e.g. live impact fill on player-data GET). */
+const REDIS_KEY_PREFIX = "apiCache:v2:";
 
 /**
  * Upstash may return: bare payload, legacy {data,timestamp,ttl} envelope, or a JSON string.

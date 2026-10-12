@@ -962,6 +962,21 @@ export class EnhancedQuestionAnalyzer {
 			return "season_totw";
 		}
 
+		// Club-wide streak leaderboards (who/which + highest/most/best/longest + appearance streak)
+		// Must run before the generic streak classifier so these route to RankingQueryHandler
+		const isAppearanceStreakRanking =
+			(lowerQuestion.includes("who") || lowerQuestion.includes("which")) &&
+			(lowerQuestion.includes("highest") ||
+				lowerQuestion.includes("most") ||
+				lowerQuestion.includes("best") ||
+				lowerQuestion.includes("longest")) &&
+			(lowerQuestion.includes("appearance streak") ||
+				lowerQuestion.includes("appearances streak") ||
+				lowerQuestion.includes("apps streak"));
+		if (isAppearanceStreakRanking) {
+			return "ranking";
+		}
+
 		// Check for streak patterns FIRST (before player check) - highest priority for streak questions
 		if (
 			lowerQuestion.includes("streak") || 

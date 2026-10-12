@@ -427,58 +427,45 @@ Do these when chatbot behaviour is stable (ideally after Wave 3):
 
 **Do not remove** `isDevelopBranchDeploy()` — that still drives the develop badge / manifest / layout branding, independent of flags.
 
-### 5A. Verify remaining gated UI on local or develop
+### 5A. Verify remaining gated UI on local or develop — automated
 
-Wave 0 already covers Records (`clubInfoRecords`) and Player/Team streak cards. Confirm the rest **before** flipping production. Use `npm run dev` or the develop Netlify URL.
+Manual click-through of each section is replaced by the hard sign-off suite (no `test.skip` on the feature under test). Soft-skip tests in `stats.spec.ts` / `club-info.spec.ts` remain for broader coverage; they are not the sign-off.
 
-#### Player Stats
+**Sign-off commands** (local `npm run dev` or develop Netlify URL; develop preset = all user flags on):
 
-- [ ] **Key Performance** (`playerStatsKeyPerformance`) — Key Performance Stats section; per-90 toggle on the key cards works.  
-- [ ] **Form** (`playerStatsForm`) — `#form-section` chart loads for a player with matches.  
-- [ ] **Starting Impact** (`playerStatsStartingImpact`) — `#starting-impact` shows when the player has appearances.  
-- [ ] **Partnerships** (`playerStatsPartnerships`) — `#partnerships-section` (also Wave 3 ground truth).  
-- [ ] **Impact** (`playerStatsImpact`) — `#impact-section`.  
-- [ ] **Player Recordings** (`playerStatsPlayerRecordings`) — `#player-recordings` (empty is OK if the player has none; section must not crash).  
-- [ ] **Per 90 table tab** (`playerStatsDataTablePer90`) — Data table has Totals / Per App / **Per 90**.  
-- [ ] **Streaks** (`playerStatsStreaks`) — already in Wave 0F; re-tick if you re-checked.
+```bash
+npx jest __tests__/unit/config/productionHiddenFlags.test.ts __tests__/unit/stats/playerStreaksComputation.test.ts __tests__/unit/stats/teamStreaksComputation.test.ts __tests__/unit/stats/formYAxisFromData.test.ts __tests__/unit/stats/partnershipSort.test.ts __tests__/unit/stats/partnershipLift.test.ts __tests__/unit/utils/recordingsDisplay.test.ts __tests__/integration/league-latest-result.integration.test.ts __tests__/integration/top-players-stats.integration.test.ts
+npx playwright test __tests__/e2e/03-stats/gated-features.spec.ts --project=chromium --workers=1
+```
 
-#### Team Stats
+- [x] **Automated gated UI sign-off** — `__tests__/e2e/03-stats/gated-features.spec.ts` covers all 17 production-off keys: Player (key performance, form, streaks, starting impact, partnerships, impact, recordings, per-90), Team (formations, recordings, XI streak cards, streak+form / Best current form), Club (longest active streaks, recordings), Club Information Records, League latest result, and **Show all** (`statsTopPlayersShowAll`).  
+- [x] **Preset lock** — `__tests__/unit/config/productionHiddenFlags.test.ts` (develop on / production off for those 17; umami off in both).  
 
-- [ ] **Formations Used** (`teamStatsFormationsUsed`) — `#team-formation-breakdown`.  
-- [ ] **Team Recordings** (`teamStatsTeamRecordings`) — `#team-recordings`.  
-- [ ] **XI streak cards** (`teamStatsXiStreakCards`) — `#team-streaks-section`.  
-- [ ] **Streak leaders + best current form** (`teamStatsStreakAndForm`) — `#team-streak-leaders` (Wave 0F) and Top Players option `bestCurrentForm`.
-
-#### Club Stats / Club Information / League
-
-- [ ] **Club longest active streaks** (`clubStatsLongestActiveStreaks`) — Club Stats `#club-streak-leaders`.  
-- [ ] **Club Recordings** (`clubStatsClubRecordings`) — `#club-recordings`.  
-- [ ] **Club Information Records** (`clubInfoRecords`) — Wave 0C; Records above Milestones.  
-- [ ] **League latest result** (`leagueInfoLatestResult`) — Club → League Information; latest-result card / modal.
+**Still human (before / with Wave 5B production smoke):** live streak agreement vs chatbot (`STREAKS_TESTING.md`); phone layout; open a real Veo/recording link; Impact with vs without positive delta; Settings sheet copy (`SiteDetail.updatesToCome`). Do not flip production until you accept those.
 
 **If something is broken on develop:** fix that first. Do not enable a broken surface on production.
 
 ### 5B. Enable everything on the production preset
 
-In `config/config.ts`, set **every** key in `featureFlagsProductionDefault` to `true` so it matches `featureFlagsAllEnabled` (including the 16 that are currently `false`).
+In `config/config.ts`, set **every** user key in `featureFlagsProductionDefault` to `true` so it matches `featureFlagsAllEnabled` (including the 17 that were `false`). Keep `umamiAnalytics` **false**.
 
-Those 16 currently off on main:
+Those 17 (now on in the preset):
 
-`playerStatsKeyPerformance`, `playerStatsForm`, `playerStatsStreaks`, `playerStatsStartingImpact`, `playerStatsPartnerships`, `playerStatsImpact`, `playerStatsPlayerRecordings`, `playerStatsDataTablePer90`, `teamStatsFormationsUsed`, `teamStatsTeamRecordings`, `teamStatsStreakAndForm`, `teamStatsXiStreakCards`, `clubStatsLongestActiveStreaks`, `clubStatsClubRecordings`, `clubInfoRecords`, `leagueInfoLatestResult`.
+`playerStatsKeyPerformance`, `playerStatsForm`, `playerStatsStreaks`, `playerStatsStartingImpact`, `playerStatsPartnerships`, `playerStatsImpact`, `playerStatsPlayerRecordings`, `playerStatsDataTablePer90`, `teamStatsFormationsUsed`, `teamStatsTeamRecordings`, `teamStatsStreakAndForm`, `teamStatsXiStreakCards`, `clubStatsLongestActiveStreaks`, `clubStatsClubRecordings`, `clubInfoRecords`, `leagueInfoLatestResult`, `statsTopPlayersShowAll`.
 
-Already `true` on main (leave them true): `playerProfile`, `achievementBadges`, `seasonWrapped`, `profileServerHeadline`, `wrappedStagedLoad`, `wrappedPriorityLogos`.
-
-- [ ] Production preset is all-`true`.  
+- [x] Production preset is all-`true` (user features; umami still false).  
 - [ ] Deploy **main**.  
 - [ ] Smoke the 5A list on the **production** URL (not develop).  
 - [ ] Chatbot Partnerships/Impact (Wave 3) still matches Player Stats if you shipped 3A.  
-- [ ] Update FEATURES-MASTER-STATUS §3 Feature flags row: production no longer hides Stats/Club/League extras.
+- [x] Update FEATURES-MASTER-STATUS §3 Feature flags row: production no longer hides Stats/Club/League extras.
 
 Optional safer split: enable Player Stats flags first, deploy, then Team/Club/League. Same end state.
 
-### 5C. Remove leftover feature-flag code
+### 5C. Remove leftover feature-flag code — **deferred**
 
-Only after 5B is live and the production smoke pass is green. Flags that are always true are dead weight.
+**Decision (2026-10-12):** Keep the feature-flag system so individual keys can be turned off again during later development. Do **not** delete flag plumbing unless that decision changes.
+
+Only if you later choose to remove flags (after 5B is live and the production smoke pass is green):
 
 **Keep the “on” behaviour** (including Wrapped staged load / priority logos / profile server headline). Delete `if (featureFlags.*)` / ternary off-branches.
 
@@ -519,7 +506,7 @@ Only after 5B is live and the production smoke pass is green. Flags that are alw
 
 ## Quick “what should I do this week?”
 
-1. Complete **Wave 0** checks with a notebook of pass/fail (local or develop).  
+1. Wave 5A gated UI is **automated** — re-run `gated-features.spec.ts` after Stats/Club/League changes.  
 2. Implement **Ever Ready**, **Bench Utility**, and **Form Floor** badges (Wave 2).  
 3. If energy remains, start Wave 3 partnerships chatbot with one ground-truth player.  
-4. Leave **Wave 5** (production flags on + delete flag code) until Waves 0–3 are done.
+4. Wave 5B preset flip is done (all user features on; flags kept). Next: deploy/smoke **main**. Wave 5C (delete flags) remains deferred.
