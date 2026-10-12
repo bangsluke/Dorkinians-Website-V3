@@ -2,6 +2,14 @@
 
 Use this as a full QA pass for streak logic across seeded data, live API/UI, and chatbot.
 
+## Automated vs human
+
+| Layer | Status | Where |
+| ----- | ------ | ----- |
+| Streak **computation** (fixtures) | Covered by unit tests | `__tests__/unit/stats/playerStreaksComputation.test.ts`, `teamStreaksComputation.test.ts` |
+| Streak **UI presence** (gated flags on) | Covered by Playwright sign-off | `__tests__/e2e/03-stats/gated-features.spec.ts` (`playerStatsStreaks`, team/club streak sections) |
+| Live Aura numbers vs chatbot / rankings | **Human** — checklists below remain open | This file |
+
 ## Pre-check
 
 - Pick 2-3 players with known match history across multiple teams/seasons.

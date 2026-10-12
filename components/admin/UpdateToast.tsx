@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
 import { CheckIcon, XMarkIcon, ArrowPathIcon } from "@heroicons/react/24/outline";
 import { pwaUpdateService, UpdateInfo } from "@/lib/services/pwaUpdateService";
+import { useToast } from "@/lib/hooks/useToast";
 
 interface UpdateToastProps {
 	onClose: () => void;
@@ -17,6 +18,7 @@ export default function UpdateToast({ onClose }: UpdateToastProps) {
 	const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
 	const [isUpdating, setIsUpdating] = useState(false);
 	const [showDismissMessage, setShowDismissMessage] = useState(false);
+	const { showSuccess, showError } = useToast();
 
 	useEffect(() => {
 		// Only run on client side
@@ -38,10 +40,23 @@ export default function UpdateToast({ onClose }: UpdateToastProps) {
 	const handleUpdate = async () => {
 		setIsUpdating(true);
 		try {
-			await pwaUpdateService.activateUpdate();
-			// Page will reload, so this won't execute
+			const result = await pwaUpdateService.activateUpdate();
+			if (result === "success") {
+				// Reload happens after controllerchange; PWAUpdateNotification shows the toast on next load.
+				setUpdateInfo(null);
+				return;
+			}
+			if (result === "no-waiting") {
+				setUpdateInfo(null);
+				showSuccess("Update Successful");
+				onClose();
+			} else {
+				showError("Update Unsuccessful");
+			}
+			setIsUpdating(false);
 		} catch (error) {
 			console.error("Update failed:", error);
+			showError("Update Unsuccessful");
 			setIsUpdating(false);
 		}
 	};

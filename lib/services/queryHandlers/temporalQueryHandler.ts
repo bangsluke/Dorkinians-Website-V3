@@ -202,9 +202,21 @@ export class TemporalQueryHandler {
 			 (question.includes("goals goal involvements") && (question.includes("no") || question.includes("without"))));
 
 		// Check if this is a goal scoring streak question (goals + penalties, excluding assists)
+		const metricsUpper = metrics.map((m) => m.toUpperCase());
 		const isGoalScoringStreak = 
+			metricsUpper.includes("ALL_TIME_BEST_SCORING_STREAK") ||
 			(question.includes("longest") && (question.includes("goal scoring streak") || question.includes("goal scoring run") || question.includes("scoring streak"))) ||
-			(question.includes("longest") && question.includes("streak") && question.includes("scored") && !question.includes("assist"));
+			(question.includes("longest") && question.includes("streak") && question.includes("scored") && !question.includes("assist")) ||
+			((question.includes("my") || question.includes("your")) &&
+				question.includes("longest") &&
+				question.includes("scoring streak"));
+
+		const isAppearanceStreak =
+			metricsUpper.includes("ALL_TIME_BEST_APPEARANCE_STREAK") ||
+			(question.includes("longest") &&
+				(question.includes("appearance streak") ||
+					question.includes("appearances streak") ||
+					question.includes("apps streak")));
 
 		// Check if this is an assisting run question (assists only)
 		// Handle both "assisting" and common typo "assiting"
@@ -234,14 +246,14 @@ export class TemporalQueryHandler {
 
 		const metric = (metrics[0] || "goals").toLowerCase();
 		const payload = await TemporalQueryHandler.getCanonicalStreakPayload(playerName);
+		if (isAppearanceStreak || metric === "appearances" || metric === "app" || metric === "all_time_best_appearance_streak") {
+			return { type: "streak", data: [], playerName, streakType: "appearances", streakCount: payload.allTimeBestAppearanceStreak };
+		}
 		if (metric === "assists" || metric === "a") {
 			return { type: "streak", data: [], playerName, streakType: "assists", streakCount: payload.allTimeBestAssistStreak };
 		}
 		if (metric === "clean_sheets" || metric === "cls") {
 			return { type: "streak", data: [], playerName, streakType: "clean_sheets", streakCount: payload.allTimeBestCleanSheetStreak };
-		}
-		if (metric === "appearances" || metric === "app") {
-			return { type: "streak", data: [], playerName, streakType: "appearances", streakCount: payload.allTimeBestAppearanceStreak };
 		}
 		return { type: "streak", data: [], playerName, streakType: "goals", streakCount: payload.allTimeBestScoringStreak };
 	}

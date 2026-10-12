@@ -2,7 +2,7 @@
 
 **Purpose:** Single source of truth for what shipped, what remains, how major areas work, and setup outside the codebase. Use this file (not legacy split docs) when briefing an AI or resuming implementation.
 
-**Last updated:** 2026-08-21 (Wave 5 planned: enable production-off flags, then remove flag plumbing).
+**Last updated:** 2026-10-12 (Wave 5B: production preset all user features on; flag plumbing retained for later gating).
 
 **Repos:**
 
@@ -33,7 +33,7 @@ Status values: **Shipped** | **Partial** | **Deferred** | **Retired** | **Verify
 | **3** | EWMA form curves | **Shipped** | DB: `ewmaReactive` / `ewmaBaseline` on `MatchDetail`, form summary on `Player`. Site: `app/api/player-form/route.ts`, Form section, Team `bestCurrentForm`. Chatbot: `FORM_CURRENT` + rankings. |
 | **5** | Streak detection | **Shipped** | DB: `streakDetection.js`, Player streak fields. Site: `POST /api/player-streaks`; Team/Club via `team-data-filtered` (`teamStreaks`, `streakLeaders` with ranges), Player Stats `#streaks-section`, Team Stats `#team-streaks-section` + `#team-streak-leaders`, Club Stats `#club-streak-leaders`. Tests: `test:streak-detection`, Playwright `3.24`. |
 | **6** | Records wall | **Shipped** | DB: `ClubRecord`, `clubRecordsComputation.js`, orchestrator after aggregates. Site: `GET /api/club-records`, `RecordsSection` on **Club Information** (above Milestones; Feature 12). Playwright `5.29`–`5.30`. |
-| **7** | Graph insights (partnerships + impact) | **Shipped** | **7a/7b:** partnerships ≥5 games, impact delta; filter-scoped APIs + Player Stats sections. DB: `graphInsightsComputation.js`. |
+| **7** | Graph insights (partnerships + impact) | **Shipped** | **7a/7b:** partnerships ≥5 games, impact delta; filter-scoped APIs + Player Stats sections. DB: `graphInsightsComputation.js`. **2026-10-12:** `GET /api/player-data` fills live impact when seeded `Player.impactDelta` is null (`computeLiveImpactInsightFields`) so the default Stats view can show Impact. |
 | **7c/7d** | Squad Backbone / Neo4j GDS | **Retired** | PageRank / Louvain / Squad Backbone removed (2026-08-02). No Aura Professional upgrade; UI/API/schema GDS fields deleted. |
 | **8** | Season Wrapped | **Shipped** | `app/wrapped/[playerSlug]/page.tsx`, `GET /api/wrapped/[playerSlug]`, OG routes, `lib/wrapped/*`. Homepage banner uses `featureFlags.seasonWrapped` from `config/config.ts` (branch presets). **Phase 9** (2026-04-01): autoplay, share modal, swipe, data/copy updates, tests. |
 | **9** | Achievement badges | **Shipped** | DB: `badgeDefinitions.js`, `badgeComputation.js`, `playerBadgesComputation.js`, `applyPlayerBadges()`. Site: `GET /api/player-badges`, `GET /api/club-badge-leaderboard`, `lib/badges/catalog.ts` (**keep in sync with DB**), Player Stats badge bar, profile milestone grid. **2026-04-01 polish:** “Achievement Badges” naming, categories, Keeping Achievements, mobile 3-across, tier ordering, `config/config.ts` card-fine constants. |
@@ -48,7 +48,7 @@ Status values: **Shipped** | **Partial** | **Deferred** | **Retired** | **Verify
 | **18** | VEO LINK on fixtures | **Shipped** | DB: schema `Fixture.veoLink`, `test:fixture-veo-link-integration`. Site: `league-fixtures`, `team-recent-fixtures`, types. |
 | **19** | League Latest Result + modal parity | **Shipped** | `GET /api/league-latest-result`, `FixtureExpandedDetails.tsx`, `LeagueInformation.tsx`, `LeagueResultsModal.tsx`. Integration + Playwright `5.14a`. |
 | **20** | Navigation + Player Stats polish | **Shipped** | Items 1–7 addressed via Phase 6/7 rows (Settings→Home, Form axis, table toggle alignment, profile/wrapped items). |
-| **21** | Production flag rollout + remove leftover flags | **Planned** | Today `featureFlagsProductionDefault` hides Stats/Club/League extras on main (see §3). **Wave 5** in `TODO.md`: verify on develop → set production preset all-`true` → smoke main → delete `featureFlags` plumbing and keep always-on paths. Keep `isDevelopBranchDeploy()` for branding. |
+| **21** | Production flag rollout + remove leftover flags | **Partial** | **Wave 5B done:** `featureFlagsProductionDefault` has all 17 former production-off user keys **on** (incl. `statsTopPlayersShowAll`). **Umami** still off. **Wave 5C deferred:** flag plumbing kept so keys can be turned off again during later development. Sign-off suite: `__tests__/e2e/03-stats/gated-features.spec.ts` + `__tests__/unit/config/productionHiddenFlags.test.ts`. Keep `isDevelopBranchDeploy()` for branding. |
 
 ### UX rounds (historical checklists – all rows shipped per last status)
 
@@ -70,7 +70,7 @@ Status values: **Shipped** | **Partial** | **Deferred** | **Retired** | **Verify
 | **Google Sheets** | Source data for `database-dorkinians`; **VEO LINK** column on fixtures for Feature 18. |
 | **Netlify / deploy** | Website deploy when only Next.js changes; seed when graph data must change. |
 | **CI** | `develop`: E2E on push. PRs to `main`: `test:all` + pass-rate gate script. GitHub Actions secrets for email workflows per `README.md`. |
-| **Feature flags** | `config/config.ts`: `featureFlagPresets.develop` vs `featureFlagPresets.production`; resolver uses `NODE_ENV` (test → all on, development → develop preset) and `isDevelopBranchDeploy()` (`BRANCH` / `NEXT_PUBLIC_SITE_VARIANT` from Netlify). No per-feature env vars. **Currently off on production main:** Player Stats (key performance, form, streaks, starting impact, partnerships, impact, recordings, per-90 table); Team Stats (formations, recordings, streak+form, XI streak cards); Club Stats (longest active streaks, recordings); Club Information records; League latest result. **On on main:** player profile, achievement badges, season wrapped, `profileServerHeadline`, `wrappedStagedLoad`, `wrappedPriorityLogos`. **E2E / Playwright:** until Wave 5, point `WEBSITE_URL` at the **develop** branch Netlify URL so remote suites exercise the full UI. After Wave 5, flags are removed and production should match develop. |
+| **Feature flags** | `config/config.ts`: `featureFlagPresets.develop` vs `featureFlagPresets.production`; resolver uses `NODE_ENV` (test → all on, development → develop preset) and `isDevelopBranchDeploy()` (`BRANCH` / `NEXT_PUBLIC_SITE_VARIANT` from Netlify). No per-feature env vars. **Wave 5B (2026-10-12):** production preset matches develop for all **user** features (17 former production-off keys now **on**, including Show all). Flag plumbing **retained** (Wave 5C deferred) so individual keys can be turned off again later. Preset lock: `__tests__/unit/config/productionHiddenFlags.test.ts`. Gated UI suite: `__tests__/e2e/03-stats/gated-features.spec.ts`. Soft-skip suites in `stats.spec.ts` / `club-info.spec.ts` remain for broader coverage. **Umami** stays off in both presets. **E2E / Playwright:** `WEBSITE_URL` may point at production main once this change is deployed; develop URL still valid. |
 
 ---
 
@@ -136,12 +136,15 @@ Within each step, implement in listed order; run the test suite after material c
 
 ## 8. AI handoff – next focus (from last integration milestone)
 
-**Current theme:** Post–Phase 9 polish verification, then production flag rollout.
+**Current theme:** Wave 5B complete (production all user features on); flag plumbing kept. Next: deploy/smoke main, then Wave 2 badges / Wave 3 chatbot backlog. Wave 5C (delete flags) only if you later decide flags are never needed.
 
-1. Verify Wrapped **pause/play/restart** and **share** text behaviour end-to-end.
-2. Validate **achievement** section renames, categories, order on profile (desktop + mobile).
-3. Confirm **Club Information** headings and **record display rounding** (e.g. highest single-match FTP, scoreline) on mobile and desktop.
-4. After Waves 0–3: **Feature 21 / Wave 5** — enable remaining production-off flags, smoke main, then delete leftover `featureFlags` code (`TODO.md` Wave 5).
+**Automated (done 2026-10-12):** All 17 former production-off surfaces covered by `__tests__/e2e/03-stats/gated-features.spec.ts`. Preset lock expects develop **and** production user keys on (`productionHiddenFlags.test.ts`). Live impact fill on `GET /api/player-data` when seeded `impactDelta` is null. Production preset flipped all-`true` (umami still false).
+
+**Still needs a person:**
+
+1. **Deploy main** with Wave 5B preset and smoke the 17 surfaces on the production URL.
+2. Optional later: Wave 5C delete flag plumbing (deferred — keep flags for development gating).
+3. Wave 2 badges / Wave 3 chatbot backlog (separate from Feature 21).
 
 **Suggested prompt pattern:**
 
@@ -163,6 +166,7 @@ Within each step, implement in listed order; run the test suite after material c
 | DB badges | `npm run test:badges` |
 | DB Veo link | `npm run test:fixture-veo-link-integration` |
 | Website | `npm run test`, `npm run test:all`, Playwright suites under `__tests__/e2e/` |
+| Gated feature sign-off | `npx jest __tests__/unit/config/productionHiddenFlags.test.ts` (+ streak/form/partnership/recordings/league helpers as in Wave 5A); `npx playwright test __tests__/e2e/03-stats/gated-features.spec.ts --project=chromium --workers=1` against local/develop (flags on) |
 
 ---
 

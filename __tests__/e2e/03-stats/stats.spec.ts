@@ -34,6 +34,7 @@ const PLAYER_SECTION_IDS = [
 	"minutes-per-stats",
 	"all-games",
 	"streaks-section",
+	"player-recordings",
 	"captaincies-awards-and-achievements",
 ];
 
@@ -48,6 +49,10 @@ const TEAM_SECTION_IDS = [
 	"team-top-players",
 	"team-unique-player-stats",
 	"team-best-season-finish",
+	"team-formation-breakdown",
+	"team-recordings",
+	"team-streaks-section",
+	"team-streak-leaders",
 ];
 
 const CLUB_SECTION_IDS = [
@@ -65,6 +70,8 @@ const CLUB_SECTION_IDS = [
 	"club-player-tenure",
 	"club-stats-distribution",
 	"club-unique-player-stats",
+	"club-recordings",
+	"club-streak-leaders",
 ];
 
 // Prepare localStorage for Stats-on-root, then land on `/` and harden against dev 404s and empty player state.

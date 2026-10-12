@@ -75,6 +75,26 @@ describe("Tooltip surface", () => {
 		expect(screen.queryByRole("tooltip")).toBeNull();
 	});
 
+	test("HoverTooltip dismisses on click and stays hidden until pointer leaves then re-enters", () => {
+		render(
+			React.createElement(HoverTooltip, { content: "Open filters" }, React.createElement("button", null, "Filter")),
+		);
+
+		const button = screen.getByRole("button", { name: "Filter" });
+		fireEvent.mouseEnter(button);
+		expect(screen.getByRole("tooltip").textContent).toBe("Open filters");
+
+		fireEvent.pointerDown(button);
+		expect(screen.queryByRole("tooltip")).toBeNull();
+
+		fireEvent.mouseEnter(button);
+		expect(screen.queryByRole("tooltip")).toBeNull();
+
+		fireEvent.mouseLeave(button);
+		fireEvent.mouseEnter(button);
+		expect(screen.getByRole("tooltip").textContent).toBe("Open filters");
+	});
+
 	test("computeFloatingTooltipPosition flips below when there is not enough space above", () => {
 		const triggerRect = {
 			top: 12,

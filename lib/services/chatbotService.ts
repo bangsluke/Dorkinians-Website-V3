@@ -988,14 +988,22 @@ export class ChatbotService {
 			}
 
 			// Check for longest goal scoring streak questions (goals + penalties, excluding assists)
+			// Also catch personal phrasing: "What is my longest scoring streak?"
 			const isGoalScoringStreakQuestion = 
 				(question.includes("longest") && (question.includes("goal scoring streak") || question.includes("goal scoring run") || question.includes("scoring streak"))) ||
-				(question.includes("longest") && question.includes("streak") && question.includes("scored") && !question.includes("assist"));
+				(question.includes("longest") && question.includes("streak") && question.includes("scored") && !question.includes("assist")) ||
+				((question.includes("my") || question.includes("your") || question.includes("i ")) &&
+					question.includes("longest") &&
+					question.includes("scoring streak"));
 
 			if (isGoalScoringStreakQuestion) {
 				const playerName = entities.length > 0 ? entities[0] : (userContext || "");
 				if (playerName) {
-					return await TemporalQueryHandler.queryStreakData([playerName], [], analysis);
+					return await TemporalQueryHandler.queryStreakData(
+						[playerName],
+						["ALL_TIME_BEST_SCORING_STREAK"],
+						analysis,
+					);
 				}
 			}
 
@@ -1074,6 +1082,33 @@ export class ChatbotService {
 			if (isMostConsecutiveGamesQuestion) {
 				this.lastProcessingSteps.push(`Detected most consecutive games question, routing to TemporalQueryHandler`);
 				return await TemporalQueryHandler.queryMostConsecutiveGamesPlayed();
+			}
+
+			// Club-wide highest/longest all-time appearance streak leaderboard
+			const isHighestAppearanceStreakRanking =
+				(question.includes("who") || question.includes("which")) &&
+				(question.includes("highest") ||
+					question.includes("most") ||
+					question.includes("best") ||
+					question.includes("longest")) &&
+				(question.includes("appearance streak") ||
+					question.includes("appearances streak") ||
+					question.includes("apps streak")) &&
+				!question.includes("my") &&
+				!question.includes("your") &&
+				!question.includes("have i") &&
+				!question.includes("have you");
+
+			if (isHighestAppearanceStreakRanking) {
+				this.lastProcessingSteps.push(
+					`Detected highest all-time appearance streak ranking, routing to RankingQueryHandler`,
+				);
+				const rankingAnalysis = {
+					...analysis,
+					metrics: ["ALL_TIME_BEST_APPEARANCE_STREAK"],
+					resultQuantity: "singular" as const,
+				};
+				return await RankingQueryHandler.queryRankingData(entities, ["ALL_TIME_BEST_APPEARANCE_STREAK"], rankingAnalysis);
 			}
 
 			// Check for "how many players have I played with" question (handles both singular and plural)
@@ -1975,8 +2010,14 @@ export class ChatbotService {
 				return await FixtureDataQueryHandler.queryFixtureData(entities, metrics, analysis);
 			case "comparison":
 				return await this.queryComparisonData(entities, metrics);
-			case "streak":
-				return await TemporalQueryHandler.queryStreakData(entities, metrics, analysis);
+			case "streak": {
+				const streakPlayer =
+					entities.length > 0 ? entities[0] : userContext || "";
+				if (!streakPlayer) {
+					return { type: "no_context", data: [], message: "No player context provided" };
+				}
+				return await TemporalQueryHandler.queryStreakData([streakPlayer], metrics, analysis);
+			}
 			case "temporal":
 				return await TemporalQueryHandler.queryTemporalData(entities, metrics, analysis.timeRange);
 			case "double_game":

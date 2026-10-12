@@ -10,6 +10,28 @@ export interface UpdateInfo {
 	releaseNotes?: string;
 }
 
+/** sessionStorage key written before reload; consumed once on next load for toast feedback. */
+export const PWA_UPDATE_RESULT_KEY = "dorkinians-pwa-update-result";
+
+export type PwaUpdateActivateResult = "success" | "no-waiting" | "error";
+
+export type PwaUpdateResultToast = "success" | "error";
+
+/** Read and clear the post-reload update toast flag (if any). */
+export function consumePwaUpdateResultToast(): PwaUpdateResultToast | null {
+	if (typeof window === "undefined") return null;
+	try {
+		const value = sessionStorage.getItem(PWA_UPDATE_RESULT_KEY);
+		if (value === "success" || value === "error") {
+			sessionStorage.removeItem(PWA_UPDATE_RESULT_KEY);
+			return value;
+		}
+	} catch {
+		// ignore storage errors
+	}
+	return null;
+}
+
 class PWAUpdateService {
 	private updateAvailable = false;
 	private updateCallback?: (updateInfo: UpdateInfo) => void;
@@ -341,28 +363,65 @@ class PWAUpdateService {
 		this.updateAvailable = false;
 	}
 
-	public async activateUpdate(): Promise<void> {
-		// Only run on client side
+	/**
+	 * Activate the waiting service worker, then reload once it takes control.
+	 * Reloading immediately after SKIP_WAITING races activation and leaves the
+	 * update banner showing again after refresh.
+	 */
+	public async activateUpdate(): Promise<PwaUpdateActivateResult> {
 		if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
-			return;
+			return "error";
 		}
 
 		try {
 			const registration = await navigator.serviceWorker.getRegistration();
-			if (registration?.waiting) {
-				// Store the update date before reloading
-				this.setLastUpdateDate(new Date());
-				// Send message to waiting service worker to skip waiting
-				if (registration.waiting.postMessage) {
-					registration.waiting.postMessage({ type: "SKIP_WAITING" });
-				}
-				// Reload to activate new service worker
-				if (window.location?.reload) {
-					window.location.reload();
-				}
+			const waiting = registration?.waiting;
+			if (!waiting) {
+				return "no-waiting";
 			}
+
+			return await new Promise<PwaUpdateActivateResult>((resolve) => {
+				let settled = false;
+				const finish = (result: PwaUpdateActivateResult) => {
+					if (settled) return;
+					settled = true;
+					navigator.serviceWorker?.removeEventListener?.("controllerchange", onControllerChange);
+					window.clearTimeout(timeoutId);
+					resolve(result);
+				};
+
+				const onControllerChange = () => {
+					try {
+						this.setLastUpdateDate(new Date());
+						sessionStorage.setItem(PWA_UPDATE_RESULT_KEY, "success");
+					} catch (error) {
+						console.error("[PWAUpdateService] Error persisting update success flag:", error);
+					}
+					finish("success");
+					window.location.reload();
+				};
+
+				navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
+
+				const timeoutId = window.setTimeout(() => {
+					try {
+						sessionStorage.setItem(PWA_UPDATE_RESULT_KEY, "error");
+					} catch {
+						// ignore
+					}
+					finish("error");
+				}, 10000);
+
+				try {
+					waiting.postMessage({ type: "SKIP_WAITING" });
+				} catch (error) {
+					console.error("[PWAUpdateService] Error posting SKIP_WAITING:", error);
+					finish("error");
+				}
+			});
 		} catch (error) {
 			console.error("[PWAUpdateService] Error activating update:", error);
+			return "error";
 		}
 	}
 
