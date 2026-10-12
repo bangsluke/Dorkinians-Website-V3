@@ -9,7 +9,6 @@ describe("Unit - pwaUpdateService", () => {
 	});
 
 	test("checkForUpdates returns false when serviceWorker is unavailable", async () => {
-		// Arrange: minimal window without service worker APIs
 		Object.defineProperty(global, "window", {
 			value: { location: { origin: "http://localhost:3000", reload: jest.fn() } },
 			configurable: true,
@@ -19,15 +18,12 @@ describe("Unit - pwaUpdateService", () => {
 			configurable: true,
 		});
 
-		// Act: load service and probe for updates
 		const { pwaUpdateService } = await import("@/lib/services/pwaUpdateService");
 		const result = await pwaUpdateService.checkForUpdates();
-		// Assert: no worker means no pending update signal
 		expect(result.isUpdateAvailable).toBe(false);
 	});
 
 	test("checkForUpdates detects waiting worker as available update", async () => {
-		// Arrange: registration with waiting worker plus controller present
 		const registration: any = {
 			waiting: { postMessage: jest.fn() },
 			installing: null,
@@ -45,34 +41,50 @@ describe("Unit - pwaUpdateService", () => {
 				serviceWorker: {
 					getRegistration: jest.fn(async () => registration),
 					controller: {},
+					addEventListener: jest.fn(),
+					removeEventListener: jest.fn(),
 				},
 			},
 			configurable: true,
 		});
 
-		// Act & assert: waiting worker flags update availability
 		const { pwaUpdateService } = await import("@/lib/services/pwaUpdateService");
 		const result = await pwaUpdateService.checkForUpdates();
 		expect(result.isUpdateAvailable).toBe(true);
 	});
 
-	test("activateUpdate posts skip-waiting and triggers reload", async () => {
-		// Arrange: waiting worker, reload spy, and stubbed localStorage
+	test("activateUpdate waits for controllerchange before reload and returns success", async () => {
+		jest.useFakeTimers();
 		const postMessage = jest.fn();
 		const reload = jest.fn();
+		const setItem = jest.fn();
+		let controllerChangeHandler: (() => void) | null = null;
+
 		const registration: any = {
 			waiting: { postMessage },
+			installing: null,
 			addEventListener: jest.fn(),
 			removeEventListener: jest.fn(),
 			update: jest.fn(async () => undefined),
 		};
 		Object.defineProperty(global, "window", {
-			value: { location: { origin: "http://localhost:3000", reload } },
+			value: {
+				location: { origin: "http://localhost:3000", reload },
+				setTimeout: (fn: () => void, ms?: number) => global.setTimeout(fn, ms) as unknown as number,
+				clearTimeout: (id: ReturnType<typeof setTimeout>) => global.clearTimeout(id),
+			},
 			configurable: true,
 		});
 		Object.defineProperty(global, "navigator", {
 			value: {
-				serviceWorker: { getRegistration: jest.fn(async () => registration) },
+				serviceWorker: {
+					getRegistration: jest.fn(async () => registration),
+					controller: {},
+					addEventListener: jest.fn((event: string, handler: () => void) => {
+						if (event === "controllerchange") controllerChangeHandler = handler;
+					}),
+					removeEventListener: jest.fn(),
+				},
 			},
 			configurable: true,
 		});
@@ -80,12 +92,72 @@ describe("Unit - pwaUpdateService", () => {
 			value: { getItem: jest.fn(), setItem: jest.fn() },
 			configurable: true,
 		});
+		Object.defineProperty(global, "sessionStorage", {
+			value: { getItem: jest.fn(), setItem, removeItem: jest.fn() },
+			configurable: true,
+		});
 
-		// Act: instruct service to activate pending worker
-		const { pwaUpdateService } = await import("@/lib/services/pwaUpdateService");
-		await pwaUpdateService.activateUpdate();
-		// Assert: skip-waiting handshake and reload invocation
+		const { pwaUpdateService, PWA_UPDATE_RESULT_KEY } = await import("@/lib/services/pwaUpdateService");
+		const activatePromise = pwaUpdateService.activateUpdate();
+		await Promise.resolve();
+		await Promise.resolve();
+
 		expect(postMessage).toHaveBeenCalledWith({ type: "SKIP_WAITING" });
+		expect(reload).not.toHaveBeenCalled();
+		expect(controllerChangeHandler).toBeTruthy();
+		controllerChangeHandler!();
+
+		await expect(activatePromise).resolves.toBe("success");
+		expect(setItem).toHaveBeenCalledWith(PWA_UPDATE_RESULT_KEY, "success");
 		expect(reload).toHaveBeenCalled();
+		jest.useRealTimers();
+	});
+
+	test("activateUpdate returns no-waiting when no waiting worker", async () => {
+		Object.defineProperty(global, "window", {
+			value: { location: { origin: "http://localhost:3000", reload: jest.fn() } },
+			configurable: true,
+		});
+		Object.defineProperty(global, "navigator", {
+			value: {
+				serviceWorker: {
+					getRegistration: jest.fn(async () => ({ waiting: null })),
+					addEventListener: jest.fn(),
+					removeEventListener: jest.fn(),
+				},
+			},
+			configurable: true,
+		});
+
+		const { pwaUpdateService } = await import("@/lib/services/pwaUpdateService");
+		await expect(pwaUpdateService.activateUpdate()).resolves.toBe("no-waiting");
+	});
+
+	test("consumePwaUpdateResultToast reads and clears the flag", async () => {
+		const store: Record<string, string> = { "dorkinians-pwa-update-result": "success" };
+		Object.defineProperty(global, "window", {
+			value: {},
+			configurable: true,
+		});
+		Object.defineProperty(global, "sessionStorage", {
+			value: {
+				getItem: (k: string) => store[k] ?? null,
+				removeItem: (k: string) => {
+					delete store[k];
+				},
+				setItem: (k: string, v: string) => {
+					store[k] = v;
+				},
+			},
+			configurable: true,
+		});
+		Object.defineProperty(global, "navigator", {
+			value: {},
+			configurable: true,
+		});
+
+		const { consumePwaUpdateResultToast } = await import("@/lib/services/pwaUpdateService");
+		expect(consumePwaUpdateResultToast()).toBe("success");
+		expect(consumePwaUpdateResultToast()).toBe(null);
 	});
 });

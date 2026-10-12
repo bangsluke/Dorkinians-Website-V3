@@ -340,6 +340,56 @@ export function enrichFilteredPartnershipsWithLift(
 	});
 }
 
+/**
+ * Live with/without impact for a player on their most-played XI (career when filters is null).
+ * Used when seeded Player.impactDelta is missing so GET /api/player-data still powers the Impact section.
+ */
+export async function computeLiveImpactInsightFields(
+	playerName: string,
+	filters: unknown,
+	mostPlayedForTeam: string,
+	toNumber: (value: unknown) => number
+): Promise<{
+	impactDelta: number | null;
+	impactWinRateWith: number | null;
+	impactWinRateWithout: number | null;
+	impactRatesDisplay: string | null;
+	impactSampleWith: number | null;
+	impactSampleWithout: number | null;
+}> {
+	let withStats: { games: number; wins: number } | null = null;
+	let withoutStats: { games: number; wins: number } | null = null;
+
+	const withQ = buildFilteredImpactWithQuery(playerName, filters, mostPlayedForTeam);
+	if (withQ) {
+		const w = await neo4jService.runQuery(withQ.query, withQ.params);
+		if (w.records[0]) {
+			const games = toNumber(w.records[0].get("games"));
+			const wins = toNumber(w.records[0].get("wins"));
+			if (games > 0) withStats = { games, wins };
+		}
+	}
+	const withoutQ = buildFilteredImpactWithoutQuery(playerName, filters, mostPlayedForTeam);
+	if (withoutQ) {
+		const w = await neo4jService.runQuery(withoutQ.query, withoutQ.params);
+		if (w.records[0]) {
+			const games = toNumber(w.records[0].get("games"));
+			const wins = toNumber(w.records[0].get("wins"));
+			if (games > 0) withoutStats = { games, wins };
+		}
+	}
+
+	const packed = packFilteredPlayerGraphInsights([], withStats, withoutStats);
+	return {
+		impactDelta: packed.impactDelta,
+		impactWinRateWith: packed.impactWinRateWith,
+		impactWinRateWithout: packed.impactWinRateWithout,
+		impactRatesDisplay: packed.impactRatesDisplay,
+		impactSampleWith: packed.impactSampleWith,
+		impactSampleWithout: packed.impactSampleWithout,
+	};
+}
+
 /** Build graph-insight object fields to merge into filtered player payloads (overrides precomputed Player properties). */
 export function packFilteredPlayerGraphInsights(
 	rows: FilteredPartnershipRow[],
@@ -1121,6 +1171,26 @@ export async function GET(request: NextRequest) {
 			...mapPlayerGraphInsightFieldsFromRecord(record, toNumber),
 			...mapPlayerStreakFieldsFromRecord(record, toNumber),
 		};
+
+		// Seeded impact fields can be null even when live with/without rates exist (filtered route recomputes).
+		// Fill career impact so Player Stats Impact section works on the default (unfiltered) view.
+		if (
+			playerData.impactDelta == null &&
+			typeof playerData.mostPlayedForTeam === "string" &&
+			playerData.mostPlayedForTeam.trim() !== ""
+		) {
+			try {
+				const liveImpact = await computeLiveImpactInsightFields(
+					playerName,
+					null,
+					playerData.mostPlayedForTeam,
+					toNumber
+				);
+				Object.assign(playerData, liveImpact);
+			} catch (impactError) {
+				console.warn("player-data GET: live impact compute failed (non-fatal)", impactError);
+			}
+		}
 
 		return NextResponse.json({ playerData }, { headers: corsHeaders });
 	} catch (error) {

@@ -59,9 +59,25 @@ export class RankingQueryHandler {
 				lowerQuestion.includes("poor") ||
 				lowerQuestion.includes("bad") ||
 				lowerQuestion.includes("lowest"));
+
+		const isAppearanceStreakRankingQuestion =
+			(lowerQuestion.includes("who") || lowerQuestion.includes("which")) &&
+			(lowerQuestion.includes("highest") ||
+				hasBestKeyword ||
+				hasMostKeyword ||
+				lowerQuestion.includes("longest")) &&
+			(lowerQuestion.includes("appearance streak") ||
+				lowerQuestion.includes("appearances streak") ||
+				lowerQuestion.includes("apps streak"));
 		
 		// Only return early if no metrics AND no special metric detected in question text
-		if (metrics.length === 0 && !isGperAPPQuestion && !hasPenaltyKeyword && !isFormRankingQuestion) {
+		if (
+			metrics.length === 0 &&
+			!isGperAPPQuestion &&
+			!hasPenaltyKeyword &&
+			!isFormRankingQuestion &&
+			!isAppearanceStreakRankingQuestion
+		) {
 			return { type: "no_metrics", data: [], message: "No metrics specified for ranking" };
 		}
 
@@ -69,6 +85,10 @@ export class RankingQueryHandler {
 		if (isFormRankingQuestion) {
 			metric = "FORM_CURRENT";
 			loggingService.log(`✅ Detected FORM_CURRENT ranking from question text`, null, "log");
+		}
+		if (isAppearanceStreakRankingQuestion && !metric) {
+			metric = "ALL_TIME_BEST_APPEARANCE_STREAK";
+			loggingService.log(`✅ Detected ALL_TIME_BEST_APPEARANCE_STREAK ranking from question text`, null, "log");
 		}
 		
 		// Extract minimum appearance threshold from question (e.g., "more than 5 games" → minAppearances = 6)

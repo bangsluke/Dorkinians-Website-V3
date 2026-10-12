@@ -32,7 +32,7 @@ import Button from "@/components/ui/Button";
 import { calculateFTPBreakdown } from "@/lib/utils/fantasyPoints";
 import { ErrorState, EmptyState } from "@/components/ui/StateComponents";
 import WeekDateTooltip from "@/components/ui/WeekDateTooltip";
-import { TooltipSurface, TooltipArrow, HoverTooltip } from "@/components/ui/Tooltip";
+import { TooltipSurface, TooltipArrow, HoverTooltip, FloatingTooltipTrigger } from "@/components/ui/Tooltip";
 import { useToast } from "@/lib/hooks/useToast";
 import AllGamesModal from "@/components/stats/AllGamesModal";
 import PlayerRecentFormBoxes, { type PlayerFormRecentMatch } from "@/components/stats/PlayerRecentFormBoxes";
@@ -124,31 +124,31 @@ function StreakStatTile({
 }) {
 	const lit = current > 0;
 	return (
-		<div
-			tabIndex={0}
-			className={`relative group rounded-md p-2 flex flex-col items-center text-center gap-1 cursor-help outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow/80 ${
+		<FloatingTooltipTrigger
+			interaction='press'
+			className={`rounded-md p-2 flex flex-col items-center text-center gap-1 cursor-help outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow/80 ${
 				lit ? "bg-white/12" : "bg-white/5 opacity-75"
 			}`}
-		>
+			tooltip={
+				<>
+					<p className='text-white/90 leading-snug'>{tip}</p>
+					<div className='mt-2 pt-2 border-t border-white/20 space-y-1 text-white/80'>
+						<p>{currentLine}</p>
+						<p>{seasonBestLine}</p>
+						<p>{allTimeBestLine}</p>
+					</div>
+				</>
+			}>
 			<div
 				className={`flex h-11 w-11 items-center justify-center rounded-full text-sm font-bold ${
 					lit ? "bg-dorkinians-yellow text-black" : "bg-white/15 text-white/80"
-				}`}
-			>
+				}`}>
 				{current}
 			</div>
 			<p className='text-white/85 text-[11px] md:text-xs leading-tight'>{label}</p>
 			<p className='text-white/45 text-[10px] leading-tight w-full'>Season best: {seasonBest}</p>
 			<p className='text-white/45 text-[10px] leading-tight w-full'>All-time best: {allTimeBest}</p>
-			<TooltipSurface className='pointer-events-none absolute left-1/2 bottom-full z-40 mb-2 hidden w-[17rem] -translate-x-1/2 text-left group-hover:block group-focus-within:block'>
-				<p className='text-white/90 leading-snug'>{tip}</p>
-				<div className='mt-2 pt-2 border-t border-white/20 space-y-1 text-white/80'>
-					<p>{currentLine}</p>
-					<p>{seasonBestLine}</p>
-					<p>{allTimeBestLine}</p>
-				</div>
-			</TooltipSurface>
-		</div>
+		</FloatingTooltipTrigger>
 	);
 }
 
