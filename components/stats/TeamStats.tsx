@@ -33,6 +33,7 @@ import {
 	type TopPlayersStatType,
 } from "@/lib/stats/topPlayersUtils";
 import type { RecordingFixture } from "@/lib/utils/recordingsDisplay";
+import { isStandardFormation } from "@/lib/utils/isStandardFormation";
 
 type StatType = TopPlayersStatType;
 
@@ -993,10 +994,15 @@ export default function TeamStats() {
 		];
 	}, [teamData]);
 
-	const formationRecommendation = useMemo(() => {
+	const standardFormationBreakdown = useMemo(() => {
 		const rows = teamData?.formationBreakdown;
-		if (!rows || rows.length === 0) return null;
-		const sorted = [...rows].sort((a, b) => {
+		if (!rows || rows.length === 0) return [];
+		return rows.filter((row) => isStandardFormation(row.formation));
+	}, [teamData]);
+
+	const formationRecommendation = useMemo(() => {
+		if (standardFormationBreakdown.length === 0) return null;
+		const sorted = [...standardFormationBreakdown].sort((a, b) => {
 			const wp = toNumber(b.winPercentage) - toNumber(a.winPercentage);
 			if (wp !== 0) return wp;
 			const g = toNumber(b.games) - toNumber(a.games);
@@ -1008,7 +1014,7 @@ export default function TeamStats() {
 		const games = toNumber(top.games);
 		const lowSample = games < 5;
 		return { formation: top.formation, winPercentage: toNumber(top.winPercentage), games, wins: toNumber(top.wins), lowSample };
-	}, [teamData]);
+	}, [standardFormationBreakdown]);
 
 	// Custom tooltip formatter to capitalize "value" and show per game
 	const customTooltip = ({ active, payload, label }: any) => {
@@ -1481,8 +1487,7 @@ export default function TeamStats() {
 
 								{!isDataTableMode &&
 									featureFlags.teamStatsFormationsUsed &&
-									teamData.formationBreakdown &&
-									teamData.formationBreakdown.length > 0 && (
+									standardFormationBreakdown.length > 0 && (
 									<div id='team-formation-breakdown' className='md:break-inside-avoid md:mb-4'>
 										<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 											<div className='flex items-center gap-2 mb-4'>
@@ -1494,6 +1499,8 @@ export default function TeamStats() {
 															Games and win rate by inferred formation from the starting XI.
 															<br />
 															Only fixtures with at least 11 starters are included.
+															<br />
+															Only standard shapes are shown: 4-4-2, 4-5-1, 4-3-3, 5-4-1, 5-3-2, 3-4-3, 3-5-2.
 														</>
 													}
 												>
@@ -1503,7 +1510,7 @@ export default function TeamStats() {
 											<div className='chart-container' style={{ touchAction: 'pan-y' }}>
 												<ResponsiveContainer width='100%' height={280}>
 													<BarChart
-														data={teamData.formationBreakdown}
+														data={standardFormationBreakdown}
 														margin={{ top: 8, right: 12, left: 12, bottom: 0 }}>
 														<CartesianGrid strokeDasharray='3 3' stroke='#ffffff22' />
 														<XAxis

@@ -42,10 +42,10 @@ Flags live in `config/config.ts` (`featureFlagPresets.develop` vs `featureFlagPr
 
 | Environment | What is on |
 | ----------- | ---------- |
-| Local `npm run dev`, Jest, Netlify deploy-preview, Netlify **`develop`** branch | **All** flags |
-| Production **main** / primary domain | Profile, Wrapped, Achievement Badges, and Wrapped load opts. **Stats / Club / League extras are off** (list in Wave 5) |
+| Local `npm run dev`, Jest, Netlify deploy-preview, Netlify **`develop`** branch | **All** user flags (umami off) |
+| Production **main** / primary domain | **Wave 5B done:** same user flags as develop (all on). **Umami** still off. Flag plumbing **kept** (Wave 5C deferred) so individual keys can be turned off again later. |
 
-Do Waves 0–3 on **local or develop**. Checking those extras on the live main URL will look like missing features. Wave 5 turns the rest on for production, then **deletes** leftover flag plumbing.
+After main is deployed and smoked, local/develop and production show the same Stats / Club / League extras. Until that deploy is confirmed, treat production smoke as still open (Wave 5B checklist).
 
 ### Run the website locally (typical)
 
@@ -72,11 +72,12 @@ Do Waves 0–3 on **local or develop**. Checking those extras on the live main U
 
 ## Recommended order
 
-1. **Wave 0** — Manual verification (local or develop; some of these UIs are off on production main)  
-2. **Wave 2** — New milestone badges  
-3. **Wave 3** — Chatbot partnerships / impact  
-4. **Wave 4** — Architecture / eng hardening  
-5. **Wave 5** — Turn remaining production flags **on**, then remove unused flag code  
+1. **Wave 0** — Finish remaining human QA (0F streaks); 0A–0D are done  
+2. **Wave 5B ops** — Deploy/smoke **main** (preset already flipped)  
+3. **Wave 2** — New milestone badges  
+4. **Wave 3** — Chatbot partnerships / impact  
+5. **Wave 4** — Architecture / eng hardening  
+6. **Wave 5C** — Only if you later decide to delete flag plumbing (currently deferred)
 
 **Retired (do not implement):** Neo4j GDS / Squad Backbone (Feature 7c/7d). Partnerships + impact on Player Stats remain.
 
@@ -84,7 +85,7 @@ Do Waves 0–3 on **local or develop**. Checking those extras on the live main U
 
 ## Wave 0 — Verification (do this first)
 
-Goal: Confirm shipped features still behave correctly. You are **checking local or develop**, not writing new features yet. Some Wave 0 UIs are off on production main until Wave 5. Tick boxes as you go. When all pass, update FEATURES-MASTER-STATUS §8 and set Feature 13 to Shipped if confirmed.
+Goal: Confirm shipped features still behave correctly. You are **checking**, not writing new features yet. Production presets already enable the Wave 5 Stats/Club/League surfaces (see Feature flags); still prefer a known-good local/develop URL if main deploy/smoke is incomplete. Tick boxes as you go. When Wave 0 is finished, update FEATURES-MASTER-STATUS §8.
 
 ### 0A. Season Wrapped — pause / play / restart / share
 
@@ -92,7 +93,7 @@ Goal: Confirm shipped features still behave correctly. You are **checking local 
 
 **Steps:**
 
-1. Start the site (`npm run dev`) or open your **develop** Netlify URL (not production main — see Feature flags above).  
+1. Start the site (`npm run dev`) or open develop / production Netlify once main has the Wave 5B preset.  
 2. Open a known player’s Wrapped page, e.g. pick yourself from Stats → Profile → Season Wrapped, or go to `/wrapped/<player-slug>`.  
 3. Wait for slides to auto-advance.  
 4. Find the **pause / resume** control (aria label like “Pause autoplay” / “Resume autoplay”).  
@@ -135,7 +136,7 @@ Goal: Confirm shipped features still behave correctly. You are **checking local 
 **Steps:**
 
 1. Open **Club Information** (Club footer area).  
-2. Find **Records** (component `RecordsSection`; above Milestones). This section is **off on production main** until Wave 5 (`clubInfoRecords`).  
+2. Find **Records** (component `RecordsSection`; above Milestones; gated by `clubInfoRecords`, on in develop and production presets).  
 3. On **desktop** and **mobile** widths:
 
    - [x] Headings are clear and not duplicated oddly (Records vs Captains/Awards pages).  
@@ -160,7 +161,7 @@ Goal: Confirm shipped features still behave correctly. You are **checking local 
 
 3. Optionally re-run Home Playwright tests `2.0` and `2.3a` if you change anything:  
    `npx playwright test` filtered to the Home suite (see `__tests__/e2e/`).  
-4. When confirmed, edit FEATURES-MASTER-STATUS Feature **13** from “Shipped (verify UX)” to plain **Shipped**, and note the date in **Last updated**.
+4. FEATURES-MASTER-STATUS Feature **13** is **Shipped** (Wave 0D verified).
 
 ### 0E. Optional — stronger TOTW previous-weeks assertions
 
@@ -172,7 +173,7 @@ Only if you care about test hardening:
 
 ### 0F. Streaks end-to-end QA (use STREAKS_TESTING.md as the master checklist)
 
-**What you are checking:** Streak numbers agree across Player Stats, Team Stats, Wrapped, chatbot, and rankings. Player/Team/Club streak **UI** is **off on production main** until Wave 5 — use local or develop.
+**What you are checking:** Streak numbers agree across Player Stats, Team Stats, Wrapped, chatbot, and rankings. Streak UI flags are on in develop and production presets; use local/develop if production smoke is not done yet.
 
 **Prep:**
 
@@ -324,7 +325,7 @@ You always do **both** repos:
 
 **What already works:** Form (`FORM_CURRENT`), many streak phrasings, core stats including starts.
 
-**What you still need to build:** The chatbot answering graph-style questions that the **Stats UI already shows** on local/develop (`#partnerships-section`, `#impact-section`). Those sections are **off on production main** until Wave 5.
+**What you still need to build:** The chatbot answering graph-style questions that the **Stats UI already shows** (`#partnerships-section`, `#impact-section`). Those sections are on in develop and production presets (Wave 5B); chatbot NL for them is still missing.
 
 ### 3A. Partnerships / impact / “best partner”
 
@@ -419,9 +420,9 @@ Do these when chatbot behaviour is stable (ideally after Wave 3):
 
 ## Wave 5 — Turn production flags on, then delete leftover flags
 
-**Goal:** By the end of this wave, production main shows the **same** gated UI as local/develop, and the feature-flag system is **gone**. Keep the “on” code paths; delete the “off” branches.
+**Goal:** Production main shows the **same** gated UI as local/develop. Optional later: remove the feature-flag system (Wave 5C deferred — keep plumbing).
 
-**When to do this:** After Wave 0 (and Wave 3 if you want Partnerships/Impact chatbot live on main in the same release). Wave 2 badges and Wave 4 eng work do not block enabling these flags.
+**Status:** Wave **5A** (automated sign-off) and Wave **5B** (production preset all user keys `true`) are done in code. Remaining: deploy/smoke main. Wave **5C** stays deferred (2026-10-12 decision).
 
 **Source of truth:** `config/config.ts` → `featureFlagsProductionDefault`. Flip flags **there** only (no env vars).
 
@@ -439,7 +440,7 @@ npx playwright test __tests__/e2e/03-stats/gated-features.spec.ts --project=chro
 ```
 
 - [x] **Automated gated UI sign-off** — `__tests__/e2e/03-stats/gated-features.spec.ts` covers all 17 production-off keys: Player (key performance, form, streaks, starting impact, partnerships, impact, recordings, per-90), Team (formations, recordings, XI streak cards, streak+form / Best current form), Club (longest active streaks, recordings), Club Information Records, League latest result, and **Show all** (`statsTopPlayersShowAll`).  
-- [x] **Preset lock** — `__tests__/unit/config/productionHiddenFlags.test.ts` (develop on / production off for those 17; umami off in both).  
+- [x] **Preset lock** — `__tests__/unit/config/productionHiddenFlags.test.ts` (develop **and** production on for those 17; umami off in both).  
 
 **Still human (before / with Wave 5B production smoke):** live streak agreement vs chatbot (`STREAKS_TESTING.md`); phone layout; open a real Veo/recording link; Impact with vs without positive delta; Settings sheet copy (`SiteDetail.updatesToCome`). Do not flip production until you accept those.
 
@@ -506,7 +507,8 @@ Only if you later choose to remove flags (after 5B is live and the production sm
 
 ## Quick “what should I do this week?”
 
-1. Wave 5A gated UI is **automated** — re-run `gated-features.spec.ts` after Stats/Club/League changes.  
-2. Implement **Ever Ready**, **Bench Utility**, and **Form Floor** badges (Wave 2).  
-3. If energy remains, start Wave 3 partnerships chatbot with one ground-truth player.  
-4. Wave 5B preset flip is done (all user features on; flags kept). Next: deploy/smoke **main**. Wave 5C (delete flags) remains deferred.
+1. **Deploy/smoke main** (Wave 5B remaining ops) — confirm the 17 former gated surfaces on the production URL.  
+2. Finish **Wave 0F** streaks QA against [STREAKS_TESTING.md](docs/to-do-docs/STREAKS_TESTING.md) when you have seed-fresh players.  
+3. Implement **Ever Ready**, **Bench Utility**, and **Form Floor** badges (Wave 2).  
+4. If energy remains, start Wave 3 partnerships chatbot with one ground-truth player.  
+5. Re-run `gated-features.spec.ts` after Stats/Club/League changes. Wave 5C (delete flags) remains deferred.

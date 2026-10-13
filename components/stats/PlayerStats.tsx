@@ -183,117 +183,102 @@ function StatRow({
 	const rowRef = useRef<HTMLTableRowElement>(null);
 	const tooltipRef = useRef<HTMLDivElement | null>(null);
 
-	// Find all scroll containers up the DOM tree
+	/** Ancestor walk with getComputedStyle — only while tooltip is open (scroll listeners). */
 	const findScrollContainers = (element: HTMLElement | null): HTMLElement[] => {
 		const containers: HTMLElement[] = [];
 		let current: HTMLElement | null = element;
-		
+
 		while (current && current !== document.body) {
 			const style = window.getComputedStyle(current);
 			const overflowY = style.overflowY;
 			const overflowX = style.overflowX;
-			
-			if (overflowY === 'auto' || overflowY === 'scroll' || overflowX === 'auto' || overflowX === 'scroll') {
+
+			if (overflowY === "auto" || overflowY === "scroll" || overflowX === "auto" || overflowX === "scroll") {
 				containers.push(current);
 			}
-			
+
 			current = current.parentElement;
 		}
-		
+
 		return containers;
 	};
 
 	const updateTooltipPosition = () => {
 		if (!rowRef.current) return;
-		
+
 		const rect = rowRef.current.getBoundingClientRect();
 		const viewportHeight = window.innerHeight;
 		const viewportWidth = window.innerWidth;
-		
-		// Find scroll containers
-		const scrollContainers = findScrollContainers(rowRef.current);
-		
-		// Calculate tooltip dimensions - use actual if available, otherwise estimate
-		let tooltipHeight = 60; // Default estimate
-		const tooltipWidth = 256; // w-64 = 16rem = 256px
-		
-		// Try to measure actual tooltip if it exists
+
+		let tooltipHeight = 60;
+		const tooltipWidth = 256;
+
 		if (tooltipRef.current) {
 			const tooltipRect = tooltipRef.current.getBoundingClientRect();
 			tooltipHeight = tooltipRect.height || 60;
 		}
-		
-		// Calculate available space above and below
+
 		const spaceBelow = viewportHeight - rect.bottom;
 		const spaceAbove = rect.top;
-		const margin = 10; // Minimum margin from viewport edge
-		const arrowHeight = 8; // Height of arrow
-		const spacing = 8; // Space between row and tooltip
-		
-		// Determine placement based on available space
-		let placement: 'above' | 'below' = 'below';
+		const margin = 10;
+		const arrowHeight = 8;
+		const spacing = 8;
+
+		let placement: "above" | "below" = "below";
 		let top: number;
-		
+
 		const neededSpaceBelow = tooltipHeight + arrowHeight + spacing + margin;
 		const neededSpaceAbove = tooltipHeight + arrowHeight + spacing + margin;
-		
+
 		if (spaceBelow < neededSpaceBelow && spaceAbove > neededSpaceAbove) {
-			// Show above if not enough space below but enough above
-			placement = 'above';
+			placement = "above";
 			top = rect.top + window.scrollY - tooltipHeight - arrowHeight - spacing;
 		} else if (spaceBelow >= neededSpaceBelow) {
-			// Show below if enough space
-			placement = 'below';
+			placement = "below";
 			top = rect.bottom + window.scrollY + spacing;
 		} else {
-			// Default to above if neither has enough space (prefer above to avoid going off bottom)
-			placement = 'above';
+			placement = "above";
 			top = Math.max(margin, rect.top + window.scrollY - tooltipHeight - arrowHeight - spacing);
 		}
-		
-		// Calculate horizontal position (center on row, but keep within viewport)
-		let left = rect.left + window.scrollX + (rect.width / 2) - (tooltipWidth / 2);
-		
-		// Ensure tooltip stays within viewport with margin
+
+		let left = rect.left + window.scrollX + rect.width / 2 - tooltipWidth / 2;
+
 		if (left < window.scrollX + margin) {
 			left = window.scrollX + margin;
 		} else if (left + tooltipWidth > window.scrollX + viewportWidth - margin) {
 			left = window.scrollX + viewportWidth - tooltipWidth - margin;
 		}
-		
+
 		setTooltipPosition({ top, left, placement });
 	};
 
-	// Update position when tooltip becomes visible (to measure actual dimensions)
 	useEffect(() => {
-		if (showTooltip) {
-			// Use a small delay to ensure tooltip is rendered and we can measure it
-			const timeoutId = setTimeout(() => {
-				updateTooltipPosition();
-			}, 0);
-			return () => clearTimeout(timeoutId);
-		}
+		if (!showTooltip) return;
+		const rafId = requestAnimationFrame(() => {
+			updateTooltipPosition();
+		});
+		return () => cancelAnimationFrame(rafId);
 	}, [showTooltip]);
 
-	// Add scroll listeners
 	useEffect(() => {
 		if (!showTooltip || !rowRef.current) return;
-		
+
 		const scrollContainers = findScrollContainers(rowRef.current);
 		const handleScroll = () => {
-			updateTooltipPosition();
+			requestAnimationFrame(() => {
+				updateTooltipPosition();
+			});
 		};
-		
-		// Add listeners to window and all scroll containers
-		window.addEventListener('scroll', handleScroll, true);
-		scrollContainers.forEach(container => {
-			container.addEventListener('scroll', handleScroll, true);
+
+		window.addEventListener("scroll", handleScroll, true);
+		scrollContainers.forEach((container) => {
+			container.addEventListener("scroll", handleScroll, true);
 		});
-		
+
 		return () => {
-			window.removeEventListener('scroll', handleScroll, true);
-			scrollContainers.forEach(container => {
-				container.removeEventListener('scroll', handleScroll, true);
+			window.removeEventListener("scroll", handleScroll, true);
+			scrollContainers.forEach((container) => {
+				container.removeEventListener("scroll", handleScroll, true);
 			});
 		};
 	}, [showTooltip]);
@@ -307,8 +292,6 @@ function StatRow({
 	}, []);
 
 	const handleMouseEnter = () => {
-		updateTooltipPosition();
-		// Use animation token: --delay-tooltip-mouse (300ms)
 		timeoutRef.current = setTimeout(() => {
 			setShowTooltip(true);
 		}, 300);
@@ -328,8 +311,6 @@ function StatRow({
 			clearTimeout(timeoutRef.current);
 			timeoutRef.current = null;
 		}
-		updateTooltipPosition();
-		// Use animation token: --delay-tooltip-touch (500ms)
 		timeoutRef.current = setTimeout(() => {
 			setShowTooltip(true);
 		}, 500);
@@ -367,6 +348,7 @@ function StatRow({
 							width={24}
 							height={24}
 							className='w-6 h-6 md:w-8 md:h-8 object-contain'
+							loading='eager'
 						/>
 					</div>
 				</td>
@@ -1377,7 +1359,7 @@ function DefensiveRecordSection({
 				{/* Background Brick Wall */}
 				<div className='absolute inset-0 w-full h-full' style={{ borderRadius: '0.5rem', overflow: 'hidden' }}>
 					<Image
-						src='/stat-images/brick-wall.jpg'
+						src='/stat-images/brick-wall.svg'
 						alt='Brick Wall'
 						fill
 						className='object-cover w-full h-full'
@@ -3444,6 +3426,7 @@ export default function PlayerStats() {
 														height={40}
 														className='w-8 h-8 md:w-10 md:h-10 object-contain'
 														priority={isPriority}
+														loading={isPriority ? undefined : "eager"}
 													/>
 												</div>
 												<div className='flex-1 min-w-0'>

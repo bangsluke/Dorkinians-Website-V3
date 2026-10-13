@@ -932,7 +932,7 @@ export const statObject = {
 		statHigherBetterBoolean: true,
 		numberDecimalPlaces: 2,
 		statCategory: "Per App/Minute Stat",
-		iconName: "MOMPerAppearance-Icon",
+		iconName: "MoM-Icon",
 	},
 	YperAPP: {
 		statName: "yellowCardsPerApp",
@@ -944,7 +944,7 @@ export const statObject = {
 		statHigherBetterBoolean: false,
 		numberDecimalPlaces: 2,
 		statCategory: "Per App/Minute Stat",
-		iconName: "YellowCardsPerAppearance-Icon",
+		iconName: "YellowCard-Icon",
 	},
 	RperAPP: {
 		statName: "redCardsPerApp",
@@ -956,7 +956,7 @@ export const statObject = {
 		statHigherBetterBoolean: false,
 		numberDecimalPlaces: 2,
 		statCategory: "Per App/Minute Stat",
-		iconName: "RedCardsPerAppearance-Icon",
+		iconName: "RedCard-Icon",
 	},
 	SAVESperAPP: {
 		statName: "savesPerApp",
@@ -968,7 +968,7 @@ export const statObject = {
 		statHigherBetterBoolean: true,
 		numberDecimalPlaces: 2,
 		statCategory: "Per App/Minute Stat",
-		iconName: "SavesPerAppearance-Icon",
+		iconName: "Saves-Icon",
 	},
 	OGperAPP: {
 		statName: "ownGoalsPerApp",
@@ -980,7 +980,7 @@ export const statObject = {
 		statHigherBetterBoolean: false,
 		numberDecimalPlaces: 2,
 		statCategory: "Per App/Minute Stat",
-		iconName: "OwnGoalsPerAppearance-Icon",
+		iconName: "OwnGoal-Icon",
 	},
 	CLSperAPP: {
 		statName: "cleanSheetsPerApp",
@@ -992,7 +992,7 @@ export const statObject = {
 		statHigherBetterBoolean: true,
 		numberDecimalPlaces: 2,
 		statCategory: "Per App/Minute Stat",
-		iconName: "CleanSheetsPerAppearance-Icon",
+		iconName: "CleanSheet-Icon",
 	},
 	PSCperAPP: {
 		statName: "penaltiesScoredPerApp",
@@ -1004,7 +1004,7 @@ export const statObject = {
 		statHigherBetterBoolean: true,
 		numberDecimalPlaces: 2,
 		statCategory: "Per App/Minute Stat",
-		iconName: "PenaltiesScoredPerAppearance-Icon",
+		iconName: "PenaltiesScored-Icon",
 	},
 	PMperAPP: {
 		statName: "penaltiesMissedPerApp",
@@ -1016,7 +1016,7 @@ export const statObject = {
 		statHigherBetterBoolean: false,
 		numberDecimalPlaces: 2,
 		statCategory: "Per App/Minute Stat",
-		iconName: "PenaltiesMissedPerAppearance-Icon",
+		iconName: "PenaltiesMissed-Icon",
 	},
 	PCOperAPP: {
 		statName: "penaltiesConcededPerApp",
@@ -1028,7 +1028,7 @@ export const statObject = {
 		statHigherBetterBoolean: false,
 		numberDecimalPlaces: 2,
 		statCategory: "Per App/Minute Stat",
-		iconName: "PenaltiesConcededPerAppearance-Icon",
+		iconName: "PenaltiesConceded-Icon",
 	},
 	PSVperAPP: {
 		statName: "penaltiesSavedPerApp",
@@ -1040,7 +1040,7 @@ export const statObject = {
 		statHigherBetterBoolean: true,
 		numberDecimalPlaces: 2,
 		statCategory: "Per App/Minute Stat",
-		iconName: "PenaltiesSavedPerAppearance-Icon",
+		iconName: "PenaltiesSaved-Icon",
 	},
 	DIST: {
 		statName: "distance",
@@ -1245,7 +1245,7 @@ export const statObject = {
 		statHigherBetterBoolean: true,
 		numberDecimalPlaces: 2,
 		statCategory: "Performance Stat",
-		iconName: "GoalsAndAssists-Icon",
+		iconName: "GoalInvolvements-Icon",
 	},
 	PlayerFTP90: {
 		statName: "ftpPer90",
@@ -1269,7 +1269,7 @@ export const statObject = {
 		statHigherBetterBoolean: false,
 		numberDecimalPlaces: 2,
 		statCategory: "Discipline Stat",
-		iconName: "YellowAndRedCard-Icon",
+		iconName: "YellowCard-Icon",
 	},
 	PlayerCleanSheets90: {
 		statName: "cleanSheetsPer90",
@@ -1281,7 +1281,7 @@ export const statObject = {
 		statHigherBetterBoolean: true,
 		numberDecimalPlaces: 2,
 		statCategory: "Performance Stat",
-		iconName: "CleanSheets-Icon",
+		iconName: "CleanSheet-Icon",
 	},
 	PlayerConceded90: {
 		statName: "concededPer90",
