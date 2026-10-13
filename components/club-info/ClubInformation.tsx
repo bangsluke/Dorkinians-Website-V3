@@ -522,11 +522,7 @@ export default function ClubInformation() {
 							<BadgeLeaderboardSection />
 						</LazyWhenVisible>
 					) : null}
-					{featureFlags.clubInfoRecords ? (
-						<LazyWhenVisible rootMargin='0px' className='min-h-[180px]'>
-							<RecordsSection />
-						</LazyWhenVisible>
-					) : null}
+					{featureFlags.clubInfoRecords ? <RecordsSection /> : null}
 				</div>
 			</div>
 		</div>

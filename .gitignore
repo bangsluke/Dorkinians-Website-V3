@@ -115,6 +115,13 @@ logs/
 logs/test-chatbot-email-report.log
 logs/test-execution.log
 
+# Local diagnostic dumps (do not commit)
+/v-tsc.txt
+/v-lint.txt
+/v-jest.txt
+/out.txt
+/typescript-errors-log.txt
+
 # Test Results
 __tests__/e2e/test-results/
 __tests__/e2e/playwright-report/

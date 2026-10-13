@@ -4,7 +4,7 @@ Step-by-step checklist to measure first-page and subsequent-page load speed on t
 
 **Production URL:** `https://dorkinians-website-v3.netlify.app`
 
-**Related docs:** [PROFILE_WRAPPED_PERFORMANCE.md](./PROFILE_WRAPPED_PERFORMANCE.md), [load-speed-results/AGENT_REPORT.md](./load-speed-results/AGENT_REPORT.md), [load-speed-results/LOCAL_UMAMI_FLAG_CHECK.md](./load-speed-results/LOCAL_UMAMI_FLAG_CHECK.md), [MONITORING.md](./MONITORING.md)
+**Related docs:** [PROFILE_WRAPPED_PERFORMANCE.md](./PROFILE_WRAPPED_PERFORMANCE.md), [load-speed-results/agent-baseline.json](./load-speed-results/agent-baseline.json), [load-speed-results/lighthouse-summary.json](./load-speed-results/lighthouse-summary.json), [MONITORING.md](./MONITORING.md)
 
 **Umami:** Retired for this workflow. `featureFlags.umamiAnalytics` is `false` in [`config/config.ts`](../config/config.ts), so the third-party script is not injected. Do not use Umami for baselines.
 
@@ -66,7 +66,7 @@ Two independent tracks, then merge. Neither track needs Umami.
 | Track | Who | How | Output |
 |-------|-----|-----|--------|
 | **A — Manual** | You | Chrome Lighthouse (Mobile ×3 median) + Network/Performance; optional [PageSpeed Insights](https://pagespeed.web.dev/) on production `/` | Tables B / D / E / J below |
-| **B — Agent** | Unattended Playwright | `npm run test:e2e:load-speed` with `WEBSITE_URL=https://dorkinians-website-v3.netlify.app` | [load-speed-results/AGENT_REPORT.md](./load-speed-results/AGENT_REPORT.md) + `agent-baseline.json` |
+| **B — Agent** | Unattended Playwright | `npm run test:e2e:load-speed` with `WEBSITE_URL=https://dorkinians-website-v3.netlify.app` | [load-speed-results/agent-baseline.json](./load-speed-results/agent-baseline.json) (+ regenerates `AGENT_REPORT.md` if the suite writes it) |
 
 **Merge rule**
 
@@ -109,7 +109,7 @@ You do **not** need to share a HAR to start this checklist. Share a Performance 
 
 ## 4. Lab targets
 
-Record against **mobile throttling** in Lighthouse / DevTools (Slow 4G or Lighthouse mobile preset) unless you note otherwise. The agent Playwright run uses Chromium desktop by default (see AGENT_REPORT for project name).
+Record against **mobile throttling** in Lighthouse / DevTools (Slow 4G or Lighthouse mobile preset) unless you note otherwise. The agent Playwright run uses Chromium desktop by default (see `agent-baseline.json` / suite output for project name).
 
 | Metric | Target (lab) | Notes |
 |--------|--------------|-------|
@@ -134,7 +134,7 @@ Record against **mobile throttling** in Lighthouse / DevTools (Slow 4G or Lighth
 
 Do this **before** trusting either track’s numbers for a fix decision.
 
-- [x] Open [load-speed-results/AGENT_REPORT.md](./load-speed-results/AGENT_REPORT.md) (or run Track B: `WEBSITE_URL=https://dorkinians-website-v3.netlify.app npm run test:e2e:load-speed`)
+- [x] Open [load-speed-results/agent-baseline.json](./load-speed-results/agent-baseline.json) (or run Track B: `WEBSITE_URL=https://dorkinians-website-v3.netlify.app npm run test:e2e:load-speed`)
 - [x] Note agent date, base URL, and per-scenario status
 - [x] Confirm agent reported `umamiRequests: 0` after a deploy that includes `umamiAnalytics: false` (pre-deploy production may still load Umami from old HTML)
 - [x] Optional: PageSpeed Insights on `https://dorkinians-website-v3.netlify.app/` — paste scores into Table A notes (API 429; used Lighthouse instead)
@@ -335,7 +335,7 @@ After each fix batch:
 |--------|----------------|-------|-------|
 | PageSpeed Insights (mobile) | Performance | N/A | API quota exceeded (429) |
 | Agent Lighthouse (mobile median) | Performance / LCP / TTFB | 67 / 3268 ms / 638 ms | See [lighthouse-summary.json](./load-speed-results/lighthouse-summary.json) |
-| Agent report date | — | 2026-10-10T19:17:02Z | [AGENT_REPORT.md](./load-speed-results/AGENT_REPORT.md) |
+| Agent report date | — | 2026-10-10T19:17:02Z | [agent-baseline.json](./load-speed-results/agent-baseline.json) |
 | Umami on production | Requests | **0** | Post-deploy confirmed (Playwright + CDP) |
 
 Date recorded: 2026-10-10 (agent-led)

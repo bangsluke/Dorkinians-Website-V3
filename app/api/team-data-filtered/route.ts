@@ -8,6 +8,7 @@ import { log, logError, logQuery } from "@/lib/utils/logger";
 import { csrfProtection } from "@/lib/middleware/csrf";
 import { computeTeamStreakPayload, type StreakDateRange, type TeamFixtureStreakRow } from "@/lib/stats/teamStreaksComputation";
 import { featureFlags } from "@/config/config";
+import { isStandardFormation } from "@/lib/utils/isStandardFormation";
 
 const corsHeaders = getCorsHeadersWithSecurity();
 
@@ -818,16 +819,18 @@ export async function POST(request: NextRequest) {
 			fantasyPointsPerAppearance: toNumber(record.get("fantasyPointsPerAppearance")),
 			numberOfSeasons: toNumber(record.get("numberOfSeasons")),
 			numberOfCompetitions: toNumber(record.get("numberOfCompetitions")),
-			formationBreakdown: (formationResult?.records || []).map((r: { get: (key: string) => unknown }) => {
-				const games = toNumber(r.get("games"));
-				const wins = toNumber(r.get("wins"));
-				return {
-					formation: String(r.get("formation") || ""),
-					games,
-					wins,
-					winPercentage: games > 0 ? Math.round((wins / games) * 1000) / 10 : 0,
-				};
-			}),
+			formationBreakdown: (formationResult?.records || [])
+				.map((r: { get: (key: string) => unknown }) => {
+					const games = toNumber(r.get("games"));
+					const wins = toNumber(r.get("wins"));
+					return {
+						formation: String(r.get("formation") || ""),
+						games,
+						wins,
+						winPercentage: games > 0 ? Math.round((wins / games) * 1000) / 10 : 0,
+					};
+				})
+				.filter((row: { formation: string }) => isStandardFormation(row.formation)),
 			...(teamStreaks ? { teamStreaks } : {}),
 			...(streakLeaders.length > 0 ? { streakLeaders } : {}),
 			...(streakLeadersAllTime.length > 0 ? { streakLeadersAllTime } : {}),
