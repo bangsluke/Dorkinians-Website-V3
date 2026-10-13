@@ -356,7 +356,7 @@ function renderVisualization(viz: { type: string; data?: any }, accentColor: str
 						{/* Background Brick Wall */}
 						<div style={{ position: "absolute", inset: 0, width: "100%", height: "100%", borderRadius: "0.5rem", overflow: "hidden" }}>
 							<img
-								src={`${typeof window !== 'undefined' ? window.location.origin : ''}/stat-images/brick-wall.jpg`}
+								src={`${typeof window !== 'undefined' ? window.location.origin : ''}/stat-images/brick-wall.svg`}
 								alt="Brick Wall"
 								style={{
 									width: "100%",

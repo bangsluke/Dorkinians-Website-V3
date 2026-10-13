@@ -59,7 +59,7 @@
 - In-memory cache only (lost on restart)
 
 **TypeScript** ⚠️:
-- 325+ lines of errors in `typescript-errors-log.txt`
+- Large backlog of TypeScript errors (historically 325+ lines), mainly in chatbot code
 - Implicit `any` types throughout chatbotService.ts
 - Missing type annotations in query handlers
 
@@ -104,7 +104,7 @@
 
 ### Current Issues Summary
 
-1. **TypeScript Errors**: 325+ lines of errors in `typescript-errors-log.txt`
+1. **TypeScript Errors**: Large backlog (historically 325+ lines from `tsc` / type-check)
    - Mostly implicit `any` types in chatbotService.ts
    - Missing type annotations in query handlers
 
@@ -323,7 +323,7 @@ this.logToBoth(`message ${var}`, null, "log");
 
 **Context:**
 - All errors are in `chatbotService.ts` - the main orchestrator service
-- Errors are from `typescript-errors-log.txt` (325 lines of errors)
+- Re-capture the backlog with `npm run type-check` (or `tsc --noEmit`) when working this section; do not rely on a committed error dump file
 - Most errors are implicit `any` types on method parameters
 - Some errors are from callback functions in array methods
 
@@ -1128,7 +1128,7 @@ npm run dev
 
 ## Important File Locations
 
-- **TypeScript Errors**: `typescript-errors-log.txt` (325 lines of errors)
+- **TypeScript check**: run `npm run type-check` (or `tsc --noEmit`); do not keep a root error dump checked in
 - **Main Chatbot Service**: `lib/services/chatbotService.ts` (5,324 lines)
 - **State Store**: `lib/stores/navigation.ts` (2,038 lines)
 - **Database Connection**: `lib/neo4j.ts` (405 lines)

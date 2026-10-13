@@ -2,7 +2,7 @@
 
 **Purpose:** Single source of truth for what shipped, what remains, how major areas work, and setup outside the codebase. Use this file (not legacy split docs) when briefing an AI or resuming implementation.
 
-**Last updated:** 2026-10-12 (Wave 5B: production preset all user features on; flag plumbing retained for later gating).
+**Last updated:** 2026-10-13 (Feature 13 header profile icon confirmed Shipped; Wave 5B preset still on with flag plumbing retained).
 
 **Repos:**
 
@@ -40,7 +40,7 @@ Status values: **Shipped** | **Partial** | **Deferred** | **Retired** | **Verify
 | **10** | Player Profile + captaincies link | **Shipped** | `app/profile/[playerSlug]/page.tsx`, `PlayerProfileView.tsx`, `lib/profile/slug.ts`, link from Player Stats (`data-testid="milestone-badges-profile-link"`). Order: Season Wrapped → Headline Stats → Achievement Badges. |
 | **11** | Club Captains and Awards merge | **Shipped** | `ClubCaptainsAndAwards.tsx`, nav + `navigation.ts` legacy mapping to `club-awards` subpage state. |
 | **12** | Records on Club Information | **Shipped** | `ClubInformation.tsx` placement; Records absent from merged captains/awards page. |
-| **13** | Header profile icon | **Shipped** (verify UX) | Home-first cut; **Phase 7 A** marked complete for broader nav/profile parity—confirm “all main pages + spacing” vs spec in live build. Tests: Home `2.0`, `2.3a`. |
+| **13** | Header profile icon | **Shipped** | Confirmed on Home, Stats, TOTW, Club Information, Settings (Wave 0D). Tests: Home `2.0`, `2.3a`. |
 | **14** | Most Connected | **Retired** | Removed from UI/API/tests; Partnerships only. |
 | **15** | TOTW previous 10 weeks | **Shipped** | `app/api/totw/weeks/route.ts` `totwScore`; UI `#totw-previous-weeks-strip`. Playwright `4.14`. Optional: stronger seeded assertions. |
 | **16** | TOTW share | **Shipped** | `html-to-image`, `totw-share-button`. Playwright `4.15`. |
@@ -136,7 +136,7 @@ Within each step, implement in listed order; run the test suite after material c
 
 ## 8. AI handoff – next focus (from last integration milestone)
 
-**Current theme:** Wave 5B complete (production all user features on); flag plumbing kept. Next: deploy/smoke main, then Wave 2 badges / Wave 3 chatbot backlog. Wave 5C (delete flags) only if you later decide flags are never needed.
+**Current theme:** Wave 5B complete in code (production all user features on); flag plumbing kept. Feature 13 verified Shipped. Next: deploy/smoke main, Wave 0F streaks QA, then Wave 2 badges / Wave 3 chatbot backlog. Wave 5C (delete flags) only if you later decide flags are never needed.
 
 **Automated (done 2026-10-12):** All 17 former production-off surfaces covered by `__tests__/e2e/03-stats/gated-features.spec.ts`. Preset lock expects develop **and** production user keys on (`productionHiddenFlags.test.ts`). Live impact fill on `GET /api/player-data` when seeded `impactDelta` is null. Production preset flipped all-`true` (umami still false).
 
@@ -174,7 +174,7 @@ Within each step, implement in listed order; run the test suite after material c
 
 - **Single file:** This document replaces `NEW-FEATURES.md`, `IMPLEMENTATION-STATUS.md`, and `FEATURE-IMPLEMENTATION-REPORT.md`. All cross-links in-repo should point here.
 - **Conflicts resolved:** Where `NEW-FEATURES.md` said “Phase 7 in progress” but `IMPLEMENTATION-STATUS.md` marked A–J shipped, **status file wins** → all Phase 7 rows treated as **Shipped**.
-- **Feature 13:** Legacy spec listed “icon on all pages” as incomplete; implementation status rolled that into **Phase 7 A** (✅)—keep **Verify** until product confirms.
+- **Feature 13:** Legacy spec listed “icon on all pages” as incomplete; Wave 0D verified on all main pages — status is **Shipped**.
 - **Feature 8 homepage:** Follow-up about removing homepage banner is **done** (Phase 6 item 1); entry via profile + `/wrapped/...`.
 - **Feature 7c/7d:** Neo4j GDS / Squad Backbone **retired** 2026-08-02 (Aura Free; no Professional upgrade). Partnerships + impact (7a/7b) remain.
 - **Deep spec detail:** The old plan file contained full code snippets, schema blocks, and exhaustive test lists for each feature. For that level of detail, use **git history** of removed files or reconstruct from `database-dorkinians` + website source; this master file is optimized for **status + handoff + ops**.
