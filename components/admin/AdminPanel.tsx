@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useAppRouter } from "@/lib/hooks/useAppRouter";
 import { seedingStatusService } from "@/lib/services/seedingStatusService";
 import { getCsrfHeaders } from "@/lib/middleware/csrf";
@@ -9,6 +9,11 @@ import JobMonitoringDashboard from "./JobMonitoringDashboard";
 import { HoverTooltip } from "@/components/ui/Tooltip";
 import { killJob as killJobUtil } from "../../lib/jobUtils";
 import { useToast } from "@/lib/hooks/useToast";
+import { featureFlags } from "@/config/config";
+import {
+	formatFailedTestItemLine,
+	type FailedTestDetail,
+} from "@/lib/utils/failedTestsDetailFormat";
 
 interface SiteDetails {
 	lastSeededStats: string | null;
@@ -20,6 +25,19 @@ interface SiteDetails {
 	lastSeedFailureReason?: string | null;
 	blueGreenCutoverCompleted?: boolean | null;
 	verificationOverallPassed?: boolean | null;
+}
+
+interface LastSeedRunSummary {
+	exists: boolean;
+	lastSeedJobId: string | null;
+	lastSeedFinishedAt: string | null;
+	lastSeedOutcome: string | null;
+	errorLogText: string;
+	fullLogText: string | null;
+	fullLogTruncated: boolean;
+	errorLogTruncated: boolean;
+	failedTestsDetail: FailedTestDetail[];
+	hasErrors: boolean;
 }
 
 interface SeedingResult {
@@ -127,6 +145,10 @@ export default function AdminPanel() {
 
 	// Site details state
 	const [siteDetails, setSiteDetails] = useState<SiteDetails | null>(null);
+	const [lastSeedRun, setLastSeedRun] = useState<LastSeedRunSummary | null>(null);
+	const [lastSeedRunLoading, setLastSeedRunLoading] = useState(false);
+	const [showFullSeedLogs, setShowFullSeedLogs] = useState(false);
+	const [fullSeedLogsLoading, setFullSeedLogsLoading] = useState(false);
 
 	// Unanswered questions state
 	const [unansweredQuestionsLoading, setUnansweredQuestionsLoading] = useState(false);
@@ -147,6 +169,7 @@ export default function AdminPanel() {
 
 	const startTimeRef = useRef<number | null>(null);
 	const timerRef = useRef<NodeJS.Timeout | null>(null);
+	const refreshPostSeedAdminStateRef = useRef<() => Promise<void>>(async () => undefined);
 
 	// Season calculation logic
 	const calculateCurrentSeason = (date = new Date()) => {
@@ -596,7 +619,11 @@ export default function AdminPanel() {
 				}
 
 				// Update result with current status (use jobIdToCheck for callbacks that may need to set jobId)
-				if (statusData.status === "completed" && statusData.result && result) {
+				if (
+					(statusData.status === "completed" || statusData.status === "completed_with_warnings") &&
+					statusData.result &&
+					result
+				) {
 					setResult({
 						success: true,
 						message: "Seeding completed successfully",
@@ -631,6 +658,7 @@ export default function AdminPanel() {
 							relationshipsCreated: statusData.result.relationshipsCreated || 0,
 						});
 					}
+					void refreshPostSeedAdminStateRef.current();
 				} else if (statusData.status === "failed" && result) {
 					// Extract error information from the job status
 					const errorMessages = statusData.result?.errors || [];
@@ -671,6 +699,7 @@ export default function AdminPanel() {
 						duration: 0,
 					});
 					setLastCompletedJobDuration(0); // Reset duration for failed jobs
+					void refreshPostSeedAdminStateRef.current();
 				} else if (statusData.status === "not_found") {
 					// Don't clear result, keep it for debugging
 					const hint = (statusData as { hint?: string }).hint;
@@ -836,6 +865,14 @@ export default function AdminPanel() {
 				setResult(newResult);
 				setJobId(specificJobId);
 				setLastStatusCheck(`🔍 Status checked for job ${specificJobId} at ${new Date().toLocaleString()}`);
+
+				if (
+					statusData.status === "completed" ||
+					statusData.status === "completed_with_warnings" ||
+					statusData.status === "failed"
+				) {
+					void refreshPostSeedAdminStateRef.current();
+				}
 
 				// Calculate actual elapsed time based on job start time
 				if (statusData.startTime) {
@@ -1083,22 +1120,6 @@ export default function AdminPanel() {
 
 	const statusInfo = getStatusDisplay();
 
-	// Fetch site details on mount
-	useEffect(() => {
-		const fetchSiteDetails = async () => {
-			try {
-				const response = await fetch("/api/site-details");
-				if (response.ok) {
-					const data = await response.json();
-					setSiteDetails(data);
-				}
-			} catch (error) {
-				console.error("Failed to fetch site details:", error);
-			}
-		};
-		fetchSiteDetails();
-	}, []);
-
 	const formatDate = (dateString: string | null) => {
 		if (!dateString) return "Never";
 		try {
@@ -1123,6 +1144,92 @@ export default function AdminPanel() {
 			"seed attempt failed";
 		return { tone: "failure" as const, text: `Last seed attempt: Failure — ${reason}` };
 	};
+
+	const fetchSiteDetails = useCallback(async () => {
+		try {
+			const response = await fetch("/api/site-details?fresh=1", { cache: "no-store" });
+			if (response.ok) {
+				const data = await response.json();
+				setSiteDetails(data);
+			}
+		} catch (error) {
+			console.error("Failed to fetch site details:", error);
+		}
+	}, []);
+
+	const fetchLastSeedRun = useCallback(async (includeFull = false) => {
+		setLastSeedRunLoading(true);
+		try {
+			const url = includeFull
+				? "/api/admin/last-seed-run?includeFull=1"
+				: "/api/admin/last-seed-run";
+			const response = await fetch(url, { cache: "no-store" });
+			if (response.ok) {
+				const data = (await response.json()) as LastSeedRunSummary;
+				setLastSeedRun(data);
+			}
+		} catch (error) {
+			console.error("Failed to fetch last seed run:", error);
+		} finally {
+			setLastSeedRunLoading(false);
+		}
+	}, []);
+
+	const refreshPostSeedAdminState = useCallback(async () => {
+		await Promise.all([fetchSiteDetails(), fetchLastSeedRun(showFullSeedLogs)]);
+	}, [fetchSiteDetails, fetchLastSeedRun, showFullSeedLogs]);
+
+	refreshPostSeedAdminStateRef.current = refreshPostSeedAdminState;
+
+	const handleShowFullSeedLogs = async () => {
+		if (showFullSeedLogs) {
+			setShowFullSeedLogs(false);
+			return;
+		}
+		setShowFullSeedLogs(true);
+		if (lastSeedRun?.fullLogText) {
+			return;
+		}
+		setFullSeedLogsLoading(true);
+		try {
+			await fetchLastSeedRun(true);
+		} finally {
+			setFullSeedLogsLoading(false);
+		}
+	};
+
+	const handleDownloadFullSeedLogs = async () => {
+		try {
+			const response = await fetch("/api/admin/last-seed-run?download=full", { cache: "no-store" });
+			if (!response.ok) {
+				const data = await response.json().catch(() => ({}));
+				showToast(data.error || "Failed to download full logs", "error");
+				return;
+			}
+			const blob = await response.blob();
+			const disposition = response.headers.get("Content-Disposition") || "";
+			const match = disposition.match(/filename="([^"]+)"/);
+			const filename = match?.[1] || "seed-run.log";
+			const url = URL.createObjectURL(blob);
+			const anchor = document.createElement("a");
+			anchor.href = url;
+			anchor.download = filename;
+			document.body.appendChild(anchor);
+			anchor.click();
+			anchor.remove();
+			URL.revokeObjectURL(url);
+			showToast("Full seed logs downloaded", "success");
+		} catch (error) {
+			console.error("Failed to download full seed logs:", error);
+			showToast("Failed to download full logs", "error");
+		}
+	};
+
+	// Fetch site details and last seed run on mount
+	useEffect(() => {
+		fetchSiteDetails();
+		fetchLastSeedRun(false);
+	}, [fetchSiteDetails, fetchLastSeedRun]);
 
 	return (
 		<div className='w-full min-h-screen p-2 sm:p-6 bg-white overflow-x-hidden py-4 px-4'>
@@ -1198,15 +1305,65 @@ export default function AdminPanel() {
 				</div>
 			)}
 
-			{/* Admin resource links */}
-			<div className='mb-6 flex flex-col items-center gap-3 lg:flex-row lg:justify-center'>
-				<a
-					href='https://cloud.umami.is/analytics/eu/websites/351bdc1f-abd3-4b55-8e6f-23b3693b13b4'
-					target='_blank'
-					rel='noopener noreferrer'
-					className='inline-block px-6 py-3 rounded-lg text-sm font-semibold text-white transition-colors bg-green-600 hover:bg-green-700'>
-					See Umami Analytics of the site here
-				</a>
+			{/* Latest Status Summary */}
+			<div className='mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200'>
+				<h3 className='text-lg font-semibold text-gray-800 mb-2'>Latest Status Summary</h3>
+				{(() => {
+					const outcome = siteDetails?.lastSeedOutcome || lastSeedRun?.lastSeedOutcome || null;
+					const failedTests = lastSeedRun?.failedTestsDetail || [];
+					const finishedAt =
+						siteDetails?.lastSeedFinishedAt || lastSeedRun?.lastSeedFinishedAt || null;
+					if (!outcome && !lastSeedRun?.exists) {
+						return (
+							<p className='text-sm text-gray-600'>
+								No seed run has been recorded yet.
+							</p>
+						);
+					}
+					if (outcome === "success" && failedTests.length === 0) {
+						return (
+							<p className='text-sm text-green-700'>
+								Last seeding was successful
+								{finishedAt ? ` (${formatDate(finishedAt)})` : ""}.
+							</p>
+						);
+					}
+					if (failedTests.length > 0) {
+						return (
+							<div className='space-y-3'>
+								<p className='text-sm font-medium text-amber-800'>
+									Failed Tests with Detailed Information
+								</p>
+								{failedTests.map((failedTest) => (
+									<div
+										key={`${failedTest.name}-${failedTest.type}`}
+										className='rounded border border-amber-200 bg-white p-3'>
+										<p className='text-sm font-semibold text-amber-900'>
+											{failedTest.name}: {failedTest.count ?? failedTest.items.length} issue
+											{(failedTest.count ?? failedTest.items.length) === 1 ? "" : "s"}
+										</p>
+										<ul className='mt-2 list-disc space-y-1 pl-5 text-xs text-gray-700'>
+											{failedTest.items.map((item, index) => (
+												<li key={`${failedTest.name}-${index}`}>
+													{formatFailedTestItemLine(failedTest.type, item)}
+												</li>
+											))}
+										</ul>
+									</div>
+								))}
+							</div>
+						);
+					}
+					const reason =
+						siteDetails?.lastSeedFailureReason ||
+						siteDetails?.lastSeedFailureSummary ||
+						"seed attempt failed";
+					return (
+						<p className='text-sm text-red-700'>
+							Last seeding failed{finishedAt ? ` (${formatDate(finishedAt)})` : ""} — {reason}
+						</p>
+					);
+				})()}
 			</div>
 
 			{/* Email Configuration Section */}
@@ -1255,7 +1412,61 @@ export default function AdminPanel() {
 				</div>
 			</div>
 
-					{/* Debug Configuration Section */}
+			{/* Last Seed Run Logs */}
+			<div className='mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200'>
+				<h3 className='text-lg font-semibold text-gray-800 mb-2'>Last Seed Run Logs</h3>
+				{lastSeedRunLoading && !lastSeedRun ? (
+					<p className='text-sm text-gray-600'>Loading last seed run logs...</p>
+				) : !lastSeedRun?.exists ? (
+					<p className='text-sm text-gray-600'>No seed run has been recorded yet.</p>
+				) : (
+					<div className='space-y-3'>
+						<p className='text-xs text-gray-500'>
+							Job {lastSeedRun.lastSeedJobId || "unknown"}
+							{lastSeedRun.lastSeedFinishedAt
+								? ` · ${formatDate(lastSeedRun.lastSeedFinishedAt)}`
+								: ""}
+							{lastSeedRun.fullLogTruncated ? " · full log truncated to the latest portion" : ""}
+						</p>
+						{lastSeedRun.hasErrors ? (
+							<pre className='max-h-64 overflow-auto rounded bg-gray-900 p-3 text-xs text-red-200 whitespace-pre-wrap'>
+								{lastSeedRun.errorLogText}
+								{lastSeedRun.errorLogTruncated ? "\n\n[error log truncated]" : ""}
+							</pre>
+						) : (
+							<p className='text-sm text-green-700'>
+								No errors were recorded for the last seed run.
+							</p>
+						)}
+						<div className='flex flex-col sm:flex-row gap-2'>
+							<button
+								type='button'
+								onClick={() => void handleShowFullSeedLogs()}
+								disabled={fullSeedLogsLoading}
+								className='px-3 py-2 rounded bg-gray-800 text-white text-sm hover:bg-gray-700 disabled:opacity-50'>
+								{fullSeedLogsLoading
+									? "Loading full logs..."
+									: showFullSeedLogs
+										? "Hide full logs"
+										: "Show full logs"}
+							</button>
+							<button
+								type='button'
+								onClick={() => void handleDownloadFullSeedLogs()}
+								className='px-3 py-2 rounded bg-blue-600 text-white text-sm hover:bg-blue-700'>
+								Download full logs
+							</button>
+						</div>
+						{showFullSeedLogs && (
+							<pre className='max-h-96 overflow-auto rounded bg-gray-900 p-3 text-xs text-gray-100 whitespace-pre-wrap'>
+								{lastSeedRun.fullLogText || "Full logs are not available yet."}
+							</pre>
+						)}
+					</div>
+				)}
+			</div>
+
+			{/* Debug Configuration Section */}
 			<div className='mb-6 p-4 bg-gray-50 rounded-lg'>
 				<h3 className='text-lg font-semibold text-gray-800 mb-2'>Debug and Run Options Configuration</h3>
 				<div className='space-y-2'>
@@ -2015,6 +2226,24 @@ export default function AdminPanel() {
 			<div className='mt-6 p-4 bg-purple-50 border border-purple-200 rounded-lg'>
 				<JobMonitoringDashboard />
 			</div>
+
+			{featureFlags.umamiAnalytics && (
+				<div className='mt-6 p-4 bg-green-50 border border-green-200 rounded-lg'>
+					<h3 className='text-lg font-semibold text-green-800 mb-2'>Umami Analytics</h3>
+					<p className='text-green-700 text-sm mb-4'>
+						Open the Umami dashboard for this site&apos;s traffic and usage metrics.
+					</p>
+					<div className='flex justify-center'>
+						<a
+							href='https://cloud.umami.is/analytics/eu/websites/351bdc1f-abd3-4b55-8e6f-23b3693b13b4'
+							target='_blank'
+							rel='noopener noreferrer'
+							className='inline-block px-6 py-3 rounded-lg text-sm font-semibold text-white transition-colors bg-green-600 hover:bg-green-700'>
+							See Umami Analytics of the site here
+						</a>
+					</div>
+				</div>
+			)}
 
 			{/* Chatbot Testing Section */}
 			<div className='mt-6 p-4 bg-green-50 border border-green-200 rounded-lg'>
