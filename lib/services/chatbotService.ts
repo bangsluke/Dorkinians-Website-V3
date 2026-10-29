@@ -30,6 +30,11 @@ import { LeagueTableQueryHandler } from "./queryHandlers/leagueTableQueryHandler
 import { AwardsQueryHandler } from "./queryHandlers/awardsQueryHandler";
 import { RelationshipQueryHandler } from "./queryHandlers/relationshipQueryHandler";
 import type { ChatbotResponse, QuestionContext, ProcessingDetails, PlayerData, TeamData, StreakData, CoPlayerData, OpponentData, RankingData } from "./types/chatbotTypes";
+import {
+	detectOneWordStatAssumption,
+	prependAssumptionToAnswer,
+	type OneWordStatAssumption,
+} from "../utils/oneWordStatAssumption";
 
 // Re-export types for use in route handlers and components
 export type { QuestionContext, ChatbotResponse };
@@ -210,6 +215,12 @@ export class ChatbotService {
 				this.logToBoth(`🔤 Spelling corrections applied: ${spellingResult.corrections.map(c => `${c.original} → ${c.corrected}`).join(", ")}`, null, "log");
 			}
 
+			// One-word stat questions (e.g. "goals") keep the original token for analysis;
+			// the assumption sentence is prepended to the answer after generateResponse.
+			const oneWordStatAssumption: OneWordStatAssumption | null = detectOneWordStatAssumption(
+				context.question,
+			);
+
 			// Handle "full stats" question with special response
 			const fullStatsPattern = /\b(full|all|complete|entire|whole)\s+stats?\b/i;
 			if (fullStatsPattern.test(context.question)) {
@@ -367,6 +378,10 @@ export class ChatbotService {
 
 			// Generate the response (use original question for response generation, but processed question was used for analysis) - Pass userContext and sessionId so it can be used for post-query clarification checks
 			const response = await this.generateResponse(questionToProcess, data, analysis, context.userContext, context.sessionId);
+
+			if (oneWordStatAssumption) {
+				response.answer = prependAssumptionToAnswer(response.answer, oneWordStatAssumption);
+			}
 
 			// Store in conversation context if session ID provided - Use the processed question (which may be combined with clarification) for history
 			if (context.sessionId) {

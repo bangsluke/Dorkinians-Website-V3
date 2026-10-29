@@ -18,7 +18,9 @@ export interface ToastProps {
  * Keeps toasts visually consistent with the rest of the dark UI rather than shouting
  * with a solid saturated background.
  */
-const TOAST_SURFACE = "bg-[var(--color-surface)] backdrop-blur-sm border border-[var(--color-border)]";
+/** Shared frost for every toast, including update notices. Stronger than the 10% app surface. */
+export const TOAST_SURFACE =
+	"bg-white/25 backdrop-blur-md border border-[var(--color-border)] text-[var(--color-text-primary)]";
 
 const toastStyles = {
 	success: {
@@ -60,7 +62,7 @@ export default function Toast({ message, type, duration = 5000, onDismiss, id }:
 	return (
 		<div
 			key={id}
-			className={`w-full max-w-[calc(100vw-1rem)] sm:max-w-md p-3 sm:p-4 rounded-md shadow-lg transition-all duration-200 ease-[cubic-bezier(0,0,0.2,1)] text-[var(--color-text-primary)] ${TOAST_SURFACE} ${style.accent} ${
+			className={`w-full max-w-[calc(100vw-1rem)] sm:max-w-md p-3 sm:p-4 rounded-md shadow-lg transition-all duration-200 ease-[cubic-bezier(0,0,0.2,1)] ${TOAST_SURFACE} ${style.accent} ${
 				entered ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-6 pointer-events-none"
 			}`}
 			role={type === "error" ? "alert" : "status"}

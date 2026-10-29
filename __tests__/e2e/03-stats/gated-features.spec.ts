@@ -32,18 +32,18 @@ const DEFAULT_FILTERS = {
 	position: ["GK", "DEF", "MID", "FWD"],
 };
 
-async function openStatsReady(page: Page): Promise<void> {
+async function openStatsReady(page: Page, playerName: string = DEFAULT_PLAYER): Promise<void> {
 	await page.goto("/", { waitUntil: "domcontentloaded" });
 	await page.evaluate(() => {
 		// Drop stale player payload so GET /api/player-data (with live impact fill) is used.
 		localStorage.removeItem("dorkinians-cached-player-data");
 	});
-	await setupPlayerStatsPage(page, DEFAULT_PLAYER);
+	await setupPlayerStatsPage(page, playerName);
 	for (let attempt = 0; attempt < 3; attempt++) {
 		const transient404 = page.getByRole("heading", { name: /404 error/i }).first();
 		if (await transient404.isVisible({ timeout: 1000 }).catch(() => false)) {
 			await page.goto("/", { waitUntil: "domcontentloaded" });
-			await setupPlayerStatsPage(page, DEFAULT_PLAYER);
+			await setupPlayerStatsPage(page, playerName);
 			continue;
 		}
 		break;
@@ -59,16 +59,31 @@ async function openStatsReady(page: Page): Promise<void> {
 		.catch(() => false);
 	expect(
 		noData,
-		`No player data for "${DEFAULT_PLAYER}". Set E2E_PLAYER_NAME to a seeded player and ensure Neo4j is reachable.`,
+		`No player data for "${playerName}". Set E2E_PLAYER_NAME to a seeded player and ensure Neo4j is reachable.`,
 	).toBe(false);
 }
 
+/** Visibility owns the wait. Scrolling first uses the 60s action timeout and closes the page. */
 async function expectSectionVisible(page: Page, sectionId: string, timeout = 20000): Promise<void> {
 	const section = page.locator(`#${sectionId}`);
-	await section.scrollIntoViewIfNeeded().catch(() => {});
 	await expect(section, `Expected #${sectionId} to be visible (gated feature must render).`).toBeVisible({
 		timeout,
 	});
+	await section.scrollIntoViewIfNeeded({ timeout: 3000 }).catch(() => {});
+}
+
+async function scrollIntoViewCapped(locator: ReturnType<Page["locator"]>): Promise<void> {
+	await locator.scrollIntoViewIfNeeded({ timeout: 3000 }).catch(() => {});
+}
+
+const DB_RETRY_ATTEMPTS = 3;
+
+function isDbConnectionFailure(status: number, json: Record<string, unknown>): boolean {
+	return status === 500 && json.error === "Database connection failed";
+}
+
+async function pause(ms: number): Promise<void> {
+	await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function postJson(
@@ -76,12 +91,24 @@ async function postJson(
 	path: string,
 	body: Record<string, unknown>,
 ): Promise<{ ok: boolean; status: number; json: Record<string, unknown> }> {
-	const res = await request.post(path, {
-		data: body,
-		headers: { "Content-Type": "application/json" },
-	});
-	const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-	return { ok: res.ok(), status: res.status(), json };
+	let last: { ok: boolean; status: number; json: Record<string, unknown> } = {
+		ok: false,
+		status: 0,
+		json: {},
+	};
+	for (let attempt = 0; attempt < DB_RETRY_ATTEMPTS; attempt++) {
+		const res = await request.post(path, {
+			data: body,
+			headers: { "Content-Type": "application/json" },
+		});
+		const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+		last = { ok: res.ok(), status: res.status(), json };
+		if (last.ok || !isDbConnectionFailure(last.status, last.json) || attempt === DB_RETRY_ATTEMPTS - 1) {
+			return last;
+		}
+		await pause(1000 * (attempt + 1));
+	}
+	return last;
 }
 
 async function recordingCount(
@@ -108,13 +135,84 @@ async function recordingCount(
 }
 
 async function readImpactDelta(request: APIRequestContext, playerName: string): Promise<number | null> {
-	const res = await request.get(`/api/player-data?playerName=${encodeURIComponent(playerName)}`);
-	const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-	expect(res.ok(), `GET /api/player-data failed (${res.status()}): ${JSON.stringify(json)}`).toBe(true);
-	const playerData = (json.playerData ?? json) as Record<string, unknown>;
-	const delta = playerData.impactDelta;
-	if (delta == null || typeof delta !== "number" || Number.isNaN(delta)) return null;
-	return delta;
+	let lastStatus = 0;
+	let lastJson: Record<string, unknown> = {};
+	for (let attempt = 0; attempt < DB_RETRY_ATTEMPTS; attempt++) {
+		const res = await request.get(`/api/player-data?playerName=${encodeURIComponent(playerName)}`);
+		const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+		lastStatus = res.status();
+		lastJson = json;
+		if (!res.ok()) {
+			if (isDbConnectionFailure(res.status(), json) && attempt < DB_RETRY_ATTEMPTS - 1) {
+				await pause(1000 * (attempt + 1));
+				continue;
+			}
+			expect(res.ok(), `GET /api/player-data failed (${res.status()}): ${JSON.stringify(json)}`).toBe(true);
+		}
+		const playerData = (json.playerData ?? json) as Record<string, unknown>;
+		const delta = playerData.impactDelta;
+		if (delta == null || typeof delta !== "number" || Number.isNaN(delta)) return null;
+		return delta;
+	}
+	expect(false, `GET /api/player-data failed (${lastStatus}): ${JSON.stringify(lastJson)}`).toBe(true);
+	return null;
+}
+
+/** Spread a few roster names so the probe is not only surnames at the start of the alphabet. */
+function sampleNames(names: string[], count: number): string[] {
+	if (names.length <= count) return names;
+	const step = names.length / count;
+	const picked: string[] = [];
+	for (let i = 0; i < count; i++) {
+		picked.push(names[Math.floor(i * step)]!);
+	}
+	return picked;
+}
+
+async function findPlayerWithPositiveImpact(request: APIRequestContext): Promise<string> {
+	const seen: string[] = [];
+	const defaultDelta = await readImpactDelta(request, DEFAULT_PLAYER);
+	seen.push(`${DEFAULT_PLAYER}=${String(defaultDelta)}`);
+	if (defaultDelta != null && defaultDelta > 0) return DEFAULT_PLAYER;
+
+	let playersJson: Record<string, unknown> = {};
+	let playersOk = false;
+	let playersStatus = 0;
+	for (let attempt = 0; attempt < DB_RETRY_ATTEMPTS; attempt++) {
+		const res = await request.get("/api/players");
+		playersJson = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+		playersOk = res.ok();
+		playersStatus = res.status();
+		if (playersOk || !isDbConnectionFailure(playersStatus, playersJson) || attempt === DB_RETRY_ATTEMPTS - 1) {
+			break;
+		}
+		await pause(1000 * (attempt + 1));
+	}
+	expect(playersOk, `GET /api/players failed (${playersStatus}): ${JSON.stringify(playersJson)}`).toBe(true);
+
+	const roster = Array.isArray(playersJson.players) ? playersJson.players : [];
+	const names = roster
+		.map((player) => {
+			if (!player || typeof player !== "object") return "";
+			const row = player as { playerName?: unknown; mostPlayedForTeam?: unknown };
+			const name = typeof row.playerName === "string" ? row.playerName.trim() : "";
+			const team = typeof row.mostPlayedForTeam === "string" ? row.mostPlayedForTeam.trim() : "";
+			if (!name || !team || name === DEFAULT_PLAYER) return "";
+			return name;
+		})
+		.filter((name) => name.length > 0);
+
+	for (const name of sampleNames(names, 8)) {
+		const delta = await readImpactDelta(request, name);
+		seen.push(`${name}=${String(delta)}`);
+		if (delta != null && delta > 0) return name;
+	}
+
+	expect(
+		false,
+		`No probed player has impactDelta > 0. Seen: ${seen.join(", ")}`,
+	).toBe(true);
+	return DEFAULT_PLAYER;
 }
 
 async function selectedTeamLabel(page: Page): Promise<string> {
@@ -137,6 +235,7 @@ test.describe("Gated feature sign-off (production-hidden flags)", () => {
 	});
 
 	test("playerStatsForm: Form section shows summary or fallback", async ({ page }) => {
+		test.setTimeout(90_000);
 		await openStatsReady(page);
 		await expectSectionVisible(page, "form-section");
 		await expect(page.getByRole("heading", { name: /^Form$/i })).toBeVisible();
@@ -174,12 +273,9 @@ test.describe("Gated feature sign-off (production-hidden flags)", () => {
 	});
 
 	test("playerStatsImpact: Impact section when impactDelta > 0", async ({ page, request }) => {
-		const delta = await readImpactDelta(request, DEFAULT_PLAYER);
-		expect(
-			delta != null && delta > 0,
-			`Player "${DEFAULT_PLAYER}" has impactDelta=${String(delta)} (need > 0). Set E2E_PLAYER_NAME to a player with positive impact.`,
-		).toBe(true);
-		await openStatsReady(page);
+		test.setTimeout(90_000);
+		const playerName = await findPlayerWithPositiveImpact(request);
+		await openStatsReady(page, playerName);
 		await expectSectionVisible(page, "impact-section");
 		await expect(page.getByRole("heading", { name: /^Impact$/i })).toBeVisible();
 	});
@@ -199,11 +295,12 @@ test.describe("Gated feature sign-off (production-hidden flags)", () => {
 	});
 
 	test("playerStatsPlayerRecordings: section matches API fixture count", async ({ page, request }) => {
+		test.setTimeout(90_000);
 		const count = await recordingCount(request, "player", DEFAULT_PLAYER);
 		await openStatsReady(page);
 		const section = page.locator("#player-recordings");
 		if (count > 0) {
-			await section.scrollIntoViewIfNeeded().catch(() => {});
+			await scrollIntoViewCapped(section);
 			await expect(
 				section,
 				`API returned ${count} player recording(s); #player-recordings must be visible.`,
@@ -218,6 +315,7 @@ test.describe("Gated feature sign-off (production-hidden flags)", () => {
 	});
 
 	test("teamStatsFormationsUsed: Formations Used section on Team Stats", async ({ page }) => {
+		test.setTimeout(90_000);
 		await openStatsReady(page);
 		const opened = await clickStatsSubPage(page, "team-stats");
 		expect(opened, "Could not open Team Stats sub-page.").toBe(true);
@@ -246,7 +344,7 @@ test.describe("Gated feature sign-off (production-hidden flags)", () => {
 		await expect(page.getByRole("heading", { name: /Team Streaks/i })).toBeVisible();
 
 		const topPlayers = page.locator("#team-top-players");
-		await topPlayers.scrollIntoViewIfNeeded().catch(() => {});
+		await scrollIntoViewCapped(topPlayers);
 		await expect(topPlayers).toBeVisible({ timeout: 15000 });
 		const listboxButton = topPlayers.getByRole("button").first();
 		await listboxButton.click();
@@ -262,7 +360,7 @@ test.describe("Gated feature sign-off (production-hidden flags)", () => {
 		const count = await recordingCount(request, "team", teamName);
 		const section = page.locator("#team-recordings");
 		if (count > 0) {
-			await section.scrollIntoViewIfNeeded().catch(() => {});
+			await scrollIntoViewCapped(section);
 			await expect(
 				section,
 				`API returned ${count} team recording(s) for "${teamName}"; #team-recordings must be visible.`,
@@ -289,7 +387,7 @@ test.describe("Gated feature sign-off (production-hidden flags)", () => {
 		expect(opened, "Could not open Club Stats sub-page.").toBe(true);
 		const section = page.locator("#club-recordings");
 		if (count > 0) {
-			await section.scrollIntoViewIfNeeded().catch(() => {});
+			await scrollIntoViewCapped(section);
 			await expect(
 				section,
 				`API returned ${count} club recording(s); #club-recordings must be visible.`,
@@ -307,7 +405,7 @@ test.describe("Gated feature sign-off (production-hidden flags)", () => {
 
 		expect(await clickStatsSubPage(page, "team-stats"), "Could not open Team Stats.").toBe(true);
 		const teamShowAll = page.locator("#team-top-players").getByRole("button", { name: /^Show all$/i });
-		await teamShowAll.scrollIntoViewIfNeeded().catch(() => {});
+		await scrollIntoViewCapped(teamShowAll);
 		await expect(teamShowAll, "Team Stats Show all must be visible when statsTopPlayersShowAll is on.").toBeVisible({
 			timeout: 15000,
 		});
@@ -317,7 +415,7 @@ test.describe("Gated feature sign-off (production-hidden flags)", () => {
 
 		expect(await clickStatsSubPage(page, "club-stats"), "Could not open Club Stats.").toBe(true);
 		const clubShowAll = page.locator("#club-top-players").getByRole("button", { name: /^Show all$/i });
-		await clubShowAll.scrollIntoViewIfNeeded().catch(() => {});
+		await scrollIntoViewCapped(clubShowAll);
 		await expect(clubShowAll, "Club Stats Show all must be visible when statsTopPlayersShowAll is on.").toBeVisible({
 			timeout: 15000,
 		});
@@ -333,7 +431,7 @@ test.describe("Gated feature sign-off (production-hidden flags)", () => {
 		await expect(section, "Records section must be visible when clubInfoRecords is on.").toBeVisible({
 			timeout: 20000,
 		});
-		await section.scrollIntoViewIfNeeded();
+		await scrollIntoViewCapped(section);
 		await expect(page.getByRole("heading", { name: /^Records$/ })).toBeVisible();
 		await expect(page.getByRole("heading", { name: /^Milestones$/i }).first()).toBeVisible();
 	});

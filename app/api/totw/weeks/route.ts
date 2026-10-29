@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { neo4jService } from "@/lib/neo4j";
 import { Record } from "neo4j-driver";
 import { apiCache, getCacheTTL } from "@/lib/utils/apiCache";
-import { withNoStore, withPublicCache } from "@/lib/utils/publicCacheHeaders";
+import { withNoStore, withPublicCache, PUBLIC_CACHE_TOTW } from "@/lib/utils/publicCacheHeaders";
 
 const corsHeaders = {
 	"Access-Control-Allow-Origin": "*",
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
 		const cacheKey = apiCache.generateKey("/api/totw/weeks", { season });
 		const cached = await apiCache.getAsync<Record<string, unknown>>(cacheKey);
 		if (cached) {
-			return NextResponse.json(cached, { headers: withPublicCache(corsHeaders) });
+			return NextResponse.json(cached, { headers: withPublicCache(corsHeaders, PUBLIC_CACHE_TOTW) });
 		}
 
 		const connected = await neo4jService.connect();
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
 		if (season === "All Time") {
 			const empty = { weeks: [], currentWeek: null, latestGameweek: null, latestGameweekDate: null };
 			await apiCache.setAsync(cacheKey, empty, getCacheTTL("/api/totw/weeks"));
-			return NextResponse.json(empty, { headers: withPublicCache(corsHeaders) });
+			return NextResponse.json(empty, { headers: withPublicCache(corsHeaders, PUBLIC_CACHE_TOTW) });
 		}
 
 		// Fetch weeks for the selected season
@@ -119,7 +119,7 @@ export async function GET(request: NextRequest) {
 
 		const payload = { weeks, currentWeek, latestGameweek, latestGameweekDate };
 		await apiCache.setAsync(cacheKey, payload, getCacheTTL("/api/totw/weeks"));
-		return NextResponse.json(payload, { headers: withPublicCache(corsHeaders) });
+		return NextResponse.json(payload, { headers: withPublicCache(corsHeaders, PUBLIC_CACHE_TOTW) });
 	} catch (error) {
 		console.error("Error fetching weeks:", error);
 		return NextResponse.json({ error: "Failed to fetch weeks" }, { status: 500, headers: withNoStore(corsHeaders) });

@@ -129,10 +129,13 @@ export async function GET(request: NextRequest) {
 			...seedMeta,
 		};
 
-		// Add Cache-Control header for BFCache compatibility
+		// Admin panel uses ?fresh=1 so last-seed status is not served from CDN/browser cache.
+		const fresh = request.nextUrl.searchParams.get("fresh") === "1";
 		const responseHeaders = {
 			...corsHeaders,
-			"Cache-Control": "public, max-age=300, stale-while-revalidate=3600",
+			"Cache-Control": fresh
+				? "no-cache, no-store, must-revalidate"
+				: "public, max-age=300, stale-while-revalidate=3600",
 		};
 
 		return NextResponse.json(siteDetails, { headers: responseHeaders });
