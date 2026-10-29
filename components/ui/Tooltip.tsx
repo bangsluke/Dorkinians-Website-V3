@@ -378,6 +378,7 @@ export function HoverTooltip({
 		return <>{children}</>;
 	}
 
+	const stretch = (className ?? "").split(/\s+/).includes("w-full");
 	const show = () => {
 		if (suppressUntilLeaveRef.current) return;
 		setVisible(true);
@@ -396,7 +397,7 @@ export function HoverTooltip({
 		<>
 			<span
 				ref={triggerRef}
-				className={cn("relative inline-flex max-w-full", className)}
+				className={cn("relative max-w-full", stretch ? "flex w-full" : "inline-flex", className)}
 				onMouseEnter={show}
 				onMouseLeave={clearSuppress}
 				onPointerDown={dismissUntilLeave}
