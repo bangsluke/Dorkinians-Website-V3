@@ -35,6 +35,7 @@ export type FeatureFlags = {
 	teamStatsXiStreakCards: boolean;
 	clubStatsLongestActiveStreaks: boolean;
 	clubStatsClubRecordings: boolean;
+	clubStatsTopPartnerships: boolean;
 	clubInfoRecords: boolean;
 	leagueInfoLatestResult: boolean;
 	statsTopPlayersShowAll: boolean;
@@ -64,6 +65,7 @@ const featureFlagsAllEnabled: FeatureFlags = {
 	teamStatsXiStreakCards: true,
 	clubStatsLongestActiveStreaks: true,
 	clubStatsClubRecordings: true,
+	clubStatsTopPartnerships: true,
 	clubInfoRecords: true,
 	leagueInfoLatestResult: true,
 	statsTopPlayersShowAll: true,
@@ -96,6 +98,7 @@ const featureFlagsProductionDefault: FeatureFlags = {
 	teamStatsXiStreakCards: true,
 	clubStatsLongestActiveStreaks: true,
 	clubStatsClubRecordings: true,
+	clubStatsTopPartnerships: true,
 	clubInfoRecords: true,
 	leagueInfoLatestResult: true,
 	statsTopPlayersShowAll: true,

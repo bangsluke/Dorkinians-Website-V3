@@ -14,6 +14,8 @@ export type MatchRatingDetail = {
 	redCards?: number | null;
 	ownGoals?: number | null;
 	conceded?: number | null;
+	/** Penalties scored count as goals (same bonus as open-play), matching FTP. */
+	penaltiesScored?: number | null;
 	penaltiesMissed?: number | null;
 	penaltiesSaved?: number | null;
 };
@@ -26,7 +28,7 @@ function n(v: unknown, fallback = 0): number {
 
 export function calculateMatchRatingFromDetail(detail: MatchRatingDetail): number {
 	const minutes = n(detail.minutes);
-	const goals = n(detail.goals);
+	const goals = n(detail.goals) + n(detail.penaltiesScored);
 	const assists = n(detail.assists);
 	const mom = n(detail.mom);
 	const cleanSheets = n(detail.cleanSheets);
@@ -84,7 +86,7 @@ export function buildMatchRatingBreakdown(detail: MatchRatingDetail): {
 	position: string;
 } {
 	const minutes = n(detail.minutes);
-	const goals = n(detail.goals);
+	const goals = n(detail.goals) + n(detail.penaltiesScored);
 	const assists = n(detail.assists);
 	const mom = n(detail.mom);
 	const cleanSheets = n(detail.cleanSheets);
