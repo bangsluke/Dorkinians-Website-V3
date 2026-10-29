@@ -64,6 +64,9 @@ const withSerwist = withSerwistInit({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+	experimental: {
+		agentUpgrade: "security",
+	},
 	// output: 'export', // Disabled to enable API routes
 	typescript: {
 		// Skip type checking during build (types are checked in CI/local dev)
