@@ -12,7 +12,8 @@ interface ModalWrapperProps {
 	modalClassName?: string;
 	ariaLabel?: string;
 	ariaLabelledBy?: string;
-	initialFocusRef?: React.RefObject<HTMLElement>;
+	/** React 19: `useRef<T>(null)` is `RefObject<T | null>`; keep null in the type. */
+	initialFocusRef?: React.RefObject<HTMLElement | null>;
 }
 
 export default function ModalWrapper({
