@@ -2,6 +2,8 @@
 
 export const PUBLIC_CACHE_LONG = "public, max-age=3600, stale-while-revalidate=86400";
 export const PUBLIC_CACHE_MEDIUM = "public, max-age=300, stale-while-revalidate=3600";
+/** TOTW changes after each seed; keep CDN/browser cache short with no stale-while-revalidate. */
+export const PUBLIC_CACHE_TOTW = "public, max-age=60";
 export const NO_STORE = "no-cache, no-store, must-revalidate";
 
 export function withPublicCache(

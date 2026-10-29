@@ -115,32 +115,36 @@ export default function TeamOfTheWeek() {
 				// If we have cached season, try to fetch weeks and current week data in parallel
 				const cachedWeeks = getCachedTOTWWeeks(cachedSeasons.currentSeason);
 				if (cachedWeeks && cachedWeeks.currentWeek !== null && cachedSeasons.currentSeason) {
-					// We have weeks cached, fetch week data immediately
+					// Paint any cached XI, then always refetch so an open tab picks up post-seed changes.
 					const cachedWeekData = getCachedTOTWWeekData(cachedSeasons.currentSeason, cachedWeeks.currentWeek);
-					if (!cachedWeekData) {
-						// Fetch week data in background with caching
-						const cacheKey = generatePageCacheKey("totw", "team-of-the-week", "week-data", { 
-							season: cachedSeasons.currentSeason, 
-							week: cachedWeeks.currentWeek 
-						});
-						cachedFetch(`/api/totw/week-data?season=${encodeURIComponent(cachedSeasons.currentSeason)}&week=${cachedWeeks.currentWeek}`, {
-							method: "GET",
-							cacheKey,
-							getCachedPageData,
-							setCachedPageData,
-						})
-							.then(data => {
-								if (data?.totwData && cachedSeasons.currentSeason && cachedWeeks.currentWeek !== null) {
-									cacheTOTWWeekData(cachedSeasons.currentSeason, cachedWeeks.currentWeek, data.totwData, data.players || []);
-								}
-							})
-							.catch(() => {});
+					if (cachedWeekData) {
+						setTotwData(cachedWeekData.totwData);
+						setPlayers(cachedWeekData.players);
+						setLoading(false);
 					}
+					const cacheKey = generatePageCacheKey("totw", "team-of-the-week", "week-data", { 
+						season: cachedSeasons.currentSeason, 
+						week: cachedWeeks.currentWeek 
+					});
+					cachedFetch(`/api/totw/week-data?season=${encodeURIComponent(cachedSeasons.currentSeason)}&week=${cachedWeeks.currentWeek}`, {
+						method: "GET",
+						cacheKey,
+						getCachedPageData,
+						setCachedPageData,
+					})
+						.then(data => {
+							if (data?.totwData && cachedSeasons.currentSeason && cachedWeeks.currentWeek !== null) {
+								cacheTOTWWeekData(cachedSeasons.currentSeason, cachedWeeks.currentWeek, data.totwData, data.players || []);
+								setTotwData(data.totwData);
+								setPlayers(data.players || []);
+							}
+						})
+						.catch(() => {});
 				}
 			} else if (cachedSeasons.seasons.length > 0) {
 				setSelectedSeason(cachedSeasons.seasons[0]);
 			}
-			return;
+			// Continue to network bootstrap below so seasons/latestGameweek refresh after a seed.
 		}
 
 		const fetchSeasonsAndCurrentWeek = async () => {
@@ -428,25 +432,27 @@ export default function TeamOfTheWeek() {
 			setTotwData(cachedWeekData.totwData);
 			setPlayers(cachedWeekData.players);
 			setLoading(false);
-			return;
 		}
 
 		const fetchWeekData = async () => {
-			setLoading(true);
+			if (!cachedWeekData) {
+				setLoading(true);
+			}
 			try {
 				const cacheKey = generatePageCacheKey("totw", "team-of-the-week", "week-data", { 
 					season: selectedSeason, 
 					week: selectedWeek 
 				});
-				const data = await cachedFetch(
+				// Bypass page-cache hit so an open tab refreshes after seeding.
+				const response = await fetch(
 					`/api/totw/week-data?season=${encodeURIComponent(selectedSeason)}&week=${selectedWeek}`,
-					{
-						method: "GET",
-						cacheKey,
-						getCachedPageData,
-						setCachedPageData,
-					}
+					{ method: "GET", cache: "no-store" },
 				);
+				if (!response.ok) {
+					throw new Error(`HTTP error! status: ${response.status}`);
+				}
+				const data = await response.json();
+				setCachedPageData(cacheKey, data);
 				
 				if (data.totwData) {
 					setTotwData(data.totwData);
@@ -464,14 +470,16 @@ export default function TeamOfTheWeek() {
 				}
 			} catch (error) {
 				log("error", "[TOTW] Error fetching week data:", error);
-				setTotwData(null);
-				setPlayers([]);
+				if (!cachedWeekData) {
+					setTotwData(null);
+					setPlayers([]);
+				}
 			} finally {
 				setLoading(false);
 			}
 		};
 		fetchWeekData();
-	}, [selectedSeason, selectedWeek, isAllTimeSelected, isSeasonTOTWSelected, weeks, getCachedTOTWWeekData, cacheTOTWWeekData]);
+	}, [selectedSeason, selectedWeek, isAllTimeSelected, isSeasonTOTWSelected, weeks, getCachedTOTWWeekData, cacheTOTWWeekData, setCachedPageData]);
 
 	// Update container width on resize and when data loads
 	useEffect(() => {

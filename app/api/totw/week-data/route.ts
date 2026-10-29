@@ -3,7 +3,7 @@ import { neo4jService } from "@/lib/neo4j";
 import { WeeklyTOTW } from "@/types";
 import { Record } from "neo4j-driver";
 import { calculateFTPBreakdown } from "@/lib/utils/fantasyPoints";
-import { withNoStore, withPublicCache } from "@/lib/utils/publicCacheHeaders";
+import { withNoStore, withPublicCache, PUBLIC_CACHE_TOTW } from "@/lib/utils/publicCacheHeaders";
 
 const corsHeaders = {
 	"Access-Control-Allow-Origin": "*",
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
 		if (totwResult.records.length === 0) {
 			console.log(`[API] No TOTW data found for season: ${season}, week: ${weekNumber}`);
 			// Return empty data instead of 404 to allow the UI to render
-			return NextResponse.json({ totwData: null, players: [] }, { headers: withPublicCache(corsHeaders) });
+			return NextResponse.json({ totwData: null, players: [] }, { headers: withPublicCache(corsHeaders, PUBLIC_CACHE_TOTW) });
 		}
 
 		const wtNode = totwResult.records[0].get("wt");
@@ -174,7 +174,7 @@ export async function GET(request: NextRequest) {
 
 		console.log(`[API] Players with FTP scores:`, players.map((p: { playerName: string; ftpScore: number }) => `${p.playerName}: ${p.ftpScore}`));
 
-		return NextResponse.json({ totwData, players }, { headers: withPublicCache(corsHeaders) });
+		return NextResponse.json({ totwData, players }, { headers: withPublicCache(corsHeaders, PUBLIC_CACHE_TOTW) });
 	} catch (error) {
 		console.error("Error fetching week data:", error);
 		return NextResponse.json({ error: "Failed to fetch week data" }, { status: 500, headers: withNoStore(corsHeaders) });

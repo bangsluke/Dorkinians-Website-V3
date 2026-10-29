@@ -153,8 +153,8 @@ export const apiCache = new APICache();
 // Cache TTLs by endpoint pattern
 export const CACHE_TTLS: Record<string, number> = {
 	// Static data - long TTL
-	"/api/totw/seasons": 24 * 60 * 60 * 1000, // 24 hours
-	"/api/totw/weeks": 60 * 60 * 1000, // 1 hour
+	"/api/totw/seasons": 60 * 1000, // 60 seconds (includes latestGameweek; must stay fresh after seed)
+	"/api/totw/weeks": 60 * 1000, // 60 seconds
 	"/api/club-achievements": 24 * 60 * 60 * 1000, // 24 hours
 	"/api/milestones": 60 * 60 * 1000, // 1 hour
 	"/api/players": 60 * 60 * 1000, // 1 hour
@@ -175,8 +175,8 @@ export const CACHE_TTLS: Record<string, number> = {
 	"/api/player-team-stats": 5 * 60 * 1000, // 5 minutes
 	"/api/player-monthly-stats": 5 * 60 * 1000, // 5 minutes
 	"/api/player-fantasy-breakdown": 5 * 60 * 1000, // 5 minutes
-	"/api/totw/week-data": 60 * 60 * 1000, // 1 hour
-	"/api/totw/current-week": 60 * 60 * 1000, // 1 hour
+	"/api/totw/week-data": 60 * 1000, // 60 seconds
+	"/api/totw/current-week": 60 * 1000, // 60 seconds
 };
 
 // Get TTL for endpoint
