@@ -102,6 +102,7 @@ function breakdownForPlayer(player: FixtureLineupPlayer) {
 		redCards: player.redCards,
 		ownGoals: player.ownGoals,
 		conceded: player.conceded,
+		penaltiesScored: player.penaltiesScored,
 		penaltiesMissed: player.penaltiesMissed,
 		penaltiesSaved: player.penaltiesSaved,
 	});

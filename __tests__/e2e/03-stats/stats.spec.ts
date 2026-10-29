@@ -69,6 +69,7 @@ const CLUB_SECTION_IDS = [
 	"club-player-distribution",
 	"club-player-tenure",
 	"club-stats-distribution",
+	"club-top-partnerships",
 	"club-unique-player-stats",
 	"club-recordings",
 	"club-streak-leaders",

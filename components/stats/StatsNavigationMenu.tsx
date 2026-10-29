@@ -78,6 +78,7 @@ const statsNavigationItems = [
 			{ id: "club-player-distribution", label: "Player Distribution" },
 			{ id: "club-player-tenure", label: "Player Tenure" },
 			{ id: "club-stats-distribution", label: "Stats Distribution" },
+			{ id: "club-top-partnerships", label: "Top Partnerships" },
 			{ id: "club-unique-player-stats", label: "Unique Player Stats" },
 			{ id: "club-recordings", label: "Club Recordings" },
 			{ id: "club-streak-leaders", label: "Club Streaks" },
@@ -132,6 +133,7 @@ export default function StatsNavigationMenu({ isOpen, onClose }: StatsNavigation
 					sections: page.sections.filter((s) => {
 						if (s.id === "club-recordings" && !f.clubStatsClubRecordings) return false;
 						if (s.id === "club-streak-leaders" && !f.clubStatsLongestActiveStreaks) return false;
+						if (s.id === "club-top-partnerships" && !f.clubStatsTopPartnerships) return false;
 						return true;
 					}),
 				};

@@ -24,6 +24,7 @@ export type PlayerFormRecentMatch = {
 	redCards: number;
 	ownGoals: number;
 	conceded: number;
+	penaltiesScored: number;
 	penaltiesMissed: number;
 	penaltiesSaved: number;
 	opposition: string;
@@ -47,6 +48,7 @@ function toDetail(m: PlayerFormRecentMatch): MatchRatingDetail {
 		redCards: m.redCards,
 		ownGoals: m.ownGoals,
 		conceded: m.conceded,
+		penaltiesScored: m.penaltiesScored,
 		penaltiesMissed: m.penaltiesMissed,
 		penaltiesSaved: m.penaltiesSaved,
 	};

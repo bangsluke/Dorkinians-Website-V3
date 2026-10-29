@@ -31,6 +31,8 @@ import {
 	type TopPlayer,
 	type TopPlayersStatType,
 } from "@/lib/stats/topPlayersUtils";
+import type { PartnershipSortMode } from "@/lib/stats/partnershipSort";
+import { sortClubPartnershipPairs, type ClubPartnershipPair } from "@/lib/stats/clubTopPartnerships";
 import type { RecordingFixture } from "@/lib/utils/recordingsDisplay";
 
 // Dynamically import ResponsiveSankey to reduce initial bundle size (151 KB -> only loads when needed)
@@ -462,6 +464,10 @@ export default function ClubStats() {
 	const [uniquePlayerStats, setUniquePlayerStats] = useState<any>(null);
 	const [isLoadingUniqueStats, setIsLoadingUniqueStats] = useState(false);
 
+	const [clubPartnerships, setClubPartnerships] = useState<ClubPartnershipPair[]>([]);
+	const [isLoadingClubPartnerships, setIsLoadingClubPartnerships] = useState(false);
+	const [clubPartnershipSortMode, setClubPartnershipSortMode] = useState<PartnershipSortMode>("bestWinRate");
+
 	const [clubRecordings, setClubRecordings] = useState<RecordingFixture[]>([]);
 
 	const showClubRecordingsTeamColumn = useMemo(() => !playerFilters?.teams?.length, [playerFilters?.teams]);
@@ -858,6 +864,51 @@ export default function ClubStats() {
 
 		fetchUniqueStats();
 	}, [playerFilters, hasUnsavedFilters, isFilterSidebarOpen]);
+
+	// Priority 3: Below fold - Top club partnerships (filtered time period)
+	useEffect(() => {
+		if (!playerFilters) {
+			setClubPartnerships([]);
+			return;
+		}
+		if (!featureFlags.clubStatsTopPartnerships) {
+			setClubPartnerships([]);
+			setIsLoadingClubPartnerships(false);
+			return;
+		}
+		if (hasUnsavedFilters || isFilterSidebarOpen) return;
+
+		const fetchClubPartnerships = async () => {
+			setIsLoadingClubPartnerships(true);
+			try {
+				const requestBody = {
+					filters: playerFilters,
+					sortMode: clubPartnershipSortMode,
+				};
+				const cacheKey = generatePageCacheKey("stats", "club-stats", "club-top-partnerships", requestBody);
+				const data = await cachedFetch("/api/club-top-partnerships", {
+					method: "POST",
+					body: requestBody,
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
+				});
+				setClubPartnerships(Array.isArray(data.partnerships) ? data.partnerships : []);
+			} catch (error) {
+				log("error", "Error fetching club top partnerships:", error);
+				setClubPartnerships([]);
+			} finally {
+				setIsLoadingClubPartnerships(false);
+			}
+		};
+
+		fetchClubPartnerships();
+	}, [playerFilters, hasUnsavedFilters, isFilterSidebarOpen, clubPartnershipSortMode, getCachedPageData, setCachedPageData]);
+
+	const clubPartnershipsDisplay = useMemo(
+		() => sortClubPartnershipPairs(clubPartnerships, clubPartnershipSortMode).slice(0, 10),
+		[clubPartnerships, clubPartnershipSortMode],
+	);
 
 	// Club recordings (Veo) - whole club + filters; team column when no explicit team filter
 	useEffect(() => {
@@ -2562,6 +2613,100 @@ export default function ClubStats() {
 										)}
 									</div>
 								</div>
+								)}
+
+								{/* Top Club Partnerships */}
+								{featureFlags.clubStatsTopPartnerships && (
+									isLoadingClubPartnerships ? (
+										<div id='club-top-partnerships' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
+											<Skeleton height={20} width='45%' className='mb-2' />
+											<Skeleton height={14} width='80%' className='mb-3' />
+											<div className='space-y-2'>
+												{[...Array(5)].map((_, i) => (
+													<div key={i} className='flex justify-between gap-2 bg-white/5 rounded-md px-3 py-2'>
+														<Skeleton height={14} width='55%' />
+														<Skeleton height={14} width='25%' />
+													</div>
+												))}
+											</div>
+										</div>
+									) : (
+										<div id='club-top-partnerships' className='relative z-30 bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
+											<div className='flex flex-wrap items-center justify-between gap-2 mb-2'>
+												<div className='flex items-center gap-2 min-w-0'>
+													<h3 className='text-white font-semibold text-sm md:text-base'>Top Partnerships</h3>
+													<div className='relative group'>
+														<span
+															tabIndex={0}
+															className='inline-flex items-center justify-center w-4 h-4 text-[10px] rounded-full border border-white/40 text-white/80 cursor-help outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow/80'>
+															i
+														</span>
+														<TooltipSurface className='pointer-events-none absolute left-0 top-6 z-20 hidden w-[min(100vw-2rem,22rem)] group-hover:block group-focus-within:block'>
+															Top 10 player pairs by win rate (or most shared games) in the current filters. Both players must have appeared
+															together in at least five fixtures.
+														</TooltipSurface>
+													</div>
+												</div>
+												{clubPartnershipsDisplay.length > 0 ? (
+													<div className='inline-flex flex-wrap justify-end rounded-md overflow-hidden border border-white/20 shrink-0 max-w-full'>
+														<button
+															type='button'
+															onClick={() => setClubPartnershipSortMode("bestWinRate")}
+															className={`px-2 py-1 text-[10px] md:text-xs whitespace-nowrap ${clubPartnershipSortMode === "bestWinRate" ? "bg-dorkinians-yellow text-black font-semibold" : "bg-transparent text-white"}`}>
+															Best win rate
+														</button>
+														<button
+															type='button'
+															onClick={() => setClubPartnershipSortMode("mostGames")}
+															className={`px-2 py-1 text-[10px] md:text-xs whitespace-nowrap border-l border-white/20 ${clubPartnershipSortMode === "mostGames" ? "bg-dorkinians-yellow text-black font-semibold" : "bg-transparent text-white"}`}>
+															Most games
+														</button>
+													</div>
+												) : null}
+											</div>
+											{clubPartnershipsDisplay.length === 0 ? (
+												<p className='text-white/60 text-xs'>
+													No partnerships with at least five shared games for the current filters.
+												</p>
+											) : (
+												<ul className='space-y-2'>
+													{clubPartnershipsDisplay.map((p, index) => (
+														<li
+															key={`${p.player1}|${p.player2}`}
+															className='flex flex-wrap items-baseline justify-between gap-2 bg-white/5 rounded-md px-3 py-2 md:py-1'>
+															<div className='min-w-0 flex items-baseline gap-1.5 flex-wrap'>
+																<span className='text-white/50 tabular-nums shrink-0 text-xs md:text-sm'>{index + 1}.</span>
+																<button
+																	type='button'
+																	onClick={() => {
+																		selectPlayer(p.player1, "picker");
+																		setMainPage("stats");
+																		setStatsSubPage("player-stats");
+																	}}
+																	className='text-[#E8C547] text-xs md:text-sm font-medium hover:underline text-left truncate'>
+																	{p.player1}
+																</button>
+																<span className='text-white/50 text-xs md:text-sm'>&</span>
+																<button
+																	type='button'
+																	onClick={() => {
+																		selectPlayer(p.player2, "picker");
+																		setMainPage("stats");
+																		setStatsSubPage("player-stats");
+																	}}
+																	className='text-[#E8C547] text-xs md:text-sm font-medium hover:underline text-left truncate'>
+																	{p.player2}
+																</button>
+															</div>
+															<p className='text-white text-xs md:text-sm font-semibold tabular-nums shrink-0'>
+																{Math.round(p.winRate * 10) / 10}% · {Math.round(p.matches)} games
+															</p>
+														</li>
+													))}
+												</ul>
+											)}
+										</div>
+									)
 								)}
 
 								{/* Unique Player Stats Section */}

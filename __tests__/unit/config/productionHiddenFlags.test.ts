@@ -16,13 +16,14 @@ const ROLLED_OUT_USER_FLAGS = [
 	"teamStatsXiStreakCards",
 	"clubStatsLongestActiveStreaks",
 	"clubStatsClubRecordings",
+	"clubStatsTopPartnerships",
 	"clubInfoRecords",
 	"leagueInfoLatestResult",
 	"statsTopPlayersShowAll",
 ] as const;
 
 describe("production feature flag presets", () => {
-	it("turns all 17 user features on in the develop preset and keeps umami off", () => {
+	it("turns all rolled-out user features on in the develop preset and keeps umami off", () => {
 		const develop = featureFlagPresets.develop;
 		for (const key of ROLLED_OUT_USER_FLAGS) {
 			expect(develop[key]).toBe(true);
@@ -30,7 +31,7 @@ describe("production feature flag presets", () => {
 		expect(develop.umamiAnalytics).toBe(false);
 	});
 
-	it("turns all 17 user features on in the production preset and keeps umami off", () => {
+	it("turns all rolled-out user features on in the production preset and keeps umami off", () => {
 		const production = featureFlagPresets.production;
 		for (const key of ROLLED_OUT_USER_FLAGS) {
 			expect(production[key]).toBe(true);
