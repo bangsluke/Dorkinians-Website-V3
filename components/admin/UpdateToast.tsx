@@ -9,6 +9,7 @@ import { useState, useEffect } from "react";
 import { CheckIcon, XMarkIcon, ArrowPathIcon } from "@heroicons/react/24/outline";
 import { pwaUpdateService, UpdateInfo } from "@/lib/services/pwaUpdateService";
 import { useToast } from "@/lib/hooks/useToast";
+import { TOAST_SURFACE } from "@/components/ui/Toast";
 
 interface UpdateToastProps {
 	onClose: () => void;
@@ -91,7 +92,7 @@ export default function UpdateToast({ onClose }: UpdateToastProps) {
 					<motion.div
 						initial={{ opacity: 1 }}
 						exit={{ opacity: 0 }}
-						className='bg-dorkinians-blue rounded-lg shadow-lg border border-white/20 p-4'>
+						className={`${TOAST_SURFACE} rounded-lg shadow-lg p-4`}>
 						<div className='flex flex-col space-y-4'>
 							<div className='flex items-center justify-between'>
 								<div className='flex items-center space-x-3'>
@@ -118,7 +119,7 @@ export default function UpdateToast({ onClose }: UpdateToastProps) {
 							<motion.button
 								onClick={handleUpdate}
 								disabled={isUpdating}
-								className='w-full px-4 py-3 bg-gray-200 text-gray-800 font-semibold rounded-lg hover:bg-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
+								className='w-full px-4 py-3 bg-white/90 text-neutral-900 font-semibold rounded-lg hover:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
 								whileHover={{ scale: 1.02 }}
 								whileTap={{ scale: 0.98 }}>
 								{isUpdating ? (
@@ -142,7 +143,7 @@ export default function UpdateToast({ onClose }: UpdateToastProps) {
 					<motion.div
 						initial={{ opacity: 0 }}
 						animate={{ opacity: 1 }}
-						className='bg-white/10 backdrop-blur-sm rounded-lg border border-white/20 p-4 text-center'>
+						className={`${TOAST_SURFACE} rounded-lg shadow-lg p-4 text-center`}>
 						<p className='text-white text-sm'>You can update any time from the settings screen</p>
 					</motion.div>
 				)}

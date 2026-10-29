@@ -276,11 +276,11 @@ export default function PlayerSelection({ onPlayerSelect, onEditClick, onClearPl
 							if (player) handlePlayerSelect(player);
 						}}>
 						<div className='relative'>
-							<HoverTooltip content="Type to search and select a player">
+							<HoverTooltip content="Type to search and select a player" className="w-full">
 								<Listbox.Button
 									data-testid="player-selection-button"
 									onClick={handleDropdownOpen}
-									className='relative w-full cursor-default dark-dropdown py-3 pl-10 pr-10 text-left shadow-md hover:bg-yellow-400/10 hover:border-yellow-400/30 border border-transparent transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-sm md:text-base'
+									className='relative block w-full cursor-default dark-dropdown py-3 pl-10 pr-10 text-left shadow-md hover:bg-yellow-400/10 hover:border-yellow-400/30 border border-transparent transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-sm md:text-base'
 									aria-label="Type to search and select a player">
 								<span className='pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3'>
 									<MagnifyingGlassIcon className='h-5 w-5 text-yellow-300' aria-hidden='true' />

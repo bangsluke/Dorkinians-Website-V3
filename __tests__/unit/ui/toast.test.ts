@@ -16,14 +16,15 @@ describe("Toast", () => {
 		);
 
 		let toast = screen.getByRole("status");
-		expect(toast.className).toContain("bg-[var(--color-surface)]");
+		expect(toast.className).toContain("bg-white/25");
+		expect(toast.className).toContain("backdrop-blur-md");
 		expect(toast.className).toContain("border-[var(--color-border)]");
 		expect(toast.className).toContain("border-l-[var(--color-success)]");
 		expect(toast.textContent).toContain("Filters reset");
 
 		rerender(React.createElement(Toast, { message: "Failed to load", type: "error", duration: 0 }));
 		toast = screen.getByRole("alert");
-		expect(toast.className).toContain("bg-[var(--color-surface)]");
+		expect(toast.className).toContain("bg-white/25");
 		expect(toast.className).toContain("border-l-[var(--color-error)]");
 	});
 

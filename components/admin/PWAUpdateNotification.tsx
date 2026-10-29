@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { consumePwaUpdateResultToast, pwaUpdateService } from "@/lib/services/pwaUpdateService";
 import { useToast } from "@/lib/hooks/useToast";
+import { TOAST_SURFACE } from "@/components/ui/Toast";
 
 interface PWAUpdateNotificationProps {
 	onUpdate?: () => void;
@@ -104,11 +105,11 @@ export default function PWAUpdateNotification({ onUpdate }: PWAUpdateNotificatio
 	}
 
 	return (
-		<div className='fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-80 bg-blue-600 text-white p-4 rounded-lg shadow-lg z-50'>
+		<div className={`fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-80 p-4 rounded-lg shadow-lg z-50 ${TOAST_SURFACE}`}>
 			<div className='flex items-start justify-between'>
 				<div className='flex-1'>
 					<h3 className='font-semibold text-sm mb-1'>Update Available</h3>
-					<p className='text-xs text-blue-100 mb-3'>
+					<p className='text-xs text-[var(--color-text-secondary)] mb-3'>
 						A new version of Dorkinians Stats is available. Update to get the latest features and improvements.
 					</p>
 					<div className='flex space-x-2'>
@@ -116,15 +117,15 @@ export default function PWAUpdateNotification({ onUpdate }: PWAUpdateNotificatio
 							type='button'
 							onClick={handleUpdate}
 							disabled={isUpdating}
-							className='bg-white text-blue-600 px-3 py-1 rounded text-xs font-medium hover:bg-blue-50 disabled:opacity-50'>
+							className='bg-white/90 text-neutral-900 px-3 py-1 rounded text-xs font-medium hover:bg-white disabled:opacity-50'>
 							{isUpdating ? "Updating..." : "Update Now"}
 						</button>
-						<button type='button' onClick={handleDismiss} className='text-blue-100 hover:text-white text-xs'>
+						<button type='button' onClick={handleDismiss} className='text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] text-xs'>
 							Later
 						</button>
 					</div>
 				</div>
-				<button type='button' onClick={handleDismiss} className='text-blue-200 hover:text-white ml-2' aria-label='Dismiss update notification'>
+				<button type='button' onClick={handleDismiss} className='text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] ml-2' aria-label='Dismiss update notification'>
 					<svg className='w-4 h-4' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
 						<path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M6 18L18 6M6 6l12 12' />
 					</svg>
