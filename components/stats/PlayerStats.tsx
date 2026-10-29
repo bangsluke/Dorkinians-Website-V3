@@ -42,6 +42,7 @@ import type { LiveStreakPayload, StreakDateRange, StreakTooltipMeta } from "@/li
 import { matchRatingCircleStyle } from "@/lib/utils/matchRatingDisplay";
 import { formatXiTeamLabel } from "@/lib/utils/formatXiTeamLabel";
 import { sortPartnershipRows, type PartnershipSortMode } from "@/lib/stats/partnershipSort";
+import { getDropdownChartStatValue } from "@/lib/stats/dropdownChartStatValue";
 import RecordingsSection from "@/components/stats/RecordingsSection";
 import type { RecordingFixture } from "@/lib/utils/recordingsDisplay";
 
@@ -2657,7 +2658,7 @@ export default function PlayerStats() {
 		
 		const baseData = seasonalStats.map(stat => ({
 			name: stat.season,
-			value: toNumber(stat[selectedOption.statKey] || 0),
+			value: getDropdownChartStatValue(stat as Record<string, unknown>, selectedOption.statKey, toNumber),
 		}));
 
 		// Add trendline values if enabled
@@ -2692,7 +2693,7 @@ export default function PlayerStats() {
 		
 		return teamStats.map(stat => ({
 			name: stat.team,
-			value: toNumber(stat[selectedOption.statKey] || 0),
+			value: getDropdownChartStatValue(stat as Record<string, unknown>, selectedOption.statKey, toNumber),
 		}));
 	}, [teamStats, teamSelectedStat, statOptions]);
 
@@ -2704,7 +2705,7 @@ export default function PlayerStats() {
 		
 		return monthlyStats.map(stat => ({
 			name: stat.month,
-			value: toNumber(stat[selectedOption.statKey] || 0),
+			value: getDropdownChartStatValue(stat as Record<string, unknown>, selectedOption.statKey, toNumber),
 		}));
 	}, [monthlyStats, monthlySelectedStat, statOptions]);
 

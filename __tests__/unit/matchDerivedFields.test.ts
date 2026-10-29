@@ -71,6 +71,26 @@ if (!dbRoot) {
 					}),
 				).toBe(8.9);
 			});
+			it("forward 1 penalty scored (no open-play goals) 90m → 7.7", () => {
+				expect(
+					calculateMatchRating({
+						class: "FWD",
+						minutes: 90,
+						goals: 0,
+						assists: 0,
+						mom: 0,
+						cleanSheets: 0,
+						saves: 0,
+						yellowCards: 0,
+						redCards: 0,
+						ownGoals: 0,
+						conceded: 0,
+						penaltiesScored: 1,
+						penaltiesMissed: 0,
+						penaltiesSaved: 0,
+					}),
+				).toBe(7.7);
+			});
 			it("mid 1g 1a MoM 90m → 10.0", () => {
 				expect(
 					calculateMatchRating({

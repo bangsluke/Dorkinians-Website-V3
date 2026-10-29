@@ -32,6 +32,7 @@ type FullMatchRow = RawMatch & {
 	redCards: number;
 	ownGoals: number;
 	concededPlayer: number;
+	penaltiesScored: number;
 	penaltiesMissed: number;
 	penaltiesSaved: number;
 	opposition: string;
@@ -61,6 +62,7 @@ export type PlayerFormRecentMatch = {
 	redCards: number;
 	ownGoals: number;
 	conceded: number;
+	penaltiesScored: number;
 	penaltiesMissed: number;
 	penaltiesSaved: number;
 	opposition: string;
@@ -204,6 +206,7 @@ export async function POST(request: NextRequest) {
 				coalesce(md.redCards, 0) AS redCards,
 				coalesce(md.ownGoals, 0) AS ownGoals,
 				coalesce(md.conceded, 0) AS concededPlayer,
+				coalesce(md.penaltiesScored, 0) AS penaltiesScored,
 				coalesce(md.penaltiesMissed, 0) AS penaltiesMissed,
 				coalesce(md.penaltiesSaved, 0) AS penaltiesSaved,
 				coalesce(f.opposition, "") AS opposition,
@@ -236,6 +239,7 @@ export async function POST(request: NextRequest) {
 				redCards: toNumber(r.get("redCards"), 0),
 				ownGoals: toNumber(r.get("ownGoals"), 0),
 				concededPlayer: toNumber(r.get("concededPlayer"), 0),
+				penaltiesScored: toNumber(r.get("penaltiesScored"), 0),
 				penaltiesMissed: toNumber(r.get("penaltiesMissed"), 0),
 				penaltiesSaved: toNumber(r.get("penaltiesSaved"), 0),
 				opposition: String(r.get("opposition") || ""),
@@ -279,6 +283,7 @@ export async function POST(request: NextRequest) {
 				redCards: row.redCards,
 				ownGoals: row.ownGoals,
 				conceded: row.concededPlayer,
+				penaltiesScored: row.penaltiesScored,
 				penaltiesMissed: row.penaltiesMissed,
 				penaltiesSaved: row.penaltiesSaved,
 				opposition: row.opposition,
