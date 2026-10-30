@@ -195,6 +195,16 @@ export class ChatbotService {
 
 		let originalQuestion = context.question;
 		let correctedQuestion: string | undefined;
+		let oneWordStatAssumption: OneWordStatAssumption | null = null;
+		const withAssumption = (response: ChatbotResponse): ChatbotResponse => {
+			if (!oneWordStatAssumption) {
+				return response;
+			}
+			return {
+				...response,
+				answer: prependAssumptionToAnswer(response.answer, oneWordStatAssumption),
+			};
+		};
 
 		try {
 			// Ensure Neo4j connection before any database-dependent operations
@@ -215,17 +225,23 @@ export class ChatbotService {
 				this.logToBoth(`🔤 Spelling corrections applied: ${spellingResult.corrections.map(c => `${c.original} → ${c.corrected}`).join(", ")}`, null, "log");
 			}
 
-			// One-word stat questions (e.g. "goals") keep the original token for analysis;
-			// the assumption sentence is prepended to the answer after generateResponse.
-			const oneWordStatAssumption: OneWordStatAssumption | null = detectOneWordStatAssumption(
-				context.question,
-			);
+			// One-word stat questions (e.g. "goals", "Assist") are analyzed as
+			// "How many {plural} have I got?" so the player-stat path can answer them.
+			oneWordStatAssumption = detectOneWordStatAssumption(context.question);
+			if (oneWordStatAssumption) {
+				context.question = oneWordStatAssumption.assumedQuestion;
+				this.logToBoth(
+					`🔤 One-word stat assumed as: ${oneWordStatAssumption.assumedQuestion} (${oneWordStatAssumption.metricKey})`,
+					null,
+					"log",
+				);
+			}
 
 			// Handle "full stats" question with special response
 			const fullStatsPattern = /\b(full|all|complete|entire|whole)\s+stats?\b/i;
 			if (fullStatsPattern.test(context.question)) {
 				const playerName = context.userContext || "you";
-				return {
+				return withAssumption({
 					answer: `You can view your complete player statistics on the Player Stats page. Click the link below to navigate there.`,
 					sources: [],
 					visualization: undefined,
@@ -241,7 +257,7 @@ export class ChatbotService {
 							queryBreakdown: null,
 						},
 					},
-				};
+				});
 			}
 
 			// Use the question directly (removed clarification handling that combined questions)
@@ -257,6 +273,13 @@ export class ChatbotService {
 				if (analysis.question !== questionToProcess) {
 					questionToProcess = analysis.question;
 				}
+			}
+
+			// Keep the assumed stat even if conversation merge adds other metrics from "got".
+			if (oneWordStatAssumption) {
+				questionToProcess = oneWordStatAssumption.assumedQuestion;
+				analysis.question = oneWordStatAssumption.assumedQuestion;
+				analysis.metrics = [oneWordStatAssumption.metricKey];
 			}
 			
 			this.lastQuestionAnalysis = analysis; // Store for debugging
@@ -324,27 +347,27 @@ export class ChatbotService {
 					// If there's an explicit clarification message, use it regardless of confidence
 					const clarificationMessage = analysis.clarificationMessage || analysis.message;
 					if (clarificationMessage) {
-						return {
+						return withAssumption({
 							answer: clarificationMessage,
 							sources: [],
 							answerValue: "Clarification needed",
-						};
+						});
 					}
 					
 					// Try to provide a better fallback response if no explicit clarification message
 					if (analysis.confidence !== undefined && analysis.confidence < 0.5) {
 						const fallbackResponse = questionSimilarityMatcher.generateFallbackResponse(context.question, analysis);
-						return {
+						return withAssumption({
 							answer: fallbackResponse,
 							sources: [],
 							answerValue: "Clarification needed",
-						};
+						});
 					}
-					return {
+					return withAssumption({
 						answer: "Please clarify your question.",
 						sources: [],
 						answerValue: "Clarification needed",
-					};
+					});
 				}
 			}
 
@@ -377,11 +400,9 @@ export class ChatbotService {
 			this.lastProcessingSteps.push(`Query completed, result type: ${data?.type || "null"}`);
 
 			// Generate the response (use original question for response generation, but processed question was used for analysis) - Pass userContext and sessionId so it can be used for post-query clarification checks
-			const response = await this.generateResponse(questionToProcess, data, analysis, context.userContext, context.sessionId);
-
-			if (oneWordStatAssumption) {
-				response.answer = prependAssumptionToAnswer(response.answer, oneWordStatAssumption);
-			}
+			const response = withAssumption(
+				await this.generateResponse(questionToProcess, data, analysis, context.userContext, context.sessionId),
+			);
 
 			// Store in conversation context if session ID provided - Use the processed question (which may be combined with clarification) for history
 			if (context.sessionId) {
@@ -462,7 +483,7 @@ export class ChatbotService {
 				}
 			}
 
-			return errorChatbotResponse;
+			return withAssumption(errorChatbotResponse);
 		}
 	}
 
