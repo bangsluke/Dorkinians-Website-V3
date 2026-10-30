@@ -70,5 +70,5 @@ Each season is stored as a JSON file named `[season].json` (e.g., `2019-20.json`
 
 - Some seasons may have 8 teams, others fewer
 - Not all teams may have league tables for every season
-- Current season data is stored in Neo4j and fetched from Google Sheets
+- Current season tables on the site use the FA Full-Time widgets. Files in this folder are the stored final tables for past seasons.
 
