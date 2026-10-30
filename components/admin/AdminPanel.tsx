@@ -1625,22 +1625,24 @@ export default function AdminPanel() {
 				<p className='text-xs text-gray-700'>While seeding is running, you can stream full backend logs locally:</p>
 				<div className='mt-2 relative'>
 					<pre className='p-2 bg-gray-900 text-gray-100 text-xs rounded pr-10'><code>heroku logs --tail --app dorkinians-database-v3</code></pre>
-					<HoverTooltip content='Copy to clipboard'>
-						<button
-							onClick={async () => {
-								try {
-									await navigator.clipboard.writeText('heroku logs --tail --app dorkinians-database-v3');
-									showToast('Command copied to clipboard!', 'success');
-								} catch (err) {
-									showToast('Failed to copy to clipboard', 'error');
-								}
-							}}
-							className='absolute top-1 right-1 p-1 text-gray-400 hover:text-white transition-colors'
-							aria-label='Copy to clipboard'
-						>
-							📋
-						</button>
-					</HoverTooltip>
+					<div className='absolute inset-y-0 right-1 flex items-center'>
+						<HoverTooltip content='Copy to clipboard'>
+							<button
+								onClick={async () => {
+									try {
+										await navigator.clipboard.writeText('heroku logs --tail --app dorkinians-database-v3');
+										showToast('Command copied to clipboard!', 'success');
+									} catch (err) {
+										showToast('Failed to copy to clipboard', 'error');
+									}
+								}}
+								className='p-1 text-gray-400 hover:text-white transition-colors'
+								aria-label='Copy to clipboard'
+							>
+								📋
+							</button>
+						</HoverTooltip>
+					</div>
 				</div>
 			</div>
 
