@@ -85,65 +85,25 @@ class SimpleEmailService {
 		<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px;">
 			<div style="background: #dc3545; color: white; padding: 20px; border-radius: 5px; margin-bottom: 20px;">
 				<h1 style="margin: 0; font-size: 24px;">🚨 CRITICAL FAILURE - Heroku App Down</h1>
-				<p style="margin: 10px 0 0 0; font-size: 16px;">Database Seeder Service Unavailable</p>
+				<p style="margin: 10px 0 0 0; font-size: 16px;">Seeding could not start, so the site data is unchanged.</p>
 			</div>
 			
 			<div style="background: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 20px;">
-				<h2 style="margin-top: 0; color: #dc3545;">Failure Details</h2>
-				<table style="width: 100%; border-collapse: collapse;">
-					<tr>
-						<td style="padding: 8px; border: 1px solid #ddd; background: #e9ecef; font-weight: bold; width: 150px;">Environment:</td>
-						<td style="padding: 8px; border: 1px solid #ddd;">${environment}</td>
-					</tr>
-					<tr>
-						<td style="padding: 8px; border: 1px solid #ddd; background: #e9ecef; font-weight: bold;">Job ID:</td>
-						<td style="padding: 8px; border: 1px solid #ddd;">${jobId}</td>
-					</tr>
-					<tr>
-						<td style="padding: 8px; border: 1px solid #ddd; background: #e9ecef; font-weight: bold;">Timestamp:</td>
-						<td style="padding: 8px; border: 1px solid #ddd;">${new Date().toLocaleString()}</td>
-					</tr>
-					<tr>
-						<td style="padding: 8px; border: 1px solid #ddd; background: #e9ecef; font-weight: bold;">Error Type:</td>
-						<td style="padding: 8px; border: 1px solid #ddd;">Heroku Application Down</td>
-					</tr>
-					<tr>
-						<td style="padding: 8px; border: 1px solid #ddd; background: #e9ecef; font-weight: bold;">Status Code:</td>
-						<td style="padding: 8px; border: 1px solid #ddd; color: #dc3545; font-weight: bold;">${errorDetails.statusCode || 'Unknown'}</td>
-					</tr>
-					<tr>
-						<td style="padding: 8px; border: 1px solid #ddd; background: #e9ecef; font-weight: bold;">Error Message:</td>
-						<td style="padding: 8px; border: 1px solid #ddd; word-break: break-word;">${errorDetails.message || 'Heroku application is not responding'}</td>
-					</tr>
-				</table>
+				<h2 style="margin-top: 0; color: #dc3545;">What this means for the data</h2>
+				<p>The Heroku database seeder is not responding, so no new fixtures or tables can be loaded until it is restored.</p>
+				<p><strong>Error Message:</strong> ${errorDetails.message || 'Heroku application is not responding'}</p>
+				<p><strong>Next step:</strong> Restart the Heroku seeding app from the dashboard, then trigger seeding again from the admin panel.</p>
 			</div>
 			
-			<div style="background: #fff3cd; padding: 20px; border-radius: 5px; margin-bottom: 20px;">
-				<h3 style="margin-top: 0; color: #856404;">What This Means</h3>
-				<ul style="margin: 0; padding-left: 20px;">
-					<li>The Heroku database seeder application is completely down</li>
-					<li>No seeding jobs can be started or processed</li>
-					<li>All database operations are unavailable</li>
-					<li>This is a critical infrastructure failure</li>
-				</ul>
-			</div>
-			
-			<div style="background: #d1ecf1; padding: 20px; border-radius: 5px; margin-bottom: 20px;">
-				<h3 style="margin-top: 0; color: #0c5460;">Immediate Actions Required</h3>
-				<ul style="margin: 0; padding-left: 20px;">
-					<li>Check Heroku dashboard for application status</li>
-					<li>Review Heroku logs for crash details</li>
-					<li>Restart the Heroku application if possible</li>
-					<li>Check for memory or resource issues</li>
-					<li>Verify environment variables and configuration</li>
-					<li>Consider scaling up Heroku dynos if needed</li>
-				</ul>
-			</div>
-			
-			<div style="background: #f8f9fa; padding: 15px; border-radius: 5px; font-size: 14px; color: #6c757d;">
-				<p style="margin: 0;"><strong>Service:</strong> Dorkinians Database Seeder</p>
-				<p style="margin: 5px 0 0 0;"><strong>Environment:</strong> ${environment}</p>
-				<p style="margin: 5px 0 0 0;"><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
+			<div style="background: #e9ecef; padding: 15px; border-radius: 5px; font-size: 14px; color: #555;">
+				<h3 style="margin-top: 0;">System details</h3>
+				<p style="margin: 0;"><strong>Environment:</strong> ${environment}</p>
+				<p style="margin: 5px 0 0 0;"><strong>Job ID:</strong> ${jobId}</p>
+				<p style="margin: 5px 0 0 0;"><strong>Timestamp:</strong> ${new Date().toLocaleString()}</p>
+				<p style="margin: 5px 0 0 0;"><strong>Error Type:</strong> Heroku Application Down</p>
+				<p style="margin: 5px 0 0 0;"><strong>Status Code:</strong> ${errorDetails.statusCode || 'Unknown'}</p>
+				<p style="margin: 5px 0 0 0;"><strong>Service:</strong> Dorkinians Database Seeder</p>
+				<p style="margin: 8px 0 0 0;">Also review Heroku logs for crash details and check memory or configuration if restarts fail.</p>
 			</div>
 		</body>
 		</html>
@@ -153,33 +113,20 @@ class SimpleEmailService {
 	generateCriticalFailureEmailText(environment, jobId, errorDetails) {
 		return `
 🚨 CRITICAL FAILURE - Heroku App Down
-Database Seeder Service Unavailable
+Seeding could not start, so the site data is unchanged.
 
-Failure Details:
-- Environment: ${environment}
-- Job ID: ${jobId}
-- Timestamp: ${new Date().toLocaleString()}
-- Error Type: Heroku Application Down
-- Status Code: ${errorDetails.statusCode || 'Unknown'}
-- Error Message: ${errorDetails.message || 'Heroku application is not responding'}
+WHAT THIS MEANS FOR THE DATA
+The Heroku database seeder is not responding, so no new fixtures or tables can be loaded until it is restored.
+Error Message: ${errorDetails.message || 'Heroku application is not responding'}
+Next step: Restart the Heroku seeding app from the dashboard, then trigger seeding again from the admin panel.
 
-What This Means:
-- The Heroku database seeder application is completely down
-- No seeding jobs can be started or processed
-- All database operations are unavailable
-- This is a critical infrastructure failure
-
-Immediate Actions Required:
-- Check Heroku dashboard for application status
-- Review Heroku logs for crash details
-- Restart the Heroku application if possible
-- Check for memory or resource issues
-- Verify environment variables and configuration
-- Consider scaling up Heroku dynos if needed
-
-Service: Dorkinians Database Seeder
+SYSTEM DETAILS
 Environment: ${environment}
-Generated: ${new Date().toLocaleString()}
+Job ID: ${jobId}
+Timestamp: ${new Date().toLocaleString()}
+Error Type: Heroku Application Down
+Status Code: ${errorDetails.statusCode || 'Unknown'}
+Service: Dorkinians Database Seeder
 		`;
 	}
 

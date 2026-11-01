@@ -114,13 +114,16 @@ class EmailService {
 				to: this.config.to,
 				subject: `🌱 Database Seeding Started - ${environment.toUpperCase()} - Job: ${jobId}`,
 				html: `
-					<h2>🚀 Database Seeding Process Started</h2>
+					<h2>🚀 Database Seeding Started</h2>
+					<p>A database update for the Dorkinians website has started. You will receive another email when it finishes.</p>
+					<h3>What this means for the data</h3>
+					<p>Spreadsheet data will be fetched, validated, and written into the website database. No further action is needed unless the completion email reports a problem.</p>
+					<h3>System details</h3>
 					<p><strong>Environment:</strong> ${environment.toUpperCase()}</p>
 					<p><strong>Job ID:</strong> ${jobId}</p>
 					<p><strong>Start Time:</strong> ${new Date().toLocaleString()}</p>
-					<p><strong>Status:</strong> Seeding process is now running in the background</p>
 					<hr>
-					<p><em>This is an automated notification. The seeding process will continue running and you will receive a completion email when it finishes.</em></p>
+					<p><em>This is an automated notification from the Dorkinians FC Statistics Website seeding system.</em></p>
 				`,
 			};
 
@@ -156,19 +159,21 @@ class EmailService {
 			const durationText = duration ? `${Math.round(duration / 1000)} seconds` : "Unknown";
 			const failureCypher = success ? null : this.getFailureCypherFromSummary({ errors });
 
+			const outcomeSentence = success
+				? "Seeding completed successfully and the website database was updated."
+				: "Database seeding did not complete successfully. Website data may be incomplete or unchanged from the previous good run.";
 			const mailOptions = {
 				from: this.config.from,
 				to: this.config.to,
 				subject: `${statusIcon} Database Seeding ${statusText} - ${environment.toUpperCase()} - Job: ${jobId}`,
 				html: `
 					<h2>${statusIcon} Database Seeding ${statusText}</h2>
-					<p><strong>Environment:</strong> ${environment.toUpperCase()}</p>
-					<p><strong>Job ID:</strong> ${jobId}</p>
+					<p>${outcomeSentence}</p>
+					
+					<h3>What this means for the data</h3>
 					<p><strong>Status:</strong> ${statusText}</p>
 					<p><strong>Completion Time:</strong> ${new Date().toLocaleString()}</p>
 					<p><strong>Duration:</strong> ${durationText}</p>
-					
-					<h3>📊 Results Summary</h3>
 					<p><strong>Nodes Created:</strong> ${nodesCreated}</p>
 					<p><strong>Relationships Created:</strong> ${relationshipsCreated}</p>
 					<p><strong>Error Count:</strong> ${errorCount}</p>
@@ -184,10 +189,13 @@ class EmailService {
 							: ""
 					}
 
+					<h3>System details</h3>
+					<p><strong>Environment:</strong> ${environment.toUpperCase()}</p>
+					<p><strong>Job ID:</strong> ${jobId}</p>
 					${
 						failureCypher
 							? `
-						<h3>Neo4j Debug Query</h3>
+						<h4>Neo4j Debug Query</h4>
 						<p>Copy and paste this into Neo4j Aura Browser to inspect the failure:</p>
 						<pre style="white-space: pre-wrap; font-family: Consolas, Monaco, monospace; font-size: 12px; line-height: 1.45; background: #111827; color: #f9fafb; padding: 12px; border-radius: 6px;">${this.escapeHtml(failureCypher)}</pre>
 					`
@@ -275,16 +283,18 @@ LIMIT 50;`;
 
 		let htmlBody = `
 			<h2>🚨 CSV Validation Issues Detected</h2>
+			<p>Seeding was stopped before writing to the website database because one or more spreadsheets failed validation.</p>
+			<h3>What this means for the data</h3>
 			<p><strong>Total Data Sources:</strong> ${summary.totalSources}</p>
 			<p><strong>Valid Sources:</strong> ${validSources}</p>
 			<p><strong>Failed Sources:</strong> ${summary.failedSources}</p>
 			<p><strong>Total Issues:</strong> ${totalFailures}</p>
-			<p><strong>Timestamp:</strong> ${new Date().toLocaleString()}</p>
+			<p><strong>Next step:</strong> Fix the spreadsheet columns or publishing settings listed below, then re-run seeding.</p>
 		`;
 
 		if (summary.headerFailures.length > 0) {
 			htmlBody += `
-				<h3>📋 Header Mismatch Issues (${summary.headerFailures.length})</h3>
+				<h3>📋 Missing or changed columns (${summary.headerFailures.length})</h3>
 				<table border="1" style="border-collapse: collapse; width: 100%; margin: 10px 0;">
 					<tr style="background-color: #f2f2f2;">
 						<th style="padding: 8px; text-align: left;">Source</th>
@@ -312,7 +322,7 @@ LIMIT 50;`;
 
 		if (summary.accessFailures.length > 0) {
 			htmlBody += `
-				<h3>🔒 Access Issues (${summary.accessFailures.length})</h3>
+				<h3>🔒 Spreadsheet could not be opened (${summary.accessFailures.length})</h3>
 				<table border="1" style="border-collapse: collapse; width: 100%; margin: 10px 0;">
 					<tr style="background-color: #f2f2f2;">
 						<th style="padding: 8px; text-align: left;">Source</th>
@@ -326,7 +336,7 @@ LIMIT 50;`;
 					<tr>
 						td style="padding: 8px;">${failure.sourceName}</td>
 						<td style="padding: 8px;">${failure.error}</td>
-						<td style="padding: 8px;">${failure.url}</td>
+						<td style="padding: 8px;"><a href="${failure.url}">${failure.url}</a></td>
 					</tr>
 				`;
 			});
@@ -335,9 +345,11 @@ LIMIT 50;`;
 		}
 
 		htmlBody += `
+			<h3>System details</h3>
+			<p><strong>Timestamp:</strong> ${new Date().toLocaleString()}</p>
+			<p>Config references: <code>lib/config/csvHeaders.ts</code>, <code>netlify/functions/lib/config/dataSources.js</code>. Retest with <code>npm run test-headers</code>.</p>
 			<hr>
 			<p><em>This is an automated notification from the Dorkinians FC Statistics Website CSV validation system.</em></p>
-			<p><strong>Action Required:</strong> Please review and fix the issues above to ensure data integrity.</p>
 		`;
 
 		return htmlBody;

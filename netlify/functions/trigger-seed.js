@@ -151,22 +151,17 @@ class SimpleEmailService {
 		<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
 			<div style="background: #007bff; color: white; padding: 20px; border-radius: 5px; margin-bottom: 20px;">
 				<h1 style="margin: 0; font-size: 24px;">🔄 Database Seeding Started</h1>
+				<p style="margin: 10px 0 0 0; font-size: 16px;">A database update for the Dorkinians website has started. You will receive another email when it finishes.</p>
 				<p style="margin: 10px 0 0 0; font-size: 16px;">Environment: ${environment}</p>
 			</div>
 			
 			<div style="background: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 20px;">
-				<h2 style="margin-top: 0; color: #007bff;">Seeding Process Initiated</h2>
-				<p>The database seeding process has been successfully started on the Heroku service.</p>
-				<p><strong>What happens next:</strong></p>
-				<ul>
-					<li>Data will be fetched from external sources</li>
-					<li>CSV files will be processed and validated</li>
-					<li>Neo4j database will be updated with new data</li>
-					<li>You will receive a completion notification when finished</li>
-				</ul>
+				<h2 style="margin-top: 0; color: #007bff;">What this means for the data</h2>
+				<p>Spreadsheet data will be fetched, validated, and written into the website database. No further action is needed unless the completion email reports a problem.</p>
 			</div>
 			
-			<div style="background: #d1ecf1; padding: 15px; border-radius: 5px; font-size: 14px; color: #0c5460;">
+			<div style="background: #e9ecef; padding: 15px; border-radius: 5px; font-size: 14px; color: #555;">
+				<h3 style="margin-top: 0;">System details</h3>
 				<p style="margin: 0;"><strong>Service:</strong> Dorkinians Database Seeder</p>
 				<p style="margin: 5px 0 0 0;"><strong>Environment:</strong> ${environment}</p>
 				<p style="margin: 5px 0 0 0;"><strong>Started:</strong> ${new Date().toLocaleString()}</p>
@@ -179,16 +174,13 @@ class SimpleEmailService {
 	generateSeedingStartEmailText(environment) {
 		return `
 🔄 Database Seeding Started
+A database update for the Dorkinians website has started. You will receive another email when it finishes.
 Environment: ${environment}
 
-The database seeding process has been successfully started on the Heroku service.
+WHAT THIS MEANS FOR THE DATA
+Spreadsheet data will be fetched, validated, and written into the website database. No further action is needed unless the completion email reports a problem.
 
-What happens next:
-- Data will be fetched from external sources
-- CSV files will be processed and validated
-- Neo4j database will be updated with new data
-- You will receive a completion notification when finished
-
+SYSTEM DETAILS
 Service: Dorkinians Database Seeder
 Environment: ${environment}
 Started: ${new Date().toLocaleString()}
@@ -205,6 +197,9 @@ Started: ${new Date().toLocaleString()}
 		const endTime = summary.endTime ? new Date(summary.endTime).toLocaleString() : 'Not recorded';
 		const durationFormatted = summary.duration ? `${(summary.duration / 1000).toFixed(2)}s` : 'Not recorded';
 		
+		const outcomeSentence = summary.success
+			? 'Seeding completed successfully and the website database was updated.'
+			: 'Database seeding did not complete successfully. Website data may be incomplete or unchanged from the previous good run.';
 		return `
 		<!DOCTYPE html>
 		<html>
@@ -215,16 +210,13 @@ Started: ${new Date().toLocaleString()}
 		<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px;">
 			<div style="background: ${statusColor}; color: white; padding: 20px; border-radius: 5px; margin-bottom: 20px;">
 				<h1 style="margin: 0; font-size: 24px;">${statusIcon} Database Seeding ${statusText}</h1>
+				<p style="margin: 10px 0 0 0; font-size: 16px;">${outcomeSentence}</p>
 				<p style="margin: 10px 0 0 0; font-size: 16px;">Environment: ${summary.environment}</p>
 			</div>
 			
 			<div style="background: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 20px;">
-				<h2 style="margin-top: 0; color: ${statusColor};">Summary</h2>
+				<h2 style="margin-top: 0; color: ${statusColor};">What this means for the data</h2>
 				<table style="width: 100%; border-collapse: collapse;">
-					<tr>
-						<td style="padding: 8px; border: 1px solid #ddd; background: #e9ecef; font-weight: bold; width: 200px;">Job ID:</td>
-						<td style="padding: 8px; border: 1px solid #ddd;">${summary.jobId}</td>
-					</tr>
 					<tr>
 						<td style="padding: 8px; border: 1px solid #ddd; background: #e9ecef; font-weight: bold;">Status:</td>
 						<td style="padding: 8px; border: 1px solid #ddd; color: ${statusColor}; font-weight: bold;">${statusText}</td>
@@ -264,19 +256,18 @@ Started: ${new Date().toLocaleString()}
 				</ul>
 			</div>
 			` : ''}
-
-			${failureCypher ? `
-			<div style="background: #fff8e1; border: 1px solid #ffe082; padding: 20px; border-radius: 5px; margin-bottom: 20px;">
-				<h3 style="margin-top: 0; color: #856404;">Neo4j Debug Query</h3>
-				<p style="margin: 0 0 10px 0;">Copy and paste this into Neo4j Aura Browser to inspect the failure:</p>
-				<pre style="white-space: pre-wrap; font-family: Consolas, Monaco, monospace; font-size: 12px; line-height: 1.45; margin: 0; background: #111827; color: #f9fafb; padding: 12px; border-radius: 6px;">${this.escapeHtml(failureCypher)}</pre>
-			</div>
-			` : ''}
 			
-			<div style="background: #f8f9fa; padding: 15px; border-radius: 5px; font-size: 14px; color: #6c757d;">
-				<p style="margin: 0;"><strong>Service:</strong> Dorkinians Database Seeder</p>
+			<div style="background: #e9ecef; padding: 15px; border-radius: 5px; font-size: 14px; color: #555;">
+				<h3 style="margin-top: 0;">System details</h3>
+				<p style="margin: 0;"><strong>Job ID:</strong> ${summary.jobId}</p>
+				<p style="margin: 5px 0 0 0;"><strong>Service:</strong> Dorkinians Database Seeder</p>
 				<p style="margin: 5px 0 0 0;"><strong>Environment:</strong> ${summary.environment}</p>
 				<p style="margin: 5px 0 0 0;"><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
+				${failureCypher ? `
+				<h4 style="margin: 12px 0 6px 0; color: #856404;">Neo4j Debug Query</h4>
+				<p style="margin: 0 0 10px 0;">Copy and paste this into Neo4j Aura Browser to inspect the failure:</p>
+				<pre style="white-space: pre-wrap; font-family: Consolas, Monaco, monospace; font-size: 12px; line-height: 1.45; margin: 0; background: #111827; color: #f9fafb; padding: 12px; border-radius: 6px;">${this.escapeHtml(failureCypher)}</pre>
+				` : ''}
 			</div>
 		</body>
 		</html>
@@ -292,12 +283,15 @@ Started: ${new Date().toLocaleString()}
 		const endTime = summary.endTime ? new Date(summary.endTime).toLocaleString() : 'Not recorded';
 		const durationFormatted = summary.duration ? `${(summary.duration / 1000).toFixed(2)}s` : 'Not recorded';
 		
+		const outcomeSentence = summary.success
+			? 'Seeding completed successfully and the website database was updated.'
+			: 'Database seeding did not complete successfully. Website data may be incomplete or unchanged from the previous good run.';
 		return `
 ${statusIcon} Database Seeding ${statusText}
+${outcomeSentence}
 Environment: ${summary.environment}
 
-Summary:
-- Job ID: ${summary.jobId}
+WHAT THIS MEANS FOR THE DATA
 - Status: ${statusText}
 - Nodes Created: ${summary.nodesCreated || 0}
 - Relationships Created: ${summary.relationshipsCreated || 0}
@@ -311,15 +305,16 @@ Errors:
 ${summary.errors.map(error => `- ${error}`).join('\n')}
 ` : ''}
 
+SYSTEM DETAILS
+Job ID: ${summary.jobId}
+Service: Dorkinians Database Seeder
+Environment: ${summary.environment}
+Generated: ${new Date().toLocaleString()}
 ${failureCypher ? `
 NEO4J DEBUG QUERY
 Copy and paste into Neo4j Aura Browser:
 ${failureCypher}
 ` : ''}
-
-Service: Dorkinians Database Seeder
-Environment: ${summary.environment}
-Generated: ${new Date().toLocaleString()}
 		`.trim();
 	}
 
@@ -395,46 +390,24 @@ LIMIT 50;`;
 		<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px;">
 			<div style="background: #dc3545; color: white; padding: 20px; border-radius: 5px; margin-bottom: 20px;">
 				<h1 style="margin: 0; font-size: 24px;">🚨 CRITICAL ERROR - Database Seeder</h1>
-				<p style="margin: 10px 0 0 0; font-size: 16px;">${errorInfo.errorType}</p>
+				<p style="margin: 10px 0 0 0; font-size: 16px;">A critical seeding error occurred. The website data was not safely updated by this run.</p>
 			</div>
 			
 			<div style="background: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 20px;">
-				<h2 style="margin-top: 0; color: #dc3545;">Error Details</h2>
-				<table style="width: 100%; border-collapse: collapse;">
-					<tr>
-						<td style="padding: 8px; border: 1px solid #ddd; background: #e9ecef; font-weight: bold; width: 150px;">Error Type:</td>
-						<td style="padding: 8px; border: 1px solid #ddd;">${errorInfo.errorType}</td>
-					</tr>
-					<tr>
-						<td style="padding: 8px; border: 1px solid #ddd; background: #e9ecef; font-weight: bold;">Timestamp:</td>
-						<td style="padding: 8px; border: 1px solid #ddd;">${new Date(errorInfo.timestamp).toLocaleString()}</td>
-					</tr>
-					<tr>
-						<td style="padding: 8px; border: 1px solid #ddd; background: #e9ecef; font-weight: bold;">Error Message:</td>
-						<td style="padding: 8px; border: 1px solid #ddd; word-break: break-word;">${errorInfo.errorMessage}</td>
-					</tr>
-				</table>
+				<h2 style="margin-top: 0; color: #dc3545;">What this means for the data</h2>
+				<p><strong>Error Message:</strong> ${errorInfo.errorMessage}</p>
+				<p><strong>Next step:</strong> Fix the reported error, then re-run seeding from the admin panel.</p>
 			</div>
 			
-			<div style="background: #fff3cd; padding: 20px; border-radius: 5px; margin-bottom: 20px;">
-				<h3 style="margin-top: 0; color: #856404;">Stack Trace</h3>
-				<pre style="background: #f8f9fa; padding: 15px; border-radius: 3px; overflow-x: auto; font-size: 12px; line-height: 1.4;">${errorInfo.errorStack}</pre>
-			</div>
-			
-			<div style="background: #d1ecf1; padding: 20px; border-radius: 5px; margin-bottom: 20px;">
-				<h3 style="margin-top: 0; color: #0c5460;">Immediate Actions Required</h3>
-				<ul style="margin: 0; padding-left: 20px;">
-					<li>Check the application logs for additional context</li>
-					<li>Verify database connectivity and credentials</li>
-					<li>Review recent changes that might have caused this error</li>
-					<li>Consider restarting the application if the error persists</li>
-				</ul>
-			</div>
-			
-			<div style="background: #f8f9fa; padding: 15px; border-radius: 5px; font-size: 14px; color: #6c757d;">
-				<p style="margin: 0;"><strong>Service:</strong> Dorkinians Database Seeder</p>
+			<div style="background: #e9ecef; padding: 15px; border-radius: 5px; font-size: 14px; color: #555;">
+				<h3 style="margin-top: 0;">System details</h3>
+				<p style="margin: 0;"><strong>Error Type:</strong> ${errorInfo.errorType}</p>
+				<p style="margin: 5px 0 0 0;"><strong>Timestamp:</strong> ${new Date(errorInfo.timestamp).toLocaleString()}</p>
+				<p style="margin: 5px 0 0 0;"><strong>Service:</strong> Dorkinians Database Seeder</p>
 				<p style="margin: 5px 0 0 0;"><strong>Environment:</strong> ${process.env.NODE_ENV || 'production'}</p>
 				<p style="margin: 5px 0 0 0;"><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
+				<h4 style="margin: 12px 0 6px 0;">Stack Trace</h4>
+				<pre style="background: #f8f9fa; padding: 15px; border-radius: 3px; overflow-x: auto; font-size: 12px; line-height: 1.4;">${errorInfo.errorStack}</pre>
 			</div>
 		</body>
 		</html>
@@ -444,21 +417,17 @@ LIMIT 50;`;
 	generateCriticalErrorEmailText(errorInfo) {
 		return `
 🚨 CRITICAL ERROR - Database Seeder
-${errorInfo.errorType}
+A critical seeding error occurred. The website data was not safely updated by this run.
 
-Error Details:
-- Error Type: ${errorInfo.errorType}
-- Timestamp: ${new Date(errorInfo.timestamp).toLocaleString()}
-- Error Message: ${errorInfo.errorMessage}
+WHAT THIS MEANS FOR THE DATA
+Error Message: ${errorInfo.errorMessage}
+Next step: Fix the reported error, then re-run seeding from the admin panel.
 
+SYSTEM DETAILS
+Error Type: ${errorInfo.errorType}
+Timestamp: ${new Date(errorInfo.timestamp).toLocaleString()}
 Stack Trace:
 ${errorInfo.errorStack}
-
-Immediate Actions Required:
-- Check the application logs for additional context
-- Verify database connectivity and credentials
-- Review recent changes that might have caused this error
-- Consider restarting the application if the error persists
 
 Service: Dorkinians Database Seeder
 Environment: ${process.env.NODE_ENV || 'production'}

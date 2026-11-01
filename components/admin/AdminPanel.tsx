@@ -14,6 +14,7 @@ import {
 	formatFailedTestItemLine,
 	type FailedTestDetail,
 } from "@/lib/utils/failedTestsDetailFormat";
+import { splitSeedErrorLogs } from "@/lib/utils/splitSeedErrorLogs";
 
 interface SiteDetails {
 	lastSeededStats: string | null;
@@ -1364,149 +1365,106 @@ export default function AdminPanel() {
 						</p>
 					);
 				})()}
-			</div>
 
-			{/* Email Configuration Section */}
-			<div className='mb-6 p-4 bg-gray-50 rounded-lg'>
-				<h3 className='text-lg font-semibold text-gray-800 mb-2'>Email Notifications</h3>
-				<div className='space-y-4'>
-					<div className='w-full lg:w-1/2 lg:mx-auto'>
-						<label htmlFor='emailAddress' className='block text-sm font-medium text-gray-700'>
-							Email Address for Notifications:
-						</label>
-						<input
-							type='email'
-							id='emailAddress'
-							value={emailAddress}
-							onChange={(e) => setEmailAddress(e.target.value)}
-							placeholder='bangsluke@gmail.com'
-							className='mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm placeholder-gray-800'
-						/>
-					</div>
-					<div className='flex flex-col sm:flex-row sm:space-x-6 space-y-2 sm:space-y-0'>
-						<div className='flex items-center'>
-							<input
-								type='checkbox'
-								id='sendEmailAtStart'
-								checked={sendEmailAtStart}
-								onChange={(e) => setSendEmailAtStart(e.target.checked)}
-								className='mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded'
-							/>
-							<label htmlFor='sendEmailAtStart' className='text-sm text-gray-700'>
-								Send email when seeding starts
-							</label>
-						</div>
-						<div className='flex items-center'>
-							<input
-								type='checkbox'
-								id='sendEmailAtCompletion'
-								checked={sendEmailAtCompletion}
-								onChange={(e) => setSendEmailAtCompletion(e.target.checked)}
-								className='mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded'
-							/>
-							<label htmlFor='sendEmailAtCompletion' className='text-sm text-gray-700'>
-								Send email when seeding completes
-							</label>
-						</div>
-					</div>
-				</div>
-			</div>
-
-			{/* Last Seed Run Logs */}
-			<div className='mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200'>
-				<h3 className='text-lg font-semibold text-gray-800 mb-2'>Last Seed Run Logs</h3>
-				{lastSeedRunLoading && !lastSeedRun ? (
-					<p className='text-sm text-gray-600'>Loading last seed run logs...</p>
-				) : !lastSeedRun?.exists ? (
-					<p className='text-sm text-gray-600'>No seed run has been recorded yet.</p>
-				) : (
-					<div className='space-y-3'>
-						<p className='text-xs text-gray-500'>
-							Job {lastSeedRun.lastSeedJobId || "unknown"}
-							{lastSeedRun.lastSeedFinishedAt
-								? ` · ${formatDate(lastSeedRun.lastSeedFinishedAt)}`
-								: ""}
-							{lastSeedRun.fullLogTruncated ? " · full log truncated to the latest portion" : ""}
-						</p>
-						{lastSeedRun.hasErrors ? (
-							<pre className='max-h-64 overflow-auto rounded bg-gray-900 p-3 text-xs text-red-200 whitespace-pre-wrap'>
-								{lastSeedRun.errorLogText}
-								{lastSeedRun.errorLogTruncated ? "\n\n[error log truncated]" : ""}
-							</pre>
-						) : (
-							<p className='text-sm text-green-700'>
-								No errors were recorded for the last seed run.
+				{/* Last Seed Run Logs (subsection) */}
+				<div className='mt-4 pt-4 border-t border-gray-200'>
+					<h4 className='text-base font-semibold text-gray-800 mb-2'>Last Seed Run Logs</h4>
+					{lastSeedRunLoading && !lastSeedRun ? (
+						<p className='text-sm text-gray-600'>Loading last seed run logs...</p>
+					) : !lastSeedRun?.exists ? (
+						<p className='text-sm text-gray-600'>No seed run has been recorded yet.</p>
+					) : (
+						<div className='space-y-3'>
+							<p className='text-xs text-gray-500'>
+								Job {lastSeedRun.lastSeedJobId || "unknown"}
+								{lastSeedRun.lastSeedFinishedAt
+									? ` · ${formatDate(lastSeedRun.lastSeedFinishedAt)}`
+									: ""}
+								{lastSeedRun.fullLogTruncated ? " · full log truncated to the latest portion" : ""}
 							</p>
-						)}
-						<div className='flex flex-col sm:flex-row gap-2'>
-							<button
-								type='button'
-								onClick={() => void handleShowFullSeedLogs()}
-								disabled={fullSeedLogsLoading}
-								className='px-3 py-2 rounded bg-gray-800 text-white text-sm hover:bg-gray-700 disabled:opacity-50'>
-								{fullSeedLogsLoading
-									? "Loading full logs..."
-									: showFullSeedLogs
-										? "Hide full logs"
-										: "Show full logs"}
-							</button>
-							<button
-								type='button'
-								onClick={() => void handleDownloadFullSeedLogs()}
-								className='px-3 py-2 rounded bg-blue-600 text-white text-sm hover:bg-blue-700'>
-								Download full logs
-							</button>
+							{(() => {
+								if (!lastSeedRun.hasErrors) {
+									return (
+										<p className='text-sm text-green-700'>
+											No errors were recorded for the last seed run.
+										</p>
+									);
+								}
+								const { dataLogText, systemLogText } = splitSeedErrorLogs(lastSeedRun.errorLogText);
+								const truncNote = lastSeedRun.errorLogTruncated ? "\n\n[error log truncated]" : "";
+								return (
+									<div className='grid grid-cols-1 lg:grid-cols-2 gap-3'>
+										<div>
+											<p className='text-sm font-medium text-gray-700 mb-1'>Data Logs</p>
+											<p className='text-xs text-gray-500 mb-1'>
+												Data and verification issues for non-technical review.
+											</p>
+											{dataLogText ? (
+												<pre className='max-h-64 overflow-auto rounded bg-gray-900 p-3 text-xs text-red-200 whitespace-pre-wrap'>
+													{dataLogText}
+													{truncNote}
+												</pre>
+											) : (
+												<p className='text-sm text-green-700 rounded border border-green-200 bg-white p-3'>
+													No data issues recorded.
+												</p>
+											)}
+										</div>
+										<div>
+											<p className='text-sm font-medium text-gray-700 mb-1'>System Logs</p>
+											<p className='text-xs text-gray-500 mb-1'>
+												Memory and Heroku process messages (safe to skip).
+											</p>
+											{systemLogText ? (
+												<pre className='max-h-64 overflow-auto rounded bg-gray-900 p-3 text-xs text-amber-200 whitespace-pre-wrap'>
+													{systemLogText}
+													{truncNote}
+												</pre>
+											) : (
+												<p className='text-sm text-gray-600 rounded border border-gray-200 bg-white p-3'>
+													No memory or Heroku messages recorded.
+												</p>
+											)}
+										</div>
+									</div>
+								);
+							})()}
+							<div className='flex flex-col sm:flex-row gap-2'>
+								<button
+									type='button'
+									onClick={() => void handleShowFullSeedLogs()}
+									disabled={fullSeedLogsLoading}
+									className='px-3 py-2 rounded bg-gray-800 text-white text-sm hover:bg-gray-700 disabled:opacity-50'>
+									{fullSeedLogsLoading
+										? "Loading full logs..."
+										: showFullSeedLogs
+											? "Hide full logs"
+											: "Show full logs"}
+								</button>
+								<button
+									type='button'
+									onClick={() => void handleDownloadFullSeedLogs()}
+									className='px-3 py-2 rounded bg-blue-600 text-white text-sm hover:bg-blue-700'>
+									Download full logs
+								</button>
+							</div>
+							{showFullSeedLogs && (
+								<pre className='max-h-96 overflow-auto rounded bg-gray-900 p-3 text-xs text-gray-100 whitespace-pre-wrap'>
+									{lastSeedRun.fullLogText || "Full logs are not available yet."}
+								</pre>
+							)}
 						</div>
-						{showFullSeedLogs && (
-							<pre className='max-h-96 overflow-auto rounded bg-gray-900 p-3 text-xs text-gray-100 whitespace-pre-wrap'>
-								{lastSeedRun.fullLogText || "Full logs are not available yet."}
-							</pre>
-						)}
-					</div>
-				)}
-			</div>
-
-			{/* Debug Configuration Section */}
-			<div className='mb-6 p-4 bg-gray-50 rounded-lg'>
-				<h3 className='text-lg font-semibold text-gray-800 mb-2'>Debug and Run Options Configuration</h3>
-				<div className='space-y-2'>
-					<div className='flex items-center'>
-						<input
-							type='checkbox'
-							id='debugLogs'
-							checked={enableDebugLogs}
-							onChange={(e) => setEnableDebugLogs(e.target.checked)}
-							aria-describedby='debugLogsHelp'
-							className='mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded'
-						/>
-						<label htmlFor='debugLogs' className='text-sm text-gray-700'>
-							Enable debug logs (verbose logging for troubleshooting)
-						</label>
-					</div>
-					<p id='debugLogsHelp' className='text-xs text-gray-600 ml-6'>
-						Off by default. Enabling adds verbose Cypher probes and can increase memory use on the 512&nbsp;MB Heroku dyno (R14 risk). Prefer for short troubleshooting runs only.
-					</p>
-					<div className='flex items-center'>
-						<input
-							type='checkbox'
-							id='postRunRecycle'
-							checked={postRunRecycle}
-							onChange={(e) => setPostRunRecycle(e.target.checked)}
-							className='mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded'
-						/>
-						<label htmlFor='postRunRecycle' className='text-sm text-gray-700'>
-							Post Run Recycle (restart process after terminal run if memory remains critical)
-						</label>
-					</div>
-					<p className='text-xs text-gray-600 ml-6'>
-						Enabled by default. This applies guarded recycle logic only after terminal job state is persisted and no active runs remain.
-					</p>
+					)}
 				</div>
 			</div>
+
+			{/* New Seeding Run */}
+			<div className='mb-6 p-4 bg-white rounded-lg border border-blue-200'>
+				<h3 className='text-xl font-semibold text-gray-900 mb-4'>New Seeding Run</h3>
 
 			{/* Season Configuration Section */}
 			<div className='mb-6 p-4 bg-blue-50 rounded-lg'>
-				<h3 className='text-lg font-semibold text-gray-800 mb-2'>Season Configuration</h3>
+				<h4 className='text-lg font-semibold text-gray-800 mb-2'>Season Configuration</h4>
 				<div className='space-y-4'>
 					<div className='p-3 bg-white rounded-md border w-full lg:w-1/2 lg:mx-auto'>
 						<div className='flex items-center justify-between mb-2'>
@@ -1616,6 +1574,90 @@ export default function AdminPanel() {
 							</>
 						)}
 					</div>
+				</div>
+			</div>
+
+			{/* Email Configuration Section */}
+			<div className='mb-6 p-4 bg-gray-50 rounded-lg'>
+				<h4 className='text-lg font-semibold text-gray-800 mb-2'>Email Notifications</h4>
+				<div className='space-y-4'>
+					<div className='w-full lg:w-1/2 lg:mx-auto'>
+						<label htmlFor='emailAddress' className='block text-sm font-medium text-gray-700'>
+							Email Address for Notifications:
+						</label>
+						<input
+							type='email'
+							id='emailAddress'
+							value={emailAddress}
+							onChange={(e) => setEmailAddress(e.target.value)}
+							placeholder='bangsluke@gmail.com'
+							className='mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm placeholder-gray-800'
+						/>
+					</div>
+					<div className='flex flex-col sm:flex-row sm:space-x-6 space-y-2 sm:space-y-0'>
+						<div className='flex items-center'>
+							<input
+								type='checkbox'
+								id='sendEmailAtStart'
+								checked={sendEmailAtStart}
+								onChange={(e) => setSendEmailAtStart(e.target.checked)}
+								className='mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded'
+							/>
+							<label htmlFor='sendEmailAtStart' className='text-sm text-gray-700'>
+								Send email when seeding starts
+							</label>
+						</div>
+						<div className='flex items-center'>
+							<input
+								type='checkbox'
+								id='sendEmailAtCompletion'
+								checked={sendEmailAtCompletion}
+								onChange={(e) => setSendEmailAtCompletion(e.target.checked)}
+								className='mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded'
+							/>
+							<label htmlFor='sendEmailAtCompletion' className='text-sm text-gray-700'>
+								Send email when seeding completes
+							</label>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			{/* Debug Configuration Section */}
+			<div className='mb-6 p-4 bg-gray-50 rounded-lg'>
+				<h4 className='text-lg font-semibold text-gray-800 mb-2'>Debug and Run Options Configuration</h4>
+				<div className='space-y-2'>
+					<div className='flex items-center'>
+						<input
+							type='checkbox'
+							id='debugLogs'
+							checked={enableDebugLogs}
+							onChange={(e) => setEnableDebugLogs(e.target.checked)}
+							aria-describedby='debugLogsHelp'
+							className='mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded'
+						/>
+						<label htmlFor='debugLogs' className='text-sm text-gray-700'>
+							Enable debug logs (verbose logging for troubleshooting)
+						</label>
+					</div>
+					<p id='debugLogsHelp' className='text-xs text-gray-600 ml-6'>
+						Off by default. Enabling adds verbose Cypher probes and can increase memory use on the 512&nbsp;MB Heroku dyno (R14 risk). Prefer for short troubleshooting runs only.
+					</p>
+					<div className='flex items-center'>
+						<input
+							type='checkbox'
+							id='postRunRecycle'
+							checked={postRunRecycle}
+							onChange={(e) => setPostRunRecycle(e.target.checked)}
+							className='mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded'
+						/>
+						<label htmlFor='postRunRecycle' className='text-sm text-gray-700'>
+							Post Run Recycle (restart process after terminal run if memory remains critical)
+						</label>
+					</div>
+					<p className='text-xs text-gray-600 ml-6'>
+						Enabled by default. This applies guarded recycle logic only after terminal job state is persisted and no active runs remain.
+					</p>
 				</div>
 			</div>
 
@@ -1813,6 +1855,7 @@ export default function AdminPanel() {
 					{jobsLoading ? "⏳ Loading..." : "🔍 Debug: List All Jobs"}
 				</button>
 			</div>
+			</div>{/* end New Seeding Run */}
 
 			{/* Status Information */}
 			<div className='mb-6 text-center'>
@@ -2245,34 +2288,6 @@ export default function AdminPanel() {
 				</div>
 			)}
 
-			{/* Chatbot Testing Section */}
-			<div className='mt-6 p-4 bg-green-50 border border-green-200 rounded-lg'>
-				<h3 className='text-lg font-semibold text-green-800 mb-2'>Chatbot Testing</h3>
-				<p className='text-green-700 text-sm mb-4'>
-					This button runs a comprehensive test of the chatbot functionality and sends you an email with the test results. 
-					It tests various queries to ensure the chatbot is working correctly with the current database state.
-				</p>
-				<div className='flex justify-center'>
-					<button
-						onClick={triggerChatbotTest}
-						disabled={chatbotTestLoading}
-						className={`w-64 px-6 py-3 rounded-lg text-xs font-semibold text-white transition-colors ${
-							chatbotTestLoading ? "bg-gray-400 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"
-						}`}>
-						{chatbotTestLoading ? "🔄 Testing..." : "🤖 Run Chatbot Test & Email"}
-					</button>
-				</div>
-				
-				{/* Chatbot Test Error Display */}
-				{chatbotTestError && (
-					<div className='mt-3 p-3 bg-red-50 border border-red-200 rounded-lg'>
-						<p className='text-red-600 text-sm'>
-							❌ <strong>Chatbot Test Error:</strong> {chatbotTestError}
-						</p>
-					</div>
-				)}
-			</div>
-
 			{/* Unanswered Questions Section */}
 			<div className='mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg'>
 				<div className='flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3'>
@@ -2344,6 +2359,34 @@ export default function AdminPanel() {
 								</div>
 							</div>
 						))}
+					</div>
+				)}
+			</div>
+
+			{/* Chatbot Testing Section */}
+			<div className='mt-6 p-4 bg-green-50 border border-green-200 rounded-lg'>
+				<h3 className='text-lg font-semibold text-green-800 mb-2'>Chatbot Testing</h3>
+				<p className='text-green-700 text-sm mb-4'>
+					This button runs a comprehensive test of the chatbot functionality and sends you an email with the test results. 
+					It tests various queries to ensure the chatbot is working correctly with the current database state.
+				</p>
+				<div className='flex justify-center'>
+					<button
+						onClick={triggerChatbotTest}
+						disabled={chatbotTestLoading}
+						className={`w-64 px-6 py-3 rounded-lg text-xs font-semibold text-white transition-colors ${
+							chatbotTestLoading ? "bg-gray-400 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"
+						}`}>
+						{chatbotTestLoading ? "🔄 Testing..." : "🤖 Run Chatbot Test & Email"}
+					</button>
+				</div>
+				
+				{/* Chatbot Test Error Display */}
+				{chatbotTestError && (
+					<div className='mt-3 p-3 bg-red-50 border border-red-200 rounded-lg'>
+						<p className='text-red-600 text-sm'>
+							❌ <strong>Chatbot Test Error:</strong> {chatbotTestError}
+						</p>
 					</div>
 				)}
 			</div>
