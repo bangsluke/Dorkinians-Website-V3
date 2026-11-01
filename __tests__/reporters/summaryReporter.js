@@ -26,10 +26,6 @@ class SummaryReporter {
 		}
 	}
 
-	onTestStart(test) {
-		this.currentTestSuite = test.parent.name;
-	}
-
 	onTestResult(test, testResult, aggregatedResult) {
 		if (process.env.JEST_VERBOSE !== "true") {
 			const fileName = testResult.testFilePath.split("/").pop().replace(".test.ts", "");
