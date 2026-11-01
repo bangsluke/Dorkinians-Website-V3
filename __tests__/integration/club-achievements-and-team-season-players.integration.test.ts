@@ -1,6 +1,10 @@
 import { NextRequest } from "next/server";
 import { apiCache } from "@/lib/utils/apiCache";
 
+jest.mock("@/lib/utils/redisClient", () => ({
+	getRedisClient: jest.fn(() => null),
+}));
+
 jest.mock("@/lib/neo4j", () => ({
 	neo4jService: {
 		connect: jest.fn(),

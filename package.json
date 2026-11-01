@@ -88,7 +88,7 @@
 		"sharp": "^0.35.5",
 		"tailwindcss": "3.4.19",
 		"typescript": "^5.9.3",
-		"zod": "^4.6.6",
+		"zod": "^4.6.7",
 		"zustand": "^4.4.7"
 	},
 	"devDependencies": {
@@ -105,7 +105,7 @@
 		"cross-env": "^10.0.0",
 		"eslint": "^10.14.0",
 		"eslint-config-next": "^0.2.4",
-		"jest": "^25.1.0",
+		"jest": "^30.5.2",
 		"jest-environment-jsdom": "^30.3.0",
 		"prettier": "^3.6.2",
 		"ts-jest": "^29.4.1",
