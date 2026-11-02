@@ -32,10 +32,6 @@ class SimpleEmailService {
 						port: emailConfig.port,
 						secure: emailConfig.secure,
 						auth: emailConfig.auth,
-						tls: {
-							rejectUnauthorized: false,
-							checkServerIdentity: () => undefined,
-						},
 					});
 					this.config = emailConfig;
 					console.log("📧 Email service configured successfully");

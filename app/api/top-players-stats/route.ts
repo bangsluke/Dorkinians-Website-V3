@@ -375,18 +375,18 @@ export async function POST(request: NextRequest) {
 			query += `\n\t\t\tLIMIT ${parsedLimit}`;
 		}
 
-		console.log(`[TopPlayersStats] StatType: ${statType}, Query:`, query);
-		console.log(`[TopPlayersStats] Params:`, JSON.stringify(params, null, 2));
+		console.log("[TopPlayersStats] StatType: %s, Query: %s", statType, query);
+		console.log("[TopPlayersStats] Params: %s", JSON.stringify(params, null, 2));
 
 		let result;
 		try {
 			result = await neo4jService.runQuery(query, params);
-			console.log(`[TopPlayersStats] Query executed successfully, records: ${result.records.length}`);
+			console.log("[TopPlayersStats] Query executed successfully, records: %s", result.records.length);
 		} catch (queryError: unknown) {
 			const message = queryError instanceof Error ? queryError.message : String(queryError);
 			console.error("[TopPlayersStats] Cypher query error:", queryError);
-			console.error("[TopPlayersStats] Query:", query);
-			console.error("[TopPlayersStats] Params:", JSON.stringify(params, null, 2));
+			console.error("[TopPlayersStats] Query: %s", query);
+			console.error("[TopPlayersStats] Params: %s", JSON.stringify(params, null, 2));
 			return NextResponse.json(
 				{ error: "Query execution failed", details: message },
 				{ status: 500, headers: corsHeaders }

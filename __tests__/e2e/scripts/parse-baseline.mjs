@@ -4,8 +4,23 @@
  */
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
 
-const input = process.argv[2] || "__tests__/e2e/.baseline.json";
+const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+const e2eRoot = path.resolve(scriptDir, "..");
+
+/** Resolve a path and require it to stay under __tests__/e2e. */
+function resolveUnderE2e(candidate) {
+	const resolved = path.resolve(process.cwd(), candidate);
+	const relative = path.relative(e2eRoot, resolved);
+	if (relative.startsWith("..") || path.isAbsolute(relative)) {
+		console.error(`Refusing path outside __tests__/e2e: ${candidate}`);
+		process.exit(1);
+	}
+	return resolved;
+}
+
+const input = resolveUnderE2e(process.argv[2] || path.join(e2eRoot, ".baseline.json"));
 const raw = fs.readFileSync(input, "utf8");
 // Playwright may emit non-JSON noise; extract the outermost JSON object.
 const start = raw.indexOf("{");
@@ -72,7 +87,7 @@ const summary = {
 	skipped,
 };
 
-const outPath = path.join(path.dirname(input), ".baseline-summary.json");
+const outPath = resolveUnderE2e(path.join(path.dirname(input), ".baseline-summary.json"));
 fs.writeFileSync(outPath, JSON.stringify(summary, null, 2));
 console.log(JSON.stringify(summary.totals));
 console.log("Wrote", outPath);

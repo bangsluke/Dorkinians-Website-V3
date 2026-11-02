@@ -101,16 +101,40 @@ export async function getConfiguredCurrentSeason(): Promise<string | null> {
 	}
 }
 
+/** League-table JSON filenames are only YYYY-YY.json (e.g. 2024-25.json). */
+const LEAGUE_TABLE_SEASON_FILE_RE = /^(\d{4})-(\d{2})$/;
+
+/**
+ * Resolve a season string to a safe path under data/league-tables, or null if invalid.
+ * Rebuilds the filename from capture groups so path segments cannot escape the data dir.
+ */
+export function resolveLeagueTableSeasonFilePath(season: string): string | null {
+	if (!season || typeof season !== 'string') return null;
+	const normalizedSeason = normalizeSeasonFormat(season.trim(), 'hyphen');
+	const match = LEAGUE_TABLE_SEASON_FILE_RE.exec(normalizedSeason);
+	if (!match) return null;
+
+	const safeFileName = `${match[1]}-${match[2]}.json`;
+	const dataDir = path.resolve(process.cwd(), 'data', 'league-tables');
+	const filePath = path.resolve(dataDir, safeFileName);
+	const relative = path.relative(dataDir, filePath);
+	if (relative.startsWith('..') || path.isAbsolute(relative)) {
+		return null;
+	}
+	return filePath;
+}
+
 /**
  * Get league table data for a specific season from JSON file
  * Handles both "2017/18" and "2017-18" formats (files are named with hyphens)
  */
 export async function getSeasonDataFromJSON(season: string): Promise<SeasonLeagueData | null> {
 	try {
-		const dataDir = path.join(process.cwd(), 'data', 'league-tables');
-		// Normalize season format to match filename (use hyphen)
-		const normalizedSeason = normalizeSeasonFormat(season, 'hyphen');
-		const filePath = path.join(dataDir, `${normalizedSeason}.json`);
+		const filePath = resolveLeagueTableSeasonFilePath(season);
+		if (!filePath) {
+			console.warn(`Invalid or unsafe league table season: ${season}`);
+			return null;
+		}
 
 		if (!fs.existsSync(filePath)) {
 			console.warn(`League table JSON file not found: ${filePath}`);

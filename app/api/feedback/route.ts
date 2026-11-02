@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import escapeHtml from "escape-html";
 import { createRateLimiter } from "@/lib/middleware/rateLimiter";
 
 // Rate limiting: 2 requests per 10 seconds (using centralized Redis-based limiter)
@@ -7,15 +8,9 @@ const feedbackRateLimiter = createRateLimiter({
 	maxRequests: 2, // 2 requests per window
 });
 
-// Security: Sanitize HTML to prevent XSS attacks
-function sanitizeHtml(str: string): string {
-	return str
-		.replace(/&/g, '&amp;')
-		.replace(/</g, '&lt;')
-		.replace(/>/g, '&gt;')
-		.replace(/"/g, '&quot;')
-		.replace(/'/g, '&#x27;')
-		.replace(/\//g, '&#x2F;');
+/** Strip CR/LF so user-controlled values cannot inject extra mail headers. */
+function sanitizeMailHeader(str: string): string {
+	return escapeHtml(String(str).replace(/[\r\n]+/g, " ").trim());
 }
 
 // Simple email service for Next.js API routes
@@ -65,10 +60,10 @@ class SimpleEmailService {
 			throw new Error("Email service not configured");
 		}
 
-		// Security: Sanitize all user input to prevent XSS attacks
-		const sanitizedName = sanitizeHtml(data.name);
-		const sanitizedMessage = sanitizeHtml(data.message);
-		const sanitizedVersion = sanitizeHtml(data.version);
+		// Security: Encode all user input before interpolating into HTML / subject
+		const sanitizedName = sanitizeMailHeader(data.name);
+		const sanitizedMessage = escapeHtml(data.message);
+		const sanitizedVersion = sanitizeMailHeader(data.version);
 		
 		const subject = `Dorkinians FC - ${data.type === "bug" ? "Bug Report" : "Feature Request"} from ${sanitizedName}`;
 		const html = `
@@ -80,7 +75,7 @@ class SimpleEmailService {
 					<p><strong>Type:</strong> ${data.type === "bug" ? "Bug Report" : "Feature Request"}</p>
 					<p><strong>Name:</strong> ${sanitizedName}</p>
 					<p><strong>App Version:</strong> ${sanitizedVersion}</p>
-					<p><strong>Timestamp:</strong> ${new Date(data.timestamp).toLocaleString()}</p>
+					<p><strong>Timestamp:</strong> ${escapeHtml(new Date(data.timestamp).toLocaleString())}</p>
 				</div>
 
 				<div style="background-color: #fef3c7; padding: 20px; border-radius: 8px; margin: 20px 0;">

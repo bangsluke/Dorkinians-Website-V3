@@ -1,15 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import escapeHtml from "escape-html";
 import { createRateLimiter } from "@/lib/middleware/rateLimiter";
 
-// Security: Sanitize HTML to prevent XSS attacks
-function sanitizeHtml(str: string): string {
-	return str
-		.replace(/&/g, '&amp;')
-		.replace(/</g, '&lt;')
-		.replace(/>/g, '&gt;')
-		.replace(/"/g, '&quot;')
-		.replace(/'/g, '&#x27;')
-		.replace(/\//g, '&#x2F;');
+/** Strip CR/LF so user-controlled values cannot inject extra mail headers. */
+function sanitizeMailHeader(str: string): string {
+	return escapeHtml(String(str).replace(/[\r\n]+/g, " ").trim());
 }
 
 // Rate limiting: 2 requests per 10 seconds (using centralized Redis-based limiter)
@@ -65,9 +60,9 @@ class SimpleEmailService {
 			throw new Error("Email service not configured");
 		}
 
-		// Security: Sanitize all user input to prevent XSS attacks
-		const sanitizedName = sanitizeHtml(data.name);
-		const sanitizedVersion = sanitizeHtml(data.version);
+		// Security: Encode all user input before interpolating into HTML / subject
+		const sanitizedName = sanitizeMailHeader(data.name);
+		const sanitizedVersion = sanitizeMailHeader(data.version);
 		
 		const subject = `Dorkinians FC - Data Removal Request from ${sanitizedName}`;
 		const html = `
@@ -83,7 +78,7 @@ class SimpleEmailService {
 					<h3 style="color: #374151; margin-top: 0;">Request Details</h3>
 					<p><strong>Name to Remove:</strong> ${sanitizedName}</p>
 					<p><strong>App Version:</strong> ${sanitizedVersion}</p>
-					<p><strong>Request Timestamp:</strong> ${new Date(data.timestamp).toLocaleString()}</p>
+					<p><strong>Request Timestamp:</strong> ${escapeHtml(new Date(data.timestamp).toLocaleString())}</p>
 				</div>
 
 				<div style="background-color: #fef3c7; padding: 20px; border-radius: 8px; margin: 20px 0;">

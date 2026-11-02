@@ -1,17 +1,35 @@
 /**
  * Load test script for chatbot API
  * Tests concurrent request handling (up to 500 users)
- * 
+ *
  * Usage: node scripts/load-test-chatbot.js [concurrentUsers] [durationSeconds]
  * Example: node scripts/load-test-chatbot.js 100 60
  */
 
-const http = require("http");
-
 const CONCURRENT_USERS = parseInt(process.argv[2]) || 50;
 const DURATION_SECONDS = parseInt(process.argv[3]) || 30;
 const API_URL = process.env.API_URL || "http://localhost:3000";
-const ENDPOINT = `${API_URL}/api/chatbot`;
+
+function assertSafeApiUrl(rawUrl) {
+	let parsed;
+	try {
+		parsed = new URL(rawUrl);
+	} catch {
+		throw new Error(`Invalid API_URL: ${rawUrl}`);
+	}
+	const host = parsed.hostname.toLowerCase();
+	const isLocal = host === "localhost" || host === "127.0.0.1";
+	if (parsed.protocol === "http:") {
+		if (!isLocal) {
+			throw new Error("API_URL may use http: only for localhost or 127.0.0.1; use https: for other hosts");
+		}
+	} else if (parsed.protocol !== "https:") {
+		throw new Error(`API_URL must use http: (localhost only) or https:; got ${parsed.protocol}`);
+	}
+	return parsed.origin;
+}
+
+const ENDPOINT = `${assertSafeApiUrl(API_URL)}/api/chatbot`;
 
 // Test questions
 const TEST_QUESTIONS = [
@@ -34,62 +52,42 @@ const stats = {
 	startTime: Date.now(),
 };
 
-function makeRequest(question) {
-	return new Promise((resolve) => {
-		const startTime = Date.now();
-		const postData = JSON.stringify({
-			question,
-			userContext: undefined,
-		});
+async function makeRequest(question) {
+	const startTime = Date.now();
+	const controller = new AbortController();
+	const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-		const options = {
+	try {
+		const res = await fetch(ENDPOINT, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
-				"Content-Length": Buffer.byteLength(postData),
 			},
-			timeout: 30000, // 30 second timeout
-		};
-
-		const req = http.request(ENDPOINT, options, (res) => {
-			let data = "";
-
-			res.on("data", (chunk) => {
-				data += chunk;
-			});
-
-			res.on("end", () => {
-				const responseTime = Date.now() - startTime;
-				stats.responseTimes.push(responseTime);
-
-				if (res.statusCode === 200) {
-					stats.successfulRequests++;
-					resolve({ success: true, responseTime, statusCode: res.statusCode });
-				} else {
-					stats.failedRequests++;
-					resolve({ success: false, responseTime, statusCode: res.statusCode });
-				}
-			});
+			body: JSON.stringify({
+				question,
+				userContext: undefined,
+			}),
+			signal: controller.signal,
 		});
+		await res.text();
+		const responseTime = Date.now() - startTime;
+		stats.responseTimes.push(responseTime);
 
-		req.on("error", (error) => {
-			const responseTime = Date.now() - startTime;
-			stats.responseTimes.push(responseTime);
-			stats.errorRequests++;
-			resolve({ success: false, responseTime, error: error.message });
-		});
-
-		req.on("timeout", () => {
-			req.destroy();
-			const responseTime = Date.now() - startTime;
-			stats.responseTimes.push(responseTime);
-			stats.errorRequests++;
-			resolve({ success: false, responseTime, error: "Request timeout" });
-		});
-
-		req.write(postData);
-		req.end();
-	});
+		if (res.status === 200) {
+			stats.successfulRequests++;
+			return { success: true, responseTime, statusCode: res.status };
+		}
+		stats.failedRequests++;
+		return { success: false, responseTime, statusCode: res.status };
+	} catch (error) {
+		const responseTime = Date.now() - startTime;
+		stats.responseTimes.push(responseTime);
+		stats.errorRequests++;
+		const message = error?.name === "AbortError" ? "Request timeout" : error?.message || String(error);
+		return { success: false, responseTime, error: message };
+	} finally {
+		clearTimeout(timeoutId);
+	}
 }
 
 async function runUser() {
@@ -176,4 +174,3 @@ runLoadTest().catch((error) => {
 	console.error("❌ Load test failed:", error);
 	process.exit(1);
 });
-

@@ -47,13 +47,6 @@ class EmailService {
 				user: this.config.auth.user,
 				pass: this.config.auth.pass,
 			},
-			tls: {
-				rejectUnauthorized: process.env.NODE_ENV === "production",
-				...(process.env.NODE_ENV !== "production" && {
-					rejectUnauthorized: false,
-					checkServerIdentity: () => undefined,
-				}),
-			},
 		});
 
 		console.log("📧 EMAIL: Email service configured successfully");

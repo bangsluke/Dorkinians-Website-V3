@@ -1,6 +1,23 @@
 import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 
-const input = process.argv[2] || "__tests__/e2e/.full-stable-console.txt";
+const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+const e2eRoot = path.resolve(scriptDir, "..");
+
+/** Resolve a path and require it to stay under __tests__/e2e. */
+function resolveUnderE2e(candidate) {
+	const resolved = path.resolve(process.cwd(), candidate);
+	const relative = path.relative(e2eRoot, resolved);
+	if (relative.startsWith("..") || path.isAbsolute(relative)) {
+		console.error(`Refusing path outside __tests__/e2e: ${candidate}`);
+		process.exit(1);
+	}
+	return resolved;
+}
+
+const input = resolveUnderE2e(process.argv[2] || path.join(e2eRoot, ".full-stable-console.txt"));
+const outJson = resolveUnderE2e(path.join(e2eRoot, ".full-stable.json"));
 const buf = fs.readFileSync(input);
 let text =
 	buf[0] === 0xff && buf[1] === 0xfe
@@ -19,7 +36,7 @@ if (start < 0 || end < 0) {
 	process.exit(1);
 }
 const report = JSON.parse(text.slice(start, end + 1));
-fs.writeFileSync("__tests__/e2e/.full-stable.json", JSON.stringify(report, null, 2));
+fs.writeFileSync(outJson, JSON.stringify(report, null, 2));
 
 const fails = [];
 const skips = [];
