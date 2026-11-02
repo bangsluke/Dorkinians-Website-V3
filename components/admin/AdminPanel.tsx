@@ -1210,7 +1210,8 @@ export default function AdminPanel() {
 			const blob = await response.blob();
 			const disposition = response.headers.get("Content-Disposition") || "";
 			const match = disposition.match(/filename="([^"]+)"/);
-			const filename = match?.[1] || "seed-run.log";
+			const candidate = match?.[1] || "";
+			const filename = /^[A-Za-z0-9._-]{1,80}$/.test(candidate) ? candidate : "seed-run.log";
 			const url = URL.createObjectURL(blob);
 			const anchor = document.createElement("a");
 			anchor.href = url;

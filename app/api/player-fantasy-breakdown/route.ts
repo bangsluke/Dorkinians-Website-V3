@@ -325,9 +325,9 @@ export async function POST(request: NextRequest) {
 		const breakdownValues: Record<string, number> = {};
 		let totalFantasyPoints = 0;
 
-		// Group by week and month
-		const weekGroups: Record<string, { matches: MatchDetail[]; totalPoints: number }> = {};
-		const monthGroups: Record<string, { matches: MatchDetail[]; totalPoints: number }> = {};
+		// Group by week and month (Map avoids prototype-pollution via __proto__/constructor keys)
+		const weekGroups = new Map<string, { matches: MatchDetail[]; totalPoints: number }>();
+		const monthGroups = new Map<string, { matches: MatchDetail[]; totalPoints: number }>();
 
 		matches.forEach((match) => {
 			const matchBreakdown = calculateFTPBreakdown(match);
@@ -352,20 +352,20 @@ export async function POST(request: NextRequest) {
 
 			// Group by week
 			if (match.seasonWeek) {
-				if (!weekGroups[match.seasonWeek]) {
-					weekGroups[match.seasonWeek] = { matches: [], totalPoints: 0 };
-				}
-				weekGroups[match.seasonWeek].matches.push(match);
-				weekGroups[match.seasonWeek].totalPoints += matchTotal;
+				const weekKey = String(match.seasonWeek);
+				const weekGroup = weekGroups.get(weekKey) ?? { matches: [], totalPoints: 0 };
+				weekGroup.matches.push(match);
+				weekGroup.totalPoints += matchTotal;
+				weekGroups.set(weekKey, weekGroup);
 			}
 
 			// Group by month
 			if (match.seasonMonth) {
-				if (!monthGroups[match.seasonMonth]) {
-					monthGroups[match.seasonMonth] = { matches: [], totalPoints: 0 };
-				}
-				monthGroups[match.seasonMonth].matches.push(match);
-				monthGroups[match.seasonMonth].totalPoints += matchTotal;
+				const monthKey = String(match.seasonMonth);
+				const monthGroup = monthGroups.get(monthKey) ?? { matches: [], totalPoints: 0 };
+				monthGroup.matches.push(match);
+				monthGroup.totalPoints += matchTotal;
+				monthGroups.set(monthKey, monthGroup);
 			}
 		});
 
@@ -382,7 +382,7 @@ export async function POST(request: NextRequest) {
 		} | null = null;
 
 		// Process week groups to find highest scoring week
-		for (const [seasonWeek, data] of Object.entries(weekGroups)) {
+		for (const [seasonWeek, data] of weekGroups) {
 			if (!highestScoringWeek || data.totalPoints > highestScoringWeek.totalPoints) {
 				const firstMatch = data.matches[0];
 				// Extract week number from seasonWeek (format: "season-week")
@@ -467,7 +467,7 @@ export async function POST(request: NextRequest) {
 			matches: MatchDetail[];
 		} | null = null;
 
-		Object.entries(monthGroups).forEach(([seasonMonth, data]) => {
+		monthGroups.forEach((data, seasonMonth) => {
 			if (!highestScoringMonth || data.totalPoints > highestScoringMonth.totalPoints) {
 				const firstMatch = data.matches[0];
 				// Extract month name from seasonMonth (format: "season-month")

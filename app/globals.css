@@ -1,6 +1,5 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@config "../tailwind.config.js";
 
 :root {
 	/* Primary Colors */
@@ -345,7 +344,7 @@
 	}
 
 	.input-field {
-		@apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-dorkinians-blue focus:border-transparent;
+		@apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-dorkinians-green focus:border-transparent;
 	}
 
 	/* Dark input components - DEPRECATED: Use Input component from components/ui/Input.tsx instead */
@@ -437,7 +436,10 @@
 
 	/* Responsive frosted glass container */
 	.frosted-container {
-		@apply frosted-glass rounded-2xl;
+		background-color: var(--color-surface-elevated);
+		backdrop-filter: blur(30px);
+		-webkit-backdrop-filter: blur(30px);
+		@apply rounded-2xl;
 		position: fixed;
 		top: 64px;          /* Account for fixed header */
 		bottom: 100px;      /* Account for fixed footer */

@@ -1,7 +1,10 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { apiCache, getCacheTTL } from "@/lib/utils/apiCache";
 import { withNoStore, withPublicCache, PUBLIC_CACHE_TOTW } from "@/lib/utils/publicCacheHeaders";
 import { logError } from "@/lib/utils/logger";
+import { GET as getSeasons } from "@/app/api/totw/seasons/route";
+import { GET as getWeeks } from "@/app/api/totw/weeks/route";
+import { GET as getWeekData } from "@/app/api/totw/week-data/route";
 
 const corsHeaders = {
 	"Access-Control-Allow-Origin": "*",
@@ -9,15 +12,28 @@ const corsHeaders = {
 	"Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
 
+/** Fixed internal base URL for in-process handler calls (never derived from the request). */
+const INTERNAL_TOTW_BASE = "http://totw.internal";
+
+function internalTotwRequest(pathname: string, searchParams?: Record<string, string>): NextRequest {
+	const url = new URL(pathname, INTERNAL_TOTW_BASE);
+	if (searchParams) {
+		for (const [key, value] of Object.entries(searchParams)) {
+			url.searchParams.set(key, value);
+		}
+	}
+	return new NextRequest(url);
+}
+
 export async function OPTIONS() {
 	return new NextResponse(null, { status: 200, headers: corsHeaders });
 }
 
 /**
  * One payload for TOTW first paint: seasons + weeks for current season + week-data.
- * Uses existing route handlers via same-origin fetch so Cypher stays in one place.
+ * Calls sibling route handlers in-process so Cypher stays in one place without SSRF risk.
  */
-export async function GET(request: Request) {
+export async function GET() {
 	try {
 		const cacheKey = apiCache.generateKey("/api/totw/current-week");
 		const cached = await apiCache.getAsync<Record<string, unknown>>(cacheKey);
@@ -25,8 +41,7 @@ export async function GET(request: Request) {
 			return NextResponse.json(cached, { headers: withPublicCache(corsHeaders, PUBLIC_CACHE_TOTW) });
 		}
 
-		const origin = new URL(request.url).origin;
-		const seasonsRes = await fetch(`${origin}/api/totw/seasons`, { cache: "no-store" });
+		const seasonsRes = await getSeasons(internalTotwRequest("/api/totw/seasons"));
 		if (!seasonsRes.ok) {
 			return NextResponse.json({ error: "Failed to fetch TOTW seasons" }, { status: 502, headers: withNoStore(corsHeaders) });
 		}
@@ -58,9 +73,7 @@ export async function GET(request: Request) {
 			return NextResponse.json(payload, { headers: withPublicCache(corsHeaders, PUBLIC_CACHE_TOTW) });
 		}
 
-		const weeksRes = await fetch(`${origin}/api/totw/weeks?season=${encodeURIComponent(currentSeason)}`, {
-			cache: "no-store",
-		});
+		const weeksRes = await getWeeks(internalTotwRequest("/api/totw/weeks", { season: currentSeason }));
 		if (!weeksRes.ok) {
 			return NextResponse.json({ error: "Failed to fetch TOTW weeks" }, { status: 502, headers: withNoStore(corsHeaders) });
 		}
@@ -83,9 +96,11 @@ export async function GET(request: Request) {
 		let weekData: unknown = null;
 		let players: unknown[] = [];
 		if (weekToSelect != null) {
-			const weekDataRes = await fetch(
-				`${origin}/api/totw/week-data?season=${encodeURIComponent(currentSeason)}&week=${weekToSelect}`,
-				{ cache: "no-store" },
+			const weekDataRes = await getWeekData(
+				internalTotwRequest("/api/totw/week-data", {
+					season: currentSeason,
+					week: String(weekToSelect),
+				}),
 			);
 			if (weekDataRes.ok) {
 				const wd = (await weekDataRes.json()) as { totwData?: unknown; players?: unknown[] };

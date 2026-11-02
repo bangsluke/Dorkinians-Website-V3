@@ -583,7 +583,7 @@ export default function SettingsPage() {
 									whileTap={{ scale: 0.95 }}>
 									{isCheckingUpdate ? (
 										<div className='flex items-center space-x-2'>
-											<div className='w-4 h-4 border-2 border-dorkinians-blue border-t-transparent rounded-full animate-spin'></div>
+											<div className='w-4 h-4 border-2 border-dorkinians-green border-t-transparent rounded-full animate-spin'></div>
 											<span>Checking...</span>
 										</div>
 									) : (

@@ -869,7 +869,7 @@ async function runTestsProgrammatically() {
 						test: `should handle ${statKey} stat correctly`,
 						assertion: "error",
 						expected: player[statConfig.key] || "N/A",
-						received: `Error: ${error.message}`,
+						received: `Error: ${escapeHtml(String(error.message ?? ""))}`,
 						status: "FAILED",
 						playerName: playerName,
 						question: questionTemplate.replace("{playerName}", player.playerName),
@@ -1403,9 +1403,6 @@ const EMAIL_CONFIG = {
 	auth: {
 		user: process.env.SMTP_USERNAME,
 		pass: process.env.SMTP_PASSWORD,
-	},
-	tls: {
-		rejectUnauthorized: false, // Allow self-signed certificates
 	},
 };
 

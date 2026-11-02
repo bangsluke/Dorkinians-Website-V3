@@ -63,14 +63,6 @@ export class EmailService {
 				user: config.auth.user,
 				pass: config.auth.pass,
 			},
-			tls: {
-				rejectUnauthorized: process.env.NODE_ENV === "production", // Only reject in production
-				// For development, allow self-signed certificates
-				...(process.env.NODE_ENV !== "production" && {
-					rejectUnauthorized: false,
-					checkServerIdentity: () => undefined,
-				}),
-			},
 		});
 	}
 

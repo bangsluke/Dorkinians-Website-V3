@@ -574,9 +574,6 @@ const EMAIL_CONFIG = {
 		user: process.env.SMTP_USERNAME,
 		pass: process.env.SMTP_PASSWORD,
 	},
-	tls: {
-		rejectUnauthorized: false,
-	},
 };
 
 const RECIPIENT_EMAIL = process.env.SMTP_TO_EMAIL || process.env.SMTP_FROM_EMAIL;
@@ -838,7 +835,7 @@ async function runTestsProgrammatically() {
 					expectedAnswer: expectedAnswer,
 					expectedOutputType: expectedOutputType,
 					dataSource: dataSource,
-					chatbotAnswer: `Error: ${error.message}`,
+					chatbotAnswer: `Error: ${escapeHtml(String(error.message ?? ""))}`,
 					extractedValue: "N/A",
 					cypherQuery: "N/A",
 					status: "FAILED",

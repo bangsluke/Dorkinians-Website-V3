@@ -1336,10 +1336,6 @@ export default async () => {
 			port,
 			secure,
 			auth: { user, pass },
-			tls: {
-				rejectUnauthorized: false,
-				checkServerIdentity: () => undefined,
-			},
 		});
 
 		await transporter.sendMail({

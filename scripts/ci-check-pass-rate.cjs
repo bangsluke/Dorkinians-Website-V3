@@ -17,7 +17,19 @@ if (!Number.isFinite(threshold) || threshold <= 0 || threshold > 100) {
 	process.exit(2);
 }
 
-const logPath = path.resolve(logArg);
+/** Resolve logPath and require it to stay under the project working directory. */
+function resolveUnderProjectRoot(candidate) {
+	const projectRoot = path.resolve(process.cwd());
+	const resolved = path.resolve(projectRoot, candidate);
+	const relative = path.relative(projectRoot, resolved);
+	if (relative.startsWith("..") || path.isAbsolute(relative)) {
+		console.error(`Refusing log path outside project root: ${candidate}`);
+		process.exit(2);
+	}
+	return resolved;
+}
+
+const logPath = resolveUnderProjectRoot(logArg);
 if (!fs.existsSync(logPath)) {
 	console.error(`Log file not found: ${logPath}`);
 	process.exit(2);
