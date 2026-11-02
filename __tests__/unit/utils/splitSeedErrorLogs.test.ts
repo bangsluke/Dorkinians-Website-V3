@@ -13,14 +13,14 @@ describe("splitSeedErrorLogs", () => {
 
 		const { dataLogText, systemLogText } = splitSeedErrorLogs(errorLogText);
 
-		expect(dataLogText).toContain("Connection test failed");
 		expect(dataLogText).toContain("Fixture validation failed");
+		expect(dataLogText).not.toContain("Connection test failed");
 		expect(dataLogText).not.toContain("HEROKU MEMORY");
 		expect(systemLogText).toContain("HEROKU MEMORY CRITICAL");
 		expect(systemLogText).toContain("MEMORY MONITOR");
 		expect(systemLogText).toContain("heroku[web.1]");
 		expect(systemLogText).toContain("MEMORY:");
-		expect(systemLogText).not.toContain("Connection test failed");
+		expect(systemLogText).toContain("Connection test failed");
 	});
 
 	it("returns empty strings for empty input", () => {
