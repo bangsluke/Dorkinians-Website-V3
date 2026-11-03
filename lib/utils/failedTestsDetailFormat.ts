@@ -17,6 +17,14 @@ function asString(value: unknown, fallback = "N/A"): string {
 	return String(value);
 }
 
+function withReason(line: string, item: FailedTestDetailItem): string {
+	const reason = item.reason;
+	if (typeof reason === "string" && reason.trim()) {
+		return `${line} — ${reason.trim()}`;
+	}
+	return line;
+}
+
 export function formatFailedTestItemLine(type: string, item: FailedTestDetailItem): string {
 	if (type === "skippedItems") {
 		const identifier =
@@ -25,16 +33,25 @@ export function formatFailedTestItemLine(type: string, item: FailedTestDetailIte
 		return `${identifier || "N/A"} (${asString(item.reason, "Unknown reason")})`;
 	}
 	if (type === "fixtureMatchDetails") {
-		return `Fixture ${asString(item.id)} — date ${asString(item.date)}, season ${asString(item.season)}, links: ${asString(item.relationshipCount)}`;
+		return withReason(
+			`Fixture ${asString(item.id)} — date ${asString(item.date)}, season ${asString(item.season)}, links: ${asString(item.relationshipCount)}`,
+			item,
+		);
 	}
 	if (type === "oppositionRelationships") {
-		return `Opposition ${asString(item.opposition)} (${asString(item.id)}) — links: ${asString(item.relationshipCount)}`;
+		return withReason(
+			`Opposition ${asString(item.opposition)} (${asString(item.id)}) — links: ${asString(item.relationshipCount)}`,
+			item,
+		);
 	}
 	if (type === "matchDetailFixture") {
-		return `MatchDetail ${asString(item.id)} — ${asString(item.playerName)}, date ${asString(item.date)}`;
+		return withReason(
+			`MatchDetail ${asString(item.id)} — ${asString(item.playerName)}, date ${asString(item.date)}`,
+			item,
+		);
 	}
 	if (type === "playerOpponents") {
-		return `Player ${asString(item.playerName)} (${asString(item.id)})`;
+		return withReason(`Player ${asString(item.playerName)} (${asString(item.id)})`, item);
 	}
 	if (type === "details") {
 		const matchDetailId = item.matchDetailId ?? item.id ?? "N/A";

@@ -4,7 +4,7 @@
  */
 
 const SYSTEM_LOG_PATTERN =
-	/HEROKU MEMORY|MEMORY MONITOR|MEMORY CRITICAL|MEMORY_GUARD|MEMORY:|\bRSS\b|\bHeap\b|\bR14\b|heroku\[/i;
+	/HEROKU MEMORY|MEMORY MONITOR|MEMORY CRITICAL|MEMORY_GUARD|MEMORY:|\bRSS\b|\bHeap\b|\bR14\b|heroku\[|Connection test failed/i;
 
 /**
  * Whether a single error-log line belongs in System Logs (memory / Heroku ops).

@@ -16,6 +16,17 @@ describe("failedTestsDetailFormat", () => {
 		expect(formatFailedTestItemLine(detail[0].type, detail[0].items[0])).toContain("Fixture fx1");
 	});
 
+	it("appends a shortfall reason after the link count", () => {
+		const line = formatFailedTestItemLine("fixtureMatchDetails", {
+			id: "fx1",
+			date: "2024-03-03",
+			season: "2023/24",
+			relationshipCount: 0,
+			reason: "dates differ",
+		});
+		expect(line).toContain("links: 0 — dates differ");
+	});
+
 	it("returns empty array for invalid JSON", () => {
 		expect(parseFailedTestsDetailJson("not-json")).toEqual([]);
 		expect(parseFailedTestsDetailJson(null)).toEqual([]);

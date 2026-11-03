@@ -104,7 +104,7 @@ const schema = {
       totwHasDetailsRelationshipCount: { type: 'integer', required: false }
     },
     idPattern: 'site_{versionNumber}',
-    constraints: ['CREATE CONSTRAINT site_detail_id IF NOT EXISTS FOR (sd:SiteDetail) REQUIRE sd.id IS UNIQUE']
+    constraints: ['CREATE CONSTRAINT site_detail_id_graphlabel IF NOT EXISTS FOR (sd:SiteDetail) REQUIRE (sd.id, sd.graphLabel) IS UNIQUE']
   },
 
   // ============================================================================
@@ -348,7 +348,7 @@ const schema = {
       highestBadgeTier: { type: 'string', required: false },
     },
     idPattern: 'player_{playerName}',
-    constraints: ['CREATE CONSTRAINT player_id IF NOT EXISTS FOR (p:Player) REQUIRE p.id IS UNIQUE'],
+    constraints: ['CREATE CONSTRAINT player_id_graphlabel IF NOT EXISTS FOR (p:Player) REQUIRE (p.id, p.graphLabel) IS UNIQUE'],
     filters: {
       allowOnSite: (value) => value.toLowerCase() === 'true'
     }
@@ -545,7 +545,7 @@ const schema = {
       fwd3: { type: 'string', required: false }
     },
     idPattern: 'weeklytotw_{season}_{week}',
-    constraints: ['CREATE CONSTRAINT weeklytotw_id IF NOT EXISTS FOR (wt:WeeklyTOTW) REQUIRE wt.id IS UNIQUE'],
+    constraints: ['CREATE CONSTRAINT weeklytotw_id_graphlabel IF NOT EXISTS FOR (wt:WeeklyTOTW) REQUIRE (wt.id, wt.graphLabel) IS UNIQUE'],
     filters: {
       'TOTW SCORE': (value) => value && value.toString().trim() !== '' && value.toString().toLowerCase() !== 'n/a'
     }
@@ -603,7 +603,7 @@ const schema = {
       fwd3: { type: 'string', required: false }
     },
     idPattern: 'seasontotw_{playerName}_{season}',
-    constraints: ['CREATE CONSTRAINT seasontotw_id IF NOT EXISTS FOR (st:SeasonTOTW) REQUIRE st.id IS UNIQUE'],
+    constraints: ['CREATE CONSTRAINT seasontotw_id_graphlabel IF NOT EXISTS FOR (st:SeasonTOTW) REQUIRE (st.id, st.graphLabel) IS UNIQUE'],
     filters: {
       'TOTW SCORE': (value) => value && value.toString().trim() !== '' && value.toString().toLowerCase() !== 'n/a'
     }
@@ -653,7 +653,7 @@ const schema = {
       month: { type: 'string', required: false }
     },
     idPattern: 'potm_{season}_{date}',
-    constraints: ['CREATE CONSTRAINT playerofmonth_id IF NOT EXISTS FOR (pm:PlayersOfTheMonth) REQUIRE pm.id IS UNIQUE']
+    constraints: ['CREATE CONSTRAINT playerofmonth_id_graphlabel IF NOT EXISTS FOR (pm:PlayersOfTheMonth) REQUIRE (pm.id, pm.graphLabel) IS UNIQUE']
   },
 
   // ============================================================================
@@ -692,7 +692,7 @@ const schema = {
       season202627: { type: 'string', required: false }
     },
     idPattern: 'captainaward_{itemSlug}',
-    constraints: ['CREATE CONSTRAINT captainaward_id IF NOT EXISTS FOR (ca:CaptainsAndAwards) REQUIRE ca.id IS UNIQUE'],
+    constraints: ['CREATE CONSTRAINT captainaward_id_graphlabel IF NOT EXISTS FOR (ca:CaptainsAndAwards) REQUIRE (ca.id, ca.graphLabel) IS UNIQUE'],
     // Custom node creation logic - one node per Item with season properties
     customNodeCreation: true
   },
@@ -732,7 +732,7 @@ const schema = {
       graphLabel: { type: 'string', required: true }
     },
     idPattern: 'historicalaward_{itemSlug}',
-    constraints: ['CREATE CONSTRAINT historicalaward_id IF NOT EXISTS FOR (ha:HistoricalAward) REQUIRE ha.id IS UNIQUE'],
+    constraints: ['CREATE CONSTRAINT historicalaward_id_graphlabel IF NOT EXISTS FOR (ha:HistoricalAward) REQUIRE (ha.id, ha.graphLabel) IS UNIQUE'],
     // Custom node creation logic - loaded from historicalAwardsObject, not CSV
     customNodeCreation: true
   },
@@ -757,7 +757,7 @@ const schema = {
       challengerValue: { type: 'number', required: false },
     },
     idPattern: 'record_{category}_{recordNameSlug}',
-    constraints: ['CREATE CONSTRAINT clubrecord_id IF NOT EXISTS FOR (cr:ClubRecord) REQUIRE cr.id IS UNIQUE'],
+    constraints: ['CREATE CONSTRAINT clubrecord_id_graphlabel IF NOT EXISTS FOR (cr:ClubRecord) REQUIRE (cr.id, cr.graphLabel) IS UNIQUE'],
     customNodeCreation: true,
   },
 
@@ -778,7 +778,7 @@ const schema = {
       description: { type: 'string', required: false },
     },
     idPattern: 'badge_{playerSlug}_{badgeKey}',
-    constraints: ['CREATE CONSTRAINT playerbadge_id IF NOT EXISTS FOR (pb:PlayerBadge) REQUIRE pb.id IS UNIQUE'],
+    constraints: ['CREATE CONSTRAINT playerbadge_id_graphlabel IF NOT EXISTS FOR (pb:PlayerBadge) REQUIRE (pb.id, pb.graphLabel) IS UNIQUE'],
     customNodeCreation: true,
   },
 
@@ -808,7 +808,7 @@ const schema = {
       longitude: { type: 'number', required: false }
     },
     idPattern: 'opposition_{opposition}',
-    constraints: ['CREATE CONSTRAINT OppositionDetails_id IF NOT EXISTS FOR (od:OppositionDetails) REQUIRE od.id IS UNIQUE']
+    constraints: ['CREATE CONSTRAINT OppositionDetails_id_graphlabel IF NOT EXISTS FOR (od:OppositionDetails) REQUIRE (od.id, od.graphLabel) IS UNIQUE']
   },
 
   // ============================================================================
@@ -976,7 +976,7 @@ const schema = {
       allTimeFantasyPointsPositionRank: { type: 'integer', required: false },
     },
     idPattern: 'test_{playerName}',
-    constraints: ['CREATE CONSTRAINT testdata_id IF NOT EXISTS FOR (td:TestData) REQUIRE td.id IS UNIQUE']
+    constraints: ['CREATE CONSTRAINT testdata_id_graphlabel IF NOT EXISTS FOR (td:TestData) REQUIRE (td.id, td.graphLabel) IS UNIQUE']
   },
 
   // ============================================================================
@@ -992,7 +992,7 @@ const schema = {
       graphLabel: { type: 'string', required: false }
     },
     idPattern: 'unanswered_questions',
-    constraints: ['CREATE CONSTRAINT unansweredquestions_id IF NOT EXISTS FOR (uq:UnansweredQuestions) REQUIRE uq.id IS UNIQUE']
+    constraints: ['CREATE CONSTRAINT unansweredquestions_id_graphlabel IF NOT EXISTS FOR (uq:UnansweredQuestions) REQUIRE (uq.id, uq.graphLabel) IS UNIQUE']
   },
 
   // ============================================================================
@@ -1032,7 +1032,7 @@ const schema = {
       lastUpdated: { type: 'datetime', required: false }
     },
     idPattern: 'leaguetable_{season}_{teamName}_{team}',
-    constraints: ['CREATE CONSTRAINT leaguetable_id IF NOT EXISTS FOR (lt:LeagueTable) REQUIRE lt.id IS UNIQUE']
+    constraints: ['CREATE CONSTRAINT leaguetable_id_graphlabel IF NOT EXISTS FOR (lt:LeagueTable) REQUIRE (lt.id, lt.graphLabel) IS UNIQUE']
   },
 
   // ============================================================================
@@ -1337,6 +1337,29 @@ const validators = {
 // ============================================================================
 // Utility Functions
 // ============================================================================
+const SPREADSHEET_ERROR_PATTERN = /#(REF|N\/A|VALUE|DIV\/0|NAME\?|NULL|NUM|ERROR)!?/i;
+// Java regex for Neo4j `=~`. Matches ids such as test_#REF!.
+const SPREADSHEET_ERROR_CYPHER_REGEX = '(?i).*#(REF!|N/A|VALUE!|DIV/0!|NAME\\?|NULL!|NUM!|ERROR!).*';
+
+function containsSpreadsheetError(value) {
+  if (value == null) return false;
+  return SPREADSHEET_ERROR_PATTERN.test(String(value));
+}
+
+function isInvalidGeneratedNodeId(id, properties = {}) {
+  const text = String(id || '');
+  if (!text || text.includes('undefined') || text.includes('null')) {
+    return true;
+  }
+  if (containsSpreadsheetError(text)) {
+    return true;
+  }
+  if (containsSpreadsheetError(properties.playerName)) {
+    return true;
+  }
+  return false;
+}
+
 const utils = {
   generateId: (pattern, data) => {
     return pattern.replace(/\{(\w+)\}/g, (match, key) => {
@@ -1344,6 +1367,11 @@ const utils = {
       return value.toString().replace(/\s+/g, '_');
     });
   },
+
+  containsSpreadsheetError,
+  isInvalidGeneratedNodeId,
+  SPREADSHEET_ERROR_PATTERN,
+  SPREADSHEET_ERROR_CYPHER_REGEX,
 
   mapCSVToProperties: (csvRow, tableSchema) => {
     const properties = {};
